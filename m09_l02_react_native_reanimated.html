@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master React Native Reanimated for high-performance animations running entirely on the UI thread">
+    <meta name="author" content="React Native & Expo Course">
+    <title>React Native Reanimated | Module 9: Animations and Gestures | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m09_l01_animation_fundamentals.html">Module 9</a> &gt;
+            <span>Lesson 9.2</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 9: Animations and Gestures</p>
+                <h1>React Native Reanimated</h1>
+                <p class="lesson-subtitle">Build 60fps animations that run entirely on the UI thread with the modern animation library</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand why Reanimated improves upon the built-in Animated API</li>
+                    <li>Work with shared values and the worklet concept</li>
+                    <li>Use useAnimatedStyle for dynamic styling</li>
+                    <li>Implement animations with useSharedValue and withTiming/withSpring</li>
+                    <li>Create animated reactions and derived values</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#why-reanimated">Why Reanimated?</a></li>
+                        <li><a href="#installation">Installation and Setup</a></li>
+                        <li><a href="#shared-values">Shared Values</a></li>
+                        <li><a href="#animated-styles">Animated Styles</a></li>
+                        <li><a href="#animation-functions">Animation Functions</a></li>
+                        <li><a href="#worklets">Understanding Worklets</a></li>
+                        <li><a href="#derived-values">Derived and Reactive Values</a></li>
+                        <li><a href="#animated-props">Animated Props</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Why Reanimated -->
+            <section id="why-reanimated">
+                <h2>Why Reanimated?</h2>
+
+                <p>React Native Reanimated is a powerful animation library that runs animations directly on the UI thread, eliminating the performance bottlenecks of the JavaScript bridge. While the built-in Animated API is good for basic animations, Reanimated unlocks possibilities for complex, gesture-driven, and highly performant animations.</p>
+
+                <h3>Animated API vs Reanimated</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Animated["Built-in Animated API"]
+        A1[JS Thread] -->|"Bridge (async)"| A2[UI Thread]
+        A3[Limited native driver support]
+        A4[Can't animate layout props natively]
+    end
+    
+    subgraph Reanimated["Reanimated"]
+        B1[Worklet Code] -->|"Runs directly"| B2[UI Thread]
+        B3[Full native execution]
+        B4[Animate any prop]
+    end
+    
+    style Animated fill:#fff3e0
+    style Reanimated fill:#e8f5e9
+</pre>
+
+                <h3>Key Advantages</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Feature</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Animated API</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Reanimated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Transform animations</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ Native driver</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ UI thread</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Layout animations</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">❌ JS thread only</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ UI thread</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Color animations</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">❌ JS thread only</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ UI thread</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Gesture integration</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">⚠️ Limited</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ Seamless</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Conditional logic</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">❌ Requires JS</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ In worklets</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Layout transitions</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">❌ Not supported</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ Built-in</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 When to Use Reanimated</h4>
+                    <ul>
+                        <li>Complex gesture-driven animations (swipe cards, drag-to-delete)</li>
+                        <li>Animations that respond to scroll position</li>
+                        <li>Layout animations (width, height, position changes)</li>
+                        <li>Any animation where 60fps is critical</li>
+                        <li>Animations with conditional logic or calculations</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Installation -->
+            <section id="installation">
+                <h2>Installation and Setup</h2>
+
+                <p>Reanimated requires some configuration, but Expo makes it straightforward.</p>
+
+                <h3>Installing with Expo</h3>
+
+                <pre><code># Install Reanimated
+npx expo install react-native-reanimated
+
+# Reanimated is included in Expo SDK 49+ by default
+# Just import and use!</code></pre>
+
+                <h3>Babel Configuration</h3>
+
+                <p>Update your <code>babel.config.js</code> to include the Reanimated plugin:</p>
+
+                <pre><code>// babel.config.js
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: [
+      // Reanimated plugin must be listed last
+      'react-native-reanimated/plugin',
+    ],
+  };
+};</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Important</h4>
+                    <p>After adding the Babel plugin, you need to clear the Metro bundler cache:</p>
+                    <pre><code>npx expo start --clear</code></pre>
+                </div>
+
+                <h3>Basic Import Pattern</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withDelay,
+  withSequence,
+  withRepeat,
+  Easing,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from 'react-native-reanimated';</code></pre>
+            </section>
+
+            <!-- Shared Values -->
+            <section id="shared-values">
+                <h2>Shared Values</h2>
+
+                <p>Shared values are the foundation of Reanimated. Unlike React state, shared values can be read and modified directly on the UI thread without causing re-renders.</p>
+
+                <h3>Creating Shared Values</h3>
+
+                <pre><code>import { useSharedValue } from 'react-native-reanimated';
+
+function MyComponent() {
+  // Create a shared value with initial value
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const position = useSharedValue({ x: 0, y: 0 });
+  
+  // Shared values persist across re-renders
+  // but don't cause re-renders when modified
+  
+  // Direct modification (instant, no animation)
+  const handleReset = () => {
+    opacity.value = 0;
+    scale.value = 1;
+    position.value = { x: 0, y: 0 };
+  };
+  
+  // Read the current value
+  const logValue = () => {
+    console.log('Current opacity:', opacity.value);
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>Shared Value vs React State</h3>
+
+                <pre><code>import { useState } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
+
+function ComparisonExample() {
+  // React State - causes re-render on every change
+  const [reactOpacity, setReactOpacity] = useState(0);
+  
+  // Shared Value - NO re-render on change
+  const reanimatedOpacity = useSharedValue(0);
+  
+  // ❌ This causes 60 re-renders per second!
+  const animateWithState = () => {
+    const interval = setInterval(() => {
+      setReactOpacity(prev => {
+        if (prev >= 1) {
+          clearInterval(interval);
+          return 1;
+        }
+        return prev + 0.016; // ~60fps
+      });
+    }, 16);
+  };
+  
+  // ✅ This runs on UI thread, no re-renders
+  const animateWithReanimated = () => {
+    reanimatedOpacity.value = withTiming(1, { duration: 1000 });
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>Shared Value Types</h3>
+
+                <pre><code>import { useSharedValue } from 'react-native-reanimated';
+
+// Numbers (most common)
+const opacity = useSharedValue(0);
+const rotation = useSharedValue(0);
+
+// Objects
+const position = useSharedValue({ x: 0, y: 0 });
+const transform = useSharedValue({
+  translateX: 0,
+  translateY: 0,
+  scale: 1,
+  rotation: 0,
+});
+
+// Arrays
+const path = useSharedValue([0, 0, 100, 100]);
+
+// Strings (for colors, etc.)
+const color = useSharedValue('#FF0000');
+
+// Booleans
+const isActive = useSharedValue(false);
+
+// Accessing nested values
+const updateX = () => {
+  // Modify nested property
+  position.value = {
+    ...position.value,
+    x: position.value.x + 10,
+  };
+};</code></pre>
+
+                <h3>Visualizing Shared Values</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph React["React Component (JS Thread)"]
+        A[useSharedValue hook]
+        B[Returns SharedValue object]
+    end
+    
+    subgraph Shared["Shared Value"]
+        C[".value property"]
+        D[Accessible from both threads]
+    end
+    
+    subgraph UI["UI Thread"]
+        E[useAnimatedStyle]
+        F[Gesture handlers]
+        G[Worklets]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    D --> G
+    
+    style React fill:#fff3e0
+    style Shared fill:#e3f2fd
+    style UI fill:#e8f5e9
+</pre>
+            </section>
+
+            <!-- Animated Styles -->
+            <section id="animated-styles">
+                <h2>Animated Styles</h2>
+
+                <p>The <code>useAnimatedStyle</code> hook creates style objects that automatically update when shared values change, all on the UI thread.</p>
+
+                <h3>Basic useAnimatedStyle</h3>
+
+                <pre><code>import React from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+
+function AnimatedBox() {
+  const scale = useSharedValue(1);
+  
+  // This function runs on the UI thread
+  const animatedStyles = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+  
+  const handlePress = () => {
+    scale.value = withSpring(scale.value === 1 ? 1.5 : 1);
+  };
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Pressable onPress={handlePress}&gt;
+        &lt;Animated.View style={[styles.box, animatedStyles]} /&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  box: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+  },
+});</code></pre>
+
+                <h3>Multiple Animated Properties</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated';
+
+function MultiPropertyAnimation() {
+  const progress = useSharedValue(0);
+  
+  const animatedStyles = useAnimatedStyle(() => {
+    return {
+      opacity: progress.value,
+      transform: [
+        { translateY: (1 - progress.value) * 50 },
+        { scale: 0.8 + (progress.value * 0.2) },
+        { rotate: `${progress.value * 360}deg` },
+      ],
+      backgroundColor: interpolateColor(
+        progress.value,
+        [0, 1],
+        ['#FF0000', '#00FF00']
+      ),
+    };
+  });
+  
+  const animate = () => {
+    progress.value = withTiming(progress.value === 0 ? 1 : 0, {
+      duration: 500,
+    });
+  };
+  
+  return (
+    &lt;Pressable onPress={animate}&gt;
+      &lt;Animated.View style={[styles.box, animatedStyles]} /&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Conditional Styles in Worklets</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+
+function ConditionalAnimation() {
+  const isExpanded = useSharedValue(false);
+  const position = useSharedValue(0);
+  
+  const animatedStyles = useAnimatedStyle(() => {
+    // You can use conditionals inside useAnimatedStyle!
+    const backgroundColor = isExpanded.value ? '#34C759' : '#007AFF';
+    const borderRadius = isExpanded.value ? 20 : 10;
+    
+    return {
+      width: isExpanded.value ? 200 : 100,
+      height: isExpanded.value ? 200 : 100,
+      backgroundColor,
+      borderRadius,
+      transform: [
+        { translateX: position.value },
+      ],
+    };
+  });
+  
+  const toggle = () => {
+    isExpanded.value = !isExpanded.value;
+    position.value = withSpring(isExpanded.value ? 50 : 0);
+  };
+  
+  return (
+    &lt;Pressable onPress={toggle}&gt;
+      &lt;Animated.View style={animatedStyles} /&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ useAnimatedStyle Rules</h4>
+                    <ul>
+                        <li>Must return a style object</li>
+                        <li>Runs on UI thread (it's a worklet)</li>
+                        <li>Don't call React hooks or access React state inside</li>
+                        <li>Don't use <code>console.log</code> (use <code>runOnJS</code> instead)</li>
+                        <li>Must be used with <code>Animated.View</code> or other Animated components</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Animation Functions -->
+            <section id="animation-functions">
+                <h2>Animation Functions</h2>
+
+                <p>Reanimated provides animation functions that define how values change over time. These replace the <code>Animated.timing</code>, <code>Animated.spring</code>, and <code>Animated.decay</code> from the built-in API.</p>
+
+                <h3>withTiming</h3>
+
+                <p>Creates a timing-based animation with configurable duration and easing.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+
+function TimingExample() {
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(-100);
+  
+  const fadeIn = () => {
+    // Basic timing animation
+    opacity.value = withTiming(1, {
+      duration: 500,
+    });
+  };
+  
+  const slideIn = () => {
+    // Timing with custom easing
+    translateX.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    });
+  };
+  
+  const animateWithCallback = () => {
+    opacity.value = withTiming(1, { duration: 500 }, (finished) => {
+      // Callback runs on UI thread
+      if (finished) {
+        // Animation completed
+        console.log('Animation finished!'); // Won't work!
+        // Use runOnJS for JS thread operations
+      }
+    });
+  };
+  
+  return (/* ... */);
+}
+
+// Available Easing functions
+const easingExamples = {
+  linear: Easing.linear,
+  ease: Easing.ease,
+  
+  // Quadratic
+  easeIn: Easing.in(Easing.quad),
+  easeOut: Easing.out(Easing.quad),
+  easeInOut: Easing.inOut(Easing.quad),
+  
+  // Cubic
+  cubicIn: Easing.in(Easing.cubic),
+  cubicOut: Easing.out(Easing.cubic),
+  
+  // Exponential
+  expIn: Easing.in(Easing.exp),
+  expOut: Easing.out(Easing.exp),
+  
+  // Elastic and bounce
+  elastic: Easing.elastic(1),
+  bounce: Easing.bounce,
+  
+  // Back (overshoots)
+  back: Easing.back(1.5),
+  
+  // Custom bezier curve
+  bezier: Easing.bezier(0.25, 0.1, 0.25, 1),
+};</code></pre>
+
+                <h3>withSpring</h3>
+
+                <p>Creates physics-based spring animations. These feel more natural for interactive UI.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+function SpringExample() {
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  
+  // Default spring configuration
+  const bounceDefault = () => {
+    scale.value = withSpring(1.5);
+  };
+  
+  // Custom spring configuration
+  const bounceCustom = () => {
+    scale.value = withSpring(1.5, {
+      damping: 10,        // How quickly spring settles (default: 10)
+      stiffness: 100,     // Spring stiffness (default: 100)
+      mass: 1,            // Object mass (default: 1)
+      overshootClamping: false,  // Prevent overshooting (default: false)
+      restDisplacementThreshold: 0.01,  // When to stop (default: 0.01)
+      restSpeedThreshold: 2,            // Speed threshold (default: 2)
+    });
+  };
+  
+  // Very bouncy spring
+  const bouncySpring = () => {
+    scale.value = withSpring(1.5, {
+      damping: 4,
+      stiffness: 80,
+    });
+  };
+  
+  // Stiff, quick spring
+  const stiffSpring = () => {
+    scale.value = withSpring(1.5, {
+      damping: 20,
+      stiffness: 200,
+    });
+  };
+  
+  // Spring with initial velocity
+  const springWithVelocity = () => {
+    rotation.value = withSpring(360, {
+      velocity: 1000,  // Initial velocity
+      damping: 15,
+    });
+  };
+  
+  return (/* ... */);
+}
+
+// Spring presets for common use cases
+const SpringPresets = {
+  gentle: { damping: 15, stiffness: 100 },
+  bouncy: { damping: 5, stiffness: 80 },
+  stiff: { damping: 20, stiffness: 200 },
+  slow: { damping: 20, stiffness: 50 },
+};</code></pre>
+
+                <h3>withDecay</h3>
+
+                <p>Creates momentum-based animations that decelerate over time. Perfect for fling gestures.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withDecay,
+} from 'react-native-reanimated';
+
+function DecayExample() {
+  const translateX = useSharedValue(0);
+  
+  // Basic decay with velocity
+  const fling = (velocity: number) => {
+    translateX.value = withDecay({
+      velocity: velocity,      // Initial velocity (required)
+      deceleration: 0.998,     // Deceleration rate (default: 0.998)
+    });
+  };
+  
+  // Decay with boundaries (clamp)
+  const flingWithBounds = (velocity: number) => {
+    translateX.value = withDecay({
+      velocity: velocity,
+      deceleration: 0.998,
+      clamp: [-200, 200],  // Stop at these boundaries
+    });
+  };
+  
+  // Decay with rubberband effect at boundaries
+  const flingRubberband = (velocity: number) => {
+    translateX.value = withDecay({
+      velocity: velocity,
+      rubberBandEffect: true,
+      rubberBandFactor: 0.6,
+      clamp: [-200, 200],
+    });
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>withDelay</h3>
+
+                <p>Delays the start of an animation.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withDelay,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
+
+function DelayExample() {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(50);
+  
+  const animateIn = () => {
+    // Delay the fade in by 300ms
+    opacity.value = withDelay(300, withTiming(1, { duration: 500 }));
+    
+    // Slide up immediately
+    translateY.value = withSpring(0);
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>withSequence</h3>
+
+                <p>Runs animations one after another.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withSequence,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
+
+function SequenceExample() {
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  
+  // Simple sequence
+  const pulseAnimation = () => {
+    scale.value = withSequence(
+      withTiming(1.2, { duration: 150 }),
+      withTiming(1, { duration: 150 })
+    );
+  };
+  
+  // Shake animation
+  const shakeAnimation = () => {
+    rotation.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
+  
+  // Complex sequence
+  const complexAnimation = () => {
+    scale.value = withSequence(
+      withTiming(0.8, { duration: 100 }),  // Press down
+      withSpring(1.2),                      // Bounce up
+      withSpring(1)                         // Settle
+    );
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>withRepeat</h3>
+
+                <p>Repeats an animation a specified number of times or infinitely.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+  cancelAnimation,
+} from 'react-native-reanimated';
+
+function RepeatExample() {
+  const rotation = useSharedValue(0);
+  const pulse = useSharedValue(1);
+  const bounce = useSharedValue(0);
+  
+  // Infinite rotation
+  const startSpinning = () => {
+    rotation.value = withRepeat(
+      withTiming(360, { 
+        duration: 1000, 
+        easing: Easing.linear 
+      }),
+      -1,  // -1 = infinite, positive number = that many times
+      false // reverse: if true, alternates direction
+    );
+  };
+  
+  // Stop spinning
+  const stopSpinning = () => {
+    cancelAnimation(rotation);
+  };
+  
+  // Pulsing animation (repeats with reverse)
+  const startPulsing = () => {
+    pulse.value = withRepeat(
+      withTiming(1.2, { duration: 500 }),
+      -1,   // Infinite
+      true  // Reverse each iteration
+    );
+  };
+  
+  // Bounce animation (3 times)
+  const bounceThreeTimes = () => {
+    bounce.value = withRepeat(
+      withSequence(
+        withTiming(-20, { duration: 200 }),
+        withTiming(0, { duration: 200 })
+      ),
+      3,     // Repeat 3 times
+      false  // Don't reverse
+    );
+  };
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>Combining Animations</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withDelay,
+  withSequence,
+  withRepeat,
+} from 'react-native-reanimated';
+
+function CombinedAnimations() {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(50);
+  const scale = useSharedValue(0.5);
+  
+  const animateIn = () => {
+    // Fade in
+    opacity.value = withTiming(1, { duration: 300 });
+    
+    // Slide up with spring
+    translateY.value = withSpring(0, {
+      damping: 12,
+      stiffness: 100,
+    });
+    
+    // Scale up after a delay, then pulse
+    scale.value = withDelay(
+      200,
+      withSequence(
+        withSpring(1.1, { damping: 4 }),
+        withSpring(1, { damping: 8 })
+      )
+    );
+  };
+  
+  const animateOut = () => {
+    opacity.value = withTiming(0, { duration: 200 });
+    translateY.value = withTiming(50, { duration: 200 });
+    scale.value = withTiming(0.5, { duration: 200 });
+  };
+  
+  const animatedStyles = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+  
+  return (
+    &lt;Animated.View style={animatedStyles}&gt;
+      {/* Content */}
+    &lt;/Animated.View&gt;
+  );
+}</code></pre>
+
+                <h3>Animation Callbacks</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+
+function CallbackExample() {
+  const [isComplete, setIsComplete] = useState(false);
+  const opacity = useSharedValue(0);
+  
+  const animateWithCallback = () => {
+    opacity.value = withTiming(
+      1,
+      { duration: 500 },
+      (finished) => {
+        // This runs on UI thread!
+        if (finished) {
+          // To update React state, use runOnJS
+          runOnJS(setIsComplete)(true);
+          
+          // Chain another animation
+          opacity.value = withDelay(
+            1000,
+            withTiming(0, { duration: 500 })
+          );
+        }
+      }
+    );
+  };
+  
+  return (/* ... */);
+}</code></pre>
+            </section>
+
+            <!-- Worklets -->
+            <section id="worklets">
+                <h2>Understanding Worklets</h2>
+
+                <p>Worklets are small JavaScript functions that run on the UI thread. They're the secret behind Reanimated's performance—by running directly on the UI thread, they avoid the JavaScript bridge entirely.</p>
+
+                <h3>What is a Worklet?</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph JS["JS Thread"]
+        A[React Components]
+        B[State Updates]
+        C[Event Handlers]
+    end
+    
+    subgraph UI["UI Thread"]
+        D[useAnimatedStyle - worklet]
+        E[Gesture callbacks - worklet]
+        F[Animation callbacks - worklet]
+    end
+    
+    A -.->|"Babel transform"| D
+    
+    style JS fill:#fff3e0
+    style UI fill:#e8f5e9
+</pre>
+
+                <h3>Implicit Worklets</h3>
+
+                <p>Some functions are automatically treated as worklets:</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useDerivedValue,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated';
+
+// useAnimatedStyle callback is implicitly a worklet
+const animatedStyles = useAnimatedStyle(() => {
+  // This runs on UI thread
+  return {
+    opacity: opacity.value,
+  };
+});
+
+// useDerivedValue callback is implicitly a worklet
+const derivedOpacity = useDerivedValue(() => {
+  // This runs on UI thread
+  return Math.min(opacity.value * 2, 1);
+});
+
+// Scroll handler callbacks are implicitly worklets
+const scrollHandler = useAnimatedScrollHandler({
+  onScroll: (event) => {
+    // This runs on UI thread
+    scrollY.value = event.contentOffset.y;
+  },
+});</code></pre>
+
+                <h3>Creating Explicit Worklets</h3>
+
+                <pre><code>import { useSharedValue, runOnUI } from 'react-native-reanimated';
+
+// Define a worklet with the 'worklet' directive
+function myWorklet(value: number) {
+  'worklet';
+  // This function runs on UI thread
+  return value * 2;
+}
+
+// Use within animated style
+const animatedStyles = useAnimatedStyle(() => {
+  const doubled = myWorklet(opacity.value);
+  return { opacity: doubled };
+});
+
+// Run a worklet from JS thread
+function triggerFromJS() {
+  runOnUI(myWorklet)(5);
+}</code></pre>
+
+                <h3>Worklet Limitations</h3>
+
+                <pre><code>// ❌ CANNOT do in worklets:
+
+// Access React state
+const animatedStyles = useAnimatedStyle(() => {
+  // return { opacity: reactState }; // ERROR!
+});
+
+// Call React hooks
+const animatedStyles = useAnimatedStyle(() => {
+  // const [state, setState] = useState(); // ERROR!
+});
+
+// Use console.log directly
+const animatedStyles = useAnimatedStyle(() => {
+  // console.log(opacity.value); // Won't work properly
+});
+
+// Access non-shared variables from closure
+let regularVariable = 5;
+const animatedStyles = useAnimatedStyle(() => {
+  // return { opacity: regularVariable }; // May not work as expected
+});
+
+
+// ✅ CAN do in worklets:
+
+// Access shared values
+const opacity = useSharedValue(0);
+const animatedStyles = useAnimatedStyle(() => {
+  return { opacity: opacity.value }; // ✅
+});
+
+// Use math and calculations
+const animatedStyles = useAnimatedStyle(() => {
+  const calculated = Math.sin(progress.value * Math.PI);
+  return { opacity: calculated }; // ✅
+});
+
+// Use conditionals
+const animatedStyles = useAnimatedStyle(() => {
+  return {
+    backgroundColor: isActive.value ? 'green' : 'red', // ✅
+  };
+});
+
+// Call runOnJS for JS thread operations
+const animatedStyles = useAnimatedStyle(() => {
+  if (progress.value > 0.5) {
+    runOnJS(myJSFunction)(); // ✅
+  }
+  return { opacity: progress.value };
+});</code></pre>
+
+                <h3>runOnJS - Bridging Back to JS</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+
+function RunOnJSExample() {
+  const [status, setStatus] = useState('idle');
+  const progress = useSharedValue(0);
+  
+  // Regular JS function
+  const updateStatus = (newStatus: string) => {
+    setStatus(newStatus);
+    console.log('Status updated:', newStatus);
+  };
+  
+  const startAnimation = () => {
+    setStatus('animating');
+    
+    progress.value = withTiming(1, { duration: 1000 }, (finished) => {
+      // Inside callback, we're on UI thread
+      if (finished) {
+        // Use runOnJS to call JS function
+        runOnJS(updateStatus)('complete');
+      }
+    });
+  };
+  
+  const animatedStyles = useAnimatedStyle(() => {
+    // Can also use runOnJS in animated styles
+    if (progress.value === 1) {
+      runOnJS(updateStatus)('reached end');
+    }
+    
+    return {
+      opacity: progress.value,
+    };
+  });
+  
+  return (/* ... */);
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Worklet Best Practices</h4>
+                    <ul>
+                        <li>Keep worklets small and focused</li>
+                        <li>Avoid complex logic that could slow down the UI thread</li>
+                        <li>Use <code>runOnJS</code> sparingly—it crosses the bridge</li>
+                        <li>Don't modify shared values from multiple worklets simultaneously</li>
+                        <li>Remember: worklets can't access React state or hooks</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Derived Values -->
+            <section id="derived-values">
+                <h2>Derived and Reactive Values</h2>
+
+                <p>Reanimated provides hooks for creating values that automatically update based on other shared values. This enables reactive programming patterns on the UI thread.</p>
+
+                <h3>useDerivedValue</h3>
+
+                <p>Creates a shared value that's computed from other shared values. It automatically updates when its dependencies change.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+
+function DerivedValueExample() {
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  
+  // Derived value: computed from x and y
+  const distance = useDerivedValue(() => {
+    return Math.sqrt(x.value ** 2 + y.value ** 2);
+  });
+  
+  // Another derived value using the first
+  const normalizedDistance = useDerivedValue(() => {
+    const maxDistance = 200;
+    return Math.min(distance.value / maxDistance, 1);
+  });
+  
+  // Use in animated style
+  const animatedStyles = useAnimatedStyle(() => ({
+    opacity: 1 - normalizedDistance.value,
+    transform: [
+      { scale: 1 - (normalizedDistance.value * 0.3) },
+    ],
+  }));
+  
+  const moveToPosition = (newX: number, newY: number) => {
+    x.value = withSpring(newX);
+    y.value = withSpring(newY);
+  };
+  
+  return (
+    &lt;Animated.View style={animatedStyles}&gt;
+      {/* Content */}
+    &lt;/Animated.View&gt;
+  );
+}</code></pre>
+
+                <h3>Interpolation with useDerivedValue</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+function InterpolationExample() {
+  const scrollY = useSharedValue(0);
+  
+  // Interpolate scroll position to header height
+  const headerHeight = useDerivedValue(() => {
+    return interpolate(
+      scrollY.value,
+      [0, 100],           // Input range
+      [200, 80],          // Output range
+      Extrapolation.CLAMP // Don't go outside range
+    );
+  });
+  
+  // Interpolate to header opacity
+  const headerOpacity = useDerivedValue(() => {
+    return interpolate(
+      scrollY.value,
+      [0, 50, 100],
+      [1, 0.5, 0],
+      Extrapolation.CLAMP
+    );
+  });
+  
+  // Interpolate rotation (in degrees)
+  const rotation = useDerivedValue(() => {
+    return `${interpolate(
+      scrollY.value,
+      [0, 100],
+      [0, 180]
+    )}deg`;
+  });
+  
+  const headerStyles = useAnimatedStyle(() => ({
+    height: headerHeight.value,
+    opacity: headerOpacity.value,
+  }));
+  
+  const iconStyles = useAnimatedStyle(() => ({
+    transform: [{ rotate: rotation.value }],
+  }));
+  
+  return (/* ... */);
+}
+
+// Extrapolation options:
+// Extrapolation.CLAMP - Stop at boundaries
+// Extrapolation.EXTEND - Continue beyond boundaries (default)
+// Extrapolation.IDENTITY - Return input value outside range
+
+// You can also specify left and right separately:
+interpolate(
+  value,
+  [0, 100],
+  [0, 1],
+  {
+    extrapolateLeft: Extrapolation.CLAMP,
+    extrapolateRight: Extrapolation.EXTEND,
+  }
+);</code></pre>
+
+                <h3>Color Interpolation</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  interpolateColor,
+  withTiming,
+} from 'react-native-reanimated';
+
+function ColorInterpolationExample() {
+  const progress = useSharedValue(0);
+  
+  // Simple two-color interpolation
+  const backgroundColor = useDerivedValue(() => {
+    return interpolateColor(
+      progress.value,
+      [0, 1],
+      ['#FF0000', '#00FF00']
+    );
+  });
+  
+  // Multi-stop color interpolation
+  const gradientColor = useDerivedValue(() => {
+    return interpolateColor(
+      progress.value,
+      [0, 0.25, 0.5, 0.75, 1],
+      ['#FF0000', '#FF9500', '#FFCC00', '#34C759', '#007AFF']
+    );
+  });
+  
+  const animatedStyles = useAnimatedStyle(() => ({
+    backgroundColor: backgroundColor.value,
+  }));
+  
+  const toggleColor = () => {
+    progress.value = withTiming(progress.value === 0 ? 1 : 0, {
+      duration: 500,
+    });
+  };
+  
+  return (
+    &lt;Pressable onPress={toggleColor}&gt;
+      &lt;Animated.View style={[styles.box, animatedStyles]} /&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+// Color format options:
+// Hex: '#FF0000'
+// RGB: 'rgb(255, 0, 0)'
+// RGBA: 'rgba(255, 0, 0, 0.5)'
+// HSL: 'hsl(0, 100%, 50%)'
+// Named: 'red', 'blue', etc.</code></pre>
+
+                <h3>useAnimatedReaction</h3>
+
+                <p>Executes a side effect when a shared value changes. Useful for triggering actions based on animation progress.</p>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedReaction,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+
+function ReactionExample() {
+  const [hasReachedEnd, setHasReachedEnd] = useState(false);
+  const position = useSharedValue(0);
+  const progress = useSharedValue(0);
+  
+  // React to position changes
+  useAnimatedReaction(
+    // First function: returns the value to track
+    () => position.value,
+    // Second function: called when tracked value changes
+    (currentValue, previousValue) => {
+      // Both values are available
+      console.log(`Changed from ${previousValue} to ${currentValue}`);
+      
+      // Trigger another animation
+      if (currentValue > 100 && previousValue <= 100) {
+        progress.value = withSpring(1);
+      }
+    }
+  );
+  
+  // React to threshold crossing
+  useAnimatedReaction(
+    () => progress.value > 0.9,
+    (reachedEnd, previouslyReached) => {
+      if (reachedEnd && !previouslyReached) {
+        // Call JS function when threshold is crossed
+        runOnJS(setHasReachedEnd)(true);
+      }
+    }
+  );
+  
+  // React to combined values
+  useAnimatedReaction(
+    () => ({
+      pos: position.value,
+      prog: progress.value,
+    }),
+    (current, previous) => {
+      // React to changes in either value
+      if (current.pos !== previous?.pos) {
+        // Position changed
+      }
+      if (current.prog !== previous?.prog) {
+        // Progress changed
+      }
+    }
+  );
+  
+  return (/* ... */);
+}</code></pre>
+
+                <h3>Derived Value Patterns</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+function DerivedPatterns() {
+  const scrollY = useSharedValue(0);
+  const isExpanded = useSharedValue(false);
+  
+  // Clamped value
+  const clampedScroll = useDerivedValue(() => {
+    return Math.max(0, Math.min(scrollY.value, 200));
+  });
+  
+  // Normalized value (0 to 1)
+  const normalizedScroll = useDerivedValue(() => {
+    return clampedScroll.value / 200;
+  });
+  
+  // Inverted value
+  const invertedScroll = useDerivedValue(() => {
+    return 1 - normalizedScroll.value;
+  });
+  
+  // Boolean to number (for animations)
+  const expandedProgress = useDerivedValue(() => {
+    return isExpanded.value ? 1 : 0;
+  });
+  
+  // Smoothed value (for gesture-driven animations)
+  const smoothedScroll = useDerivedValue(() => {
+    return withSpring(scrollY.value, { damping: 20 });
+  });
+  
+  // Threshold-based value
+  const isPastThreshold = useDerivedValue(() => {
+    return scrollY.value > 100;
+  });
+  
+  // Parallax calculations
+  const parallax = useDerivedValue(() => ({
+    slow: scrollY.value * 0.3,
+    medium: scrollY.value * 0.6,
+    fast: scrollY.value * 1.2,
+  }));
+  
+  const backgroundStyles = useAnimatedStyle(() => ({
+    transform: [{ translateY: parallax.value.slow }],
+  }));
+  
+  const midgroundStyles = useAnimatedStyle(() => ({
+    transform: [{ translateY: parallax.value.medium }],
+  }));
+  
+  const foregroundStyles = useAnimatedStyle(() => ({
+    transform: [{ translateY: parallax.value.fast }],
+  }));
+  
+  return (/* ... */);
+}</code></pre>
+            </section>
+
+            <!-- Animated Props -->
+            <section id="animated-props">
+                <h2>Animated Props</h2>
+
+                <p>Beyond styles, Reanimated can animate component props directly using <code>useAnimatedProps</code>. This is useful for animating SVG elements, text values, and other non-style properties.</p>
+
+                <h3>useAnimatedProps</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
+
+// Create animated version of Circle
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+function AnimatedSVGExample() {
+  const radius = useSharedValue(50);
+  const strokeWidth = useSharedValue(2);
+  
+  // Animate SVG props directly
+  const animatedProps = useAnimatedProps(() => ({
+    r: radius.value,
+    strokeWidth: strokeWidth.value,
+  }));
+  
+  const expand = () => {
+    radius.value = withTiming(100, { duration: 500 });
+    strokeWidth.value = withTiming(5, { duration: 500 });
+  };
+  
+  const contract = () => {
+    radius.value = withTiming(50, { duration: 500 });
+    strokeWidth.value = withTiming(2, { duration: 500 });
+  };
+  
+  return (
+    &lt;Svg height="250" width="250"&gt;
+      &lt;AnimatedCircle
+        cx="125"
+        cy="125"
+        stroke="#007AFF"
+        fill="transparent"
+        animatedProps={animatedProps}
+      /&gt;
+    &lt;/Svg&gt;
+  );
+}</code></pre>
+
+                <h3>Animated Text</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useDerivedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { TextInput, StyleSheet } from 'react-native';
+
+// Use TextInput as a display-only text component for animation
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function AnimatedCounter() {
+  const count = useSharedValue(0);
+  
+  // Format the number as text
+  const text = useDerivedValue(() => {
+    return `${Math.round(count.value)}`;
+  });
+  
+  // Animate the text prop
+  const animatedProps = useAnimatedProps(() => ({
+    text: text.value,
+    defaultValue: text.value,
+  }));
+  
+  const increment = () => {
+    count.value = withTiming(count.value + 100, { duration: 500 });
+  };
+  
+  return (
+    &lt;View&gt;
+      &lt;AnimatedTextInput
+        style={styles.counter}
+        animatedProps={animatedProps}
+        editable={false}
+      /&gt;
+      &lt;Pressable onPress={increment}&gt;
+        &lt;Text&gt;Add 100&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  counter: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+});</code></pre>
+
+                <h3>Progress Ring with Animated Props</h3>
+
+                <pre><code>import React from 'react';
+import { View, Pressable, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+interface ProgressRingProps {
+  size?: number;
+  strokeWidth?: number;
+  progress: Animated.SharedValue&lt;number&gt;;
+}
+
+function ProgressRing({ 
+  size = 120, 
+  strokeWidth = 10, 
+  progress 
+}: ProgressRingProps) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
+  
+  return (
+    &lt;Svg width={size} height={size}&gt;
+      {/* Background circle */}
+      &lt;Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="#E0E0E0"
+        strokeWidth={strokeWidth}
+        fill="transparent"
+      /&gt;
+      
+      {/* Animated progress circle */}
+      &lt;AnimatedCircle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="#007AFF"
+        strokeWidth={strokeWidth}
+        fill="transparent"
+        strokeDasharray={circumference}
+        strokeLinecap="round"
+        animatedProps={animatedProps}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      /&gt;
+    &lt;/Svg&gt;
+  );
+}
+
+// Usage
+function ProgressDemo() {
+  const progress = useSharedValue(0);
+  
+  const animate = () => {
+    progress.value = withTiming(
+      progress.value === 0 ? 1 : 0,
+      { duration: 1000, easing: Easing.inOut(Easing.ease) }
+    );
+  };
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;ProgressRing progress={progress} size={150} /&gt;
+      &lt;Pressable style={styles.button} onPress={animate}&gt;
+        &lt;Text style={styles.buttonText}&gt;Toggle Progress&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Animated ScrollView Props</h3>
+
+                <pre><code>import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+function AnimatedScrollExample() {
+  const scrollY = useSharedValue(0);
+  
+  // Scroll handler (runs on UI thread)
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onBeginDrag: (event) => {
+      console.log('Drag started');
+    },
+    onEndDrag: (event) => {
+      console.log('Drag ended');
+    },
+    onMomentumBegin: (event) => {
+      console.log('Momentum started');
+    },
+    onMomentumEnd: (event) => {
+      console.log('Momentum ended');
+    },
+  });
+  
+  // Header animation based on scroll
+  const headerStyles = useAnimatedStyle(() => {
+    const height = interpolate(
+      scrollY.value,
+      [0, 100],
+      [200, 80],
+      Extrapolation.CLAMP
+    );
+    
+    const opacity = interpolate(
+      scrollY.value,
+      [0, 100],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      height,
+      opacity,
+    };
+  });
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Animated.View style={[styles.header, headerStyles]}&gt;
+        &lt;Text&gt;Collapsing Header&lt;/Text&gt;
+      &lt;/Animated.View&gt;
+      
+      &lt;Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      &gt;
+        {/* Scroll content */}
+      &lt;/Animated.ScrollView&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Creating Animated Components</h4>
+                    <p>Use <code>Animated.createAnimatedComponent()</code> to make any component animatable:</p>
+                    <pre><code>import { Pressable, TextInput } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated from 'react-native-reanimated';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);</code></pre>
+                </div>
+            </section>
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Animated Toggle Switch</h3>
+                    <p>Create a custom toggle switch with smooth animations using Reanimated.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Thumb slides smoothly between positions</li>
+                        <li>Background color transitions between states</li>
+                        <li>Spring animation for natural feel</li>
+                        <li>Track isOn state and call onChange callback</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolateColor,
+  runOnJS,
+} from 'react-native-reanimated';
+
+interface ToggleSwitchProps {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  trackColors?: { on: string; off: string };
+  thumbColor?: string;
+}
+
+function ToggleSwitch({
+  value,
+  onValueChange,
+  trackColors = { on: '#34C759', off: '#E9E9EA' },
+  thumbColor = '#FFFFFF',
+}: ToggleSwitchProps) {
+  const progress = useSharedValue(value ? 1 : 0);
+  
+  const handlePress = () => {
+    const newValue = !value;
+    progress.value = withSpring(newValue ? 1 : 0, {
+      damping: 15,
+      stiffness: 120,
+    });
+    onValueChange(newValue);
+  };
+  
+  const trackStyles = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [trackColors.off, trackColors.on]
+    ),
+  }));
+  
+  const thumbStyles = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: progress.value * 22 },
+      { scale: withSpring(progress.value === 0.5 ? 1.1 : 1) },
+    ],
+  }));
+  
+  return (
+    &lt;Pressable onPress={handlePress}&gt;
+      &lt;Animated.View style={[styles.track, trackStyles]}&gt;
+        &lt;Animated.View 
+          style={[
+            styles.thumb, 
+            { backgroundColor: thumbColor },
+            thumbStyles,
+          ]} 
+        /&gt;
+      &lt;/Animated.View&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+// Usage
+function ToggleDemo() {
+  const [isEnabled, setIsEnabled] = useState(false);
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;ToggleSwitch
+        value={isEnabled}
+        onValueChange={setIsEnabled}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  track: {
+    width: 51,
+    height: 31,
+    borderRadius: 16,
+    padding: 2,
+  },
+  thumb: {
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Collapsing Header</h3>
+                    <p>Build a scroll-responsive header that shrinks as the user scrolls down.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Header shrinks from 200px to 80px as user scrolls</li>
+                        <li>Title fades out as header collapses</li>
+                        <li>Background opacity changes with scroll</li>
+                        <li>Use useAnimatedScrollHandler for scroll tracking</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React from 'react';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+const HEADER_MAX_HEIGHT = 200;
+const HEADER_MIN_HEIGHT = 80;
+const SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+function CollapsingHeader() {
+  const scrollY = useSharedValue(0);
+  
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+  
+  const headerStyles = useAnimatedStyle(() => {
+    const height = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE],
+      [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+      Extrapolation.CLAMP
+    );
+    
+    return { height };
+  });
+  
+  const titleStyles = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE / 2],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    
+    const translateY = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE],
+      [0, -20],
+      Extrapolation.CLAMP
+    );
+    
+    const scale = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE],
+      [1, 0.8],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      opacity,
+      transform: [{ translateY }, { scale }],
+    };
+  });
+  
+  const smallTitleStyles = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [SCROLL_DISTANCE / 2, SCROLL_DISTANCE],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    
+    return { opacity };
+  });
+  
+  const backgroundStyles = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE],
+      [0.3, 1],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      backgroundColor: `rgba(0, 122, 255, ${opacity})`,
+    };
+  });
+  
+  // Generate dummy content
+  const content = Array.from({ length: 30 }, (_, i) => (
+    &lt;View key={i} style={styles.item}&gt;
+      &lt;Text style={styles.itemText}&gt;Item {i + 1}&lt;/Text&gt;
+    &lt;/View&gt;
+  ));
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;StatusBar barStyle="light-content" /&gt;
+      
+      &lt;Animated.View style={[styles.header, headerStyles, backgroundStyles]}&gt;
+        &lt;Animated.Text style={[styles.title, titleStyles]}&gt;
+          Welcome Back
+        &lt;/Animated.Text&gt;
+        &lt;Animated.Text style={[styles.smallTitle, smallTitleStyles]}&gt;
+          Welcome
+        &lt;/Animated.Text&gt;
+      &lt;/Animated.View&gt;
+      
+      &lt;Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ 
+          paddingTop: HEADER_MAX_HEIGHT,
+          paddingBottom: 20,
+        }}
+      &gt;
+        {content}
+      &lt;/Animated.ScrollView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    justifyContent: 'flex-end',
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  title: {
+    color: 'white',
+    fontSize: 34,
+    fontWeight: 'bold',
+  },
+  smallTitle: {
+    position: 'absolute',
+    bottom: 16,
+    left: 20,
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  item: {
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 20,
+    borderRadius: 12,
+  },
+  itemText: {
+    fontSize: 16,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Animated Counter</h3>
+                    <p>Create a number counter that smoothly animates between values.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Display animated number that counts up/down</li>
+                        <li>Format numbers with commas (e.g., 1,234)</li>
+                        <li>Buttons to increment/decrement by various amounts</li>
+                        <li>Spring animation for value changes</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useDerivedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function formatNumber(num: number): string {
+  return Math.round(num).toLocaleString();
+}
+
+function AnimatedCounter() {
+  const count = useSharedValue(0);
+  
+  const formattedValue = useDerivedValue(() => {
+    return formatNumber(count.value);
+  });
+  
+  const animatedProps = useAnimatedProps(() => ({
+    text: formattedValue.value,
+    defaultValue: formattedValue.value,
+  }));
+  
+  const increment = (amount: number) => {
+    count.value = withSpring(count.value + amount, {
+      damping: 15,
+      stiffness: 100,
+    });
+  };
+  
+  const reset = () => {
+    count.value = withSpring(0, {
+      damping: 15,
+      stiffness: 100,
+    });
+  };
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={styles.counterDisplay}&gt;
+        &lt;AnimatedTextInput
+          style={styles.counterText}
+          animatedProps={animatedProps}
+          editable={false}
+        /&gt;
+      &lt;/View&gt;
+      
+      &lt;View style={styles.buttonRow}&gt;
+        &lt;Pressable
+          style={[styles.button, styles.decrementButton]}
+          onPress={() => increment(-100)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;-100&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        
+        &lt;Pressable
+          style={[styles.button, styles.decrementButton]}
+          onPress={() => increment(-10)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;-10&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        
+        &lt;Pressable
+          style={[styles.button, styles.decrementButton]}
+          onPress={() => increment(-1)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;-1&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        
+        &lt;Pressable
+          style={[styles.button, styles.incrementButton]}
+          onPress={() => increment(1)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;+1&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        
+        &lt;Pressable
+          style={[styles.button, styles.incrementButton]}
+          onPress={() => increment(10)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;+10&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        
+        &lt;Pressable
+          style={[styles.button, styles.incrementButton]}
+          onPress={() => increment(100)}
+        &gt;
+          &lt;Text style={styles.buttonText}&gt;+100&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+      
+      &lt;Pressable style={styles.resetButton} onPress={reset}&gt;
+        &lt;Text style={styles.resetText}&gt;Reset&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  counterDisplay: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    borderRadius: 16,
+    marginBottom: 40,
+  },
+  counterText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+    minWidth: 200,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  button: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  incrementButton: {
+    backgroundColor: '#34C759',
+  },
+  decrementButton: {
+    backgroundColor: '#FF3B30',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resetButton: {
+    marginTop: 30,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+  },
+  resetText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>React Native Reanimated revolutionizes animations by running them entirely on the UI thread. This eliminates the performance bottleneck of the JavaScript bridge and enables silky-smooth 60fps animations.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Shared Values:</strong> Use <code>useSharedValue</code> for values that animate without causing re-renders</li>
+                        <li><strong>Animated Styles:</strong> Use <code>useAnimatedStyle</code> to create styles that update on the UI thread</li>
+                        <li><strong>Animation Functions:</strong>
+                            <ul>
+                                <li><code>withTiming</code> — Duration-based animations with easing</li>
+                                <li><code>withSpring</code> — Physics-based spring animations</li>
+                                <li><code>withDecay</code> — Momentum-based deceleration</li>
+                                <li><code>withDelay</code>, <code>withSequence</code>, <code>withRepeat</code> — Composition</li>
+                            </ul>
+                        </li>
+                        <li><strong>Worklets:</strong> Functions that run on UI thread; can use math and conditionals but not React state</li>
+                        <li><strong>runOnJS:</strong> Bridge back to JS thread for state updates and console logs</li>
+                        <li><strong>Derived Values:</strong> Use <code>useDerivedValue</code> for computed values that auto-update</li>
+                        <li><strong>Animated Props:</strong> Use <code>useAnimatedProps</code> for non-style properties like SVG attributes</li>
+                    </ul>
+                </div>
+
+                <h3>Reanimated vs Animated API Quick Reference</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Concept</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Animated API</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Reanimated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Creating values</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>useRef(new Animated.Value(0))</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>useSharedValue(0)</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Timing animation</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>Animated.timing(value, config).start()</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>value.value = withTiming(target, config)</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Spring animation</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>Animated.spring(value, config).start()</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>value.value = withSpring(target, config)</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Interpolation</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>value.interpolate({ inputRange, outputRange })</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>interpolate(value, inputRange, outputRange)</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Applying styles</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>style={{ opacity: value }}</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>useAnimatedStyle(() => ({ ... }))</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>In the next lesson, we'll explore common animation patterns and build practical, reusable animations that you can apply throughout your apps.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l01_animation_fundamentals.html" class="prev-link">← Previous: Animation Fundamentals</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l03_common_animation_patterns.html" class="next-link">Next: Common Animation Patterns →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

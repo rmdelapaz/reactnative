@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master memory management and leak prevention in React Native apps">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Memory Management | Module 10: Performance Optimization | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m10_l01_app_performance.html">Module 10</a> &gt;
+            <span>Lesson 10.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 10: Performance Optimization</p>
+                <h1>Memory Management</h1>
+                <p class="lesson-subtitle">Preventing memory leaks and optimizing memory usage</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand how memory works in React Native</li>
+                    <li>Identify and fix common memory leaks</li>
+                    <li>Properly clean up subscriptions and listeners</li>
+                    <li>Optimize image memory usage</li>
+                    <li>Monitor memory in development and production</li>
+                    <li>Implement memory-efficient patterns</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#memory-basics">Memory Basics</a></li>
+                        <li><a href="#common-leaks">Common Memory Leaks</a></li>
+                        <li><a href="#cleanup-patterns">Cleanup Patterns</a></li>
+                        <li><a href="#image-memory">Image Memory</a></li>
+                        <li><a href="#monitoring">Memory Monitoring</a></li>
+                        <li><a href="#optimization">Memory Optimization</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Memory Basics -->
+            <section id="memory-basics">
+                <h2>Memory Basics</h2>
+
+                <p>React Native apps use memory from both JavaScript and native sides. Understanding where memory is allocated helps you manage it effectively.</p>
+
+                <h3>Memory Architecture</h3>
+
+                <!-- SVG: Memory Architecture -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 650 320" style="max-width: 650px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="650" height="320" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="325" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">React Native Memory Architecture</text>
+                        
+                        <!-- JS Heap -->
+                        <g transform="translate(30, 50)">
+                            <rect width="280" height="240" fill="#61dafb" rx="10"/>
+                            <text x="140" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="white">JavaScript Heap</text>
+                            
+                            <rect x="15" y="50" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="75" y="75" text-anchor="middle" font-size="11" fill="white">React Components</text>
+                            <text x="75" y="90" text-anchor="middle" font-size="9" fill="white">State, Props, Refs</text>
+                            
+                            <rect x="145" y="50" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="205" y="75" text-anchor="middle" font-size="11" fill="white">Closures</text>
+                            <text x="205" y="90" text-anchor="middle" font-size="9" fill="white">Event handlers</text>
+                            
+                            <rect x="15" y="120" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="75" y="145" text-anchor="middle" font-size="11" fill="white">Data Objects</text>
+                            <text x="75" y="160" text-anchor="middle" font-size="9" fill="white">API responses, cache</text>
+                            
+                            <rect x="145" y="120" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="205" y="145" text-anchor="middle" font-size="11" fill="white">Timers/Subscriptions</text>
+                            <text x="205" y="160" text-anchor="middle" font-size="9" fill="white">setInterval, listeners</text>
+                            
+                            <text x="140" y="210" text-anchor="middle" font-size="10" fill="white">Managed by V8/Hermes GC</text>
+                            <text x="140" y="225" text-anchor="middle" font-size="10" fill="white">Typical: 50-150 MB</text>
+                        </g>
+                        
+                        <!-- Native Memory -->
+                        <g transform="translate(340, 50)">
+                            <rect width="280" height="240" fill="#4CAF50" rx="10"/>
+                            <text x="140" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="white">Native Memory</text>
+                            
+                            <rect x="15" y="50" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="75" y="75" text-anchor="middle" font-size="11" fill="white">Images</text>
+                            <text x="75" y="90" text-anchor="middle" font-size="9" fill="white">Bitmaps, textures</text>
+                            
+                            <rect x="145" y="50" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="205" y="75" text-anchor="middle" font-size="11" fill="white">Native Views</text>
+                            <text x="205" y="90" text-anchor="middle" font-size="9" fill="white">UI components</text>
+                            
+                            <rect x="15" y="120" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="75" y="145" text-anchor="middle" font-size="11" fill="white">Video/Audio</text>
+                            <text x="75" y="160" text-anchor="middle" font-size="9" fill="white">Media buffers</text>
+                            
+                            <rect x="145" y="120" width="120" height="60" fill="rgba(255,255,255,0.3)" rx="5"/>
+                            <text x="205" y="145" text-anchor="middle" font-size="11" fill="white">Native Modules</text>
+                            <text x="205" y="160" text-anchor="middle" font-size="9" fill="white">SQLite, WebRTC</text>
+                            
+                            <text x="140" y="210" text-anchor="middle" font-size="10" fill="white">Platform managed</text>
+                            <text x="140" y="225" text-anchor="middle" font-size="10" fill="white">Typical: 100-300 MB</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <h3>Memory Lifecycle</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    A[Allocate] --> B[Use]
+    B --> C{Still needed?}
+    C -->|Yes| B
+    C -->|No| D[Mark for GC]
+    D --> E[Garbage Collected]
+    E --> F[Memory Freed]
+    
+    style A fill:#4CAF50
+    style D fill:#FF9800
+    style F fill:#2196F3
+</pre>
+
+                <h3>What Causes Memory Issues?</h3>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🔴 Memory Leaks</h4>
+                    <p>Memory leaks occur when objects that are no longer needed cannot be garbage collected because something still references them.</p>
+                    <ul>
+                        <li><strong>Uncleared timers:</strong> setInterval running after unmount</li>
+                        <li><strong>Event listeners:</strong> Not removed on cleanup</li>
+                        <li><strong>Closures:</strong> Capturing large objects unnecessarily</li>
+                        <li><strong>Global references:</strong> Storing data on global/window</li>
+                        <li><strong>Detached DOM/Views:</strong> References to unmounted components</li>
+                    </ul>
+                </div>
+
+                <pre><code>// Memory leak example: Timer not cleared
+function BadComponent() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    // ❌ This interval runs forever, even after unmount!
+    setInterval(() => {
+      setCount(c => c + 1);
+    }, 1000);
+  }, []);
+
+  return &lt;Text&gt;{count}&lt;/Text&gt;;
+}
+
+// After navigating away:
+// - Component unmounts
+// - Interval keeps running
+// - setCount tries to update unmounted component
+// - Memory for closure and state never freed</code></pre>
+            </section>
+
+            <!-- Common Memory Leaks -->
+            <section id="common-leaks">
+                <h2>Common Memory Leaks</h2>
+
+                <p>Most memory leaks in React Native fall into predictable patterns. Learn to recognize and fix them.</p>
+
+                <h3>Leak 1: Timers</h3>
+
+                <pre><code>// ❌ Leaky: Timer not cleaned up
+function Timer() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    setInterval(() => {
+      setSeconds(s => s + 1);
+    }, 1000);
+    // Missing cleanup!
+  }, []);
+
+  return &lt;Text&gt;{seconds}&lt;/Text&gt;;
+}
+
+// ✅ Fixed: Clean up timer
+function Timer() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSeconds(s => s + 1);
+    }, 1000);
+
+    return () => clearInterval(interval); // Cleanup!
+  }, []);
+
+  return &lt;Text&gt;{seconds}&lt;/Text&gt;;
+}</code></pre>
+
+                <h3>Leak 2: Event Subscriptions</h3>
+
+                <pre><code>// ❌ Leaky: Subscription not removed
+function ScreenTracker() {
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+
+  useEffect(() => {
+    Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    // Missing cleanup!
+  }, []);
+
+  return &lt;Text&gt;{dimensions.width} x {dimensions.height}&lt;/Text&gt;;
+}
+
+// ✅ Fixed: Remove subscription
+function ScreenTracker() {
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+
+    return () => subscription.remove(); // Cleanup!
+  }, []);
+
+  return &lt;Text&gt;{dimensions.width} x {dimensions.height}&lt;/Text&gt;;
+}</code></pre>
+
+                <h3>Leak 3: Async Operations</h3>
+
+                <pre><code>// ❌ Leaky: Setting state on unmounted component
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetchUser(userId).then(data => {
+      setUser(data); // Might run after unmount!
+    });
+  }, [userId]);
+
+  return user ? &lt;Text&gt;{user.name}&lt;/Text&gt; : &lt;Loading /&gt;;
+}
+
+// ✅ Fixed: Cancel or ignore after unmount
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchUser(userId).then(data => {
+      if (!cancelled) {
+        setUser(data);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  return user ? &lt;Text&gt;{user.name}&lt;/Text&gt; : &lt;Loading /&gt;;
+}
+
+// ✅ Even better: Use AbortController
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(`/api/users/${userId}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(setUser)
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error(err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [userId]);
+
+  return user ? &lt;Text&gt;{user.name}&lt;/Text&gt; : &lt;Loading /&gt;;
+}</code></pre>
+
+                <h3>Leak 4: Refs to Unmounted Components</h3>
+
+                <pre><code>// ❌ Leaky: Ref callback runs after unmount
+function AnimatedComponent() {
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    animationRef.current = Animated.timing(/* ... */);
+    animationRef.current.start();
+    // Animation keeps reference to component!
+  }, []);
+
+  return &lt;Animated.View /* ... */ /&gt;;
+}
+
+// ✅ Fixed: Stop animation on unmount
+function AnimatedComponent() {
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    animationRef.current = Animated.timing(/* ... */);
+    animationRef.current.start();
+
+    return () => {
+      animationRef.current?.stop();
+    };
+  }, []);
+
+  return &lt;Animated.View /* ... */ /&gt;;
+}</code></pre>
+
+                <h3>Leak 5: Global/Module State</h3>
+
+                <pre><code>// ❌ Leaky: Storing component references globally
+const activeComponents = new Set();
+
+function LeakyComponent() {
+  useEffect(() => {
+    activeComponents.add(this); // Reference to component!
+    // Never removed from set
+  }, []);
+
+  return &lt;View /&gt;;
+}
+
+// ✅ Fixed: Clean up global references
+const activeComponents = new Set();
+
+function Component({ id }) {
+  useEffect(() => {
+    activeComponents.add(id);
+
+    return () => {
+      activeComponents.delete(id);
+    };
+  }, [id]);
+
+  return &lt;View /&gt;;
+}</code></pre>
+
+                <h3>Leak 6: Closures Capturing Large Objects</h3>
+
+                <pre><code>// ❌ Leaky: Closure captures entire data array
+function DataProcessor({ data }) {
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    // This closure captures 'data' and keeps it in memory
+    // even if DataProcessor receives new data
+    setTimeout(() => {
+      const processed = expensiveProcess(data);
+      setResult(processed);
+    }, 5000);
+  }, []); // Empty deps but closure captures 'data'
+
+  return &lt;Result data={result} /&gt;;
+}
+
+// ✅ Fixed: Include data in deps or copy needed values
+function DataProcessor({ data }) {
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const processed = expensiveProcess(data);
+      setResult(processed);
+    }, 5000);
+
+    return () => clearTimeout(timeoutId);
+  }, [data]); // Proper dependency
+
+  return &lt;Result data={result} /&gt;;
+}</code></pre>
+            </section>
+
+            <!-- Cleanup Patterns -->
+            <section id="cleanup-patterns">
+                <h2>Cleanup Patterns</h2>
+
+                <p>Establishing consistent cleanup patterns prevents most memory leaks.</p>
+
+                <h3>The useEffect Cleanup Pattern</h3>
+
+                <pre><code>useEffect(() => {
+  // 1. Setup code runs on mount (and when deps change)
+  const subscription = someService.subscribe(callback);
+  const timer = setInterval(tick, 1000);
+  const listener = event.addEventListener('change', handler);
+
+  // 2. Cleanup function runs on unmount (and before re-running effect)
+  return () => {
+    subscription.unsubscribe();
+    clearInterval(timer);
+    event.removeEventListener('change', handler);
+  };
+}, [dependencies]);</code></pre>
+
+                <h3>Custom Hook for Safe Async</h3>
+
+                <pre><code>// hooks/useSafeAsync.ts
+function useSafeAsync&lt;T&gt;() {
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const safeAsync = useCallback(async &lt;R&gt;(
+    promise: Promise&lt;R&gt;,
+    onSuccess: (result: R) => void,
+    onError?: (error: Error) => void
+  ) => {
+    try {
+      const result = await promise;
+      if (isMounted.current) {
+        onSuccess(result);
+      }
+    } catch (error) {
+      if (isMounted.current && onError) {
+        onError(error as Error);
+      }
+    }
+  }, []);
+
+  return { safeAsync, isMounted };
+}
+
+// Usage
+function MyComponent() {
+  const [data, setData] = useState(null);
+  const { safeAsync } = useSafeAsync();
+
+  useEffect(() => {
+    safeAsync(
+      fetchData(),
+      (result) => setData(result),
+      (error) => console.error(error)
+    );
+  }, [safeAsync]);
+
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+}</code></pre>
+
+                <h3>Subscription Manager Hook</h3>
+
+                <pre><code>// hooks/useSubscriptions.ts
+function useSubscriptions() {
+  const subscriptions = useRef&lt;(() => void)[]&gt;([]);
+
+  const addSubscription = useCallback((unsubscribe: () => void) => {
+    subscriptions.current.push(unsubscribe);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Clean up all subscriptions on unmount
+      subscriptions.current.forEach(unsub => unsub());
+      subscriptions.current = [];
+    };
+  }, []);
+
+  return addSubscription;
+}
+
+// Usage
+function NotificationListener() {
+  const addSubscription = useSubscriptions();
+
+  useEffect(() => {
+    // Add multiple subscriptions - all auto-cleaned
+    addSubscription(
+      Notifications.addNotificationReceivedListener(handleNotification).remove
+    );
+    
+    addSubscription(
+      AppState.addEventListener('change', handleAppState).remove
+    );
+    
+    addSubscription(
+      NetInfo.addEventListener(handleConnectivity)
+    );
+  }, [addSubscription]);
+
+  return &lt;View /&gt;;
+}</code></pre>
+
+                <h3>AbortController Pattern</h3>
+
+                <pre><code>// hooks/useAbortController.ts
+function useAbortController() {
+  const controllerRef = useRef&lt;AbortController | null&gt;(null);
+
+  const getSignal = useCallback(() => {
+    // Abort previous request if exists
+    controllerRef.current?.abort();
+    // Create new controller
+    controllerRef.current = new AbortController();
+    return controllerRef.current.signal;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, []);
+
+  return getSignal;
+}
+
+// Usage
+function SearchResults({ query }) {
+  const [results, setResults] = useState([]);
+  const getSignal = useAbortController();
+
+  useEffect(() => {
+    if (!query) return;
+
+    const signal = getSignal();
+
+    fetch(`/api/search?q=${query}`, { signal })
+      .then(res => res.json())
+      .then(setResults)
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error(err);
+        }
+      });
+  }, [query, getSignal]);
+
+  return &lt;ResultsList data={results} /&gt;;
+}</code></pre>
+            </section>
+
+            <!-- Image Memory -->
+            <section id="image-memory">
+                <h2>Image Memory</h2>
+
+                <p>Images are often the largest memory consumers in mobile apps. Proper handling is critical.</p>
+
+                <h3>Image Memory Calculation</h3>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Image Memory Usage</h4>
+                    <p>A decoded image uses: <strong>width × height × 4 bytes</strong> (RGBA)</p>
+                    <ul>
+                        <li>1080 × 1920 photo = <strong>8.3 MB</strong> in memory</li>
+                        <li>4000 × 3000 photo = <strong>48 MB</strong> in memory</li>
+                        <li>10 large images = potential <strong>480 MB</strong>!</li>
+                    </ul>
+                    <p>The file size (JPEG/PNG) is much smaller due to compression, but decoded images use full RGBA memory.</p>
+                </div>
+
+                <h3>Image Optimization Strategies</h3>
+
+                <pre><code>// 1. Use properly sized images
+// ❌ Bad: Full resolution for small thumbnail
+&lt;Image
+  source={{ uri: 'https://example.com/photo-4000x3000.jpg' }}
+  style={{ width: 100, height: 100 }}
+/&gt;
+
+// ✅ Good: Request thumbnail size from server
+&lt;Image
+  source={{ uri: 'https://example.com/photo.jpg?w=200&h=200' }}
+  style={{ width: 100, height: 100 }}
+/&gt;
+
+// 2. Use expo-image for better caching and memory management
+import { Image } from 'expo-image';
+
+&lt;Image
+  source={{ uri: imageUrl }}
+  style={{ width: 100, height: 100 }}
+  contentFit="cover"
+  cachePolicy="memory-disk"  // Intelligent caching
+  recyclingKey={item.id}     // Helps with list recycling
+/&gt;
+
+// 3. Implement placeholder/progressive loading
+&lt;Image
+  source={{ uri: imageUrl }}
+  placeholder={blurhash}  // Show blur while loading
+  transition={200}        // Smooth fade-in
+/&gt;</code></pre>
+
+                <h3>List Image Optimization</h3>
+
+                <pre><code>// For image-heavy lists, use FlashList with recycling
+import { FlashList } from '@shopify/flash-list';
+import { Image } from 'expo-image';
+
+function ImageGallery({ images }) {
+  const renderItem = useCallback(({ item }) => (
+    &lt;Image
+      source={{ uri: item.thumbnailUrl }}
+      style={styles.thumbnail}
+      recyclingKey={item.id}
+      cachePolicy="memory-disk"
+    /&gt;
+  ), []);
+
+  return (
+    &lt;FlashList
+      data={images}
+      renderItem={renderItem}
+      estimatedItemSize={120}
+      // FlashList recycles views, reusing image components
+    /&gt;
+  );
+}
+
+// Clear image cache when needed
+import { Image } from 'expo-image';
+
+async function clearImageCache() {
+  await Image.clearDiskCache();
+  await Image.clearMemoryCache();
+}</code></pre>
+
+                <h3>Handling Large Images</h3>
+
+                <pre><code>// For full-screen image viewers
+import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
+
+function FullScreenImage({ uri, onClose }) {
+  const [loaded, setLoaded] = useState(false);
+
+  // Preload before showing
+  useEffect(() => {
+    Image.prefetch(uri).then(() => setLoaded(true));
+    
+    // Clean up when closing
+    return () => {
+      // Force garbage collection hint
+      Image.clearMemoryCache();
+    };
+  }, [uri]);
+
+  if (!loaded) {
+    return &lt;ActivityIndicator /&gt;;
+  }
+
+  return (
+    &lt;Image
+      source={{ uri }}
+      style={{ flex: 1 }}
+      contentFit="contain"
+      onLoadEnd={() => {
+        // Image is now in memory
+      }}
+    /&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- Memory Monitoring -->
+            <section id="monitoring">
+                <h2>Memory Monitoring</h2>
+
+                <p>Regular monitoring helps catch memory issues before they become problems in production.</p>
+
+                <h3>React Native Performance Monitor</h3>
+
+                <pre><code>// Enable via Dev Menu → "Show Perf Monitor"
+// Or shake device → "Show Perf Monitor"
+
+// The monitor shows:
+// - RAM: Current memory usage
+// - JSC Heap: JavaScript memory
+// - Views: Native view count
+
+// Watch for:
+// - RAM continuously increasing
+// - View count growing without bound
+// - JSC Heap never decreasing after navigating away</code></pre>
+
+                <h3>Using Flipper for Memory Analysis</h3>
+
+                <pre><code>// Flipper provides detailed memory insights
+
+// 1. Install Flipper desktop app
+// 2. For Expo dev builds, add required dependencies
+
+// Flipper Memory Plugin features:
+// - Heap snapshots
+// - Memory timeline
+// - Object allocation tracking
+// - Compare snapshots to find leaks
+
+// Steps to find a leak:
+// 1. Take heap snapshot (baseline)
+// 2. Perform action that might leak (navigate, scroll, etc.)
+// 3. Force garbage collection
+// 4. Take another heap snapshot
+// 5. Compare snapshots - look for objects that shouldn't exist</code></pre>
+
+                <h3>Custom Memory Monitor Hook</h3>
+
+                <pre><code>// hooks/useMemoryMonitor.ts
+import { useEffect, useRef } from 'react';
+import { InteractionManager } from 'react-native';
+
+interface MemoryStats {
+  jsHeapSize: number;
+  timestamp: number;
+}
+
+export function useMemoryMonitor(componentName: string, enabled = __DEV__) {
+  const stats = useRef&lt;MemoryStats[]&gt;([]);
+  const mountTime = useRef(Date.now());
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const logMemory = () => {
+      // Note: performance.memory is not available in all environments
+      // This is a conceptual example
+      if (typeof performance !== 'undefined' && 'memory' in performance) {
+        const memory = (performance as any).memory;
+        stats.current.push({
+          jsHeapSize: memory.usedJSHeapSize,
+          timestamp: Date.now(),
+        });
+
+        console.log(`📊 ${componentName} Memory:`, {
+          current: formatBytes(memory.usedJSHeapSize),
+          total: formatBytes(memory.totalJSHeapSize),
+          uptime: `${((Date.now() - mountTime.current) / 1000).toFixed(1)}s`,
+        });
+      }
+    };
+
+    // Log on mount
+    InteractionManager.runAfterInteractions(logMemory);
+
+    // Log periodically
+    const interval = setInterval(logMemory, 10000);
+
+    return () => {
+      clearInterval(interval);
+      
+      // Log final stats
+      if (stats.current.length > 1) {
+        const first = stats.current[0];
+        const last = stats.current[stats.current.length - 1];
+        const delta = last.jsHeapSize - first.jsHeapSize;
+        
+        console.log(`📊 ${componentName} Memory Summary:`, {
+          samples: stats.current.length,
+          delta: formatBytes(delta),
+          trend: delta > 0 ? '📈 Increasing' : '📉 Decreasing',
+        });
+      }
+    };
+  }, [componentName, enabled]);
+}
+
+function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
+}
+
+// Usage
+function MyScreen() {
+  useMemoryMonitor('MyScreen');
+  
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+}</code></pre>
+
+                <h3>Production Memory Monitoring</h3>
+
+                <pre><code>// Use a service like Sentry for production monitoring
+import * as Sentry from '@sentry/react-native';
+
+// Track memory-related events
+function trackMemoryWarning() {
+  AppState.addEventListener('memoryWarning', () => {
+    Sentry.addBreadcrumb({
+      category: 'memory',
+      message: 'Memory warning received',
+      level: 'warning',
+    });
+    
+    // Attempt to free memory
+    clearCaches();
+  });
+}
+
+// Track screen memory usage
+function useScreenMemoryTracking(screenName: string) {
+  useEffect(() => {
+    const startTime = Date.now();
+    
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      message: `Entered ${screenName}`,
+      level: 'info',
+    });
+
+    return () => {
+      const duration = Date.now() - startTime;
+      
+      Sentry.addBreadcrumb({
+        category: 'navigation',
+        message: `Left ${screenName} after ${duration}ms`,
+        level: 'info',
+      });
+    };
+  }, [screenName]);
+}</code></pre>
+
+                <h3>Memory Warning Handling</h3>
+
+                <pre><code>// iOS sends memory warnings that you should handle
+import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
+
+function useMemoryWarningHandler() {
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+
+    const subscription = AppState.addEventListener('memoryWarning', () => {
+      console.warn('⚠️ Memory warning received!');
+      
+      // Actions to take:
+      // 1. Clear image caches
+      clearImageCaches();
+      
+      // 2. Clear data caches
+      queryClient.clear();
+      
+      // 3. Force unmount heavy components
+      setShowHeavyComponent(false);
+      
+      // 4. Log for debugging
+      logMemoryWarning();
+    });
+
+    return () => subscription.remove();
+  }, []);
+}
+
+async function clearImageCaches() {
+  const { Image } = await import('expo-image');
+  await Image.clearMemoryCache();
+  // Note: Only clear disk cache if necessary
+  // await Image.clearDiskCache();
+}</code></pre>
+            </section>
+
+            <!-- Memory Optimization -->
+            <section id="optimization">
+                <h2>Memory Optimization</h2>
+
+                <p>Beyond fixing leaks, you can proactively optimize memory usage.</p>
+
+                <h3>Data Structure Optimization</h3>
+
+                <pre><code>// 1. Use Maps for large collections with frequent lookups
+// ❌ Array - O(n) lookup
+const users = [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }];
+const user = users.find(u => u.id === targetId);
+
+// ✅ Map - O(1) lookup, and more memory efficient for large data
+const usersMap = new Map([
+  [1, { name: 'Alice' }],
+  [2, { name: 'Bob' }],
+]);
+const user = usersMap.get(targetId);
+
+// 2. Normalize nested data
+// ❌ Duplicated nested objects
+const posts = [
+  { id: 1, author: { id: 1, name: 'Alice', avatar: '...' } },
+  { id: 2, author: { id: 1, name: 'Alice', avatar: '...' } }, // Duplicate!
+];
+
+// ✅ Normalized structure
+const state = {
+  posts: {
+    1: { id: 1, authorId: 1 },
+    2: { id: 2, authorId: 1 },
+  },
+  users: {
+    1: { id: 1, name: 'Alice', avatar: '...' }, // Single instance
+  },
+};
+
+// 3. Use WeakMap for metadata attached to objects
+const metadata = new WeakMap();
+
+function trackObject(obj) {
+  metadata.set(obj, { createdAt: Date.now() });
+  // When obj is garbage collected, metadata entry is too
+}</code></pre>
+
+                <h3>Lazy Loading and Code Splitting</h3>
+
+                <pre><code>// 1. Lazy load heavy screens
+import { lazy, Suspense } from 'react';
+
+const HeavyChartScreen = lazy(() => import('./screens/HeavyChartScreen'));
+const AdminDashboard = lazy(() => import('./screens/AdminDashboard'));
+
+function AppNavigator() {
+  return (
+    &lt;Stack.Navigator&gt;
+      &lt;Stack.Screen name="Home" component={HomeScreen} /&gt;
+      &lt;Stack.Screen 
+        name="Charts" 
+        component={() => (
+          &lt;Suspense fallback={&lt;LoadingScreen /&gt;}&gt;
+            &lt;HeavyChartScreen /&gt;
+          &lt;/Suspense&gt;
+        )} 
+      /&gt;
+    &lt;/Stack.Navigator&gt;
+  );
+}
+
+// 2. Load data on demand
+function useUserPosts(userId: string) {
+  const [posts, setPosts] = useState&lt;Post[] | null&gt;(null);
+
+  // Only fetch when explicitly requested
+  const loadPosts = useCallback(async () => {
+    const data = await fetchUserPosts(userId);
+    setPosts(data);
+  }, [userId]);
+
+  const clearPosts = useCallback(() => {
+    setPosts(null);
+  }, []);
+
+  return { posts, loadPosts, clearPosts };
+}</code></pre>
+
+                <h3>Caching Strategies</h3>
+
+                <pre><code>// Implement LRU (Least Recently Used) cache
+class LRUCache&lt;T&gt; {
+  private cache = new Map&lt;string, T&gt;();
+  private maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: string): T | undefined {
+    if (!this.cache.has(key)) return undefined;
+    
+    // Move to end (most recently used)
+    const value = this.cache.get(key)!;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  set(key: string, value: T): void {
+    // Delete if exists (to update position)
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    
+    // Evict oldest if at capacity
+    if (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+    }
+    
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+// Usage
+const userCache = new LRUCache&lt;User&gt;(100);
+
+async function getUser(id: string): Promise&lt;User&gt; {
+  const cached = userCache.get(id);
+  if (cached) return cached;
+  
+  const user = await fetchUser(id);
+  userCache.set(id, user);
+  return user;
+}</code></pre>
+
+                <h3>Release Memory on Background</h3>
+
+                <pre><code>// Free memory when app goes to background
+function useBackgroundMemoryRelease() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        // Clear non-essential caches
+        clearNonEssentialCaches();
+        
+        // Clear image memory cache
+        Image.clearMemoryCache?.();
+        
+        // Clear query cache
+        queryClient.clear();
+        
+        console.log('🧹 Cleared caches for background');
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+}
+
+// Also release on low memory
+function useLowMemoryHandler() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener('memoryWarning', () => {
+      // Aggressive cleanup
+      clearAllCaches();
+      
+      // Force garbage collection hint
+      if (global.gc) {
+        global.gc();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+}</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Fix Memory Leaks</h3>
+                    <p>This component has multiple memory leaks. Find and fix them all.</p>
+                    
+                    <pre><code>function LiveDashboard({ userId }) {
+  const [data, setData] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    // Connect to WebSocket
+    socketRef.current = new WebSocket('wss://api.example.com/live');
+    
+    socketRef.current.onopen = () => {
+      setConnected(true);
+    };
+
+    socketRef.current.onmessage = (event) => {
+      setData(JSON.parse(event.data));
+    };
+  }, []);
+
+  useEffect(() => {
+    // Poll for updates
+    setInterval(() => {
+      fetch(`/api/status/${userId}`)
+        .then(res => res.json())
+        .then(setData);
+    }, 5000);
+  }, [userId]);
+
+  useEffect(() => {
+    // Listen for app state changes
+    AppState.addEventListener('change', (state) => {
+      console.log('App state:', state);
+    });
+  }, []);
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Connected: {connected ? 'Yes' : 'No'}&lt;/Text&gt;
+      &lt;Text&gt;{JSON.stringify(data)}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>function LiveDashboard({ userId }) {
+  const [data, setData] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const socketRef = useRef&lt;WebSocket | null&gt;(null);
+
+  // WebSocket connection with cleanup
+  useEffect(() => {
+    const socket = new WebSocket('wss://api.example.com/live');
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      setConnected(true);
+    };
+
+    socket.onmessage = (event) => {
+      setData(JSON.parse(event.data));
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    // ✅ Cleanup: Close WebSocket
+    return () => {
+      socket.close();
+      socketRef.current = null;
+    };
+  }, []);
+
+  // Polling with cleanup and cancelled flag
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/status/${userId}`);
+        const data = await res.json();
+        if (!cancelled) {
+          setData(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Poll error:', error);
+        }
+      }
+    };
+
+    // Initial poll
+    poll();
+
+    // ✅ Store interval ID for cleanup
+    const intervalId = setInterval(poll, 5000);
+
+    // ✅ Cleanup: Clear interval and set cancelled flag
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [userId]);
+
+  // App state listener with cleanup
+  useEffect(() => {
+    // ✅ Store subscription for cleanup
+    const subscription = AppState.addEventListener('change', (state) => {
+      console.log('App state:', state);
+    });
+
+    // ✅ Cleanup: Remove listener
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Connected: {connected ? 'Yes' : 'No'}&lt;/Text&gt;
+      &lt;Text&gt;{JSON.stringify(data)}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Fixes:
+// 1. WebSocket closed on unmount
+// 2. Interval cleared on unmount
+// 3. Cancelled flag prevents state updates after unmount
+// 4. AppState listener properly removed</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Build a Memory-Safe Image Gallery</h3>
+                    <p>Create an image gallery that handles memory efficiently.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Display 100+ images in a grid</li>
+                        <li>Use thumbnail URLs for grid view</li>
+                        <li>Load full image only when selected</li>
+                        <li>Clear memory when closing full view</li>
+                        <li>Handle memory warnings</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useCallback, useEffect, memo } from 'react';
+import { View, Modal, Pressable, AppState } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { Image } from 'expo-image';
+
+// Memoized thumbnail component
+const Thumbnail = memo(function Thumbnail({ item, onPress }) {
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [item, onPress]);
+
+  return (
+    &lt;Pressable onPress={handlePress} style={styles.thumbnailContainer}&gt;
+      &lt;Image
+        source={{ uri: item.thumbnailUrl }}
+        style={styles.thumbnail}
+        contentFit="cover"
+        recyclingKey={item.id}
+        cachePolicy="memory-disk"
+      /&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+// Full image viewer with memory management
+function FullImageViewer({ image, onClose }) {
+  useEffect(() => {
+    // Clear memory cache when viewer closes
+    return () => {
+      Image.clearMemoryCache();
+    };
+  }, []);
+
+  return (
+    &lt;Modal visible={!!image} onRequestClose={onClose}&gt;
+      &lt;Pressable style={styles.fullContainer} onPress={onClose}&gt;
+        {image && (
+          &lt;Image
+            source={{ uri: image.fullUrl }}
+            style={styles.fullImage}
+            contentFit="contain"
+            placeholder={image.thumbnailUrl}
+            transition={200}
+          /&gt;
+        )}
+      &lt;/Pressable&gt;
+    &lt;/Modal&gt;
+  );
+}
+
+// Main gallery component
+export function ImageGallery({ images }) {
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // Handle memory warnings
+  useEffect(() => {
+    const subscription = AppState.addEventListener('memoryWarning', () => {
+      // Clear caches on memory warning
+      Image.clearMemoryCache();
+      // Close full image if open
+      setSelectedImage(null);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // Clear memory when app backgrounds
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        Image.clearMemoryCache();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  const handleSelect = useCallback((image) => {
+    setSelectedImage(image);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
+
+  const renderItem = useCallback(({ item }) => (
+    &lt;Thumbnail item={item} onPress={handleSelect} /&gt;
+  ), [handleSelect]);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlashList
+        data={images}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        estimatedItemSize={120}
+        numColumns={3}
+      /&gt;
+      
+      &lt;FullImageViewer image={selectedImage} onClose={handleClose} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  thumbnailContainer: { flex: 1, aspectRatio: 1, padding: 1 },
+  thumbnail: { flex: 1 },
+  fullContainer: { flex: 1, backgroundColor: 'black', justifyContent: 'center' },
+  fullImage: { flex: 1 },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Memory management is crucial for app stability and performance. Most issues come from forgotten cleanups and unoptimized images.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>JS + Native memory:</strong> React Native uses memory from both sides</li>
+                        <li><strong>Common leaks:</strong> Timers, subscriptions, async operations, event listeners</li>
+                        <li><strong>Always clean up:</strong> Return cleanup function from useEffect</li>
+                        <li><strong>Cancel async:</strong> Use AbortController or cancelled flag</li>
+                        <li><strong>Images are expensive:</strong> Use proper sizes, caching, and expo-image</li>
+                        <li><strong>Monitor regularly:</strong> Use Perf Monitor, Flipper, and production tracking</li>
+                        <li><strong>Handle warnings:</strong> Clear caches on memory warnings</li>
+                        <li><strong>Release on background:</strong> Free memory when app isn't visible</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll cover network optimization—making API calls faster and more efficient.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m10_l02_rendering_optimization.html" class="prev-link">← Previous: Rendering Optimization</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m10_l04_network_optimization.html" class="next-link">Next: Network Optimization →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

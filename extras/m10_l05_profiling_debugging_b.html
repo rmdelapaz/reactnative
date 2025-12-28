@@ -1,0 +1,842 @@
+            <!-- Production Monitoring -->
+            <section id="production-monitoring">
+                <h2>Production Monitoring</h2>
+
+                <p>Performance issues in production need real user data. Set up monitoring to catch problems before users complain.</p>
+
+                <h3>Key Metrics to Track</h3>
+
+                <pre class="mermaid">
+mindmap
+  root((Production<br/>Metrics))
+    User Experience
+      App start time
+      Screen load time
+      Interaction latency
+      Frame rate
+    Technical
+      JS errors
+      Native crashes
+      Memory usage
+      Network failures
+    Business Impact
+      Session duration
+      Conversion rates
+      User retention
+      App ratings
+</pre>
+
+                <h3>Setting Up Sentry</h3>
+
+                <pre><code>// Install Sentry
+npx expo install @sentry/react-native
+
+// Initialize in app entry
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'YOUR_SENTRY_DSN',
+  
+  // Performance monitoring
+  tracesSampleRate: 0.2, // 20% of transactions
+  enableAutoPerformanceTracing: true,
+  
+  // Release tracking
+  release: `${appName}@${version}`,
+  dist: buildNumber,
+  
+  // Environment
+  environment: __DEV__ ? 'development' : 'production',
+  
+  // Filtering
+  beforeSend(event) {
+    // Don't send events in development
+    if (__DEV__) return null;
+    return event;
+  },
+});
+
+// Wrap app with Sentry
+export default Sentry.wrap(App);</code></pre>
+
+                <h3>Custom Performance Tracking</h3>
+
+                <pre><code>import * as Sentry from '@sentry/react-native';
+
+// Track screen load time
+function useScreenPerformance(screenName: string) {
+  useEffect(() => {
+    const transaction = Sentry.startTransaction({
+      name: screenName,
+      op: 'navigation',
+    });
+
+    Sentry.getCurrentHub().configureScope(scope => {
+      scope.setSpan(transaction);
+    });
+
+    // Mark when screen is interactive
+    const timeToInteractive = transaction.startChild({
+      op: 'tti',
+      description: 'Time to Interactive',
+    });
+
+    // Call when data is loaded and screen is ready
+    const markInteractive = () => {
+      timeToInteractive.finish();
+      transaction.finish();
+    };
+
+    return () => {
+      if (!transaction.endTimestamp) {
+        transaction.finish();
+      }
+    };
+  }, [screenName]);
+}
+
+// Track specific operations
+async function trackOperation&lt;T&gt;(
+  name: string,
+  operation: () => Promise&lt;T&gt;
+): Promise&lt;T&gt; {
+  const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
+  
+  const span = transaction?.startChild({
+    op: 'function',
+    description: name,
+  });
+
+  try {
+    const result = await operation();
+    span?.setStatus('ok');
+    return result;
+  } catch (error) {
+    span?.setStatus('error');
+    throw error;
+  } finally {
+    span?.finish();
+  }
+}
+
+// Usage
+const data = await trackOperation('fetchUserData', () => api.getUser(id));</code></pre>
+
+                <h3>Firebase Performance Monitoring</h3>
+
+                <pre><code>// Alternative: Firebase Performance
+import perf from '@react-native-firebase/perf';
+
+// Automatic traces for:
+// - App start time
+// - HTTP/S network requests
+// - Screen rendering
+
+// Custom traces
+async function loadProducts() {
+  const trace = await perf().startTrace('load_products');
+  
+  try {
+    const products = await api.getProducts();
+    
+    // Add metrics
+    trace.putMetric('product_count', products.length);
+    trace.putAttribute('category', 'all');
+    
+    return products;
+  } finally {
+    await trace.stop();
+  }
+}
+
+// HTTP metrics (automatic with config)
+// firebase.json
+{
+  "react-native": {
+    "perf_auto_collection_enabled": true
+  }
+}</code></pre>
+
+                <h3>Custom Analytics Dashboard</h3>
+
+                <pre><code>// Track and aggregate performance metrics
+class PerformanceAnalytics {
+  private static metrics: Map&lt;string, number[]&gt; = new Map();
+
+  static track(name: string, value: number) {
+    if (!this.metrics.has(name)) {
+      this.metrics.set(name, []);
+    }
+    this.metrics.get(name)!.push(value);
+
+    // Periodically send to backend
+    this.flushIfNeeded();
+  }
+
+  static getStats(name: string) {
+    const values = this.metrics.get(name) || [];
+    if (values.length === 0) return null;
+
+    const sorted = [...values].sort((a, b) => a - b);
+    return {
+      count: values.length,
+      min: sorted[0],
+      max: sorted[sorted.length - 1],
+      avg: values.reduce((a, b) => a + b, 0) / values.length,
+      p50: sorted[Math.floor(sorted.length * 0.5)],
+      p95: sorted[Math.floor(sorted.length * 0.95)],
+      p99: sorted[Math.floor(sorted.length * 0.99)],
+    };
+  }
+
+  private static async flushIfNeeded() {
+    // Send metrics every 100 samples or 60 seconds
+    // Implementation depends on your backend
+  }
+}
+
+// Usage
+const startTime = performance.now();
+await loadData();
+PerformanceAnalytics.track('data_load_time', performance.now() - startTime);
+
+// Later, view stats
+console.log(PerformanceAnalytics.getStats('data_load_time'));
+// { count: 150, min: 45, max: 2300, avg: 234, p50: 180, p95: 890, p99: 1500 }</code></pre>
+
+                <h3>Alerting on Performance Regressions</h3>
+
+                <pre><code>// Set up alerts in your monitoring platform
+
+// Sentry Performance Alerts:
+// 1. Go to Alerts → Create Alert
+// 2. Choose "Performance" metric
+// 3. Set conditions:
+//    - p95 latency > 3 seconds
+//    - Error rate > 5%
+//    - Throughput drops > 50%
+
+// Custom alerting logic
+class PerformanceAlerts {
+  static thresholds = {
+    screenLoadTime: { p95: 3000, p99: 5000 },
+    apiLatency: { p95: 1000, p99: 2000 },
+    errorRate: { max: 0.05 },
+  };
+
+  static check(metric: string, stats: any) {
+    const threshold = this.thresholds[metric];
+    if (!threshold) return;
+
+    const violations = [];
+
+    if (stats.p95 > threshold.p95) {
+      violations.push(`${metric} p95 (${stats.p95}ms) exceeds ${threshold.p95}ms`);
+    }
+
+    if (stats.p99 > threshold.p99) {
+      violations.push(`${metric} p99 (${stats.p99}ms) exceeds ${threshold.p99}ms`);
+    }
+
+    if (violations.length > 0) {
+      this.sendAlert(violations);
+    }
+  }
+
+  static sendAlert(violations: string[]) {
+    // Send to Slack, PagerDuty, email, etc.
+    console.error('Performance Alert:', violations);
+  }
+}</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Profile and Fix a Slow List</h3>
+                    <p>Use the React Profiler to identify why this list is slow, then fix it.</p>
+                    
+                    <pre><code>function SlowProductList({ products, onSelect, filters }) {
+  const [sortOrder, setSortOrder] = useState('name');
+
+  const sortedProducts = products
+    .filter(p => filters.categories.includes(p.category))
+    .filter(p => p.price >= filters.minPrice && p.price <= filters.maxPrice)
+    .sort((a, b) => {
+      if (sortOrder === 'name') return a.name.localeCompare(b.name);
+      if (sortOrder === 'price') return a.price - b.price;
+      return 0;
+    });
+
+  return (
+    &lt;ScrollView&gt;
+      &lt;SortPicker value={sortOrder} onChange={setSortOrder} /&gt;
+      {sortedProducts.map(product => (
+        &lt;View key={product.id} style={{ padding: 16, borderBottomWidth: 1 }}&gt;
+          &lt;Image source={{ uri: product.image }} style={{ width: 100, height: 100 }} /&gt;
+          &lt;Text style={{ fontSize: 18, fontWeight: 'bold' }}&gt;{product.name}&lt;/Text&gt;
+          &lt;Text style={{ color: 'green' }}&gt;${product.price}&lt;/Text&gt;
+          &lt;Pressable onPress={() => onSelect(product)}&gt;
+            &lt;Text style={{ color: 'blue' }}&gt;View Details&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>Show Profiling Steps</summary>
+                        <pre><code>// Profiling Steps:
+// 1. Open React DevTools Profiler
+// 2. Start recording
+// 3. Scroll the list / change sort order
+// 4. Stop recording
+// 5. Analyze flame graph
+
+// What you'll find:
+// - ScrollView renders ALL items (no virtualization)
+// - Every scroll triggers filter/sort
+// - Inline styles create new objects
+// - Inline onPress creates new functions
+// - Images reload on every render</code></pre>
+                    </details>
+
+                    <details>
+                        <summary>Show Optimized Solution</summary>
+                        <pre><code>import { memo, useMemo, useCallback } from 'react';
+import { FlatList, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+
+const styles = StyleSheet.create({
+  item: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  image: { width: 100, height: 100 },
+  name: { fontSize: 18, fontWeight: 'bold' },
+  price: { color: 'green' },
+  link: { color: 'blue' },
+});
+
+// Memoized item component
+const ProductItem = memo(function ProductItem({ product, onSelect }) {
+  const handlePress = useCallback(() => {
+    onSelect(product);
+  }, [product, onSelect]);
+
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Image
+        source={{ uri: product.image }}
+        style={styles.image}
+        contentFit="cover"
+        recyclingKey={product.id}
+      /&gt;
+      &lt;Text style={styles.name}&gt;{product.name}&lt;/Text&gt;
+      &lt;Text style={styles.price}&gt;${product.price}&lt;/Text&gt;
+      &lt;Pressable onPress={handlePress}&gt;
+        &lt;Text style={styles.link}&gt;View Details&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+});
+
+function OptimizedProductList({ products, onSelect, filters }) {
+  const [sortOrder, setSortOrder] = useState('name');
+
+  // Memoize expensive filtering/sorting
+  const sortedProducts = useMemo(() => {
+    return products
+      .filter(p => filters.categories.includes(p.category))
+      .filter(p => p.price >= filters.minPrice && p.price <= filters.maxPrice)
+      .sort((a, b) => {
+        if (sortOrder === 'name') return a.name.localeCompare(b.name);
+        if (sortOrder === 'price') return a.price - b.price;
+        return 0;
+      });
+  }, [products, filters, sortOrder]);
+
+  // Stable renderItem
+  const renderItem = useCallback(({ item }) => (
+    &lt;ProductItem product={item} onSelect={onSelect} /&gt;
+  ), [onSelect]);
+
+  // Stable keyExtractor
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;SortPicker value={sortOrder} onChange={setSortOrder} /&gt;
+      &lt;FlatList
+        data={sortedProducts}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={10}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Improvements:
+// 1. FlatList for virtualization
+// 2. useMemo for filter/sort
+// 3. memo for ProductItem
+// 4. useCallback for handlers
+// 5. StyleSheet for styles
+// 6. expo-image with recyclingKey</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Create a Performance Audit Checklist</h3>
+                    <p>Build a comprehensive checklist component that audits an app's performance.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Check for common performance issues</li>
+                        <li>Measure actual metrics where possible</li>
+                        <li>Provide pass/fail status for each check</li>
+                        <li>Suggest fixes for failures</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+
+interface AuditResult {
+  name: string;
+  category: string;
+  passed: boolean;
+  value?: string;
+  suggestion?: string;
+}
+
+async function runPerformanceAudit(): Promise&lt;AuditResult[]&gt; {
+  const results: AuditResult[] = [];
+
+  // Check 1: Hermes enabled
+  results.push({
+    name: 'Hermes Engine',
+    category: 'Configuration',
+    passed: typeof HermesInternal !== 'undefined',
+    value: typeof HermesInternal !== 'undefined' ? 'Enabled' : 'Disabled',
+    suggestion: 'Enable Hermes in app.json for better performance',
+  });
+
+  // Check 2: Development mode
+  results.push({
+    name: 'Production Build',
+    category: 'Configuration',
+    passed: !__DEV__,
+    value: __DEV__ ? 'Development' : 'Production',
+    suggestion: 'Use production builds for accurate profiling',
+  });
+
+  // Check 3: Console statements (check for console usage)
+  const hasConsole = typeof console.log === 'function';
+  results.push({
+    name: 'Console Statements',
+    category: 'Code Quality',
+    passed: !__DEV__, // Assume removed in production
+    value: __DEV__ ? 'Present' : 'Stripped',
+    suggestion: 'Remove console.log in production builds',
+  });
+
+  // Check 4: Memory usage (if available)
+  if (typeof performance !== 'undefined' && 'memory' in performance) {
+    const memory = (performance as any).memory;
+    const usedMB = memory.usedJSHeapSize / (1024 * 1024);
+    results.push({
+      name: 'JS Heap Size',
+      category: 'Memory',
+      passed: usedMB < 150,
+      value: `${usedMB.toFixed(1)} MB`,
+      suggestion: usedMB >= 150 ? 'Investigate memory usage' : undefined,
+    });
+  }
+
+  // Check 5: Image optimization check
+  results.push({
+    name: 'Image Library',
+    category: 'Assets',
+    passed: true, // Would need to check actual usage
+    value: 'Check expo-image usage',
+    suggestion: 'Use expo-image for better caching and performance',
+  });
+
+  // Check 6: List virtualization
+  results.push({
+    name: 'List Virtualization',
+    category: 'Components',
+    passed: true, // Would need static analysis
+    value: 'Check FlatList usage',
+    suggestion: 'Use FlatList/FlashList instead of ScrollView for lists',
+  });
+
+  return results;
+}
+
+function PerformanceAudit() {
+  const [results, setResults] = useState&lt;AuditResult[]&gt;([]);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const runAudit = async () => {
+    setIsRunning(true);
+    const auditResults = await runPerformanceAudit();
+    setResults(auditResults);
+    setIsRunning(false);
+  };
+
+  useEffect(() => {
+    runAudit();
+  }, []);
+
+  const passedCount = results.filter(r => r.passed).length;
+  const totalCount = results.length;
+
+  const groupedResults = results.reduce((acc, result) => {
+    if (!acc[result.category]) {
+      acc[result.category] = [];
+    }
+    acc[result.category].push(result);
+    return acc;
+  }, {} as Record&lt;string, AuditResult[]&gt;);
+
+  return (
+    &lt;ScrollView style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Performance Audit&lt;/Text&gt;
+      
+      &lt;View style={styles.summary}&gt;
+        &lt;Text style={styles.summaryText}&gt;
+          Score: {passedCount}/{totalCount} checks passed
+        &lt;/Text&gt;
+        &lt;View style={[
+          styles.scoreBar,
+          { backgroundColor: passedCount === totalCount ? '#4CAF50' : '#FF9800' }
+        ]} /&gt;
+      &lt;/View&gt;
+
+      {Object.entries(groupedResults).map(([category, items]) => (
+        &lt;View key={category} style={styles.category}&gt;
+          &lt;Text style={styles.categoryTitle}&gt;{category}&lt;/Text&gt;
+          {items.map((item, index) => (
+            &lt;View key={index} style={styles.item}&gt;
+              &lt;View style={styles.itemHeader}&gt;
+                &lt;Text style={styles.itemName}&gt;
+                  {item.passed ? '✅' : '❌'} {item.name}
+                &lt;/Text&gt;
+                &lt;Text style={styles.itemValue}&gt;{item.value}&lt;/Text&gt;
+              &lt;/View&gt;
+              {!item.passed && item.suggestion && (
+                &lt;Text style={styles.suggestion}&gt;💡 {item.suggestion}&lt;/Text&gt;
+              )}
+            &lt;/View&gt;
+          ))}
+        &lt;/View&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
+  summary: { marginBottom: 24 },
+  summaryText: { fontSize: 18, marginBottom: 8 },
+  scoreBar: { height: 8, borderRadius: 4 },
+  category: { marginBottom: 20 },
+  categoryTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8, color: '#666' },
+  item: { backgroundColor: '#f5f5f5', padding: 12, borderRadius: 8, marginBottom: 8 },
+  itemHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  itemName: { fontSize: 14, fontWeight: '500' },
+  itemValue: { fontSize: 14, color: '#666' },
+  suggestion: { fontSize: 12, color: '#FF9800', marginTop: 4 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Set Up Performance Monitoring</h3>
+                    <p>Implement a complete performance monitoring solution for a production app.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Track screen load times</li>
+                        <li>Track API call durations</li>
+                        <li>Track errors and crashes</li>
+                        <li>Calculate and display P50/P95/P99</li>
+                        <li>Set up alert thresholds</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// performance/PerformanceMonitor.ts
+type MetricType = 'screen_load' | 'api_call' | 'render' | 'custom';
+
+interface Metric {
+  type: MetricType;
+  name: string;
+  value: number;
+  timestamp: number;
+  metadata?: Record&lt;string, any&gt;;
+}
+
+class PerformanceMonitor {
+  private static instance: PerformanceMonitor;
+  private metrics: Metric[] = [];
+  private flushInterval: NodeJS.Timeout | null = null;
+  private readonly MAX_METRICS = 1000;
+  private readonly FLUSH_INTERVAL = 30000; // 30 seconds
+
+  private constructor() {
+    this.startAutoFlush();
+  }
+
+  static getInstance(): PerformanceMonitor {
+    if (!this.instance) {
+      this.instance = new PerformanceMonitor();
+    }
+    return this.instance;
+  }
+
+  track(type: MetricType, name: string, value: number, metadata?: Record&lt;string, any&gt;) {
+    this.metrics.push({
+      type,
+      name,
+      value,
+      timestamp: Date.now(),
+      metadata,
+    });
+
+    // Prevent memory issues
+    if (this.metrics.length > this.MAX_METRICS) {
+      this.metrics = this.metrics.slice(-this.MAX_METRICS / 2);
+    }
+
+    // Check thresholds
+    this.checkThresholds(type, name, value);
+  }
+
+  // Convenience methods
+  trackScreenLoad(screenName: string, durationMs: number) {
+    this.track('screen_load', screenName, durationMs);
+  }
+
+  trackApiCall(endpoint: string, durationMs: number, status: number) {
+    this.track('api_call', endpoint, durationMs, { status });
+  }
+
+  // Calculate percentiles
+  getStats(type: MetricType, name?: string): {
+    count: number;
+    p50: number;
+    p95: number;
+    p99: number;
+    avg: number;
+  } | null {
+    let filtered = this.metrics.filter(m => m.type === type);
+    if (name) {
+      filtered = filtered.filter(m => m.name === name);
+    }
+
+    if (filtered.length === 0) return null;
+
+    const values = filtered.map(m => m.value).sort((a, b) => a - b);
+    
+    return {
+      count: values.length,
+      p50: this.percentile(values, 50),
+      p95: this.percentile(values, 95),
+      p99: this.percentile(values, 99),
+      avg: values.reduce((a, b) => a + b, 0) / values.length,
+    };
+  }
+
+  private percentile(sorted: number[], p: number): number {
+    const index = Math.ceil((p / 100) * sorted.length) - 1;
+    return sorted[Math.max(0, index)];
+  }
+
+  // Threshold checking
+  private thresholds: Record&lt;string, number&gt; = {
+    'screen_load:*': 3000,
+    'api_call:*': 2000,
+  };
+
+  setThreshold(pattern: string, maxMs: number) {
+    this.thresholds[pattern] = maxMs;
+  }
+
+  private checkThresholds(type: MetricType, name: string, value: number) {
+    const specificKey = `${type}:${name}`;
+    const genericKey = `${type}:*`;
+    
+    const threshold = this.thresholds[specificKey] || this.thresholds[genericKey];
+    
+    if (threshold && value > threshold) {
+      this.onThresholdExceeded(type, name, value, threshold);
+    }
+  }
+
+  private onThresholdExceeded(
+    type: MetricType,
+    name: string,
+    value: number,
+    threshold: number
+  ) {
+    console.warn(
+      `Performance threshold exceeded: ${type}/${name} = ${value}ms (threshold: ${threshold}ms)`
+    );
+    
+    // In production, send to alerting service
+    if (!__DEV__) {
+      // Sentry.captureMessage(...) or custom alerting
+    }
+  }
+
+  // Flush to backend
+  private startAutoFlush() {
+    this.flushInterval = setInterval(() => {
+      this.flush();
+    }, this.FLUSH_INTERVAL);
+  }
+
+  async flush() {
+    if (this.metrics.length === 0) return;
+
+    const metricsToSend = [...this.metrics];
+    this.metrics = [];
+
+    try {
+      // Send to your analytics backend
+      await fetch('https://analytics.example.com/metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metrics: metricsToSend,
+          device: getDeviceInfo(),
+          session: getSessionId(),
+        }),
+      });
+    } catch (error) {
+      // Put metrics back on failure
+      this.metrics = [...metricsToSend, ...this.metrics];
+      console.error('Failed to flush metrics:', error);
+    }
+  }
+
+  // Debug view
+  getSummary(): string {
+    const screenStats = this.getStats('screen_load');
+    const apiStats = this.getStats('api_call');
+
+    return `
+Performance Summary:
+====================
+Screen Loads: ${screenStats?.count || 0} tracked
+  P50: ${screenStats?.p50?.toFixed(0) || '-'}ms
+  P95: ${screenStats?.p95?.toFixed(0) || '-'}ms
+  P99: ${screenStats?.p99?.toFixed(0) || '-'}ms
+
+API Calls: ${apiStats?.count || 0} tracked
+  P50: ${apiStats?.p50?.toFixed(0) || '-'}ms
+  P95: ${apiStats?.p95?.toFixed(0) || '-'}ms
+  P99: ${apiStats?.p99?.toFixed(0) || '-'}ms
+    `.trim();
+  }
+}
+
+export const perfMonitor = PerformanceMonitor.getInstance();
+
+// Hooks for easy usage
+export function useScreenPerformance(screenName: string) {
+  useEffect(() => {
+    const startTime = performance.now();
+
+    return () => {
+      const duration = performance.now() - startTime;
+      perfMonitor.trackScreenLoad(screenName, duration);
+    };
+  }, [screenName]);
+}
+
+// HOC for API calls
+export async function trackedFetch(
+  url: string,
+  options?: RequestInit
+): Promise&lt;Response&gt; {
+  const startTime = performance.now();
+  
+  try {
+    const response = await fetch(url, options);
+    const duration = performance.now() - startTime;
+    
+    perfMonitor.trackApiCall(
+      new URL(url).pathname,
+      duration,
+      response.status
+    );
+    
+    return response;
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    perfMonitor.trackApiCall(new URL(url).pathname, duration, 0);
+    throw error;
+  }
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Profiling and debugging are essential skills for building performant apps. Use the right tools systematically, and always verify your optimizations with measurements.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Systematic approach:</strong> Identify → Measure → Profile → Fix → Verify</li>
+                        <li><strong>React Profiler:</strong> Primary tool for component render analysis</li>
+                        <li><strong>Flipper:</strong> All-in-one debugging with network, database, and layout tools</li>
+                        <li><strong>Native tools:</strong> Xcode Instruments and Android Studio for deep profiling</li>
+                        <li><strong>Bundle analysis:</strong> Monitor and reduce bundle size</li>
+                        <li><strong>Production monitoring:</strong> Track real user performance with Sentry/Firebase</li>
+                        <li><strong>Percentiles matter:</strong> P95/P99 often reveal issues hidden by averages</li>
+                        <li><strong>Set thresholds:</strong> Alert on regressions before users complain</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50; margin-top: 1rem;">
+                    <h4>🎉 Module 10 Complete!</h4>
+                    <p>You've mastered performance optimization in React Native. You now understand how to measure, profile, and fix performance issues across rendering, memory, network, and JavaScript execution.</p>
+                    <p>In the next module, we'll cover deployment and publishing—getting your optimized app into users' hands!</p>
+                </div>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m10_l04_network_optimization.html" class="prev-link">← Previous: Network Optimization</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m11_l01_app_store_publishing.html" class="next-link">Next: App Store Publishing →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Deploy your React Native app to the Apple App Store and Google Play Store">
+    <meta name="author" content="React Native & Expo Course">
+    <title>App Store Deployment | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.5</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>App Store Deployment</h1>
+                <p class="lesson-subtitle">Deploy your app to the Apple App Store and Google Play Store</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Set up Apple App Store Connect and Google Play Console</li>
+                    <li>Prepare app metadata, screenshots, and descriptions</li>
+                    <li>Submit to TestFlight for iOS beta testing</li>
+                    <li>Submit to Google Play internal and beta tracks</li>
+                    <li>Use EAS Submit for automated submissions</li>
+                    <li>Navigate the app review process</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#overview">Deployment Overview</a></li>
+                        <li><a href="#prerequisites">Prerequisites</a></li>
+                        <li><a href="#ios-setup">iOS: App Store Connect Setup</a></li>
+                        <li><a href="#ios-submission">iOS: Submission Process</a></li>
+                        <li><a href="#android-setup">Android: Play Console Setup</a></li>
+                        <li><a href="#android-submission">Android: Submission Process</a></li>
+                        <li><a href="#eas-submit">EAS Submit</a></li>
+                        <li><a href="#review-process">The Review Process</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="overview">
+                <h2>Deployment Overview</h2>
+
+                <p>Publishing your app to the stores involves several steps: building production binaries, preparing store listings, and navigating the review process.</p>
+
+                <h3>The Deployment Pipeline</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Build["1. Build"]
+        B1[Production Build]
+        B2[Sign & Package]
+    end
+    
+    subgraph Prepare["2. Prepare"]
+        P1[Store Listing]
+        P2[Screenshots]
+        P3[Metadata]
+    end
+    
+    subgraph Submit["3. Submit"]
+        S1[Upload Binary]
+        S2[Submit for Review]
+    end
+    
+    subgraph Review["4. Review"]
+        R1[App Review]
+        R2[Approval/Rejection]
+    end
+    
+    subgraph Live["5. Live"]
+        L1[Published!]
+    end
+    
+    Build --> Prepare --> Submit --> Review --> Live
+    
+    style Build fill:#e3f2fd
+    style Prepare fill:#fff3e0
+    style Submit fill:#e8f5e9
+    style Review fill:#f3e5f5
+    style Live fill:#c8e6c9
+</pre>
+
+                <h3>Platform Comparison</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Aspect</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Apple App Store</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Google Play Store</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Developer Fee</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">$99/year</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">$25 one-time</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Review Time</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">24-48 hours (typically)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Hours to days</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Beta Testing</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">TestFlight</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Internal/Closed/Open tracks</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Binary Format</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">.ipa file</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">.aab file (App Bundle)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Console</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">App Store Connect</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Google Play Console</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="prerequisites">
+                <h2>Prerequisites</h2>
+
+                <h3>Apple Developer Account</h3>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>📱 Apple Developer Program</h4>
+                    <ol>
+                        <li>Go to <a href="https://developer.apple.com/programs/" target="_blank">developer.apple.com/programs</a></li>
+                        <li>Enroll as Individual or Organization ($99/year)</li>
+                        <li>Complete identity verification</li>
+                        <li>Accept agreements in App Store Connect</li>
+                    </ol>
+                    <p><strong>Note:</strong> Organization enrollment requires a D-U-N-S number.</p>
+                </div>
+
+                <h3>Google Play Developer Account</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🤖 Google Play Console</h4>
+                    <ol>
+                        <li>Go to <a href="https://play.google.com/console" target="_blank">play.google.com/console</a></li>
+                        <li>Sign in with Google account</li>
+                        <li>Pay one-time $25 registration fee</li>
+                        <li>Complete developer profile</li>
+                        <li>Verify identity (required for new accounts)</li>
+                    </ol>
+                </div>
+
+                <h3>Production Build Ready</h3>
+
+                <pre><code># Ensure you have production builds
+eas build --platform all --profile production
+
+# Wait for builds to complete
+eas build:list
+
+# You should have:
+# - iOS: .ipa file (distribution: store)
+# - Android: .aab file (buildType: app-bundle)</code></pre>
+            </section>
+
+            <section id="ios-setup">
+                <h2>iOS: App Store Connect Setup</h2>
+
+                <p>App Store Connect is Apple's portal for managing your iOS apps.</p>
+
+                <h3>Create Your App</h3>
+
+                <pre><code>// Step 1: Login to App Store Connect
+// https://appstoreconnect.apple.com
+
+// Step 2: Go to "My Apps" → "+" → "New App"
+
+// Step 3: Fill in app details:
+// - Platform: iOS
+// - Name: Your App Name (unique on App Store)
+// - Primary Language: English (or your language)
+// - Bundle ID: Select from dropdown (must match app.json)
+// - SKU: Unique identifier (e.g., com.company.app.v1)
+// - User Access: Full Access (or limited)</code></pre>
+
+                <h3>App Information</h3>
+
+                <pre><code>// Required information in App Store Connect:
+
+// App Information Tab:
+// - Name (30 characters max)
+// - Subtitle (30 characters max)
+// - Category (Primary and Secondary)
+// - Content Rights
+// - Age Rating
+
+// Pricing and Availability:
+// - Price (Free or Paid tiers)
+// - Availability (countries/regions)
+
+// App Privacy:
+// - Privacy Policy URL (required)
+// - Data collection practices</code></pre>
+
+                <h3>Prepare Screenshots</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Device</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Size (pixels)</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Required</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">iPhone 6.7"</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">1290 x 2796</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Yes (scales to smaller)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">iPhone 6.5"</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">1284 x 2778</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Yes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">iPhone 5.5"</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">1242 x 2208</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Yes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">iPad Pro 12.9"</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">2048 x 2732</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">If supporting iPad</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Screenshot Tips</h4>
+                    <ul>
+                        <li>Use 3-10 screenshots per device size</li>
+                        <li>First 3 screenshots are most important (shown in search)</li>
+                        <li>Add text overlays to highlight features</li>
+                        <li>Show real app content, not mockups</li>
+                        <li>Tools: Figma, Sketch, or screenshot services like AppMockUp</li>
+                    </ul>
+                </div>
+
+                <h3>App Description</h3>
+
+                <pre><code>// Description (4000 characters max)
+// Structure recommendation:
+
+// Opening hook (first 1-2 sentences visible in search)
+TaskFlow helps you stay organized and productive with 
+smart task management that adapts to your workflow.
+
+// Key features (bullet points work well)
+KEY FEATURES:
+• Smart task organization with tags and priorities
+• Collaborate with team members in real-time
+• Set reminders and never miss a deadline
+• Sync across all your devices
+• Dark mode for comfortable nighttime use
+
+// Social proof (if available)
+"The best task app I've ever used" - TechCrunch
+Featured in App Store's "Apps We Love"
+
+// Call to action
+Download TaskFlow today and transform how you work!
+
+// Keywords (100 characters, comma-separated)
+// Separate field for keywords - not visible to users
+task, todo, productivity, organizer, reminder, gtd, project</code></pre>
+            </section>
+
+            <section id="ios-submission">
+                <h2>iOS: Submission Process</h2>
+
+                <h3>Upload Build to App Store Connect</h3>
+
+                <pre><code># Option 1: Using EAS Submit (recommended)
+eas submit --platform ios
+
+# Option 2: Manual upload via Transporter
+# 1. Download Transporter from Mac App Store
+# 2. Sign in with Apple ID
+# 3. Drag .ipa file to Transporter
+# 4. Click "Deliver"
+
+# Option 3: Using xcrun (command line)
+xcrun altool --upload-app -f MyApp.ipa \
+  -t ios \
+  -u "your@email.com" \
+  -p "app-specific-password"</code></pre>
+
+                <h3>TestFlight Beta Testing</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Internal["Internal Testing"]
+        I1[Up to 100 testers]
+        I2[App Store Connect users]
+        I3[No review required]
+    end
+    
+    subgraph External["External Testing"]
+        E1[Up to 10,000 testers]
+        E2[Email invitation]
+        E3[Beta review required]
+    end
+    
+    subgraph Public["Public Link"]
+        P1[Unlimited testers]
+        P2[Shareable link]
+        P3[Beta review required]
+    end
+    
+    Internal --> External --> Public
+</pre>
+
+                <pre><code>// TestFlight Setup:
+
+// 1. Build appears in App Store Connect (after processing)
+// 2. Go to TestFlight tab
+// 3. Add build to test group
+
+// Internal Testing:
+// - Add testers via email (must be App Store Connect users)
+// - No beta review required
+// - Builds available immediately
+
+// External Testing:
+// - Create test group
+// - Add testers via email
+// - Requires Beta App Review (usually &lt; 24 hours)
+// - Provide "What to Test" notes
+
+// Public Link:
+// - Enable public link for test group
+// - Share link anywhere
+// - Anyone can join up to tester limit</code></pre>
+
+                <h3>Submit for App Review</h3>
+
+                <pre><code>// In App Store Connect:
+
+// 1. Select your build in the App Store tab
+// 2. Complete all required fields:
+//    - Version Information
+//    - App Review Information
+//    - Rating
+//    - Review Notes (optional but helpful)
+
+// 3. App Review Information:
+//    - Contact info for reviewer
+//    - Demo account credentials (if login required)
+//    - Notes about features that need explanation
+
+// 4. Submit for Review
+//    - Review typically takes 24-48 hours
+//    - Can expedite in special circumstances
+
+// 5. Post-submission:
+//    - Monitor for status changes
+//    - Respond quickly to any questions
+//    - Can reject submission and resubmit if needed</code></pre>
+
+                <h3>Common iOS Rejection Reasons</h3>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Avoid These Common Mistakes</h4>
+                    <ul>
+                        <li><strong>Crashes:</strong> Test thoroughly before submission</li>
+                        <li><strong>Placeholder content:</strong> No lorem ipsum or test data</li>
+                        <li><strong>Broken links:</strong> All URLs must work</li>
+                        <li><strong>Missing privacy policy:</strong> Required for all apps</li>
+                        <li><strong>Inaccurate screenshots:</strong> Must match actual app</li>
+                        <li><strong>Login issues:</strong> Provide working demo credentials</li>
+                        <li><strong>Minimum functionality:</strong> App must do something useful</li>
+                        <li><strong>Misleading metadata:</strong> Description must match functionality</li>
+                    </ul>
+                </div>
+
+                <h3>Responding to Rejection</h3>
+
+                <pre><code>// If your app is rejected:
+
+// 1. Read the rejection reason carefully
+//    - Resolution Center in App Store Connect
+//    - Often includes specific guideline violated
+
+// 2. Options:
+//    a) Fix the issue and resubmit
+//    b) Reply to explain/clarify (if misunderstanding)
+//    c) Appeal (if you believe rejection is wrong)
+
+// 3. Tips for successful resubmission:
+//    - Address ALL issues mentioned
+//    - Add detailed review notes explaining changes
+//    - Provide video walkthrough for complex features
+//    - Be polite and professional in communications</code></pre>
+            </section>
+
+            <section id="android-setup">
+                <h2>Android: Play Console Setup</h2>
+
+                <p>Google Play Console is where you manage your Android apps.</p>
+
+                <h3>Create Your App</h3>
+
+                <pre><code>// Step 1: Login to Google Play Console
+// https://play.google.com/console
+
+// Step 2: Click "Create app"
+
+// Step 3: Fill in app details:
+// - App name
+// - Default language
+// - App or game
+// - Free or paid
+// - Declarations (policies compliance)
+
+// Step 4: Set up your app
+// - Complete all dashboard tasks
+// - This unlocks testing and production access</code></pre>
+
+                <h3>Store Listing</h3>
+
+                <pre><code>// Main store listing requirements:
+
+// App Details:
+// - App name (50 characters max)
+// - Short description (80 characters max)
+// - Full description (4000 characters max)
+
+// Graphics:
+// - App icon: 512 x 512 PNG
+// - Feature graphic: 1024 x 500 (shown at top of listing)
+// - Screenshots: minimum 2, up to 8 per device type
+// - Phone screenshots: 16:9 or 9:16 aspect ratio
+// - Video: YouTube URL (optional)
+
+// Categorization:
+// - App category
+// - Tags (up to 5)
+// - Contact email
+// - Privacy policy URL</code></pre>
+
+                <h3>Screenshot Requirements</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Dimensions</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Phone</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">16:9 or 9:16, min 320px</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">2-8 required</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">7" Tablet</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">16:9 or 9:16</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Optional</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">10" Tablet</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">16:9 or 9:16</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Optional</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>App Content Setup</h3>
+
+                <pre><code>// Required policies and declarations:
+
+// 1. Privacy Policy
+//    - Hosted URL required
+//    - Must cover data collection practices
+
+// 2. App Access
+//    - If login required, provide test credentials
+//    - Or explain restricted access
+
+// 3. Ads Declaration
+//    - Does app contain ads?
+
+// 4. Content Rating
+//    - Complete IARC questionnaire
+//    - Automated rating based on answers
+
+// 5. Target Audience
+//    - Age groups your app targets
+//    - Additional requirements for kids' apps
+
+// 6. Data Safety
+//    - What data is collected
+//    - How data is used
+//    - Data sharing practices</code></pre>
+            </section>
+
+            <section id="android-submission">
+                <h2>Android: Submission Process</h2>
+
+                <h3>Testing Tracks</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Internal["Internal Testing"]
+        I1[Up to 100 testers]
+        I2[Email list]
+        I3[Immediate access]
+    end
+    
+    subgraph Closed["Closed Testing"]
+        C1[Unlimited testers]
+        C2[Email or link]
+        C3[Review may be required]
+    end
+    
+    subgraph Open["Open Testing"]
+        O1[Anyone can join]
+        O2[Listed in Play Store]
+        O3[Review required]
+    end
+    
+    subgraph Prod["Production"]
+        P1[All users]
+        P2[Full release]
+        P3[Review required]
+    end
+    
+    Internal --> Closed --> Open --> Prod
+</pre>
+
+                <h3>Upload Your App Bundle</h3>
+
+                <pre><code># Option 1: Using EAS Submit (recommended)
+eas submit --platform android
+
+# Option 2: Manual upload in Play Console
+# 1. Go to Release > Testing > Internal testing
+# 2. Click "Create new release"
+# 3. Upload your .aab file
+# 4. Add release notes
+# 5. Review and roll out
+
+# First upload requirements:
+# - Signed with upload key (EAS handles this)
+# - Target API level must meet requirements
+# - 64-bit support required</code></pre>
+
+                <h3>Internal Testing Setup</h3>
+
+                <pre><code>// Internal testing (recommended for first release):
+
+// 1. Go to Release > Testing > Internal testing
+// 2. Create new release
+// 3. Upload .aab file
+// 4. Add release name and notes
+// 5. Review and start rollout
+
+// Add testers:
+// 1. Go to Internal testing > Testers tab
+// 2. Create email list
+// 3. Add tester emails
+// 4. Testers receive invite link
+
+// Testers join via:
+// - Opt-in link (from Play Console)
+// - Direct Play Store link (after opting in)</code></pre>
+
+                <h3>Production Release</h3>
+
+                <pre><code>// Before production release, complete:
+// ✅ Store listing (all fields)
+// ✅ Content rating questionnaire
+// ✅ Pricing & distribution
+// ✅ App content declarations
+// ✅ Data safety form
+// ✅ Target audience settings
+
+// Create production release:
+// 1. Go to Release > Production
+// 2. Create new release
+// 3. Upload .aab (or promote from testing)
+// 4. Add release notes
+// 5. Choose rollout percentage
+// 6. Submit for review
+
+// Staged rollout options:
+// - Start with 5-10% of users
+// - Monitor crashes and feedback
+// - Increase to 100% when stable</code></pre>
+
+                <h3>Common Android Rejection Reasons</h3>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Google Play Policy Violations</h4>
+                    <ul>
+                        <li><strong>Metadata policy:</strong> Misleading descriptions or graphics</li>
+                        <li><strong>Impersonation:</strong> Copying other apps' branding</li>
+                        <li><strong>Permissions:</strong> Requesting unnecessary permissions</li>
+                        <li><strong>Data safety:</strong> Inaccurate data collection disclosure</li>
+                        <li><strong>API level:</strong> Not targeting current requirements</li>
+                        <li><strong>Functionality:</strong> App crashes or doesn't work</li>
+                        <li><strong>Content policy:</strong> Prohibited content types</li>
+                        <li><strong>Ads policy:</strong> Deceptive or intrusive ads</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="eas-submit">
+                <h2>EAS Submit</h2>
+
+                <p>EAS Submit automates the submission process to both app stores.</p>
+
+                <h3>Configure EAS Submit</h3>
+
+                <pre><code>// eas.json submit configuration
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your@email.com",
+        "ascAppId": "1234567890",
+        "appleTeamId": "XXXXXXXXXX"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./pc-api-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>iOS Submission Setup</h3>
+
+                <pre><code># Find your App Store Connect App ID:
+# 1. Go to App Store Connect
+# 2. Select your app
+# 3. App Information > General > Apple ID
+
+# Find your Team ID:
+# 1. Go to developer.apple.com
+# 2. Account > Membership
+# 3. Team ID is listed there
+
+# Submit iOS build
+eas submit --platform ios
+
+# Or submit a specific build
+eas submit --platform ios --id [BUILD_ID]
+
+# Interactive prompts if config missing:
+# - Apple ID (email)
+# - App-specific password (or use --apple-id and --asc-app-id)
+# - Select app from list</code></pre>
+
+                <h3>Android Submission Setup</h3>
+
+                <pre><code># Create Google Play Service Account:
+
+# 1. Go to Google Cloud Console
+# 2. Create new project (or select existing)
+# 3. Enable Google Play Android Developer API
+# 4. Create Service Account:
+#    - IAM & Admin > Service Accounts
+#    - Create Service Account
+#    - Name: "Play Console Upload"
+#    - Grant no roles initially
+# 5. Create JSON key:
+#    - Click service account
+#    - Keys > Add Key > Create new key
+#    - Select JSON
+#    - Download the file
+
+# 6. Link to Play Console:
+#    - Go to Play Console
+#    - Setup > API access
+#    - Link Google Cloud Project
+#    - Grant access to Service Account
+#    - Give "Release manager" permission
+
+# 7. Update eas.json:
+{
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}
+
+# Submit Android build
+eas submit --platform android</code></pre>
+
+                <h3>Available Android Tracks</h3>
+
+                <pre><code>// Track options for android submission:
+{
+  "submit": {
+    "production": {
+      "android": {
+        // Testing tracks
+        "track": "internal",     // Internal testing
+        "track": "alpha",        // Closed testing  
+        "track": "beta",         // Open testing
+        
+        // Production
+        "track": "production",   // Full release
+        
+        // Staged rollout (production only)
+        "releaseStatus": "inProgress",
+        "rollout": 0.1           // 10% rollout
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Automated Submission Commands</h3>
+
+                <pre><code># Submit latest build
+eas submit --platform ios
+eas submit --platform android
+
+# Submit specific build
+eas submit --platform ios --id [BUILD_ID]
+
+# Submit to specific profile
+eas submit --platform android --profile production
+
+# Submit both platforms
+eas submit --platform all
+
+# Non-interactive (for CI/CD)
+eas submit --platform all --non-interactive
+
+# Auto-submit after build completes
+eas build --platform ios --profile production --auto-submit</code></pre>
+
+                <h3>CI/CD Integration</h3>
+
+                <pre><code># GitHub Actions: Build and Submit
+name: Build and Submit
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Decode Google Play key
+        run: echo "${{ secrets.GOOGLE_PLAY_KEY }}" | base64 -d > google-play-key.json
+        
+      - name: Build and Submit iOS
+        run: eas build --platform ios --profile production --auto-submit --non-interactive
+        
+      - name: Build and Submit Android
+        run: eas build --platform android --profile production --auto-submit --non-interactive</code></pre>
+            </section>
+
+            <section id="review-process">
+                <h2>The Review Process</h2>
+
+                <h3>Review Timeline</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Stage</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">iOS</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Android</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">First Submission</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">24-72 hours</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Hours to 7 days</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Updates</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">24 hours typically</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Hours typically</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Expedited Review</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Available for critical fixes</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Not available</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>What Reviewers Check</h3>
+
+                <pre><code>// Apple App Review checks:
+// - App functions as described
+// - No crashes or obvious bugs
+// - Meets Human Interface Guidelines
+// - Appropriate content rating
+// - Privacy policy compliance
+// - In-app purchase implementation
+// - No hidden features
+// - Accurate metadata and screenshots
+
+// Google Play Review checks:
+// - Policy compliance
+// - Functionality testing
+// - Content appropriateness
+// - Security and data handling
+// - Performance and stability
+// - Accurate store listing</code></pre>
+
+                <h3>Tips for Smooth Review</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Best Practices</h4>
+                    <ul>
+                        <li>Test thoroughly on multiple devices before submitting</li>
+                        <li>Provide demo account credentials for login-required apps</li>
+                        <li>Add detailed review notes explaining complex features</li>
+                        <li>Include video walkthrough for non-obvious functionality</li>
+                        <li>Ensure all links work (privacy policy, support, etc.)</li>
+                        <li>Use placeholder-free content (no lorem ipsum)</li>
+                        <li>Match screenshots to actual app appearance</li>
+                        <li>Respond quickly to reviewer questions</li>
+                    </ul>
+                </div>
+
+                <h3>Post-Launch</h3>
+
+                <pre><code>// After your app is approved:
+
+// 1. Monitor metrics
+//    - Downloads and installs
+//    - Crash reports
+//    - User reviews
+//    - Retention rates
+
+// 2. Respond to reviews
+//    - Address negative feedback
+//    - Thank positive reviewers
+//    - Update app based on feedback
+
+// 3. Plan updates
+//    - Regular bug fixes
+//    - New features
+//    - Performance improvements
+
+// 4. Marketing
+//    - App Store Optimization (ASO)
+//    - Social media promotion
+//    - Press outreach
+//    - User acquisition campaigns</code></pre>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Prepare Store Listing</h3>
+                    <p>Create a complete store listing for a task management app.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// App Store / Play Store Listing
+
+// App Name (30 char iOS, 50 char Android)
+TaskFlow - Smart Task Manager
+
+// Subtitle (iOS only, 30 char)
+Organize your life effortlessly
+
+// Short Description (Android, 80 char)
+Smart task management with reminders, collaboration, and seamless sync.
+
+// Full Description (4000 char max)
+TaskFlow transforms how you manage tasks and stay productive.
+
+SMART TASK MANAGEMENT
+• Create tasks with titles, descriptions, and due dates
+• Organize with projects, tags, and priorities
+• Set recurring tasks for habits and routines
+• Add subtasks to break down complex projects
+
+POWERFUL REMINDERS
+• Location-based reminders
+• Time-based notifications
+• Smart suggestions based on your patterns
+• Never miss an important deadline
+
+SEAMLESS COLLABORATION
+• Share projects with team members
+• Assign tasks and track progress
+• Comment and discuss within tasks
+• Real-time sync across all devices
+
+BEAUTIFUL DESIGN
+• Clean, intuitive interface
+• Dark mode for comfortable night use
+• Customizable themes and colors
+• Widget support for quick access
+
+SYNC EVERYWHERE
+• Works on iPhone, iPad, and Apple Watch
+• Offline support with automatic sync
+• End-to-end encryption for privacy
+
+Start your free 14-day trial of TaskFlow Pro, 
+then $4.99/month or $39.99/year.
+
+// Keywords (iOS, 100 char)
+task,todo,reminder,productivity,gtd,checklist,planner,organize
+
+// Category
+Primary: Productivity
+Secondary: Lifestyle
+
+// Privacy Policy URL
+https://taskflow.app/privacy
+
+// Support URL  
+https://taskflow.app/support</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Configure EAS Submit</h3>
+                    <p>Set up eas.json for automated submission to both stores.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// eas.json
+{
+  "cli": {
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "large"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "resourceClass": "large"
+      }
+    }
+  },
+  "submit": {
+    "preview": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    },
+    "production": {
+      "ios": {
+        "appleId": "developer@taskflow.app",
+        "ascAppId": "1234567890",
+        "appleTeamId": "ABC123XYZ"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "production",
+        "releaseStatus": "inProgress",
+        "rollout": 0.1
+      }
+    }
+  }
+}
+
+// Usage:
+// Build and auto-submit to stores
+eas build --platform all --profile production --auto-submit
+
+// Submit existing build
+eas submit --platform all --profile production
+
+// Submit to internal testing
+eas submit --platform android --profile preview</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Create Release Checklist</h3>
+                    <p>Build a comprehensive pre-release checklist.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># App Release Checklist
+
+## Pre-Build
+- [ ] Version number updated in app.json
+- [ ] Release notes prepared
+- [ ] All features tested on physical devices
+- [ ] No console.log statements in production code
+- [ ] Environment variables set for production
+- [ ] Privacy policy updated if data practices changed
+
+## Store Listing
+- [ ] Screenshots updated (if UI changed)
+- [ ] Description updated (if features changed)
+- [ ] "What's New" text prepared
+- [ ] All links working (privacy, support, website)
+- [ ] Content rating still accurate
+
+## Build
+- [ ] Production build created: `eas build --profile production`
+- [ ] Build tested via internal distribution
+- [ ] No crashes in testing
+- [ ] All features work as expected
+- [ ] Performance acceptable
+
+## iOS Specific
+- [ ] TestFlight beta tested
+- [ ] Review notes updated
+- [ ] Demo credentials ready (if needed)
+- [ ] Export compliance updated (if using encryption)
+
+## Android Specific
+- [ ] Internal testing completed
+- [ ] Data safety form accurate
+- [ ] Target API level meets requirements
+- [ ] 64-bit support verified
+
+## Submission
+- [ ] Submit to stores: `eas submit --platform all`
+- [ ] Monitor submission status
+- [ ] Team notified of pending release
+
+## Post-Release
+- [ ] Verify app appears in stores
+- [ ] Test download and install
+- [ ] Monitor crash reports (24-48 hours)
+- [ ] Monitor user reviews
+- [ ] OTA update ready if hotfix needed
+- [ ] Marketing/announcement sent</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Developer accounts:</strong> Apple $99/year, Google $25 one-time</li>
+                        <li><strong>Store listings:</strong> Prepare screenshots, descriptions, and metadata</li>
+                        <li><strong>iOS process:</strong> App Store Connect → TestFlight → App Review → Release</li>
+                        <li><strong>Android process:</strong> Play Console → Testing tracks → Review → Production</li>
+                        <li><strong>EAS Submit:</strong> Automates submission to both stores</li>
+                        <li><strong>Review times:</strong> iOS ~24-48h, Android varies</li>
+                        <li><strong>Staged rollout:</strong> Release to percentage of users first</li>
+                        <li><strong>Post-launch:</strong> Monitor crashes, reviews, and metrics</li>
+                    </ul>
+                </div>
+
+                <h3>Submission Command Reference</h3>
+
+                <pre><code># EAS Submit Commands
+eas submit --platform ios              # Submit iOS
+eas submit --platform android          # Submit Android
+eas submit --platform all              # Submit both
+
+# Auto-submit with build
+eas build --profile production --auto-submit
+
+# Submit specific build
+eas submit --platform ios --id [BUILD_ID]
+
+# Non-interactive (CI/CD)
+eas submit --platform all --non-interactive</code></pre>
+
+                <p>In the next lesson, we'll cover crash reporting and analytics to monitor your app's health in production.</p>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l04_over_the_air_updates.html" class="prev-link">← Previous: Over-the-Air Updates</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m12_l06_crash_reporting_and_analytics.html" class="next-link">Next: Crash Reporting and Analytics →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

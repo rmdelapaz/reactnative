@@ -832,3 +832,697 @@ output.generatedEmail = `test-${timestamp}@example.com`;</code></pre>
       - tapOn:
           text: "Allow"</code></pre>
             </section>
+            <!-- CI/CD Integration -->
+            <section id="ci-cd">
+                <h2>CI/CD Integration</h2>
+
+                <p>Run E2E tests automatically in your continuous integration pipeline.</p>
+
+                <h3>GitHub Actions Setup</h3>
+
+                <pre><code># .github/workflows/e2e-tests.yml
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+      
+      - name: Build iOS app
+        run: |
+          npx expo prebuild --platform ios
+          xcodebuild -workspace ios/YourApp.xcworkspace \
+            -scheme YourApp \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath build
+      
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 15"
+      
+      - name: Install app on Simulator
+        run: |
+          xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/YourApp.app
+      
+      - name: Run Maestro Tests
+        run: |
+          maestro test .maestro/flows/ --format junit --output test-results.xml
+      
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: test-results.xml
+
+  e2e-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+      
+      - name: Build Android app
+        run: |
+          npx expo prebuild --platform android
+          cd android && ./gradlew assembleDebug
+      
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      
+      - name: Run E2E Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: |
+            adb install android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test .maestro/flows/ --format junit --output test-results.xml
+      
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-android
+          path: test-results.xml</code></pre>
+
+                <h3>Maestro Cloud</h3>
+
+                <pre><code># Upload to Maestro Cloud for managed execution
+maestro cloud --apiKey $MAESTRO_API_KEY .maestro/flows/
+
+# With app binary
+maestro cloud --apiKey $MAESTRO_API_KEY \
+  --app-file android/app/build/outputs/apk/debug/app-debug.apk \
+  .maestro/flows/
+
+# In CI
+- name: Run on Maestro Cloud
+  env:
+    MAESTRO_API_KEY: ${{ secrets.MAESTRO_API_KEY }}
+  run: |
+    maestro cloud \
+      --apiKey $MAESTRO_API_KEY \
+      --app-file app-release.apk \
+      --android-api-level 34 \
+      .maestro/flows/</code></pre>
+
+                <h3>Test Reporting</h3>
+
+                <pre><code># Generate JUnit report
+maestro test .maestro/flows/ --format junit --output results.xml
+
+# Generate HTML report
+maestro test .maestro/flows/ --format html --output report.html
+
+# Include screenshots on failure
+maestro test .maestro/flows/ --include-tags critical --debug-output ./debug</code></pre>
+
+                <h3>Running Tests by Tags</h3>
+
+                <pre><code># Tag your flows
+# .maestro/flows/checkout.yaml
+appId: com.yourcompany.yourapp
+tags:
+  - critical
+  - checkout
+  - smoke
+---
+# ... flow steps
+
+# Run only specific tags
+maestro test .maestro/flows/ --include-tags critical
+maestro test .maestro/flows/ --include-tags smoke
+maestro test .maestro/flows/ --exclude-tags slow</code></pre>
+
+                <h3>Parallel Execution</h3>
+
+                <pre><code># Run tests in parallel (requires multiple devices/emulators)
+maestro test .maestro/flows/ --shards 4
+
+# In CI with matrix strategy
+jobs:
+  e2e:
+    strategy:
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Run Maestro Shard
+        run: |
+          maestro test .maestro/flows/ \
+            --shard ${{ matrix.shard }}/4</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Login Flow</h3>
+                    <p>Write a complete login flow test with error handling.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test successful login</li>
+                        <li>Test login with invalid credentials</li>
+                        <li>Verify error message is shown</li>
+                        <li>Test password visibility toggle</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .maestro/flows/auth/login-success.yaml
+appId: com.yourcompany.yourapp
+name: "Login - Success"
+tags:
+  - auth
+  - smoke
+  - critical
+env:
+  VALID_EMAIL: "test@example.com"
+  VALID_PASSWORD: "password123"
+---
+- launchApp:
+    clearState: true
+
+# Navigate to login if needed
+- runFlow:
+    when:
+      visible:
+        text: "Get Started"
+    commands:
+      - tapOn:
+          text: "Get Started"
+      - tapOn:
+          text: "Login"
+
+# Enter credentials
+- tapOn:
+    id: "email-input"
+- inputText: "${VALID_EMAIL}"
+
+- tapOn:
+    id: "password-input"
+- inputText: "${VALID_PASSWORD}"
+
+# Submit
+- tapOn:
+    id: "login-button"
+
+# Verify success
+- assertVisible:
+    id: "home-screen"
+    timeout: 10000
+
+- assertVisible:
+    text: "Welcome"
+
+# .maestro/flows/auth/login-invalid.yaml
+appId: com.yourcompany.yourapp
+name: "Login - Invalid Credentials"
+tags:
+  - auth
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "email-input"
+- inputText: "wrong@example.com"
+
+- tapOn:
+    id: "password-input"
+- inputText: "wrongpassword"
+
+- tapOn:
+    id: "login-button"
+
+# Verify error
+- assertVisible:
+    text: "Invalid credentials"
+    timeout: 5000
+
+# Still on login screen
+- assertVisible:
+    id: "login-button"
+
+# .maestro/flows/auth/password-toggle.yaml
+appId: com.yourcompany.yourapp
+name: "Login - Password Visibility"
+tags:
+  - auth
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "password-input"
+- inputText: "mypassword"
+
+# Password should be hidden by default
+- assertVisible:
+    id: "password-toggle"
+
+# Toggle visibility
+- tapOn:
+    id: "password-toggle"
+
+# Take screenshot to verify (manual check)
+- takeScreenshot: "password-visible"
+
+# Toggle back
+- tapOn:
+    id: "password-toggle"
+
+- takeScreenshot: "password-hidden"</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Shopping Cart Flow</h3>
+                    <p>Test adding items to cart and completing checkout.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Add multiple items to cart</li>
+                        <li>Verify cart count updates</li>
+                        <li>Modify quantities in cart</li>
+                        <li>Complete checkout process</li>
+                        <li>Verify order confirmation</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .maestro/flows/shopping/add-to-cart.yaml
+appId: com.yourcompany.yourapp
+name: "Shopping - Add to Cart"
+tags:
+  - shopping
+  - critical
+---
+- launchApp:
+    clearState: true
+
+# Login first (reuse subflow)
+- runFlow: ../auth/login-success.yaml
+
+# Browse products
+- tapOn:
+    id: "shop-tab"
+
+# Add first product
+- tapOn:
+    id: "product-card-1"
+- assertVisible:
+    id: "product-details"
+- tapOn:
+    id: "add-to-cart-button"
+
+# Verify cart badge
+- assertVisible:
+    id: "cart-badge"
+    text: "1"
+
+# Go back and add another
+- back
+- tapOn:
+    id: "product-card-2"
+- tapOn:
+    id: "add-to-cart-button"
+
+# Cart should show 2
+- assertVisible:
+    id: "cart-badge"
+    text: "2"
+
+# .maestro/flows/shopping/checkout.yaml
+appId: com.yourcompany.yourapp
+name: "Shopping - Checkout"
+tags:
+  - shopping
+  - checkout
+  - critical
+---
+# Start with items in cart
+- runFlow: add-to-cart.yaml
+
+# Go to cart
+- tapOn:
+    id: "cart-tab"
+
+# Verify items
+- assertVisible:
+    id: "cart-item-1"
+- assertVisible:
+    id: "cart-item-2"
+
+# Increase quantity
+- tapOn:
+    id: "increase-qty-1"
+- assertVisible:
+    id: "qty-1"
+    text: "2"
+
+# Proceed to checkout
+- tapOn:
+    id: "checkout-button"
+
+# Fill shipping
+- tapOn:
+    id: "name-input"
+- inputText: "John Doe"
+
+- tapOn:
+    id: "address-input"
+- inputText: "123 Main Street"
+
+- tapOn:
+    id: "city-input"
+- inputText: "New York"
+
+- scroll
+
+- tapOn:
+    id: "zip-input"
+- inputText: "10001"
+
+- hideKeyboard
+
+# Continue to payment
+- tapOn:
+    id: "continue-button"
+
+# Fill payment (test card)
+- tapOn:
+    id: "card-number"
+- inputText: "4111111111111111"
+
+- tapOn:
+    id: "expiry"
+- inputText: "12/28"
+
+- tapOn:
+    id: "cvv"
+- inputText: "123"
+
+- hideKeyboard
+
+# Place order
+- tapOn:
+    id: "place-order-button"
+
+# Verify confirmation
+- assertVisible:
+    text: "Order Confirmed"
+    timeout: 15000
+
+- assertVisible:
+    text: "Order #"
+
+- takeScreenshot: "order-confirmation"</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Onboarding Flow with Skip Option</h3>
+                    <p>Test the onboarding experience with multiple paths.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test completing all onboarding steps</li>
+                        <li>Test skipping onboarding</li>
+                        <li>Verify final state is correct for both paths</li>
+                        <li>Handle permission dialogs</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .maestro/flows/onboarding/complete-onboarding.yaml
+appId: com.yourcompany.yourapp
+name: "Onboarding - Complete All Steps"
+tags:
+  - onboarding
+---
+- launchApp:
+    clearState: true
+
+# Step 1: Welcome
+- assertVisible:
+    text: "Welcome to Our App"
+- tapOn:
+    id: "next-button"
+
+# Step 2: Features
+- assertVisible:
+    text: "Discover Features"
+- swipe:
+    direction: LEFT
+# Or tap next
+- tapOn:
+    id: "next-button"
+
+# Step 3: Notifications permission
+- assertVisible:
+    text: "Stay Updated"
+- tapOn:
+    id: "enable-notifications"
+
+# Handle system permission dialog
+- runFlow:
+    when:
+      visible:
+        text: "Allow"
+    commands:
+      - tapOn:
+          text: "Allow"
+
+- tapOn:
+    id: "next-button"
+
+# Step 4: Location permission
+- assertVisible:
+    text: "Find Nearby"
+- tapOn:
+    id: "enable-location"
+
+- runFlow:
+    when:
+      visible:
+        text: "Allow While Using"
+    commands:
+      - tapOn:
+          text: "Allow While Using"
+
+- tapOn:
+    id: "next-button"
+
+# Step 5: Complete
+- assertVisible:
+    text: "You're All Set!"
+- tapOn:
+    id: "get-started-button"
+
+# Verify on home screen
+- assertVisible:
+    id: "home-screen"
+
+# .maestro/flows/onboarding/skip-onboarding.yaml
+appId: com.yourcompany.yourapp
+name: "Onboarding - Skip"
+tags:
+  - onboarding
+---
+- launchApp:
+    clearState: true
+
+# Welcome screen - tap skip
+- assertVisible:
+    text: "Welcome to Our App"
+- tapOn:
+    id: "skip-button"
+
+# Confirm skip dialog
+- runFlow:
+    when:
+      visible:
+        text: "Are you sure"
+    commands:
+      - tapOn:
+          text: "Yes, Skip"
+
+# Should be on home screen
+- assertVisible:
+    id: "home-screen"
+    timeout: 5000
+
+# Verify basic functionality works
+- tapOn:
+    id: "explore-tab"
+- assertVisible:
+    id: "explore-screen"
+
+# .maestro/flows/onboarding/resume-onboarding.yaml
+appId: com.yourcompany.yourapp
+name: "Onboarding - Resume After Close"
+tags:
+  - onboarding
+---
+- launchApp:
+    clearState: true
+
+# Start onboarding
+- assertVisible:
+    text: "Welcome to Our App"
+- tapOn:
+    id: "next-button"
+
+# On step 2, close app
+- assertVisible:
+    text: "Discover Features"
+- stopApp
+
+# Relaunch
+- launchApp
+
+# Should resume at step 2
+- assertVisible:
+    text: "Discover Features"</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>E2E testing with Maestro validates your entire app from the user's perspective, catching issues that unit and integration tests might miss.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>E2E purpose:</strong> Test critical user flows on real devices/simulators</li>
+                        <li><strong>Maestro flows:</strong> Write tests in readable YAML format</li>
+                        <li><strong>testID props:</strong> Add to components for reliable selection</li>
+                        <li><strong>Maestro Studio:</strong> Use for discovering selectors interactively</li>
+                        <li><strong>Selectors:</strong> Prefer testID, fallback to text/accessibility</li>
+                        <li><strong>Subflows:</strong> Reuse common sequences like login</li>
+                        <li><strong>CI/CD:</strong> Integrate with GitHub Actions or Maestro Cloud</li>
+                        <li><strong>Tags:</strong> Organize tests for targeted execution</li>
+                        <li><strong>Balance:</strong> Focus on critical paths, not exhaustive coverage</li>
+                    </ul>
+                </div>
+
+                <h3>Testing Strategy Complete</h3>
+
+                <p>With Module 9 complete, you now have a comprehensive testing strategy:</p>
+
+                <!-- SVG: Testing Strategy Summary -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 600px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Pyramid -->
+                        <polygon points="300,30 520,250 80,250" fill="#e0e0e0" stroke="#999" stroke-width="2"/>
+                        
+                        <!-- E2E Section -->
+                        <polygon points="300,30 380,110 220,110" fill="#FF9800"/>
+                        <text x="300" y="80" text-anchor="middle" font-size="12" font-weight="bold" fill="white">E2E</text>
+                        <text x="300" y="95" text-anchor="middle" font-size="9" fill="white">~10%</text>
+                        
+                        <!-- Integration Section -->
+                        <polygon points="220,110 380,110 440,180 160,180" fill="#2196F3"/>
+                        <text x="300" y="145" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Integration</text>
+                        <text x="300" y="162" text-anchor="middle" font-size="9" fill="white">~20%</text>
+                        
+                        <!-- Unit Section -->
+                        <polygon points="160,180 440,180 520,250 80,250" fill="#4CAF50"/>
+                        <text x="300" y="215" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Unit Tests</text>
+                        <text x="300" y="235" text-anchor="middle" font-size="9" fill="white">~70%</text>
+                        
+                        <!-- Labels -->
+                        <g transform="translate(540, 60)">
+                            <rect width="15" height="15" fill="#FF9800"/>
+                            <text x="22" y="12" font-size="10" fill="#333">Maestro</text>
+                        </g>
+                        <g transform="translate(540, 85)">
+                            <rect width="15" height="15" fill="#2196F3"/>
+                            <text x="22" y="12" font-size="10" fill="#333">RTL + Mocks</text>
+                        </g>
+                        <g transform="translate(540, 110)">
+                            <rect width="15" height="15" fill="#4CAF50"/>
+                            <text x="22" y="12" font-size="10" fill="#333">Jest</text>
+                        </g>
+                        
+                        <!-- Bottom text -->
+                        <text x="300" y="280" text-anchor="middle" font-size="11" fill="#666">Fast → Slow | Many → Few | Cheap → Expensive</text>
+                    </svg>
+                </div>
+
+                <p>You're now equipped to write tests at every level, ensuring your React Native app is reliable, maintainable, and user-friendly!</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l04_integration_testing.html" class="prev-link">← Previous: Integration Testing</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m10_l01_app_performance.html" class="next-link">Next: Module 10 - App Performance →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

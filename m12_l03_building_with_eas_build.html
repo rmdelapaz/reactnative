@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Build iOS and Android apps in the cloud with EAS Build">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Building with EAS Build | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.3</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>Building with EAS Build</h1>
+                <p class="lesson-subtitle">Build production-ready iOS and Android apps in the cloud</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand EAS Build and its advantages over local builds</li>
+                    <li>Set up and configure EAS Build for your project</li>
+                    <li>Create and manage build profiles for different environments</li>
+                    <li>Build iOS apps for simulators, devices, and the App Store</li>
+                    <li>Build Android apps as APKs and AABs for distribution</li>
+                    <li>Troubleshoot common build issues</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#what-is-eas">What is EAS Build?</a></li>
+                        <li><a href="#setup">Setting Up EAS Build</a></li>
+                        <li><a href="#build-profiles">Build Profiles</a></li>
+                        <li><a href="#eas-json">The eas.json Configuration</a></li>
+                        <li><a href="#ios-builds">iOS Builds</a></li>
+                        <li><a href="#android-builds">Android Builds</a></li>
+                        <li><a href="#advanced-config">Advanced Configuration</a></li>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="what-is-eas">
+                <h2>What is EAS Build?</h2>
+
+                <p>EAS Build is Expo's cloud-based build service that compiles your React Native app into native iOS and Android binaries. It eliminates the need for local build environments, making it possible to build iOS apps without a Mac.</p>
+
+                <h3>Local Builds vs EAS Build</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Local["Local Builds"]
+        L1[Requires Xcode for iOS]
+        L2[Requires Android Studio]
+        L3[Manual dependency management]
+        L4[Machine-specific issues]
+        L5[Limited to your hardware]
+    end
+    
+    subgraph EAS["EAS Build"]
+        E1[No local setup required]
+        E2[Consistent build environment]
+        E3[Build iOS on any OS]
+        E4[Automatic credential management]
+        E5[Parallel builds]
+        E6[Build caching]
+    end
+    
+    Local --> |Migration| EAS
+    
+    style EAS fill:#e8f5e9,stroke:#4CAF50
+    style Local fill:#fff3e0,stroke:#ff9800
+</pre>
+
+                <h3>How EAS Build Works</h3>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant Dev as Developer
+    participant CLI as EAS CLI
+    participant Cloud as EAS Cloud
+    participant Store as App Stores
+    
+    Dev->>CLI: eas build
+    CLI->>Cloud: Upload source code
+    Cloud->>Cloud: Install dependencies
+    Cloud->>Cloud: Run prebuild (if needed)
+    Cloud->>Cloud: Compile native code
+    Cloud->>Cloud: Sign app
+    Cloud-->>Dev: Build complete notification
+    Dev->>Cloud: Download build
+    Dev->>Store: Submit to stores
+</pre>
+
+                <h3>EAS Build Pricing</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Plan</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Builds/Month</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Priority</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Features</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Free</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">30 builds</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Normal queue</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Basic features</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Production</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Unlimited</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Priority queue</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Team features, larger caches</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Enterprise</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Unlimited</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Dedicated queue</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">SSO, SLA, custom runners</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 When to Use Local Builds</h4>
+                    <p>Local builds are still useful for:</p>
+                    <ul>
+                        <li>Debugging native code issues</li>
+                        <li>Testing native modules in development</li>
+                        <li>Organizations with strict security requirements</li>
+                        <li>When you've exhausted your free tier</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="setup">
+                <h2>Setting Up EAS Build</h2>
+
+                <p>Getting started with EAS Build requires a few setup steps.</p>
+
+                <h3>Prerequisites</h3>
+
+                <pre><code># Install or update EAS CLI globally
+npm install -g eas-cli
+
+# Verify installation
+eas --version
+
+# Login to your Expo account
+eas login
+
+# Verify login
+eas whoami</code></pre>
+
+                <h3>Initialize EAS in Your Project</h3>
+
+                <pre><code># Navigate to your project
+cd my-app
+
+# Initialize EAS configuration
+eas build:configure
+
+# This creates:
+# - eas.json (build configuration)
+# - Updates app.json with EAS project ID</code></pre>
+
+                <h3>Project Structure After Setup</h3>
+
+                <pre><code>my-app/
+├── app.json              # Updated with EAS project ID
+├── eas.json              # Build profiles and configuration
+├── package.json
+├── app/
+│   └── ...
+└── assets/
+    └── ...</code></pre>
+
+                <h3>Link to Expo Project</h3>
+
+                <pre><code># If not already linked, connect to Expo project
+eas init
+
+# Or update existing project
+eas project:init
+
+# This adds the project ID to app.json:
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Verify Configuration</h3>
+
+                <pre><code># Check your EAS configuration
+eas config
+
+# Validate build configuration
+eas build:inspect
+
+# View project info
+eas project:info</code></pre>
+            </section>
+
+            <section id="build-profiles">
+                <h2>Build Profiles</h2>
+
+                <p>Build profiles define different configurations for various stages of development and distribution.</p>
+
+                <h3>Understanding Build Profiles</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Profiles["Build Profiles"]
+        D[development]
+        P[preview]
+        PR[production]
+    end
+    
+    subgraph DevUse["Development"]
+        D1[Development client]
+        D2[Debug builds]
+        D3[Fast iteration]
+    end
+    
+    subgraph PreviewUse["Preview/Staging"]
+        P1[Internal testing]
+        P2[Stakeholder review]
+        P3[QA testing]
+    end
+    
+    subgraph ProdUse["Production"]
+        PR1[App Store]
+        PR2[Play Store]
+        PR3[End users]
+    end
+    
+    D --> DevUse
+    P --> PreviewUse
+    PR --> ProdUse
+    
+    style D fill:#e3f2fd
+    style P fill:#fff3e0
+    style PR fill:#e8f5e9
+</pre>
+
+                <h3>Default Build Profiles</h3>
+
+                <pre><code>// eas.json - created by eas build:configure
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {}
+  },
+  "submit": {
+    "production": {}
+  }
+}</code></pre>
+
+                <h3>Profile Properties Explained</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Property</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Description</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Values</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>developmentClient</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Include Expo dev tools</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">true/false</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>distribution</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">How the build will be distributed</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">internal, store, simulator</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>channel</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">OTA update channel</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Any string (e.g., "production")</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>autoIncrement</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Auto-increment build number</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">true/false, "version", "buildNumber"</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>env</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Environment variables</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Object of key-value pairs</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Comprehensive Build Profiles</h3>
+
+                <pre><code>// eas.json - Full configuration example
+{
+  "cli": {
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "20.11.0",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production"
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "development"
+      },
+      "ios": {
+        "simulator": true,
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
+    },
+    "development-device": {
+      "extends": "development",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "channel": "production",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "large"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your@email.com",
+        "ascAppId": "1234567890",
+        "appleTeamId": "XXXXXXXXXX"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./play-store-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Profile Inheritance with extends</h3>
+
+                <pre><code>// Use "extends" to inherit from other profiles
+{
+  "build": {
+    "base": {
+      "node": "20.11.0",
+      "cache": {
+        "key": "custom-cache-key"
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true
+      // Inherits node version and cache from base
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true
+      // Also inherits from base
+    }
+  }
+}</code></pre>
+            </section>
+
+            <section id="eas-json">
+                <h2>The eas.json Configuration</h2>
+
+                <p>Let's explore all the configuration options available in eas.json.</p>
+
+                <h3>Top-Level Structure</h3>
+
+                <pre><code>{
+  "cli": {
+    // CLI version requirements and settings
+  },
+  "build": {
+    // Build profile configurations
+  },
+  "submit": {
+    // App store submission configurations
+  }
+}</code></pre>
+
+                <h3>CLI Configuration</h3>
+
+                <pre><code>{
+  "cli": {
+    // Minimum EAS CLI version required
+    "version": ">= 7.0.0",
+    
+    // Where to get app version (local or remote)
+    "appVersionSource": "remote",
+    
+    // Prompt to update CLI if outdated
+    "promptToConfigurePushNotifications": false
+  }
+}</code></pre>
+
+                <h3>Build Configuration Options</h3>
+
+                <pre><code>{
+  "build": {
+    "production": {
+      // === Distribution ===
+      "distribution": "store", // "internal", "store", or "simulator"
+      
+      // === Development ===
+      "developmentClient": false,
+      
+      // === Versioning ===
+      "autoIncrement": true, // or "version", "buildNumber"
+      
+      // === Updates ===
+      "channel": "production",
+      
+      // === Environment ===
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.production.com"
+      },
+      
+      // === Node/Runtime ===
+      "node": "20.11.0",
+      "yarn": "1.22.19",
+      "pnpm": "8.14.0",
+      "bun": "1.0.25",
+      
+      // === Caching ===
+      "cache": {
+        "key": "production-v1",
+        "cacheDefaultPaths": true,
+        "customPaths": ["./custom-cache-dir"]
+      },
+      
+      // === Build Steps ===
+      "prebuildCommand": "npm run prebuild-script",
+      
+      // === Credentials ===
+      "credentialsSource": "remote", // "local" or "remote"
+      
+      // === iOS Specific ===
+      "ios": {
+        "simulator": false,
+        "enterpriseProvisioning": "universal", // or "adhoc"
+        "autoIncrement": "buildNumber",
+        "image": "latest",
+        "resourceClass": "large", // "m-medium", "m-large", "large"
+        "bundleIdentifier": "com.company.app"
+      },
+      
+      // === Android Specific ===
+      "android": {
+        "buildType": "app-bundle", // "apk" or "app-bundle"
+        "gradleCommand": ":app:bundleRelease",
+        "autoIncrement": "versionCode",
+        "image": "latest",
+        "resourceClass": "large",
+        "applicationId": "com.company.app",
+        "ndk": "25.1.8937393"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Resource Classes</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Class</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">CPU</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Memory</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">default (free)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">2 cores</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">4 GB</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Simple apps</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">m-medium</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">4 cores</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">12 GB</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Most apps</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">m-large</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">8 cores</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">16 GB</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Large apps</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">large</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">12 cores</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">32 GB</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Complex apps with many native deps</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Caching Configuration</h3>
+
+                <pre><code>{
+  "build": {
+    "production": {
+      "cache": {
+        // Unique cache key - change to invalidate cache
+        "key": "production-v1",
+        
+        // Cache default paths (node_modules, etc.)
+        "cacheDefaultPaths": true,
+        
+        // Additional paths to cache
+        "customPaths": [
+          "./android/.gradle",
+          "./ios/Pods"
+        ],
+        
+        // Disable caching entirely
+        "disabled": false
+      }
+    }
+  }
+}
+
+// To invalidate cache, either:
+// 1. Change the cache key
+// 2. Run with --clear-cache flag
+eas build --platform ios --profile production --clear-cache</code></pre>
+            </section>
+
+            <section id="ios-builds">
+                <h2>iOS Builds</h2>
+
+                <p>Building for iOS requires code signing credentials. EAS can manage these automatically or you can provide your own.</p>
+
+                <h3>iOS Build Types</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Types["iOS Build Types"]
+        SIM[Simulator Build]
+        DEV[Development Build]
+        ADHOC[Ad Hoc Build]
+        STORE[App Store Build]
+    end
+    
+    subgraph Use["Use Cases"]
+        SIM --> U1[Local testing on Mac]
+        DEV --> U2[Physical device with dev tools]
+        ADHOC --> U3[Internal testing up to 100 devices]
+        STORE --> U4[TestFlight and App Store]
+    end
+    
+    style SIM fill:#e3f2fd
+    style DEV fill:#fff3e0
+    style ADHOC fill:#e8f5e9
+    style STORE fill:#f3e5f5
+</pre>
+
+                <h3>Building for iOS Simulator</h3>
+
+                <pre><code># Build for iOS simulator (no credentials needed)
+eas build --platform ios --profile development
+
+# eas.json configuration
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    }
+  }
+}
+
+# The build produces a .app file that runs on simulators only</code></pre>
+
+                <h3>Building for Physical Devices</h3>
+
+                <pre><code># Build for physical device testing
+eas build --platform ios --profile development-device
+
+# eas.json configuration
+{
+  "build": {
+    "development-device": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    }
+  }
+}
+
+# First build will prompt for:
+# 1. Apple Developer account login
+# 2. Team selection (if multiple teams)
+# 3. Device registration</code></pre>
+
+                <h3>Credential Management</h3>
+
+                <pre><code># View current credentials
+eas credentials
+
+# Select iOS credentials
+eas credentials --platform ios
+
+# Options:
+# 1. Let EAS manage credentials (recommended)
+# 2. Use existing credentials from your machine
+# 3. Provide credentials manually
+
+# Clear and regenerate credentials
+eas credentials --platform ios
+# Then select "Remove credentials" and rebuild</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Credential Types</h4>
+                    <ul>
+                        <li><strong>Distribution Certificate:</strong> Signs your app (limited to 3 per team)</li>
+                        <li><strong>Provisioning Profile:</strong> Links certificate to app ID and devices</li>
+                        <li><strong>Push Notification Key:</strong> Enables push notifications</li>
+                    </ul>
+                </div>
+
+                <h3>Registering Test Devices</h3>
+
+                <pre><code># Register a device for internal builds
+eas device:create
+
+# Options:
+# 1. Website - generates QR code for device to scan
+# 2. Manual - enter UDID directly
+
+# View registered devices
+eas device:list
+
+# Delete a device
+eas device:delete
+
+# After adding devices, rebuild to include them
+# in the provisioning profile</code></pre>
+
+                <h3>Building for App Store</h3>
+
+                <pre><code># Build for App Store / TestFlight
+eas build --platform ios --profile production
+
+# eas.json configuration
+{
+  "build": {
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "autoIncrement": "buildNumber"
+      }
+    }
+  }
+}
+
+# The build produces an .ipa file suitable for App Store submission</code></pre>
+
+                <h3>iOS Build Commands</h3>
+
+                <pre><code># Start an iOS build
+eas build --platform ios --profile production
+
+# Build with specific message
+eas build --platform ios --profile production --message "Release v1.2.0"
+
+# View build status
+eas build:list --platform ios
+
+# View build details
+eas build:view [BUILD_ID]
+
+# Download a build
+eas build:download [BUILD_ID]
+
+# Cancel a running build
+eas build:cancel [BUILD_ID]
+
+# View build logs
+eas build:view [BUILD_ID] --logs</code></pre>
+
+                <h3>iOS-Specific Configuration</h3>
+
+                <pre><code>{
+  "build": {
+    "production": {
+      "ios": {
+        // Build number auto-increment
+        "autoIncrement": "buildNumber",
+        
+        // Simulator or device
+        "simulator": false,
+        
+        // Build image (Xcode version)
+        "image": "latest", // or "macos-ventura-13.6-xcode-15.2"
+        
+        // Resource class for faster builds
+        "resourceClass": "large",
+        
+        // Override bundle identifier
+        "bundleIdentifier": "com.company.app",
+        
+        // Enterprise provisioning
+        "enterpriseProvisioning": "universal", // or "adhoc"
+        
+        // Scheme to build (for bare workflow)
+        "scheme": "MyApp"
+      }
+    }
+  }
+}</code></pre>
+            </section>
+
+            <section id="android-builds">
+                <h2>Android Builds</h2>
+
+                <p>Android builds can produce APKs for direct installation or AABs for Google Play.</p>
+
+                <h3>APK vs AAB</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Format</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Full Name</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Installation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>APK</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Android Package</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Internal testing, direct install</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Direct install on device</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>AAB</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Android App Bundle</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Google Play distribution</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Via Play Store only</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ AAB Benefits</h4>
+                    <ul>
+                        <li>Smaller download size (20-50% smaller)</li>
+                        <li>Dynamic delivery of features</li>
+                        <li>Required by Google Play since August 2021</li>
+                        <li>Automatic optimization per device</li>
+                    </ul>
+                </div>
+
+                <h3>Building APK for Testing</h3>
+
+                <pre><code># Build APK for internal testing
+eas build --platform android --profile preview
+
+# eas.json configuration
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
+
+# Install APK on device
+adb install my-app.apk
+
+# Or scan QR code from EAS build page</code></pre>
+
+                <h3>Building AAB for Play Store</h3>
+
+                <pre><code># Build AAB for Google Play
+eas build --platform android --profile production
+
+# eas.json configuration
+{
+  "build": {
+    "production": {
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Android Signing</h3>
+
+                <pre><code># Android uses keystore files for signing
+# EAS can manage these automatically
+
+# View/manage Android credentials
+eas credentials --platform android
+
+# Options:
+# 1. Generate new keystore (EAS managed)
+# 2. Upload existing keystore
+# 3. Use credentials.json for CI
+
+# Keystore is stored encrypted on EAS servers
+# Download backup of keystore (important!)
+eas credentials --platform android
+# Select "Download keystore"</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Keystore Backup</h4>
+                    <p><strong>CRITICAL:</strong> Back up your production keystore immediately after creation! If you lose it, you cannot update your app on Google Play.</p>
+                    <pre><code># Download and securely store your keystore
+eas credentials --platform android
+# Select your project
+# Select "Keystore" > "Download keystore"
+
+# Store the keystore and these values securely:
+# - Keystore file (.jks or .keystore)
+# - Keystore password
+# - Key alias
+# - Key password</code></pre>
+                </div>
+
+                <h3>Android Build Commands</h3>
+
+                <pre><code># Start Android build
+eas build --platform android --profile production
+
+# Build both APK and AAB
+eas build --platform android --profile preview  # APK
+eas build --platform android --profile production  # AAB
+
+# Build for all platforms at once
+eas build --platform all --profile production
+
+# View build status
+eas build:list --platform android
+
+# Download build
+eas build:download [BUILD_ID]</code></pre>
+
+                <h3>Android-Specific Configuration</h3>
+
+                <pre><code>{
+  "build": {
+    "production": {
+      "android": {
+        // Build type
+        "buildType": "app-bundle", // or "apk"
+        
+        // Custom Gradle command
+        "gradleCommand": ":app:bundleRelease",
+        
+        // Version code auto-increment
+        "autoIncrement": "versionCode",
+        
+        // Build image
+        "image": "latest", // or "ubuntu-22.04-jdk-17-ndk-r25c"
+        
+        // Resource class
+        "resourceClass": "large",
+        
+        // Override package name
+        "applicationId": "com.company.app",
+        
+        // NDK version
+        "ndk": "25.1.8937393",
+        
+        // Gradle properties
+        "config": {
+          "googleMaps": {
+            "apiKey": "AIza..."
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Building for Both Platforms</h3>
+
+                <pre><code># Build iOS and Android simultaneously
+eas build --platform all --profile production
+
+# Build with same profile
+eas build --platform all --profile preview
+
+# Check status of all builds
+eas build:list
+
+# Note: iOS and Android builds run in parallel
+# Each platform has its own queue</code></pre>
+            </section>
+
+            <section id="advanced-config">
+                <h2>Advanced Configuration</h2>
+
+                <p>Advanced options for customizing your build process.</p>
+
+                <h3>Custom Build Scripts</h3>
+
+                <pre><code>// eas.json
+{
+  "build": {
+    "production": {
+      // Run before native build starts
+      "prebuildCommand": "npm run prepare-build",
+      
+      // Custom npm/yarn command
+      "buildCommand": "npm run custom-build"
+    }
+  }
+}
+
+// package.json
+{
+  "scripts": {
+    "prepare-build": "node scripts/prepare.js",
+    "custom-build": "expo prebuild && npm run post-prebuild"
+  }
+}
+
+// scripts/prepare.js
+const fs = require('fs');
+
+// Generate build-specific files
+const buildInfo = {
+  buildTime: new Date().toISOString(),
+  gitCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH,
+  buildNumber: process.env.EAS_BUILD_NUMBER
+};
+
+fs.writeFileSync('./build-info.json', JSON.stringify(buildInfo, null, 2));</code></pre>
+
+                <h3>Using Build Environment Variables</h3>
+
+                <pre><code>// EAS provides these environment variables during build:
+
+// Build info
+process.env.EAS_BUILD_ID           // Unique build ID
+process.env.EAS_BUILD_PROFILE      // Current profile name
+process.env.EAS_BUILD_GIT_COMMIT_HASH // Git commit
+process.env.EAS_BUILD_GIT_BRANCH   // Git branch
+process.env.EAS_BUILD_PLATFORM     // "android" or "ios"
+process.env.EAS_BUILD_RUNNER_OS    // "darwin" or "linux"
+
+// Version info
+process.env.EAS_BUILD_APP_VERSION  // From app config
+process.env.EAS_BUILD_NUMBER       // Build number
+
+// Usage in app.config.js
+export default {
+  expo: {
+    extra: {
+      buildId: process.env.EAS_BUILD_ID,
+      buildProfile: process.env.EAS_BUILD_PROFILE,
+      gitCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH?.substring(0, 7)
+    }
+  }
+};</code></pre>
+
+                <h3>Monorepo Configuration</h3>
+
+                <pre><code>// For monorepo setups with multiple apps
+
+// eas.json in each app directory
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "production": {
+      // Specify project root relative to repo root
+      "config": "eas.json"
+    }
+  }
+}
+
+// Project structure
+my-monorepo/
+├── apps/
+│   ├── mobile-app/
+│   │   ├── app.json
+│   │   ├── eas.json
+│   │   └── package.json
+│   └── admin-app/
+│       ├── app.json
+│       ├── eas.json
+│       └── package.json
+├── packages/
+│   └── shared/
+└── package.json
+
+// Build from app directory
+cd apps/mobile-app
+eas build --platform all --profile production</code></pre>
+
+                <h3>Custom Build Images</h3>
+
+                <pre><code>// Specify exact build environment
+{
+  "build": {
+    "production": {
+      "ios": {
+        // Use specific Xcode version
+        "image": "macos-ventura-13.6-xcode-15.2"
+      },
+      "android": {
+        // Use specific Java/NDK version
+        "image": "ubuntu-22.04-jdk-17-ndk-r25c"
+      }
+    }
+  }
+}
+
+// Check available images
+// https://docs.expo.dev/build-reference/infrastructure/</code></pre>
+
+                <h3>Secrets and Credentials in CI/CD</h3>
+
+                <pre><code>// For CI/CD pipelines, use credentials.json
+
+// 1. Download credentials
+eas credentials --platform ios
+// Select "Download credentials"
+
+// 2. Create credentials.json (add to .gitignore!)
+{
+  "ios": {
+    "MyApp": {
+      "distributionCertificate": {
+        "path": "./certs/dist.p12",
+        "password": "cert-password"
+      },
+      "provisioningProfilePath": "./certs/profile.mobileprovision"
+    }
+  },
+  "android": {
+    "keystore": {
+      "keystorePath": "./certs/keystore.jks",
+      "keystorePassword": "keystore-password",
+      "keyAlias": "key-alias",
+      "keyPassword": "key-password"
+    }
+  }
+}
+
+// 3. Use in eas.json
+{
+  "build": {
+    "production": {
+      "credentialsSource": "local"
+    }
+  }
+}
+
+// 4. In CI, decode base64 secrets to create files
+# GitHub Actions example
+- name: Setup credentials
+  run: |
+    echo "${{ secrets.IOS_DIST_CERT }}" | base64 -d > certs/dist.p12
+    echo "${{ secrets.IOS_PROVISION }}" | base64 -d > certs/profile.mobileprovision
+    echo "${{ secrets.CREDENTIALS_JSON }}" | base64 -d > credentials.json</code></pre>
+
+                <h3>Build Hooks</h3>
+
+                <pre><code>// eas-build-pre-install.sh - runs before npm install
+#!/bin/bash
+echo "Pre-install hook running..."
+# Setup custom dependencies, configure environment, etc.
+
+// eas-build-post-install.sh - runs after npm install
+#!/bin/bash
+echo "Post-install hook running..."
+# Patch native modules, generate files, etc.
+
+// eas-build-on-success.sh - runs after successful build
+#!/bin/bash
+echo "Build succeeded!"
+# Notify team, trigger deployments, etc.
+
+// eas-build-on-error.sh - runs after failed build
+#!/bin/bash
+echo "Build failed!"
+# Send alerts, capture logs, etc.
+
+// Add scripts to your project root
+// They must be executable: chmod +x eas-build-*.sh</code></pre>
+            </section>
+
+            <section id="troubleshooting">
+                <h2>Troubleshooting</h2>
+
+                <p>Common build issues and how to resolve them.</p>
+
+                <h3>Common iOS Build Errors</h3>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "No matching provisioning profile"</h4>
+                    <pre><code># Cause: Provisioning profile doesn't match app or devices
+
+# Solutions:
+# 1. Regenerate credentials
+eas credentials --platform ios
+# Select "Build credentials" > "Remove credentials"
+# Then rebuild - new credentials will be created
+
+# 2. Ensure devices are registered
+eas device:list
+# Add missing devices and rebuild
+
+# 3. Check bundle identifier matches
+# app.json ios.bundleIdentifier must match credentials</code></pre>
+                </div>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "Code signing is required for product type"</h4>
+                    <pre><code># Cause: Missing or invalid distribution certificate
+
+# Solutions:
+# 1. Let EAS regenerate certificate
+eas credentials --platform ios
+# Select "Distribution Certificate" > "Create new"
+
+# 2. Check certificate hasn't expired
+# Apple certificates expire after 1 year
+
+# 3. For Enterprise accounts, ensure correct provisioning type</code></pre>
+                </div>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "Pod install failed"</h4>
+                    <pre><code># Cause: CocoaPods dependency issues
+
+# Solutions:
+# 1. Clear cache and rebuild
+eas build --platform ios --profile production --clear-cache
+
+# 2. Update pods locally first
+cd ios && pod install --repo-update
+
+# 3. Check for conflicting pod versions
+# Review Podfile.lock for version conflicts
+
+# 4. Specify cocoapods version
+{
+  "build": {
+    "production": {
+      "ios": {
+        "cocoapods": "1.14.3"
+      }
+    }
+  }
+}</code></pre>
+                </div>
+
+                <h3>Common Android Build Errors</h3>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "Execution failed for task ':app:mergeReleaseResources'"</h4>
+                    <pre><code># Cause: Resource conflicts or invalid assets
+
+# Solutions:
+# 1. Check for duplicate resources
+# Look for files with same name in different res folders
+
+# 2. Validate image assets
+# Ensure no corrupt or invalid images in assets
+
+# 3. Clear build cache
+eas build --platform android --profile production --clear-cache</code></pre>
+                </div>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "Out of memory error during build"</h4>
+                    <pre><code># Cause: Build requires more memory than available
+
+# Solutions:
+# 1. Use larger resource class
+{
+  "build": {
+    "production": {
+      "android": {
+        "resourceClass": "large"
+      }
+    }
+  }
+}
+
+# 2. Increase Gradle memory
+# android/gradle.properties
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g
+
+# 3. Disable parallel builds if needed
+org.gradle.parallel=false</code></pre>
+                </div>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>❌ "Keystore was tampered with, or password was incorrect"</h4>
+                    <pre><code># Cause: Wrong keystore password or corrupted keystore
+
+# Solutions:
+# 1. Verify credentials
+eas credentials --platform android
+
+# 2. Re-upload correct keystore
+eas credentials --platform android
+# Select "Upload keystore"
+
+# 3. If lost, for new apps only, create new keystore
+# WARNING: Existing apps cannot update with new keystore!</code></pre>
+                </div>
+
+                <h3>General Troubleshooting Steps</h3>
+
+                <pre><code># 1. Check build logs for errors
+eas build:view [BUILD_ID] --logs
+
+# 2. Clear all caches
+eas build --platform all --profile production --clear-cache
+
+# 3. Verify eas.json syntax
+npx eas-cli config
+
+# 4. Ensure latest EAS CLI
+npm install -g eas-cli@latest
+
+# 5. Check for known issues
+# https://status.expo.dev/
+# https://github.com/expo/expo/issues
+
+# 6. Validate app.json / app.config.js
+npx expo config --type public
+
+# 7. Run prebuild locally to catch issues
+npx expo prebuild --clean
+
+# 8. Test local build (if possible)
+npx expo run:ios
+npx expo run:android</code></pre>
+
+                <h3>Debugging Failed Builds</h3>
+
+                <pre><code># View full build logs
+eas build:view [BUILD_ID]
+
+# Download build artifacts for inspection
+eas build:download [BUILD_ID]
+
+# Check build metadata
+eas build:inspect
+
+# Review what files are being uploaded
+eas build --platform ios --profile production --local
+
+# Test configuration without building
+eas build --platform ios --profile production --dry-run</code></pre>
+
+                <h3>Build Queue and Priority</h3>
+
+                <pre><code># Check current queue status
+eas build:list --status in-progress
+eas build:list --status in-queue
+
+# Free tier: Normal queue (can be 15-30 min during peak)
+# Paid tier: Priority queue (usually < 5 min)
+# Enterprise: Dedicated runners (immediate)
+
+# Tips for faster builds:
+# 1. Use caching effectively
+# 2. Minimize native dependencies
+# 3. Use appropriate resource class
+# 4. Build during off-peak hours
+# 5. Consider larger resource class for faster compilation</code></pre>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Configure Complete Build Profiles</h3>
+                    <p>Set up a complete eas.json with development, preview, and production profiles for a team project.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// eas.json
+{
+  "cli": {
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "20.11.0",
+      "cache": {
+        "key": "v1",
+        "cacheDefaultPaths": true
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_API_URL": "https://api-dev.myapp.com"
+      },
+      "ios": {
+        "simulator": true,
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
+    },
+    "development-device": {
+      "extends": "development",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_API_URL": "https://api-staging.myapp.com"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_API_URL": "https://api.myapp.com"
+      },
+      "ios": {
+        "resourceClass": "large",
+        "autoIncrement": "buildNumber"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "autoIncrement": "versionCode",
+        "resourceClass": "large"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "developer@company.com",
+        "ascAppId": "1234567890",
+        "appleTeamId": "XXXXXXXXXX"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Build and Distribute to Testers</h3>
+                    <p>Build an iOS and Android preview build and distribute to your test team.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># Step 1: Register test devices for iOS
+eas device:create
+# Have testers scan QR code with their iOS devices
+
+# Step 2: Build preview for both platforms
+eas build --platform all --profile preview
+
+# Step 3: Wait for builds to complete
+eas build:list --status in-progress
+
+# Step 4: Once complete, share with testers
+# Option A: Share build page URL
+# Testers scan QR code to install
+
+# Option B: Use internal distribution
+eas build:list --profile preview
+# Get the build URLs and share
+
+# For Android:
+# Testers can directly install the APK
+
+# For iOS:
+# Testers must be registered in the provisioning profile
+# They install via the build page
+
+# Step 5: Verify installation
+# Have testers confirm app launches and shows
+# correct environment (staging API)</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Troubleshoot a Failed Build</h3>
+                    <p>Practice diagnosing and fixing a build failure scenario.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># Scenario: Your iOS build failed with "pod install" error
+
+# Step 1: Get build details
+eas build:view [BUILD_ID]
+
+# Step 2: Review logs for specific error
+# Look for lines starting with "error:" or "fatal:"
+
+# Step 3: Common fixes to try:
+
+# Fix A: Clear cache
+eas build --platform ios --profile production --clear-cache
+
+# Fix B: Update pods locally
+cd ios
+pod install --repo-update
+pod update
+cd ..
+
+# Fix C: Lock CocoaPods version
+// eas.json
+{
+  "build": {
+    "production": {
+      "ios": {
+        "cocoapods": "1.14.3"
+      }
+    }
+  }
+}
+
+# Fix D: Clean prebuild
+npx expo prebuild --clean
+
+# Fix E: Check for native module issues
+# Review recently added packages
+# Check compatibility with current Expo SDK
+
+# Step 4: Test locally if possible
+npx expo run:ios
+
+# Step 5: If still failing, isolate the issue
+# Create minimal reproduction
+# Check Expo GitHub issues
+# Ask in Expo Discord community</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>EAS Build:</strong> Cloud-based builds eliminate local environment complexity</li>
+                        <li><strong>Build profiles:</strong> Separate configurations for dev, preview, and production</li>
+                        <li><strong>iOS builds:</strong> Simulator, device, and App Store with managed credentials</li>
+                        <li><strong>Android builds:</strong> APK for testing, AAB for Play Store</li>
+                        <li><strong>Credentials:</strong> Let EAS manage them, but always backup keystores</li>
+                        <li><strong>Caching:</strong> Use cache keys to speed up builds</li>
+                        <li><strong>Resource classes:</strong> Larger classes for faster, more reliable builds</li>
+                        <li><strong>Troubleshooting:</strong> Check logs, clear cache, verify credentials</li>
+                    </ul>
+                </div>
+
+                <h3>Build Command Quick Reference</h3>
+
+                <pre><code># Essential commands
+eas build:configure          # Initial setup
+eas build -p ios             # Build iOS (default profile)
+eas build -p android         # Build Android
+eas build -p all             # Build both platforms
+eas build -p ios --profile preview  # Specific profile
+
+# Credential management
+eas credentials              # Interactive credential manager
+eas device:create            # Register iOS test device
+
+# Build management
+eas build:list               # View all builds
+eas build:view [ID]          # View build details
+eas build:download [ID]      # Download build artifact
+eas build:cancel [ID]        # Cancel running build
+
+# Flags
+--clear-cache                # Clear build cache
+--local                      # Run build locally
+--message "..."              # Add build message
+--non-interactive            # For CI/CD</code></pre>
+
+                <p>In the next lesson, we'll learn about over-the-air updates with EAS Update, allowing you to push JavaScript updates without going through the app stores.</p>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l02_environment_management.html" class="prev-link">← Previous: Environment Management</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m12_l04_over_the_air_updates.html" class="next-link">Next: Over-the-Air Updates →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

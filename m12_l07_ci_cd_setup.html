@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Set up continuous integration and deployment for your React Native Expo app">
+    <meta name="author" content="React Native & Expo Course">
+    <title>CI/CD Setup | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.7</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>CI/CD Setup</h1>
+                <p class="lesson-subtitle">Automate building, testing, and deploying your React Native app</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand CI/CD concepts for mobile development</li>
+                    <li>Set up GitHub Actions for EAS builds</li>
+                    <li>Configure automated testing in CI</li>
+                    <li>Implement automated OTA updates</li>
+                    <li>Set up automated app store submissions</li>
+                    <li>Create a complete deployment pipeline</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#cicd-overview">CI/CD Overview</a></li>
+                        <li><a href="#github-actions">GitHub Actions Setup</a></li>
+                        <li><a href="#automated-testing">Automated Testing</a></li>
+                        <li><a href="#build-workflows">Build Workflows</a></li>
+                        <li><a href="#update-workflows">OTA Update Workflows</a></li>
+                        <li><a href="#submission-workflows">Submission Workflows</a></li>
+                        <li><a href="#complete-pipeline">Complete Pipeline</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="cicd-overview">
+                <h2>CI/CD Overview</h2>
+
+                <p>CI/CD automates your development workflow, from running tests on every commit to deploying updates to production.</p>
+
+                <h3>The CI/CD Pipeline</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph CI["Continuous Integration"]
+        A[Push Code] --> B[Run Tests]
+        B --> C[Lint & Type Check]
+        C --> D[Build Check]
+    end
+    
+    subgraph CD["Continuous Deployment"]
+        D --> E{Branch?}
+        E -->|main| F[Build Production]
+        E -->|develop| G[Build Preview]
+        F --> H[Submit to Stores]
+        G --> I[Internal Distribution]
+    end
+    
+    subgraph OTA["OTA Updates"]
+        J[Merge to main] --> K[Publish Update]
+        K --> L[Users Get Update]
+    end
+    
+    style CI fill:#e3f2fd
+    style CD fill:#e8f5e9
+    style OTA fill:#fff3e0
+</pre>
+
+                <h3>CI/CD Benefits</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Benefit</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Consistency</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Every build follows the same process</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Speed</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Automated builds run without manual intervention</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Quality</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Tests run on every commit, catching bugs early</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Reliability</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Reduces human error in deployment process</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Traceability</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Every deployment is linked to a specific commit</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Tools We'll Use</h3>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                    <div class="card">
+                        <h4>GitHub Actions</h4>
+                        <p>CI/CD platform integrated with GitHub</p>
+                    </div>
+                    <div class="card">
+                        <h4>EAS Build</h4>
+                        <p>Cloud builds for iOS and Android</p>
+                    </div>
+                    <div class="card">
+                        <h4>EAS Update</h4>
+                        <p>OTA updates for JavaScript changes</p>
+                    </div>
+                    <div class="card">
+                        <h4>EAS Submit</h4>
+                        <p>Automated store submissions</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="github-actions">
+                <h2>GitHub Actions Setup</h2>
+
+                <p>GitHub Actions runs workflows in response to events like pushes, pull requests, or scheduled triggers.</p>
+
+                <h3>Create Expo Token</h3>
+
+                <pre><code># 1. Go to expo.dev
+# 2. Account Settings → Access Tokens
+# 3. Create new token with appropriate permissions
+# 4. Copy the token
+
+# 5. Add to GitHub repository secrets
+# Repository → Settings → Secrets and variables → Actions
+# Add secret: EXPO_TOKEN = your-token-value</code></pre>
+
+                <h3>Basic Workflow Structure</h3>
+
+                <pre><code># .github/workflows/ci.yml
+name: CI
+
+# When to run
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Jobs to execute
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm test</code></pre>
+
+                <h3>Expo GitHub Action</h3>
+
+                <pre><code># Use the official Expo GitHub Action
+- name: Setup Expo
+  uses: expo/expo-github-action@v8
+  with:
+    eas-version: latest
+    token: ${{ secrets.EXPO_TOKEN }}
+
+# This sets up:
+# - EAS CLI
+# - Authentication with your Expo account
+# - Caching for faster subsequent runs</code></pre>
+
+                <h3>Caching for Faster Builds</h3>
+
+                <pre><code>jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'  # Caches npm dependencies
+          
+      - name: Cache Expo
+        uses: actions/cache@v4
+        with:
+          path: ~/.expo
+          key: expo-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}</code></pre>
+            </section>
+
+            <section id="automated-testing">
+                <h2>Automated Testing</h2>
+
+                <p>Run tests automatically on every push and pull request.</p>
+
+                <h3>Complete Test Workflow</h3>
+
+                <pre><code># .github/workflows/test.yml
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Verify EAS config
+        run: eas config</code></pre>
+
+                <h3>Pull Request Checks</h3>
+
+                <pre><code># Require checks to pass before merging
+# Go to: Repository Settings → Branches → Branch protection rules
+
+# Add rule for 'main':
+# ✓ Require status checks to pass
+#   - lint
+#   - typecheck  
+#   - test
+#   - build-check
+# ✓ Require branches to be up to date
+# ✓ Require pull request reviews</code></pre>
+            </section>
+
+            <section id="build-workflows">
+                <h2>Build Workflows</h2>
+
+                <p>Automate EAS builds based on branch or tag events.</p>
+
+                <h3>Preview Build on Develop</h3>
+
+                <pre><code># .github/workflows/preview-build.yml
+name: Preview Build
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  build:
+    name: Build Preview
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Build iOS Preview
+        run: eas build --platform ios --profile preview --non-interactive
+        
+      - name: Build Android Preview
+        run: eas build --platform android --profile preview --non-interactive</code></pre>
+
+                <h3>Production Build on Release</h3>
+
+                <pre><code># .github/workflows/production-build.yml
+name: Production Build
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on v1.0.0, v1.2.3, etc.
+
+jobs:
+  build:
+    name: Build Production
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Build iOS
+        run: eas build --platform ios --profile production --non-interactive
+        
+      - name: Build Android
+        run: eas build --platform android --profile production --non-interactive</code></pre>
+
+                <h3>Build with Auto-Submit</h3>
+
+                <pre><code># Build and submit to stores automatically
+- name: Build and Submit iOS
+  run: eas build --platform ios --profile production --auto-submit --non-interactive
+
+- name: Build and Submit Android  
+  run: eas build --platform android --profile production --auto-submit --non-interactive</code></pre>
+
+                <h3>Parallel Builds</h3>
+
+                <pre><code># .github/workflows/build.yml
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-ios:
+    name: Build iOS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform ios --profile production --non-interactive
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform android --profile production --non-interactive
+
+  # Jobs run in parallel by default!</code></pre>
+            </section>
+
+            <section id="update-workflows">
+                <h2>OTA Update Workflows</h2>
+
+                <p>Automatically publish OTA updates when JavaScript code changes.</p>
+
+                <h3>Update on Main Branch</h3>
+
+                <pre><code># .github/workflows/update.yml
+name: OTA Update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'screens/**'
+      - 'services/**'
+      - 'hooks/**'
+      - 'utils/**'
+      - 'assets/**'
+      - 'package.json'
+
+jobs:
+  update:
+    name: Publish Update
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Publish update
+        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive</code></pre>
+
+                <h3>Update with Environment</h3>
+
+                <pre><code># Different updates for different branches
+name: OTA Update
+
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Determine branch
+        id: branch
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "name=production" >> $GITHUB_OUTPUT
+          else
+            echo "name=preview" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Publish update
+        run: |
+          eas update \
+            --branch ${{ steps.branch.outputs.name }} \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive</code></pre>
+
+                <h3>Conditional Updates</h3>
+
+                <pre><code># Only update if JS files changed (not native)
+name: Smart Update
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      js-changed: ${{ steps.filter.outputs.js }}
+      native-changed: ${{ steps.filter.outputs.native }}
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            js:
+              - 'app/**'
+              - 'components/**'
+              - 'hooks/**'
+              - 'services/**'
+            native:
+              - 'app.json'
+              - 'eas.json'
+              - 'ios/**'
+              - 'android/**'
+
+  update:
+    needs: check-changes
+    if: needs.check-changes.outputs.js-changed == 'true' && needs.check-changes.outputs.native-changed == 'false'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas update --branch production --non-interactive
+
+  build:
+    needs: check-changes
+    if: needs.check-changes.outputs.native-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform all --profile production --non-interactive</code></pre>
+            </section>
+
+            <section id="submission-workflows">
+                <h2>Submission Workflows</h2>
+
+                <p>Automate app store submissions after successful builds.</p>
+
+                <h3>Setup Store Credentials</h3>
+
+                <pre><code># Required GitHub Secrets:
+
+# For iOS (App Store Connect):
+# EXPO_TOKEN - Your Expo access token
+
+# For Android (Google Play):
+# GOOGLE_PLAY_SERVICE_ACCOUNT_KEY - Base64 encoded JSON key
+
+# Encode your Google Play key:
+base64 -i google-play-key.json | tr -d '\n'
+# Copy output to GitHub secret</code></pre>
+
+                <h3>Auto-Submit Workflow</h3>
+
+                <pre><code># .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-submit:
+    name: Build and Submit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      # Decode Google Play credentials
+      - name: Setup Google Play credentials
+        run: |
+          echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-play-key.json
+          
+      # Build and submit iOS
+      - name: Build and Submit iOS
+        run: eas build --platform ios --profile production --auto-submit --non-interactive
+        
+      # Build and submit Android
+      - name: Build and Submit Android
+        run: eas build --platform android --profile production --auto-submit --non-interactive
+        
+      # Cleanup credentials
+      - name: Cleanup
+        if: always()
+        run: rm -f google-play-key.json</code></pre>
+
+                <h3>Submit Existing Build</h3>
+
+                <pre><code># .github/workflows/submit.yml
+name: Submit to Stores
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_build_id:
+        description: 'iOS Build ID (optional)'
+        required: false
+      android_build_id:
+        description: 'Android Build ID (optional)'
+        required: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Setup Google Play credentials
+        run: echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-play-key.json
+          
+      - name: Submit iOS
+        if: inputs.ios_build_id != ''
+        run: eas submit --platform ios --id ${{ inputs.ios_build_id }} --non-interactive
+        
+      - name: Submit Android
+        if: inputs.android_build_id != ''
+        run: eas submit --platform android --id ${{ inputs.android_build_id }} --non-interactive
+        
+      - name: Submit latest builds
+        if: inputs.ios_build_id == '' && inputs.android_build_id == ''
+        run: eas submit --platform all --latest --non-interactive</code></pre>
+            </section>
+
+            <section id="complete-pipeline">
+                <h2>Complete Pipeline</h2>
+
+                <p>A comprehensive CI/CD pipeline that handles all scenarios.</p>
+
+                <h3>Full Pipeline Architecture</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph PR["Pull Request"]
+        PR1[Lint] --> PR2[Type Check]
+        PR2 --> PR3[Unit Tests]
+        PR3 --> PR4[Build Check]
+    end
+    
+    subgraph Develop["Develop Branch"]
+        D1[All PR Checks] --> D2[Build Preview]
+        D2 --> D3[Internal Distribution]
+    end
+    
+    subgraph Main["Main Branch"]
+        M1[All PR Checks] --> M2{Native Changes?}
+        M2 -->|No| M3[Publish OTA Update]
+        M2 -->|Yes| M4[Build Production]
+    end
+    
+    subgraph Release["Release Tag"]
+        R1[Build Production] --> R2[Submit to Stores]
+        R2 --> R3[Create GitHub Release]
+    end
+    
+    style PR fill:#e3f2fd
+    style Develop fill:#fff3e0
+    style Main fill:#e8f5e9
+    style Release fill:#f3e5f5
+</pre>
+
+                <h3>Master CI/CD Workflow</h3>
+
+                <pre><code># .github/workflows/ci-cd.yml
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  # ============ CI Jobs ============
+  
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test -- --coverage --watchAll=false
+
+  # ============ Check Changes ============
+  
+  check-changes:
+    name: Check Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+    outputs:
+      js-only: ${{ steps.filter.outputs.js == 'true' && steps.filter.outputs.native == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            js:
+              - 'app/**'
+              - 'components/**'
+              - 'hooks/**'
+              - 'services/**'
+              - 'utils/**'
+            native:
+              - 'app.json'
+              - 'app.config.*'
+              - 'eas.json'
+
+  # ============ Preview Build (develop) ============
+  
+  build-preview:
+    name: Build Preview
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform all --profile preview --non-interactive
+
+  # ============ OTA Update (main, JS only) ============
+  
+  publish-update:
+    name: Publish OTA Update
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test, check-changes]
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      needs.check-changes.outputs.js-only == 'true'
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: |
+          eas update \
+            --branch production \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive
+
+  # ============ Production Build (tag) ============
+  
+  build-production:
+    name: Build Production
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Setup credentials
+        run: |
+          echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-play-key.json
+          
+      - name: Build and Submit
+        run: |
+          eas build --platform all --profile production --auto-submit --non-interactive
+          
+      - name: Cleanup
+        if: always()
+        run: rm -f google-play-key.json
+        
+  # ============ GitHub Release ============
+  
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build-production
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}</code></pre>
+
+                <h3>Workflow Dispatch for Manual Builds</h3>
+
+                <pre><code># .github/workflows/manual-build.yml
+name: Manual Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      profile:
+        description: 'Build profile'
+        required: true
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+      auto_submit:
+        description: 'Auto-submit to stores'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Setup credentials
+        if: inputs.auto_submit
+        run: echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-play-key.json
+          
+      - name: Build
+        run: |
+          eas build \
+            --platform ${{ inputs.platform }} \
+            --profile ${{ inputs.profile }} \
+            ${{ inputs.auto_submit && '--auto-submit' || '' }} \
+            --non-interactive</code></pre>
+
+                <h3>Slack Notifications</h3>
+
+                <pre><code># Add to any job
+- name: Notify Slack
+  if: always()
+  uses: 8398a7/action-slack@v3
+  with:
+    status: ${{ job.status }}
+    channel: '#builds'
+    fields: repo,message,commit,author,action,workflow
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}</code></pre>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Set Up Basic CI</h3>
+                    <p>Create a CI workflow that runs tests on every pull request.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .github/workflows/ci.yml
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test -- --watchAll=false --passWithNoTests
+
+# package.json scripts needed:
+# "lint": "eslint . --ext .ts,.tsx",
+# "typecheck": "tsc --noEmit",
+# "test": "jest"</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Create OTA Update Workflow</h3>
+                    <p>Set up automatic OTA updates when pushing to main.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .github/workflows/ota-update.yml
+name: OTA Update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'hooks/**'
+      - 'services/**'
+      - 'screens/**'
+      - 'utils/**'
+      - 'assets/**'
+
+jobs:
+  update:
+    name: Publish Update
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - run: npm ci
+      
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Publish update
+        run: |
+          eas update \
+            --branch production \
+            --message "Update: ${{ github.event.head_commit.message }}" \
+            --non-interactive
+            
+      - name: Notify team
+        if: success()
+        run: |
+          echo "✅ OTA update published to production"
+          echo "Commit: ${{ github.sha }}"
+          echo "Message: ${{ github.event.head_commit.message }}"</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Full Release Pipeline</h3>
+                    <p>Create a workflow that builds and submits to stores on version tags.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --watchAll=false
+
+  build-ios:
+    name: Build iOS
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform ios --profile production --auto-submit --non-interactive
+
+  build-android:
+    name: Build Android
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup credentials
+        run: echo "${{ secrets.GOOGLE_PLAY_KEY }}" | base64 -d > google-play-key.json
+      - run: eas build --platform android --profile production --auto-submit --non-interactive
+      - run: rm -f google-play-key.json
+
+  release:
+    name: Create Release
+    needs: [build-ios, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>GitHub Actions:</strong> Native CI/CD for GitHub repositories</li>
+                        <li><strong>expo-github-action:</strong> Official action for EAS CLI setup</li>
+                        <li><strong>Automated testing:</strong> Run lint, type check, and tests on every PR</li>
+                        <li><strong>Build automation:</strong> Trigger builds on branch push or tags</li>
+                        <li><strong>OTA updates:</strong> Automatically publish updates on main branch</li>
+                        <li><strong>Auto-submit:</strong> Submit to stores after successful builds</li>
+                        <li><strong>Secrets management:</strong> Store credentials securely in GitHub</li>
+                    </ul>
+                </div>
+
+                <h3>CI/CD Quick Reference</h3>
+
+                <pre><code># Required GitHub Secrets
+EXPO_TOKEN                      # Expo access token
+GOOGLE_PLAY_SERVICE_ACCOUNT_KEY # Base64 encoded JSON
+
+# Common workflow triggers
+on:
+  push:
+    branches: [main]        # Push to main
+    tags: ['v*']            # Version tags
+  pull_request:
+    branches: [main]        # PRs to main
+  workflow_dispatch:        # Manual trigger
+
+# Key EAS commands in CI
+eas build --platform all --profile production --non-interactive
+eas build --platform ios --profile production --auto-submit --non-interactive
+eas update --branch production --message "..." --non-interactive
+eas submit --platform all --latest --non-interactive</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎉 Congratulations!</h4>
+                    <p>You've completed Module 12: Production and Deployment! You now have all the knowledge needed to build, deploy, and maintain production React Native applications.</p>
+                </div>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l06_crash_reporting_and_analytics.html" class="prev-link">← Previous: Crash Reporting and Analytics</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="index.html#capstone" class="next-link">Capstone Project →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

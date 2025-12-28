@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Securely manage environment variables and secrets in React Native Expo apps">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Environment Management | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.2</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>Environment Management</h1>
+                <p class="lesson-subtitle">Securely manage API keys, secrets, and environment-specific configurations</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand environment variable handling in Expo</li>
+                    <li>Securely manage API keys and secrets</li>
+                    <li>Set up multiple environments (dev, staging, production)</li>
+                    <li>Use EAS Secrets for sensitive data</li>
+                    <li>Access environment variables at runtime</li>
+                    <li>Implement best practices for secret management</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#env-basics">Environment Variable Basics</a></li>
+                        <li><a href="#expo-env">Expo Environment Variables</a></li>
+                        <li><a href="#eas-secrets">EAS Secrets</a></li>
+                        <li><a href="#multiple-envs">Multiple Environments</a></li>
+                        <li><a href="#runtime-access">Runtime Access</a></li>
+                        <li><a href="#security">Security Best Practices</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="env-basics">
+                <h2>Environment Variable Basics</h2>
+
+                <p>Environment variables allow you to configure your app differently across environments without changing code. This is essential for managing API endpoints, feature flags, and secrets.</p>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🚨 Critical Security Warning</h4>
+                    <p>Environment variables in React Native are <strong>bundled into your JavaScript code</strong> and can be extracted from your app. Never put truly sensitive secrets (like private API keys or database passwords) in environment variables accessible to the client.</p>
+                </div>
+
+                <h3>What Goes Where</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph Safe["Safe for Client (Env Vars)"]
+        A[API Base URLs]
+        B[Public API Keys]
+        C[Feature Flags]
+        D[Analytics IDs]
+    end
+    
+    subgraph Unsafe["Keep on Server Only"]
+        E[Private API Keys]
+        F[Database Credentials]
+        G[JWT Secrets]
+        H[Payment Processor Secrets]
+    end
+    
+    subgraph BuildOnly["Build-Time Only (EAS Secrets)"]
+        I[App Store Credentials]
+        J[Signing Certificates]
+        K[Service Account Keys]
+    end
+    
+    style Safe fill:#e8f5e9,stroke:#4CAF50
+    style Unsafe fill:#ffebee,stroke:#f44336
+    style BuildOnly fill:#e3f2fd,stroke:#2196F3
+</pre>
+
+                <h3>Types of Secrets</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Secret Type</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Example</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Where to Store</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Public API Key</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Google Maps, Firebase</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee; color: #4CAF50;">.env file / EAS env</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">API Base URL</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">https://api.yourapp.com</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee; color: #4CAF50;">.env file / EAS env</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Private API Key</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Stripe Secret Key</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee; color: #f44336;">Backend only!</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Build Credential</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">App Store Connect API Key</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee; color: #2196F3;">EAS Secrets</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="expo-env">
+                <h2>Expo Environment Variables</h2>
+
+                <p>Expo SDK 49+ has built-in support for environment variables using the <code>EXPO_PUBLIC_</code> prefix.</p>
+
+                <h3>Creating .env Files</h3>
+
+                <pre><code># .env (default/development)
+EXPO_PUBLIC_API_URL=https://api-dev.yourapp.com
+EXPO_PUBLIC_GOOGLE_MAPS_KEY=AIzaSyDev...
+EXPO_PUBLIC_ENVIRONMENT=development
+EXPO_PUBLIC_ENABLE_ANALYTICS=false
+
+# .env.local (local overrides - git ignored)
+EXPO_PUBLIC_API_URL=http://localhost:3000
+
+# .env.production (production values)
+EXPO_PUBLIC_API_URL=https://api.yourapp.com
+EXPO_PUBLIC_GOOGLE_MAPS_KEY=AIzaSyProd...
+EXPO_PUBLIC_ENVIRONMENT=production
+EXPO_PUBLIC_ENABLE_ANALYTICS=true</code></pre>
+
+                <h3>Loading Environment Variables</h3>
+
+                <pre><code>// Environment variables with EXPO_PUBLIC_ prefix
+// are automatically available
+
+// Access in any file
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const isProd = process.env.EXPO_PUBLIC_ENVIRONMENT === 'production';
+
+// TypeScript: Create env.d.ts for type safety
+// env.d.ts
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      EXPO_PUBLIC_API_URL: string;
+      EXPO_PUBLIC_GOOGLE_MAPS_KEY: string;
+      EXPO_PUBLIC_ENVIRONMENT: 'development' | 'staging' | 'production';
+      EXPO_PUBLIC_ENABLE_ANALYTICS: string;
+    }
+  }
+}
+
+export {};</code></pre>
+
+                <h3>Using in app.config.js</h3>
+
+                <pre><code>// app.config.js
+export default {
+  expo: {
+    name: process.env.EXPO_PUBLIC_ENVIRONMENT === 'production' 
+      ? 'My App' 
+      : `My App (${process.env.EXPO_PUBLIC_ENVIRONMENT})`,
+    
+    // Non-prefixed env vars work in config only
+    extra: {
+      apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      // You can also use non-EXPO_PUBLIC vars here
+      // They're available at build time but not runtime
+      buildNumber: process.env.BUILD_NUMBER,
+    },
+    
+    android: {
+      config: {
+        googleMaps: {
+          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY,
+        },
+      },
+    },
+  },
+};</code></pre>
+
+                <h3>.gitignore Setup</h3>
+
+                <pre><code># .gitignore
+
+# Environment files with secrets
+.env.local
+.env.*.local
+
+# Keep these in version control (no secrets)
+# .env
+# .env.development
+# .env.production
+
+# Or ignore all and use EAS secrets
+# .env*</code></pre>
+            </section>
+
+            <section id="eas-secrets">
+                <h2>EAS Secrets</h2>
+
+                <p>EAS Secrets are encrypted environment variables stored in Expo's cloud. They're injected at build time and never stored in your repository.</p>
+
+                <h3>Managing EAS Secrets</h3>
+
+                <pre><code># Set a secret
+eas secret:create --name API_SECRET --value "your-secret-value" --scope project
+
+# Set from file
+eas secret:create --name GOOGLE_SERVICES_JSON --value "$(cat google-services.json)" --scope project
+
+# List all secrets
+eas secret:list
+
+# Delete a secret
+eas secret:delete API_SECRET
+
+# Scopes:
+# --scope project  : Available to this project only
+# --scope account  : Available to all projects in your account</code></pre>
+
+                <h3>Using EAS Secrets in Builds</h3>
+
+                <pre><code>// eas.json
+{
+  "build": {
+    "production": {
+      "env": {
+        // Reference EAS secrets
+        "EXPO_PUBLIC_API_URL": "https://api.yourapp.com",
+        
+        // Or use inline values for non-sensitive config
+        "EXPO_PUBLIC_ENVIRONMENT": "production"
+      }
+    },
+    "staging": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.yourapp.com",
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+      }
+    }
+  }
+}
+
+// EAS secrets are automatically available as environment variables
+// No need to explicitly reference them if the name matches</code></pre>
+
+                <h3>Secrets for Native Configuration</h3>
+
+                <pre><code>// For files that need to be present during build
+// Like google-services.json or GoogleService-Info.plist
+
+// 1. Store the file content as an EAS secret
+eas secret:create --name GOOGLE_SERVICES_JSON --value "$(cat google-services.json)"
+
+// 2. Use a prebuild script to create the file
+// eas.json
+{
+  "build": {
+    "production": {
+      "env": {
+        "GOOGLE_SERVICES_JSON": "@GOOGLE_SERVICES_JSON"
+      },
+      "prebuildCommand": "node scripts/setup-google-services.js"
+    }
+  }
+}
+
+// scripts/setup-google-services.js
+const fs = require('fs');
+
+const googleServices = process.env.GOOGLE_SERVICES_JSON;
+if (googleServices) {
+  fs.writeFileSync('./google-services.json', googleServices);
+  console.log('Created google-services.json');
+}</code></pre>
+            </section>
+
+            <section id="multiple-envs">
+                <h2>Multiple Environments</h2>
+
+                <p>Most apps need at least three environments: development, staging, and production. Here's how to set them up properly.</p>
+
+                <h3>Environment Strategy</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Dev["Development"]
+        A[Local API]
+        B[Debug logging]
+        C[Test credentials]
+    end
+    
+    subgraph Staging["Staging/Preview"]
+        D[Staging API]
+        E[Real services]
+        F[Test accounts]
+    end
+    
+    subgraph Prod["Production"]
+        G[Production API]
+        H[Real users]
+        I[Analytics enabled]
+    end
+    
+    Dev --> Staging --> Prod
+    
+    style Dev fill:#e3f2fd
+    style Staging fill:#fff3e0
+    style Prod fill:#e8f5e9
+</pre>
+
+                <h3>Complete Environment Setup</h3>
+
+                <pre><code>// config/env.ts
+type Environment = 'development' | 'staging' | 'production';
+
+interface EnvConfig {
+  apiUrl: string;
+  wsUrl: string;
+  enableAnalytics: boolean;
+  enableCrashReporting: boolean;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+  stripePublishableKey: string;
+}
+
+const ENV = (process.env.EXPO_PUBLIC_ENVIRONMENT || 'development') as Environment;
+
+const configs: Record&lt;Environment, EnvConfig&gt; = {
+  development: {
+    apiUrl: 'http://localhost:3000',
+    wsUrl: 'ws://localhost:3000',
+    enableAnalytics: false,
+    enableCrashReporting: false,
+    logLevel: 'debug',
+    stripePublishableKey: 'pk_test_...',
+  },
+  staging: {
+    apiUrl: 'https://api-staging.yourapp.com',
+    wsUrl: 'wss://api-staging.yourapp.com',
+    enableAnalytics: true,
+    enableCrashReporting: true,
+    logLevel: 'info',
+    stripePublishableKey: 'pk_test_...',
+  },
+  production: {
+    apiUrl: 'https://api.yourapp.com',
+    wsUrl: 'wss://api.yourapp.com',
+    enableAnalytics: true,
+    enableCrashReporting: true,
+    logLevel: 'error',
+    stripePublishableKey: 'pk_live_...',
+  },
+};
+
+export const config = configs[ENV];
+export const isDev = ENV === 'development';
+export const isStaging = ENV === 'staging';
+export const isProd = ENV === 'production';</code></pre>
+
+                <h3>EAS Build Profiles</h3>
+
+                <pre><code>// eas.json
+{
+  "cli": {
+    "version": ">= 5.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "development"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production"
+      },
+      "ios": {
+        "autoIncrement": true
+      },
+      "android": {
+        "autoIncrement": true
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your@email.com",
+        "ascAppId": "1234567890"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./pc-api-key.json"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>App Variants</h3>
+
+                <pre><code>// app.config.ts - Different app per environment
+import { ExpoConfig, ConfigContext } from 'expo/config';
+
+type Variant = 'development' | 'staging' | 'production';
+
+const variant = (process.env.EXPO_PUBLIC_ENVIRONMENT || 'development') as Variant;
+
+const variantConfig = {
+  development: {
+    name: 'MyApp Dev',
+    bundleId: 'com.company.myapp.dev',
+    icon: './assets/icon-dev.png',
+  },
+  staging: {
+    name: 'MyApp Staging',
+    bundleId: 'com.company.myapp.staging',
+    icon: './assets/icon-staging.png',
+  },
+  production: {
+    name: 'MyApp',
+    bundleId: 'com.company.myapp',
+    icon: './assets/icon.png',
+  },
+};
+
+const currentConfig = variantConfig[variant];
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: currentConfig.name,
+  slug: 'myapp',
+  icon: currentConfig.icon,
+  ios: {
+    bundleIdentifier: currentConfig.bundleId,
+  },
+  android: {
+    package: currentConfig.bundleId,
+  },
+});</code></pre>
+            </section>
+
+            <section id="runtime-access">
+                <h2>Runtime Access</h2>
+
+                <p>Access your environment configuration safely throughout your app.</p>
+
+                <h3>Central Config Service</h3>
+
+                <pre><code>// services/config.ts
+import Constants from 'expo-constants';
+
+class ConfigService {
+  private static instance: ConfigService;
+  
+  readonly apiUrl: string;
+  readonly environment: string;
+  readonly version: string;
+  readonly buildNumber: string;
+  
+  private constructor() {
+    // From EXPO_PUBLIC_ env vars
+    this.apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+    this.environment = process.env.EXPO_PUBLIC_ENVIRONMENT || 'development';
+    
+    // From app.config.js extra
+    this.version = Constants.expoConfig?.version || '1.0.0';
+    this.buildNumber = Constants.expoConfig?.ios?.buildNumber || 
+                       Constants.expoConfig?.android?.versionCode?.toString() || 
+                       '1';
+  }
+  
+  static getInstance(): ConfigService {
+    if (!ConfigService.instance) {
+      ConfigService.instance = new ConfigService();
+    }
+    return ConfigService.instance;
+  }
+  
+  get isDevelopment(): boolean {
+    return this.environment === 'development';
+  }
+  
+  get isProduction(): boolean {
+    return this.environment === 'production';
+  }
+  
+  get fullVersion(): string {
+    return `${this.version} (${this.buildNumber})`;
+  }
+}
+
+export const Config = ConfigService.getInstance();
+
+// Usage
+import { Config } from '@/services/config';
+
+console.log(Config.apiUrl);
+console.log(Config.isDevelopment);
+console.log(Config.fullVersion);</code></pre>
+
+                <h3>React Context for Config</h3>
+
+                <pre><code>// contexts/ConfigContext.tsx
+import React, { createContext, useContext } from 'react';
+import { Config } from '@/services/config';
+
+interface ConfigContextType {
+  apiUrl: string;
+  environment: string;
+  isDev: boolean;
+  isProd: boolean;
+  version: string;
+}
+
+const ConfigContext = createContext&lt;ConfigContextType | null&gt;(null);
+
+export function ConfigProvider({ children }: { children: React.ReactNode }) {
+  const value: ConfigContextType = {
+    apiUrl: Config.apiUrl,
+    environment: Config.environment,
+    isDev: Config.isDevelopment,
+    isProd: Config.isProduction,
+    version: Config.fullVersion,
+  };
+  
+  return (
+    &lt;ConfigContext.Provider value={value}&gt;
+      {children}
+    &lt;/ConfigContext.Provider&gt;
+  );
+}
+
+export function useConfig() {
+  const context = useContext(ConfigContext);
+  if (!context) {
+    throw new Error('useConfig must be used within ConfigProvider');
+  }
+  return context;
+}
+
+// Usage in components
+function SettingsScreen() {
+  const { version, environment, isDev } = useConfig();
+  
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Version: {version}&lt;/Text&gt;
+      {isDev && &lt;Text&gt;Environment: {environment}&lt;/Text&gt;}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Feature Flags</h3>
+
+                <pre><code>// services/featureFlags.ts
+type FeatureFlag = 
+  | 'NEW_CHECKOUT'
+  | 'DARK_MODE'
+  | 'BIOMETRIC_LOGIN'
+  | 'PUSH_NOTIFICATIONS';
+
+const flags: Record&lt;string, Record&lt;FeatureFlag, boolean&gt;&gt; = {
+  development: {
+    NEW_CHECKOUT: true,
+    DARK_MODE: true,
+    BIOMETRIC_LOGIN: true,
+    PUSH_NOTIFICATIONS: true,
+  },
+  staging: {
+    NEW_CHECKOUT: true,
+    DARK_MODE: true,
+    BIOMETRIC_LOGIN: true,
+    PUSH_NOTIFICATIONS: true,
+  },
+  production: {
+    NEW_CHECKOUT: false, // Not ready yet
+    DARK_MODE: true,
+    BIOMETRIC_LOGIN: true,
+    PUSH_NOTIFICATIONS: true,
+  },
+};
+
+const environment = process.env.EXPO_PUBLIC_ENVIRONMENT || 'development';
+
+export function isFeatureEnabled(flag: FeatureFlag): boolean {
+  return flags[environment]?.[flag] ?? false;
+}
+
+// Usage
+if (isFeatureEnabled('NEW_CHECKOUT')) {
+  return &lt;NewCheckoutFlow /&gt;;
+} else {
+  return &lt;LegacyCheckout /&gt;;
+}</code></pre>
+            </section>
+
+            <section id="security">
+                <h2>Security Best Practices</h2>
+
+                <p>Protecting your secrets and API keys is crucial for app security.</p>
+
+                <h3>Security Checklist</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Do</h4>
+                    <ul>
+                        <li>Use EAS Secrets for build-time credentials</li>
+                        <li>Keep truly sensitive operations on your backend</li>
+                        <li>Use API keys that can be restricted (domain, app ID)</li>
+                        <li>Rotate compromised keys immediately</li>
+                        <li>Use different keys per environment</li>
+                        <li>Audit which keys are in your codebase</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>❌ Don't</h4>
+                    <ul>
+                        <li>Commit .env files with real secrets to git</li>
+                        <li>Put private API keys in client code</li>
+                        <li>Share production credentials in Slack/email</li>
+                        <li>Use the same credentials across all environments</li>
+                        <li>Hardcode secrets directly in source code</li>
+                    </ul>
+                </div>
+
+                <h3>Restricting API Keys</h3>
+
+                <pre><code>// Google Cloud Console / Firebase Console
+// Restrict your API keys to:
+
+// 1. Application restrictions
+//    - iOS: Bundle ID (com.company.app)
+//    - Android: Package name + SHA-1 fingerprint
+//    - Web: HTTP referrers (yourapp.com/*)
+
+// 2. API restrictions
+//    - Only enable APIs you actually use
+//    - Maps SDK for iOS/Android, not all Google APIs
+
+// 3. Quotas
+//    - Set daily limits to prevent abuse
+//    - Monitor usage and set alerts</code></pre>
+
+                <h3>Backend Proxy Pattern</h3>
+
+                <pre><code>// Instead of calling third-party APIs directly with secrets,
+// proxy through your backend
+
+// ❌ Bad: Secret key in mobile app
+const response = await fetch('https://api.stripe.com/v1/charges', {
+  headers: {
+    'Authorization': `Bearer ${STRIPE_SECRET_KEY}`, // Exposed!
+  },
+});
+
+// ✅ Good: Call your backend, which has the secret
+const response = await fetch(`${API_URL}/payments/charge`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${userToken}`,
+  },
+  body: JSON.stringify({ amount, currency }),
+});
+
+// Your backend (Node.js example)
+app.post('/payments/charge', authenticate, async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY); // Safe!
+  const charge = await stripe.charges.create({
+    amount: req.body.amount,
+    currency: req.body.currency,
+    customer: req.user.stripeCustomerId,
+  });
+  res.json(charge);
+});</code></pre>
+
+                <h3>Audit Your Repository</h3>
+
+                <pre><code># Check for accidentally committed secrets
+# Install gitleaks: https://github.com/gitleaks/gitleaks
+
+# Scan entire history
+gitleaks detect --source . -v
+
+# Scan only staged changes (good for pre-commit hook)
+gitleaks protect --staged
+
+# Add to pre-commit hook
+# .husky/pre-commit
+#!/bin/sh
+gitleaks protect --staged --verbose
+if [ $? -ne 0 ]; then
+  echo "Secrets detected in staged files!"
+  exit 1
+fi</code></pre>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Multi-Environment Setup</h3>
+                    <p>Set up a complete multi-environment configuration with proper typing.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// 1. Create env.d.ts
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      EXPO_PUBLIC_API_URL: string;
+      EXPO_PUBLIC_ENVIRONMENT: 'development' | 'staging' | 'production';
+      EXPO_PUBLIC_GOOGLE_MAPS_KEY: string;
+      EXPO_PUBLIC_SENTRY_DSN: string;
+    }
+  }
+}
+export {};
+
+// 2. Create .env files
+// .env.development
+EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_ENVIRONMENT=development
+EXPO_PUBLIC_GOOGLE_MAPS_KEY=AIzaDev...
+EXPO_PUBLIC_SENTRY_DSN=
+
+// .env.staging
+EXPO_PUBLIC_API_URL=https://api-staging.app.com
+EXPO_PUBLIC_ENVIRONMENT=staging
+EXPO_PUBLIC_GOOGLE_MAPS_KEY=AIzaStaging...
+EXPO_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/staging
+
+// .env.production
+EXPO_PUBLIC_API_URL=https://api.app.com
+EXPO_PUBLIC_ENVIRONMENT=production
+EXPO_PUBLIC_GOOGLE_MAPS_KEY=AIzaProd...
+EXPO_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/prod
+
+// 3. Create config service
+// config/index.ts
+export const Config = {
+  apiUrl: process.env.EXPO_PUBLIC_API_URL!,
+  environment: process.env.EXPO_PUBLIC_ENVIRONMENT!,
+  googleMapsKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY!,
+  sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || null,
+  
+  get isDev() { return this.environment === 'development'; },
+  get isStaging() { return this.environment === 'staging'; },
+  get isProd() { return this.environment === 'production'; },
+} as const;
+
+// 4. Update eas.json
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_ENVIRONMENT": "development" }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": { "EXPO_PUBLIC_ENVIRONMENT": "staging" }
+    },
+    "production": {
+      "channel": "production",
+      "env": { "EXPO_PUBLIC_ENVIRONMENT": "production" }
+    }
+  }
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Secure API Key Setup</h3>
+                    <p>Set up Google Services files securely using EAS Secrets.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># 1. Store files as EAS secrets
+# For Android
+eas secret:create --name GOOGLE_SERVICES_JSON \
+  --value "$(cat google-services.json)" \
+  --scope project
+
+# For iOS  
+eas secret:create --name GOOGLE_SERVICE_INFO_PLIST \
+  --value "$(cat GoogleService-Info.plist)" \
+  --scope project
+
+# 2. Create prebuild script
+// scripts/setup-firebase.js
+const fs = require('fs');
+
+// Android
+const googleServicesJson = process.env.GOOGLE_SERVICES_JSON;
+if (googleServicesJson) {
+  fs.writeFileSync('./google-services.json', googleServicesJson);
+  console.log('✓ Created google-services.json');
+}
+
+// iOS
+const googleServicePlist = process.env.GOOGLE_SERVICE_INFO_PLIST;
+if (googleServicePlist) {
+  fs.writeFileSync('./GoogleService-Info.plist', googleServicePlist);
+  console.log('✓ Created GoogleService-Info.plist');
+}
+
+# 3. Update eas.json
+{
+  "build": {
+    "production": {
+      "env": {
+        "GOOGLE_SERVICES_JSON": "@GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICE_INFO_PLIST": "@GOOGLE_SERVICE_INFO_PLIST"
+      },
+      "prebuildCommand": "node scripts/setup-firebase.js"
+    }
+  }
+}
+
+# 4. Add to .gitignore
+google-services.json
+GoogleService-Info.plist</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>EXPO_PUBLIC_ prefix</strong> — Required for runtime access to env vars</li>
+                        <li><strong>Client code is not secure</strong> — Anyone can extract bundled secrets</li>
+                        <li><strong>EAS Secrets</strong> — Use for build-time credentials and sensitive files</li>
+                        <li><strong>Multiple environments</strong> — Dev, staging, and production with different configs</li>
+                        <li><strong>Centralize config</strong> — Create a config service for consistent access</li>
+                        <li><strong>Backend for secrets</strong> — Proxy sensitive API calls through your server</li>
+                        <li><strong>Audit regularly</strong> — Use tools like gitleaks to prevent leaks</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll learn how to build your app for distribution using EAS Build.</p>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l01_app_configuration_deep_dive.html" class="prev-link">← Previous: App Configuration</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m12_l03_building_with_eas_build.html" class="next-link">Next: Building with EAS Build →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

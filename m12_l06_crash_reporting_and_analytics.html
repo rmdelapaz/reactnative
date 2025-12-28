@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Monitor your React Native app with crash reporting and analytics">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Crash Reporting and Analytics | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.6</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>Crash Reporting and Analytics</h1>
+                <p class="lesson-subtitle">Monitor your app's health and understand user behavior</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Set up crash reporting with Sentry</li>
+                    <li>Configure error boundaries for graceful error handling</li>
+                    <li>Implement analytics tracking with Expo and third-party services</li>
+                    <li>Monitor app performance metrics</li>
+                    <li>Create custom events and user properties</li>
+                    <li>Use dashboards to make data-driven decisions</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#why-monitoring">Why Monitoring Matters</a></li>
+                        <li><a href="#sentry-setup">Sentry Crash Reporting</a></li>
+                        <li><a href="#error-boundaries">Error Boundaries</a></li>
+                        <li><a href="#analytics-setup">Analytics Setup</a></li>
+                        <li><a href="#custom-events">Custom Events and Tracking</a></li>
+                        <li><a href="#performance">Performance Monitoring</a></li>
+                        <li><a href="#dashboards">Dashboards and Alerts</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="why-monitoring">
+                <h2>Why Monitoring Matters</h2>
+
+                <p>Once your app is in production, you need visibility into how it's performing and what issues users are experiencing.</p>
+
+                <h3>The Monitoring Stack</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph App["Your App"]
+        A1[User Actions]
+        A2[Errors/Crashes]
+        A3[Performance Data]
+    end
+    
+    subgraph Services["Monitoring Services"]
+        S1[Crash Reporting<br/>Sentry, Bugsnag]
+        S2[Analytics<br/>Amplitude, Mixpanel]
+        S3[Performance<br/>Sentry, Firebase]
+    end
+    
+    subgraph Insights["Insights"]
+        I1[Fix bugs faster]
+        I2[Understand users]
+        I3[Improve performance]
+    end
+    
+    A1 --> S2
+    A2 --> S1
+    A3 --> S3
+    
+    S1 --> I1
+    S2 --> I2
+    S3 --> I3
+    
+    style App fill:#e3f2fd
+    style Services fill:#fff3e0
+    style Insights fill:#e8f5e9
+</pre>
+
+                <h3>Key Metrics to Track</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Category</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Metrics</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Why It Matters</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Stability</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Crash-free rate, error rate</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">User experience quality</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Engagement</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">DAU, MAU, session length</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Product-market fit</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Retention</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">D1, D7, D30 retention</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Long-term value</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Performance</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">App start time, API latency</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">User satisfaction</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Conversion</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Signup rate, purchase rate</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Business success</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="sentry-setup">
+                <h2>Sentry Crash Reporting</h2>
+
+                <p>Sentry is the most popular crash reporting solution for React Native, with excellent Expo support.</p>
+
+                <h3>Installation</h3>
+
+                <pre><code># Install Sentry for Expo
+npx expo install @sentry/react-native
+
+# This installs the Sentry SDK configured for Expo</code></pre>
+
+                <h3>Create Sentry Project</h3>
+
+                <pre><code>// 1. Sign up at sentry.io
+// 2. Create new project
+// 3. Select "React Native"
+// 4. Copy your DSN
+
+// DSN looks like:
+// https://xxxxx@yyy.ingest.sentry.io/zzzzz</code></pre>
+
+                <h3>Configure Sentry</h3>
+
+                <pre><code>// app.json - Add Sentry plugin
+{
+  "expo": {
+    "plugins": [
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "your-org",
+          "project": "your-project"
+        }
+      ]
+    ]
+  }
+}
+
+// App.tsx - Initialize Sentry
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://xxxxx@yyy.ingest.sentry.io/zzzzz',
+  
+  // Set environment
+  environment: __DEV__ ? 'development' : 'production',
+  
+  // Enable in production only
+  enabled: !__DEV__,
+  
+  // Sample rate (1.0 = 100% of errors)
+  sampleRate: 1.0,
+  
+  // Trace sample rate for performance
+  tracesSampleRate: 0.2,
+  
+  // Enable native crash reporting
+  enableNative: true,
+  
+  // Attach screenshots on crash
+  attachScreenshot: true,
+  
+  // Debug mode (disable in production)
+  debug: __DEV__,
+});
+
+export default function App() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;RootNavigator /&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+
+                <h3>Capturing Errors</h3>
+
+                <pre><code>import * as Sentry from '@sentry/react-native';
+
+// Automatic error capture (unhandled errors)
+// Sentry automatically captures:
+// - Unhandled JavaScript errors
+// - Native crashes
+// - Promise rejections
+
+// Manual error capture
+try {
+  await riskyOperation();
+} catch (error) {
+  Sentry.captureException(error);
+}
+
+// Capture with extra context
+Sentry.captureException(error, {
+  tags: {
+    feature: 'checkout',
+    paymentMethod: 'credit_card',
+  },
+  extra: {
+    orderId: '12345',
+    amount: 99.99,
+  },
+});
+
+// Capture message (non-error)
+Sentry.captureMessage('User completed onboarding');
+
+// Set user context
+Sentry.setUser({
+  id: user.id,
+  email: user.email,
+  username: user.name,
+});
+
+// Clear user on logout
+Sentry.setUser(null);
+
+// Add breadcrumbs (trail of events)
+Sentry.addBreadcrumb({
+  category: 'navigation',
+  message: 'Navigated to checkout',
+  level: 'info',
+});</code></pre>
+
+                <h3>Source Maps for Readable Stack Traces</h3>
+
+                <pre><code># EAS Build automatically uploads source maps
+# Just ensure Sentry plugin is configured
+
+# For manual builds, upload source maps:
+npx sentry-cli sourcemaps upload \
+  --org your-org \
+  --project your-project \
+  ./dist
+
+# Verify source maps are working:
+# 1. Trigger a test error
+# 2. Check Sentry dashboard
+# 3. Stack trace should show original source code</code></pre>
+
+                <h3>Release Tracking</h3>
+
+                <pre><code>// app.config.js - Add release info
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: '...',
+  
+  // Track releases
+  release: `${Constants.expoConfig?.version}+${
+    Constants.expoConfig?.ios?.buildNumber || 
+    Constants.expoConfig?.android?.versionCode
+  }`,
+  
+  // Distribution (for source map matching)
+  dist: Constants.expoConfig?.ios?.buildNumber?.toString() ||
+        Constants.expoConfig?.android?.versionCode?.toString(),
+});</code></pre>
+            </section>
+
+            <section id="error-boundaries">
+                <h2>Error Boundaries</h2>
+
+                <p>Error boundaries catch errors in the React component tree and display a fallback UI instead of crashing.</p>
+
+                <h3>Basic Error Boundary</h3>
+
+                <pre><code>// components/ErrorBoundary.tsx
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import * as Sentry from '@sentry/react-native';
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component&lt;Props, State&gt; {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Report to Sentry
+    Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+      },
+    });
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        &lt;View style={styles.container}&gt;
+          &lt;Text style={styles.title}&gt;Something went wrong&lt;/Text&gt;
+          &lt;Text style={styles.message}&gt;
+            We've been notified and are working on a fix.
+          &lt;/Text&gt;
+          &lt;Button title="Try Again" onPress={this.handleReset} /&gt;
+        &lt;/View&gt;
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+});
+
+export default ErrorBoundary;</code></pre>
+
+                <h3>Using Sentry's Error Boundary</h3>
+
+                <pre><code>// Sentry provides its own error boundary
+import * as Sentry from '@sentry/react-native';
+
+function App() {
+  return (
+    &lt;Sentry.ErrorBoundary
+      fallback={({ error, resetError }) =&gt; (
+        &lt;View style={styles.errorContainer}&gt;
+          &lt;Text&gt;An error occurred&lt;/Text&gt;
+          &lt;Text&gt;{error.message}&lt;/Text&gt;
+          &lt;Button title="Reset" onPress={resetError} /&gt;
+        &lt;/View&gt;
+      )}
+    &gt;
+      &lt;NavigationContainer&gt;
+        &lt;RootNavigator /&gt;
+      &lt;/NavigationContainer&gt;
+    &lt;/Sentry.ErrorBoundary&gt;
+  );
+}</code></pre>
+
+                <h3>Screen-Level Error Boundaries</h3>
+
+                <pre><code>// Wrap individual screens for isolated error handling
+function ProfileScreen() {
+  return (
+    &lt;ErrorBoundary fallback={&lt;ProfileErrorFallback /&gt;}&gt;
+      &lt;ProfileContent /&gt;
+    &lt;/ErrorBoundary&gt;
+  );
+}
+
+// HOC for easier use
+function withErrorBoundary&lt;P extends object&gt;(
+  Component: React.ComponentType&lt;P&gt;,
+  FallbackComponent?: React.ComponentType
+) {
+  return function WrappedComponent(props: P) {
+    return (
+      &lt;ErrorBoundary fallback={FallbackComponent ? &lt;FallbackComponent /&gt; : undefined}&gt;
+        &lt;Component {...props} /&gt;
+      &lt;/ErrorBoundary&gt;
+    );
+  };
+}
+
+// Usage
+export default withErrorBoundary(ProfileScreen, ProfileErrorFallback);</code></pre>
+            </section>
+
+            <section id="analytics-setup">
+                <h2>Analytics Setup</h2>
+
+                <p>Analytics help you understand user behavior and make data-driven decisions.</p>
+
+                <h3>Popular Analytics Options</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Service</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Best For</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Pricing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Amplitude</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Product analytics, funnels</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Free tier, paid plans</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Mixpanel</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Event tracking, cohorts</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Free tier, paid plans</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">PostHog</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Open source, self-host option</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Free tier, paid plans</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Firebase Analytics</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Google ecosystem</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Free</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Setting Up Amplitude</h3>
+
+                <pre><code># Install Amplitude
+npm install @amplitude/analytics-react-native
+
+# Or with Expo
+npx expo install @amplitude/analytics-react-native</code></pre>
+
+                <pre><code>// services/analytics.ts
+import * as Amplitude from '@amplitude/analytics-react-native';
+
+const AMPLITUDE_API_KEY = process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '';
+
+// Initialize Amplitude
+export async function initAnalytics() {
+  if (__DEV__) {
+    console.log('Analytics disabled in development');
+    return;
+  }
+
+  await Amplitude.init(AMPLITUDE_API_KEY, undefined, {
+    trackingOptions: {
+      ipAddress: false, // Privacy
+    },
+  });
+}
+
+// Identify user
+export function identifyUser(userId: string, properties?: Record&lt;string, any&gt;) {
+  Amplitude.setUserId(userId);
+  
+  if (properties) {
+    const identify = new Amplitude.Identify();
+    Object.entries(properties).forEach(([key, value]) => {
+      identify.set(key, value);
+    });
+    Amplitude.identify(identify);
+  }
+}
+
+// Track event
+export function trackEvent(
+  eventName: string, 
+  properties?: Record&lt;string, any&gt;
+) {
+  Amplitude.track(eventName, properties);
+}
+
+// Track screen view
+export function trackScreen(screenName: string) {
+  Amplitude.track('Screen Viewed', { screen_name: screenName });
+}
+
+// Reset on logout
+export function resetAnalytics() {
+  Amplitude.reset();
+}</code></pre>
+
+                <h3>Initialize in App</h3>
+
+                <pre><code>// App.tsx
+import { useEffect } from 'react';
+import { initAnalytics } from './services/analytics';
+
+export default function App() {
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;RootNavigator /&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+
+                <h3>Track Navigation</h3>
+
+                <pre><code>// Automatic screen tracking with React Navigation
+import { NavigationContainer } from '@react-navigation/native';
+import { useRef } from 'react';
+import { trackScreen } from './services/analytics';
+
+function App() {
+  const navigationRef = useRef(null);
+  const routeNameRef = useRef&lt;string&gt;();
+
+  return (
+    &lt;NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+      }}
+      onStateChange={() => {
+        const previousRouteName = routeNameRef.current;
+        const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+        if (previousRouteName !== currentRouteName && currentRouteName) {
+          trackScreen(currentRouteName);
+        }
+
+        routeNameRef.current = currentRouteName;
+      }}
+    &gt;
+      &lt;RootNavigator /&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="custom-events">
+                <h2>Custom Events and Tracking</h2>
+
+                <p>Define meaningful events that track user behavior and business metrics.</p>
+
+                <h3>Event Naming Conventions</h3>
+
+                <pre><code>// Use consistent naming patterns
+
+// Format: Object_Action or action_object
+// Examples:
+// - button_clicked
+// - screen_viewed
+// - purchase_completed
+// - signup_started
+
+// Good event names:
+trackEvent('signup_completed', { method: 'email' });
+trackEvent('item_added_to_cart', { product_id: '123', price: 29.99 });
+trackEvent('checkout_started', { item_count: 3, total: 89.97 });
+trackEvent('purchase_completed', { order_id: 'ORD123', revenue: 89.97 });
+
+// Bad event names:
+trackEvent('click');           // Too vague
+trackEvent('User did thing');  // Not standardized
+trackEvent('btnSignup');       // Inconsistent format</code></pre>
+
+                <h3>Common Events to Track</h3>
+
+                <pre><code>// Authentication
+trackEvent('signup_started');
+trackEvent('signup_completed', { method: 'google' });
+trackEvent('login_completed', { method: 'email' });
+trackEvent('logout');
+trackEvent('password_reset_requested');
+
+// Onboarding
+trackEvent('onboarding_started');
+trackEvent('onboarding_step_completed', { step: 1, step_name: 'profile' });
+trackEvent('onboarding_completed');
+trackEvent('onboarding_skipped', { step: 2 });
+
+// Core Features
+trackEvent('task_created', { has_due_date: true, has_reminder: true });
+trackEvent('task_completed', { time_to_complete_hours: 24 });
+trackEvent('project_created', { template_used: true });
+trackEvent('search_performed', { query_length: 15, results_count: 8 });
+
+// Engagement
+trackEvent('share_initiated', { content_type: 'task', method: 'native' });
+trackEvent('notification_received', { type: 'reminder' });
+trackEvent('notification_opened', { type: 'reminder' });
+
+// Monetization
+trackEvent('paywall_viewed', { source: 'feature_limit' });
+trackEvent('subscription_started', { plan: 'pro', billing: 'monthly' });
+trackEvent('trial_started', { plan: 'pro' });
+trackEvent('purchase_completed', { revenue: 9.99, currency: 'USD' });</code></pre>
+
+                <h3>User Properties</h3>
+
+                <pre><code>// Set user properties for segmentation
+import * as Amplitude from '@amplitude/analytics-react-native';
+
+function setUserProperties(user: User) {
+  const identify = new Amplitude.Identify();
+  
+  // Demographics
+  identify.set('account_type', user.accountType); // 'free', 'pro', 'enterprise'
+  identify.set('signup_date', user.createdAt);
+  identify.set('signup_source', user.source);
+  
+  // Usage stats
+  identify.set('total_tasks_created', user.taskCount);
+  identify.set('projects_count', user.projectCount);
+  identify.set('team_size', user.teamSize);
+  
+  // Preferences
+  identify.set('dark_mode_enabled', user.preferences.darkMode);
+  identify.set('notifications_enabled', user.preferences.notifications);
+  identify.set('language', user.preferences.language);
+  
+  Amplitude.identify(identify);
+}
+
+// Increment counters
+function incrementTaskCount() {
+  const identify = new Amplitude.Identify();
+  identify.add('total_tasks_created', 1);
+  Amplitude.identify(identify);
+}</code></pre>
+
+                <h3>Tracking Hook</h3>
+
+                <pre><code>// hooks/useAnalytics.ts
+import { useCallback } from 'react';
+import { trackEvent, trackScreen } from '../services/analytics';
+
+export function useAnalytics() {
+  const track = useCallback((event: string, properties?: Record&lt;string, any&gt;) => {
+    trackEvent(event, properties);
+  }, []);
+
+  const screen = useCallback((screenName: string) => {
+    trackScreen(screenName);
+  }, []);
+
+  return { track, screen };
+}
+
+// Usage in component
+function CheckoutScreen() {
+  const { track } = useAnalytics();
+
+  const handlePurchase = async () => {
+    track('checkout_started', { item_count: cart.length });
+    
+    try {
+      const result = await processPayment();
+      track('purchase_completed', { 
+        order_id: result.orderId,
+        revenue: result.total,
+      });
+    } catch (error) {
+      track('purchase_failed', { error: error.message });
+    }
+  };
+
+  return (
+    &lt;Button title="Complete Purchase" onPress={handlePurchase} /&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="performance">
+                <h2>Performance Monitoring</h2>
+
+                <p>Track app performance to identify slowdowns and optimize user experience.</p>
+
+                <h3>Sentry Performance</h3>
+
+                <pre><code>// Enable performance monitoring in Sentry init
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: '...',
+  
+  // Enable performance monitoring
+  tracesSampleRate: 0.2, // 20% of transactions
+  
+  // Or use sampling function for control
+  tracesSampler: (samplingContext) => {
+    // Sample all errors
+    if (samplingContext.transactionContext.name.includes('error')) {
+      return 1.0;
+    }
+    // Sample 10% of navigation
+    if (samplingContext.transactionContext.op === 'navigation') {
+      return 0.1;
+    }
+    // Default
+    return 0.05;
+  },
+  
+  // Enable profiling (beta)
+  profilesSampleRate: 0.1,
+});</code></pre>
+
+                <h3>Wrap Navigation for Tracing</h3>
+
+                <pre><code>// Automatic navigation performance tracking
+import * as Sentry from '@sentry/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+
+const routingInstrumentation = new Sentry.ReactNavigationInstrumentation();
+
+Sentry.init({
+  dsn: '...',
+  integrations: [
+    new Sentry.ReactNativeTracing({
+      routingInstrumentation,
+      tracingOrigins: ['localhost', 'api.yourapp.com'],
+    }),
+  ],
+});
+
+function App() {
+  return (
+    &lt;NavigationContainer
+      onReady={() => {
+        routingInstrumentation.registerNavigationContainer(navigationRef);
+      }}
+    &gt;
+      &lt;RootNavigator /&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+
+                <h3>Custom Performance Spans</h3>
+
+                <pre><code>import * as Sentry from '@sentry/react-native';
+
+// Measure API calls
+async function fetchUserData(userId: string) {
+  const transaction = Sentry.startTransaction({
+    name: 'fetch-user-data',
+    op: 'http.client',
+  });
+
+  const span = transaction.startChild({
+    op: 'http.request',
+    description: `GET /users/${userId}`,
+  });
+
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}`);
+    const data = await response.json();
+    
+    span.setStatus('ok');
+    return data;
+  } catch (error) {
+    span.setStatus('internal_error');
+    throw error;
+  } finally {
+    span.finish();
+    transaction.finish();
+  }
+}
+
+// Measure component rendering
+function ExpensiveComponent() {
+  useEffect(() => {
+    const span = Sentry.startSpan({
+      name: 'ExpensiveComponent render',
+      op: 'ui.render',
+    });
+
+    // Component mounted
+    return () => {
+      span?.finish();
+    };
+  }, []);
+
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+}</code></pre>
+
+                <h3>App Start Performance</h3>
+
+                <pre><code>// Track app startup time
+import * as Sentry from '@sentry/react-native';
+
+// In your App component
+function App() {
+  const [appIsReady, setAppIsReady] = useState(false);
+  const startTime = useRef(Date.now());
+
+  useEffect(() => {
+    async function prepare() {
+      try {
+        // Load resources
+        await loadFonts();
+        await initializeServices();
+        
+        // Track startup time
+        const startupTime = Date.now() - startTime.current;
+        Sentry.setMeasurement('app_start_time', startupTime, 'millisecond');
+        
+      } finally {
+        setAppIsReady(true);
+      }
+    }
+
+    prepare();
+  }, []);
+
+  // ...
+}</code></pre>
+
+                <h3>Memory and CPU Monitoring</h3>
+
+                <pre><code>// Use react-native-performance for detailed metrics
+import { PerformanceObserver, performance } from 'react-native-performance';
+
+// Observe performance entries
+const observer = new PerformanceObserver((list) => {
+  list.getEntries().forEach((entry) => {
+    console.log(`${entry.name}: ${entry.duration}ms`);
+    
+    // Send to analytics
+    trackEvent('performance_metric', {
+      name: entry.name,
+      duration: entry.duration,
+      entryType: entry.entryType,
+    });
+  });
+});
+
+observer.observe({ entryTypes: ['measure', 'mark'] });
+
+// Create marks and measures
+performance.mark('fetchStart');
+await fetchData();
+performance.mark('fetchEnd');
+performance.measure('API Fetch', 'fetchStart', 'fetchEnd');</code></pre>
+            </section>
+
+            <section id="dashboards">
+                <h2>Dashboards and Alerts</h2>
+
+                <p>Set up dashboards to monitor app health and alerts for critical issues.</p>
+
+                <h3>Sentry Dashboard Setup</h3>
+
+                <pre><code>// Key Sentry features to configure:
+
+// 1. Issue Alerts
+// - Alert when error count exceeds threshold
+// - Alert on new error types
+// - Alert on regression (resolved issue reappears)
+
+// 2. Performance Alerts  
+// - Alert when p95 latency exceeds threshold
+// - Alert when throughput drops
+// - Alert when error rate increases
+
+// 3. Custom Dashboards
+// - Crash-free sessions over time
+// - Error count by release
+// - Performance metrics by screen
+// - User impact analysis
+
+// 4. Integrations
+// - Slack notifications
+// - Email alerts
+// - PagerDuty for critical issues
+// - Jira for issue tracking</code></pre>
+
+                <h3>Create Alerts in Sentry</h3>
+
+                <pre><code>// Example alert configurations:
+
+// Alert 1: High Error Rate
+// Condition: Error count > 100 in 1 hour
+// Action: Send Slack notification
+// Filter: Environment = production
+
+// Alert 2: New Issue Type
+// Condition: First seen issue
+// Action: Email team
+// Filter: Level = error or fatal
+
+// Alert 3: Performance Degradation
+// Condition: p95(transaction.duration) > 3s
+// Action: Slack + PagerDuty
+// Filter: Transaction = checkout
+
+// Alert 4: Crash Spike
+// Condition: Session crash rate > 1%
+// Action: Immediate notification
+// Filter: Release = latest</code></pre>
+
+                <h3>Amplitude Dashboards</h3>
+
+                <pre><code>// Key dashboards to create:
+
+// 1. User Engagement Dashboard
+// - Daily/Weekly/Monthly Active Users
+// - Session frequency
+// - Session duration
+// - Feature adoption rates
+
+// 2. Conversion Funnel
+// - Signup funnel (view → start → complete)
+// - Purchase funnel (browse → cart → checkout → complete)
+// - Onboarding completion rate
+
+// 3. Retention Dashboard
+// - Day 1, 7, 30 retention curves
+// - Cohort analysis
+// - Churn indicators
+
+// 4. Feature Usage
+// - Top features by usage
+// - Feature adoption over time
+// - Power user identification</code></pre>
+
+                <h3>Monitoring Checklist</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Daily Monitoring</h4>
+                    <ul>
+                        <li>Check crash-free rate (target: >99%)</li>
+                        <li>Review new errors in Sentry</li>
+                        <li>Check DAU trends</li>
+                        <li>Monitor key conversion funnels</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>📊 Weekly Review</h4>
+                    <ul>
+                        <li>Analyze retention cohorts</li>
+                        <li>Review performance trends</li>
+                        <li>Check feature adoption</li>
+                        <li>Plan bug fixes based on impact</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                    <h4>📈 Monthly Analysis</h4>
+                    <ul>
+                        <li>User growth trends</li>
+                        <li>Revenue metrics</li>
+                        <li>Feature usage patterns</li>
+                        <li>Performance optimization opportunities</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Set Up Complete Monitoring</h3>
+                    <p>Configure Sentry with proper error handling and release tracking.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// services/monitoring.ts
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
+
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+
+export function initMonitoring() {
+  if (__DEV__ || !SENTRY_DSN) {
+    console.log('Sentry disabled in development');
+    return;
+  }
+
+  const release = `${Constants.expoConfig?.slug}@${Constants.expoConfig?.version}`;
+  const dist = Constants.expoConfig?.ios?.buildNumber || 
+               Constants.expoConfig?.android?.versionCode?.toString() || 
+               '1';
+
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    release,
+    dist,
+    environment: 'production',
+    
+    // Error sampling
+    sampleRate: 1.0,
+    
+    // Performance sampling
+    tracesSampleRate: 0.2,
+    
+    // Enable native crash reporting
+    enableNative: true,
+    
+    // Attach screenshots
+    attachScreenshot: true,
+    
+    // Before send hook
+    beforeSend(event, hint) {
+      // Filter out non-critical errors
+      if (event.level === 'info') {
+        return null;
+      }
+      return event;
+    },
+  });
+}
+
+export function setMonitoringUser(user: { id: string; email?: string }) {
+  Sentry.setUser({
+    id: user.id,
+    email: user.email,
+  });
+}
+
+export function clearMonitoringUser() {
+  Sentry.setUser(null);
+}
+
+export function captureError(error: Error, context?: Record&lt;string, any&gt;) {
+  Sentry.captureException(error, {
+    extra: context,
+  });
+}
+
+export function addBreadcrumb(
+  category: string,
+  message: string,
+  data?: Record&lt;string, any&gt;
+) {
+  Sentry.addBreadcrumb({
+    category,
+    message,
+    data,
+    level: 'info',
+  });
+}
+
+// App.tsx
+import { initMonitoring } from './services/monitoring';
+
+export default function App() {
+  useEffect(() => {
+    initMonitoring();
+  }, []);
+
+  return (
+    &lt;Sentry.ErrorBoundary fallback={&lt;ErrorFallback /&gt;}&gt;
+      &lt;NavigationContainer&gt;
+        &lt;RootNavigator /&gt;
+      &lt;/NavigationContainer&gt;
+    &lt;/Sentry.ErrorBoundary&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Implement Analytics Service</h3>
+                    <p>Create a reusable analytics service with proper event tracking.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// services/analytics.ts
+import * as Amplitude from '@amplitude/analytics-react-native';
+
+const AMPLITUDE_KEY = process.env.EXPO_PUBLIC_AMPLITUDE_KEY || '';
+
+class AnalyticsService {
+  private initialized = false;
+
+  async init() {
+    if (__DEV__ || !AMPLITUDE_KEY || this.initialized) {
+      return;
+    }
+
+    await Amplitude.init(AMPLITUDE_KEY);
+    this.initialized = true;
+  }
+
+  identify(userId: string, properties?: Record&lt;string, any&gt;) {
+    if (!this.initialized) return;
+    
+    Amplitude.setUserId(userId);
+    
+    if (properties) {
+      const identify = new Amplitude.Identify();
+      Object.entries(properties).forEach(([key, value]) => {
+        identify.set(key, value);
+      });
+      Amplitude.identify(identify);
+    }
+  }
+
+  reset() {
+    if (!this.initialized) return;
+    Amplitude.reset();
+  }
+
+  track(event: string, properties?: Record&lt;string, any&gt;) {
+    if (!this.initialized) {
+      if (__DEV__) {
+        console.log('[Analytics]', event, properties);
+      }
+      return;
+    }
+    
+    Amplitude.track(event, properties);
+  }
+
+  trackScreen(screenName: string) {
+    this.track('screen_viewed', { screen_name: screenName });
+  }
+
+  // Common events
+  trackSignup(method: string) {
+    this.track('signup_completed', { method });
+  }
+
+  trackLogin(method: string) {
+    this.track('login_completed', { method });
+  }
+
+  trackPurchase(orderId: string, revenue: number, currency = 'USD') {
+    this.track('purchase_completed', {
+      order_id: orderId,
+      revenue,
+      currency,
+    });
+  }
+
+  trackFeatureUsed(feature: string, metadata?: Record&lt;string, any&gt;) {
+    this.track('feature_used', {
+      feature_name: feature,
+      ...metadata,
+    });
+  }
+}
+
+export const analytics = new AnalyticsService();
+
+// hooks/useAnalytics.ts
+import { useCallback } from 'react';
+import { analytics } from '../services/analytics';
+
+export function useAnalytics() {
+  const track = useCallback(
+    (event: string, properties?: Record&lt;string, any&gt;) => {
+      analytics.track(event, properties);
+    },
+    []
+  );
+
+  const trackScreen = useCallback((name: string) => {
+    analytics.trackScreen(name);
+  }, []);
+
+  return { track, trackScreen, analytics };
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Create Error Boundary with Reporting</h3>
+                    <p>Build an error boundary that reports to Sentry and allows recovery.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/AppErrorBoundary.tsx
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import * as Sentry from '@sentry/react-native';
+import * as Updates from 'expo-updates';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  eventId: string | null;
+}
+
+class AppErrorBoundary extends Component&lt;Props, State&gt; {
+  constructor(props: Props) {
+    super(props);
+    this.state = { 
+      hasError: false, 
+      error: null,
+      eventId: null,
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial&lt;State&gt; {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const eventId = Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+      },
+    });
+    
+    this.setState({ eventId });
+  }
+
+  handleRestart = async () => {
+    try {
+      await Updates.reloadAsync();
+    } catch {
+      // Fallback for development
+      this.setState({ hasError: false, error: null, eventId: null });
+    }
+  };
+
+  handleReport = () => {
+    if (this.state.eventId) {
+      Sentry.showReportDialog({ eventId: this.state.eventId });
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        &lt;View style={styles.container}&gt;
+          &lt;Image 
+            source={require('../assets/error-illustration.png')} 
+            style={styles.image}
+          /&gt;
+          
+          &lt;Text style={styles.title}&gt;Oops! Something went wrong&lt;/Text&gt;
+          
+          &lt;Text style={styles.message}&gt;
+            We've been notified and are working to fix this issue.
+          &lt;/Text&gt;
+
+          &lt;TouchableOpacity style={styles.button} onPress={this.handleRestart}&gt;
+            &lt;Text style={styles.buttonText}&gt;Restart App&lt;/Text&gt;
+          &lt;/TouchableOpacity&gt;
+
+          &lt;TouchableOpacity 
+            style={styles.linkButton} 
+            onPress={this.handleReport}
+          &gt;
+            &lt;Text style={styles.linkText}&gt;Send Feedback&lt;/Text&gt;
+          &lt;/TouchableOpacity&gt;
+
+          {__DEV__ && (
+            &lt;Text style={styles.errorDetail}&gt;
+              {this.state.error?.message}
+            &lt;/Text&gt;
+          )}
+        &lt;/View&gt;
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#fff',
+  },
+  image: {
+    width: 200,
+    height: 200,
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 24,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  linkButton: {
+    padding: 12,
+  },
+  linkText: {
+    color: '#007AFF',
+    fontSize: 16,
+  },
+  errorDetail: {
+    marginTop: 24,
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    fontFamily: 'monospace',
+    fontSize: 12,
+  },
+});
+
+export default AppErrorBoundary;</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Sentry:</strong> Best-in-class crash reporting with excellent Expo support</li>
+                        <li><strong>Error boundaries:</strong> Catch errors gracefully and prevent full app crashes</li>
+                        <li><strong>Analytics:</strong> Track user behavior with consistent event naming</li>
+                        <li><strong>Performance:</strong> Monitor app start, API calls, and navigation timing</li>
+                        <li><strong>User context:</strong> Attach user info to errors for better debugging</li>
+                        <li><strong>Alerts:</strong> Set up notifications for critical issues</li>
+                        <li><strong>Dashboards:</strong> Monitor crash-free rate, retention, and key metrics</li>
+                    </ul>
+                </div>
+
+                <h3>Monitoring Quick Reference</h3>
+
+                <pre><code>// Sentry
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({ dsn: '...', tracesSampleRate: 0.2 });
+Sentry.captureException(error);
+Sentry.captureMessage('Info message');
+Sentry.setUser({ id, email });
+Sentry.addBreadcrumb({ category, message });
+
+// Analytics (Amplitude)
+import * as Amplitude from '@amplitude/analytics-react-native';
+
+Amplitude.init(API_KEY);
+Amplitude.track('event_name', { property: 'value' });
+Amplitude.setUserId(userId);
+Amplitude.identify(new Amplitude.Identify().set('prop', 'value'));
+
+// Error Boundary
+&lt;Sentry.ErrorBoundary fallback={ErrorComponent}&gt;
+  &lt;App /&gt;
+&lt;/Sentry.ErrorBoundary&gt;</code></pre>
+
+                <p>In the next lesson, we'll set up CI/CD pipelines to automate building, testing, and deploying your app.</p>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l05_app_store_deployment.html" class="prev-link">← Previous: App Store Deployment</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m12_l07_ci_cd_setup.html" class="next-link">Next: CI/CD Setup →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

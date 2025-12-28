@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master rendering optimization techniques for React Native apps">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Rendering Optimization | Module 10: Performance Optimization | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m10_l01_app_performance.html">Module 10</a> &gt;
+            <span>Lesson 10.2</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 10: Performance Optimization</p>
+                <h1>Rendering Optimization</h1>
+                <p class="lesson-subtitle">Preventing unnecessary re-renders and optimizing component updates</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand how React rendering works</li>
+                    <li>Identify unnecessary re-renders using profiler</li>
+                    <li>Use React.memo effectively</li>
+                    <li>Master useMemo and useCallback</li>
+                    <li>Optimize component structure</li>
+                    <li>Implement virtualization for large lists</li>
+                    <li>Apply best practices for render performance</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#how-rendering-works">How React Rendering Works</a></li>
+                        <li><a href="#identifying-rerenders">Identifying Unnecessary Re-renders</a></li>
+                        <li><a href="#react-memo">React.memo</a></li>
+                        <li><a href="#usememo">useMemo</a></li>
+                        <li><a href="#usecallback">useCallback</a></li>
+                        <li><a href="#component-structure">Component Structure Optimization</a></li>
+                        <li><a href="#list-optimization">List Optimization</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- How React Rendering Works -->
+            <section id="how-rendering-works">
+                <h2>How React Rendering Works</h2>
+
+                <p>Understanding React's rendering process is essential for optimization. A "render" doesn't mean updating the screen—it means React is calculating what should change.</p>
+
+                <h3>The Render Cycle</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    A[State/Props Change] --> B[Render Phase]
+    B --> C[Create Virtual DOM]
+    C --> D[Diff with Previous]
+    D --> E{Changes?}
+    E -->|Yes| F[Commit Phase]
+    E -->|No| G[Skip Update]
+    F --> H[Update Native Views]
+    H --> I[Screen Updated]
+    
+    style B fill:#ffeb3b,stroke:#f57c00
+    style F fill:#4CAF50,stroke:#2e7d32
+    style G fill:#e0e0e0,stroke:#999
+</pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Two Phases of Rendering</h4>
+                    <p><strong>Render Phase (can be slow):</strong> React calls your components, creates virtual DOM, calculates diff. This is where optimization matters most.</p>
+                    <p><strong>Commit Phase (usually fast):</strong> React applies changes to native views. Only happens when there are actual changes.</p>
+                </div>
+
+                <h3>What Triggers a Re-render?</h3>
+
+                <pre><code>// 1. State change in the component
+const [count, setCount] = useState(0);
+setCount(1); // Triggers re-render
+
+// 2. Props change from parent
+&lt;Child name={name} /&gt; // Child re-renders when name changes
+
+// 3. Context value change
+const theme = useContext(ThemeContext); // Re-renders on theme change
+
+// 4. Parent re-renders
+function Parent() {
+  const [count, setCount] = useState(0);
+  return &lt;Child /&gt;; // Child re-renders when Parent re-renders!
+}
+
+// 5. forceUpdate (class components) or key change
+&lt;Component key={id} /&gt; // New key = new component instance</code></pre>
+
+                <h3>The Re-render Cascade</h3>
+
+                <!-- SVG: Re-render Cascade -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 600px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Re-render Cascade (Default Behavior)</text>
+                        
+                        <!-- App (root) -->
+                        <rect x="250" y="45" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="300" y="70" text-anchor="middle" font-size="11" fill="white">App 🔄</text>
+                        
+                        <!-- Level 2 -->
+                        <line x1="300" y1="85" x2="150" y2="110" stroke="#666" stroke-width="1"/>
+                        <line x1="300" y1="85" x2="300" y2="110" stroke="#666" stroke-width="1"/>
+                        <line x1="300" y1="85" x2="450" y2="110" stroke="#666" stroke-width="1"/>
+                        
+                        <rect x="100" y="110" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="150" y="135" text-anchor="middle" font-size="11" fill="white">Header 🔄</text>
+                        
+                        <rect x="250" y="110" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="300" y="135" text-anchor="middle" font-size="11" fill="white">Content 🔄</text>
+                        
+                        <rect x="400" y="110" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="450" y="135" text-anchor="middle" font-size="11" fill="white">Footer 🔄</text>
+                        
+                        <!-- Level 3 -->
+                        <line x1="300" y1="150" x2="220" y2="175" stroke="#666" stroke-width="1"/>
+                        <line x1="300" y1="150" x2="380" y2="175" stroke="#666" stroke-width="1"/>
+                        
+                        <rect x="170" y="175" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="220" y="200" text-anchor="middle" font-size="11" fill="white">List 🔄</text>
+                        
+                        <rect x="330" y="175" width="100" height="40" fill="#f44336" rx="5"/>
+                        <text x="380" y="200" text-anchor="middle" font-size="11" fill="white">Sidebar 🔄</text>
+                        
+                        <!-- Level 4 -->
+                        <line x1="220" y1="215" x2="170" y2="240" stroke="#666" stroke-width="1"/>
+                        <line x1="220" y1="215" x2="220" y2="240" stroke="#666" stroke-width="1"/>
+                        <line x1="220" y1="215" x2="270" y2="240" stroke="#666" stroke-width="1"/>
+                        
+                        <rect x="135" y="240" width="70" height="35" fill="#f44336" rx="5"/>
+                        <text x="170" y="262" text-anchor="middle" font-size="10" fill="white">Item 🔄</text>
+                        
+                        <rect x="185" y="240" width="70" height="35" fill="#f44336" rx="5"/>
+                        <text x="220" y="262" text-anchor="middle" font-size="10" fill="white">Item 🔄</text>
+                        
+                        <rect x="235" y="240" width="70" height="35" fill="#f44336" rx="5"/>
+                        <text x="270" y="262" text-anchor="middle" font-size="10" fill="white">Item 🔄</text>
+                        
+                        <!-- Warning -->
+                        <rect x="380" y="230" width="200" height="55" fill="#ffebee" rx="5" stroke="#f44336"/>
+                        <text x="480" y="250" text-anchor="middle" font-size="10" font-weight="bold" fill="#c62828">⚠️ Problem</text>
+                        <text x="480" y="265" text-anchor="middle" font-size="9" fill="#333">State change in App</text>
+                        <text x="480" y="278" text-anchor="middle" font-size="9" fill="#333">re-renders EVERYTHING</text>
+                    </svg>
+                </div>
+
+                <p>When a parent component re-renders, all its children re-render by default—even if their props haven't changed. This is where optimization comes in.</p>
+            </section>
+
+            <!-- Identifying Unnecessary Re-renders -->
+            <section id="identifying-rerenders">
+                <h2>Identifying Unnecessary Re-renders</h2>
+
+                <p>Before optimizing, you need to find the problem. Use these tools to identify unnecessary re-renders.</p>
+
+                <h3>React DevTools Profiler</h3>
+
+                <pre><code># Install React DevTools
+npm install -g react-devtools
+react-devtools
+
+// Connect your app and use the Profiler tab:
+// 1. Click "Record" button
+// 2. Interact with your app
+// 3. Click "Stop"
+// 4. Analyze the flame graph
+
+// Colors indicate render time:
+// - Gray: Didn't render
+// - Blue/Green: Fast render
+// - Yellow/Orange: Slow render
+// - Red: Very slow render
+
+// Enable "Highlight updates" to see re-renders in real-time</code></pre>
+
+                <h3>Why Did You Render?</h3>
+
+                <pre><code># Install the library
+npm install @welldone-software/why-did-you-render --save-dev
+
+// wdyr.js (create this file)
+import React from 'react';
+
+if (__DEV__) {
+  const whyDidYouRender = require('@welldone-software/why-did-you-render');
+  whyDidYouRender(React, {
+    trackAllPureComponents: true,
+    trackHooks: true,
+    logOnDifferentValues: true,
+  });
+}
+
+// Import at the TOP of your entry file (before React)
+// index.js
+import './wdyr';
+import { AppRegistry } from 'react-native';
+// ...
+
+// Mark specific components to track
+MyComponent.whyDidYouRender = true;
+
+// Console will show:
+// "MyComponent re-rendered because props.items changed"</code></pre>
+
+                <h3>Custom Render Counter</h3>
+
+                <pre><code>// Simple render counter for debugging
+function useRenderCount(componentName: string) {
+  const count = useRef(0);
+  count.current += 1;
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`🔄 ${componentName} rendered ${count.current} times`);
+    }
+  });
+
+  return count.current;
+}
+
+// Usage
+function MyComponent() {
+  const renderCount = useRenderCount('MyComponent');
+  
+  return (
+    &lt;View&gt;
+      {__DEV__ && &lt;Text&gt;Renders: {renderCount}&lt;/Text&gt;}
+      {/* ... */}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Common Re-render Causes</h3>
+
+                <pre><code>// ❌ Problem 1: New object/array reference every render
+function Parent() {
+  return &lt;Child style={{ margin: 10 }} /&gt;; // New object!
+}
+
+// ❌ Problem 2: New function reference every render
+function Parent() {
+  return &lt;Child onPress={() => console.log('pressed')} /&gt;; // New function!
+}
+
+// ❌ Problem 3: Spreading props with extra data
+function Parent() {
+  const data = { ...item, extraField: 'value' }; // New object!
+  return &lt;Child {...data} /&gt;;
+}
+
+// ❌ Problem 4: Mapping creates new array
+function Parent({ items }) {
+  const mapped = items.map(i => ({ ...i, extra: true })); // Every render!
+  return &lt;List data={mapped} /&gt;;
+}
+
+// ❌ Problem 5: Context value is new object
+function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light');
+  return (
+    &lt;ThemeContext.Provider value={{ theme, setTheme }}&gt; {/* New object! */}
+      {children}
+    &lt;/ThemeContext.Provider&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- React.memo -->
+            <section id="react-memo">
+                <h2>React.memo</h2>
+
+                <p><code>React.memo</code> is a higher-order component that prevents re-renders when props haven't changed.</p>
+
+                <h3>Basic Usage</h3>
+
+                <pre><code>import { memo } from 'react';
+
+// Without memo: re-renders when parent re-renders
+function ExpensiveComponent({ data }) {
+  // Expensive rendering logic
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+}
+
+// With memo: only re-renders when props change
+const ExpensiveComponent = memo(function ExpensiveComponent({ data }) {
+  // Only called when `data` changes
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+});
+
+// Alternative syntax
+const ExpensiveComponent = memo(({ data }) => {
+  return &lt;View&gt;{/* ... */}&lt;/View&gt;;
+});</code></pre>
+
+                <h3>How memo Compares Props</h3>
+
+                <pre><code>// memo does a SHALLOW comparison of props
+// This means it compares references, not deep values
+
+// ✅ Works: primitive values
+&lt;MemoizedComponent count={5} name="Alice" /&gt;
+
+// ⚠️ Careful: objects/arrays - new reference = re-render
+const user = { name: 'Alice' };
+&lt;MemoizedComponent user={user} /&gt; // Re-renders if user object is recreated
+
+// ⚠️ Careful: functions - new reference = re-render
+&lt;MemoizedComponent onPress={() => {}} /&gt; // Always re-renders!</code></pre>
+
+                <h3>Custom Comparison Function</h3>
+
+                <pre><code>// Provide custom comparison for complex cases
+const UserCard = memo(
+  function UserCard({ user, onSelect }) {
+    return (
+      &lt;Pressable onPress={() => onSelect(user.id)}&gt;
+        &lt;Text&gt;{user.name}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    );
+  },
+  (prevProps, nextProps) => {
+    // Return true if props are equal (skip re-render)
+    // Return false if props are different (re-render)
+    return (
+      prevProps.user.id === nextProps.user.id &&
+      prevProps.user.name === nextProps.user.name
+      // Intentionally ignore onSelect - assume it's stable
+    );
+  }
+);
+
+// Use custom comparison sparingly - it adds complexity
+// Usually better to fix the prop stability at the source</code></pre>
+
+                <h3>When to Use memo</h3>
+
+                <div class="card">
+                    <h4>✅ Good Candidates for memo</h4>
+                    <ul>
+                        <li>Components that render often with same props</li>
+                        <li>Components with expensive render logic</li>
+                        <li>List item components (rendered many times)</li>
+                        <li>Components deep in the tree (many ancestors)</li>
+                        <li>Pure presentational components</li>
+                    </ul>
+
+                    <h4 style="margin-top: 16px;">❌ Don't Bother with memo</h4>
+                    <ul>
+                        <li>Components that always receive different props</li>
+                        <li>Very simple/fast components</li>
+                        <li>Components that need to re-render anyway</li>
+                        <li>Root-level components</li>
+                    </ul>
+                </div>
+
+                <h3>memo with Children</h3>
+
+                <pre><code>// ⚠️ Children are props too - they break memo!
+function Parent() {
+  return (
+    &lt;MemoizedWrapper&gt;
+      &lt;ChildComponent /&gt; {/* New element every render! */}
+    &lt;/MemoizedWrapper&gt;
+  );
+}
+
+// ✅ Solution 1: Memoize the children
+const memoizedChild = useMemo(() => &lt;ChildComponent /&gt;, []);
+return &lt;MemoizedWrapper&gt;{memoizedChild}&lt;/MemoizedWrapper&gt;;
+
+// ✅ Solution 2: Pass children as render prop
+&lt;MemoizedWrapper renderContent={() => &lt;ChildComponent /&gt;} /&gt;</code></pre>
+            </section>
+
+            <!-- useMemo -->
+            <section id="usememo">
+                <h2>useMemo</h2>
+
+                <p><code>useMemo</code> memoizes the result of a computation, preventing expensive recalculations on every render.</p>
+
+                <h3>Basic Usage</h3>
+
+                <pre><code>import { useMemo } from 'react';
+
+function ProductList({ products, filter }) {
+  // ❌ Without useMemo: filters on every render
+  const filteredProducts = products.filter(p => p.category === filter);
+
+  // ✅ With useMemo: only filters when dependencies change
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => p.category === filter);
+  }, [products, filter]);
+
+  return (
+    &lt;FlatList data={filteredProducts} /* ... */ /&gt;
+  );
+}</code></pre>
+
+                <h3>Common Use Cases</h3>
+
+                <pre><code>// 1. Expensive calculations
+const sortedData = useMemo(() => {
+  return [...data].sort((a, b) => a.name.localeCompare(b.name));
+}, [data]);
+
+// 2. Complex derived state
+const statistics = useMemo(() => {
+  return {
+    total: items.length,
+    completed: items.filter(i => i.done).length,
+    pending: items.filter(i => !i.done).length,
+    percentComplete: (items.filter(i => i.done).length / items.length) * 100,
+  };
+}, [items]);
+
+// 3. Stable object references for child components
+const chartConfig = useMemo(() => ({
+  backgroundColor: theme.background,
+  color: theme.primary,
+  labelColor: theme.text,
+}), [theme]);
+
+return &lt;Chart config={chartConfig} /&gt;;
+
+// 4. Transforming data for display
+const formattedUsers = useMemo(() => {
+  return users.map(user => ({
+    ...user,
+    displayName: `${user.firstName} ${user.lastName}`,
+    avatar: user.avatar || DEFAULT_AVATAR,
+  }));
+}, [users]);
+
+// 5. Searching/filtering
+const searchResults = useMemo(() => {
+  if (!query) return items;
+  const lowerQuery = query.toLowerCase();
+  return items.filter(item =>
+    item.title.toLowerCase().includes(lowerQuery) ||
+    item.description.toLowerCase().includes(lowerQuery)
+  );
+}, [items, query]);</code></pre>
+
+                <h3>When NOT to Use useMemo</h3>
+
+                <pre><code>// ❌ Don't memoize simple/cheap operations
+const doubled = useMemo(() => count * 2, [count]); // Overkill!
+const doubled = count * 2; // Just do it
+
+// ❌ Don't memoize if value changes every render anyway
+const timestamp = useMemo(() => Date.now(), []); // Stale!
+
+// ❌ Don't memoize primitives that don't need stable reference
+const isActive = useMemo(() => status === 'active', [status]);
+const isActive = status === 'active'; // Same thing
+
+// ❌ Don't use useMemo for side effects
+const data = useMemo(() => {
+  fetchData(); // Wrong! Side effect in useMemo
+  return something;
+}, []);</code></pre>
+
+                <h3>useMemo vs useState for Derived State</h3>
+
+                <pre><code>// ❌ Anti-pattern: derived state in useState
+function ProductList({ products }) {
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    // Unnecessarily complex and has timing issues
+    setFilteredProducts(products.filter(p => p.category === filter));
+  }, [products, filter]);
+
+  // ...
+}
+
+// ✅ Better: useMemo for derived state
+function ProductList({ products }) {
+  const [filter, setFilter] = useState('all');
+
+  // Computed synchronously, always consistent
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      filter === 'all' || p.category === filter
+    );
+  }, [products, filter]);
+
+  // ...
+}</code></pre>
+            </section>
+
+            <!-- useCallback -->
+            <section id="usecallback">
+                <h2>useCallback</h2>
+
+                <p><code>useCallback</code> memoizes functions, preventing new function references on every render.</p>
+
+                <h3>The Problem with Inline Functions</h3>
+
+                <pre><code>// ❌ New function created every render
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{count}&lt;/Text&gt;
+      {/* handlePress is a NEW function every render */}
+      {/* This breaks memo on MemoizedButton! */}
+      &lt;MemoizedButton onPress={() => setCount(c => c + 1)} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Basic Usage</h3>
+
+                <pre><code>import { useCallback } from 'react';
+
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  // ✅ Same function reference between renders
+  const handlePress = useCallback(() => {
+    setCount(c => c + 1);
+  }, []); // Empty deps = function never changes
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{count}&lt;/Text&gt;
+      &lt;MemoizedButton onPress={handlePress} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>With Dependencies</h3>
+
+                <pre><code>function UserActions({ userId, onUpdate }) {
+  // Recreate when userId changes
+  const handleDelete = useCallback(() => {
+    deleteUser(userId);
+    onUpdate();
+  }, [userId, onUpdate]);
+
+  const handleEdit = useCallback(() => {
+    navigation.navigate('EditUser', { userId });
+  }, [userId, navigation]);
+
+  return (
+    &lt;View&gt;
+      &lt;Button onPress={handleEdit} title="Edit" /&gt;
+      &lt;Button onPress={handleDelete} title="Delete" /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>useCallback for List Items</h3>
+
+                <pre><code>// Common pattern: callbacks that need item context
+function TodoList({ todos, onToggle, onDelete }) {
+  // ✅ Memoize the renderItem function
+  const renderItem = useCallback(({ item }) => (
+    &lt;TodoItem
+      todo={item}
+      onToggle={onToggle}
+      onDelete={onDelete}
+    /&gt;
+  ), [onToggle, onDelete]);
+
+  return (
+    &lt;FlatList
+      data={todos}
+      renderItem={renderItem}
+      keyExtractor={item => item.id}
+    /&gt;
+  );
+}
+
+// The TodoItem should handle creating its own callbacks
+const TodoItem = memo(function TodoItem({ todo, onToggle, onDelete }) {
+  // Create stable callbacks that include the todo.id
+  const handleToggle = useCallback(() => {
+    onToggle(todo.id);
+  }, [todo.id, onToggle]);
+
+  const handleDelete = useCallback(() => {
+    onDelete(todo.id);
+  }, [todo.id, onDelete]);
+
+  return (
+    &lt;View&gt;
+      &lt;Pressable onPress={handleToggle}&gt;
+        &lt;Text&gt;{todo.completed ? '✓' : '○'} {todo.text}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      &lt;Pressable onPress={handleDelete}&gt;
+        &lt;Text&gt;🗑&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+});</code></pre>
+
+                <h3>useCallback vs useMemo</h3>
+
+                <pre><code>// useCallback is just syntactic sugar for useMemo with functions
+
+// These are equivalent:
+const handleClick = useCallback(() => {
+  doSomething(a, b);
+}, [a, b]);
+
+const handleClick = useMemo(() => {
+  return () => {
+    doSomething(a, b);
+  };
+}, [a, b]);
+
+// Use useCallback for functions (cleaner syntax)
+// Use useMemo for values</code></pre>
+            </section>
+            <!-- Component Structure Optimization -->
+            <section id="component-structure">
+                <h2>Component Structure Optimization</h2>
+
+                <p>Sometimes the best optimization is restructuring your components to minimize the re-render blast radius.</p>
+
+                <h3>Move State Down</h3>
+
+                <pre><code>// ❌ Bad: State high in tree re-renders everything
+function App() {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  return (
+    &lt;View&gt;
+      &lt;Header /&gt;
+      &lt;SearchInput value={searchQuery} onChange={setSearchQuery} /&gt;
+      &lt;ProductList /&gt;  {/* Re-renders on every keystroke! */}
+      &lt;Footer /&gt;       {/* Re-renders on every keystroke! */}
+    &lt;/View&gt;
+  );
+}
+
+// ✅ Good: State in dedicated component
+function App() {
+  return (
+    &lt;View&gt;
+      &lt;Header /&gt;
+      &lt;SearchSection /&gt;  {/* Contains its own state */}
+      &lt;ProductList /&gt;    {/* Unaffected by search state */}
+      &lt;Footer /&gt;
+    &lt;/View&gt;
+  );
+}
+
+function SearchSection() {
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  return (
+    &lt;View&gt;
+      &lt;SearchInput value={searchQuery} onChange={setSearchQuery} /&gt;
+      &lt;SearchResults query={searchQuery} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Lift Content Up (Children Pattern)</h3>
+
+                <pre><code>// ❌ Bad: Expensive child re-renders when parent state changes
+function ScrollTracker() {
+  const [scrollY, setScrollY] = useState(0);
+
+  return (
+    &lt;ScrollView onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}&gt;
+      &lt;ExpensiveComponent /&gt;  {/* Re-renders on every scroll! */}
+    &lt;/ScrollView&gt;
+  );
+}
+
+// ✅ Good: Pass expensive content as children
+function ScrollTracker({ children }) {
+  const [scrollY, setScrollY] = useState(0);
+
+  return (
+    &lt;View&gt;
+      &lt;ScrollView onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}&gt;
+        {children}  {/* Children don't re-render! */}
+      &lt;/ScrollView&gt;
+      &lt;ScrollIndicator position={scrollY} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Usage - ExpensiveComponent is created by parent, not ScrollTracker
+function App() {
+  return (
+    &lt;ScrollTracker&gt;
+      &lt;ExpensiveComponent /&gt;
+    &lt;/ScrollTracker&gt;
+  );
+}</code></pre>
+
+                <h3>Component Splitting</h3>
+
+                <pre><code>// ❌ Bad: One big component with mixed concerns
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [likes, setLikes] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Any state change re-renders everything
+  return (
+    &lt;View&gt;
+      &lt;Avatar user={user} /&gt;
+      &lt;LikeButton likes={likes} onLike={() => setLikes(l => l + 1)} /&gt;
+      &lt;PostList posts={posts} /&gt;
+      &lt;EditForm isOpen={isEditing} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// ✅ Good: Split into focused components
+function UserProfile({ userId }) {
+  const user = useUser(userId);
+  
+  return (
+    &lt;View&gt;
+      &lt;ProfileHeader user={user} /&gt;
+      &lt;LikeSection userId={userId} /&gt;      {/* Has its own state */}
+      &lt;PostsSection userId={userId} /&gt;     {/* Has its own state */}
+      &lt;EditSection userId={userId} /&gt;      {/* Has its own state */}
+    &lt;/View&gt;
+  );
+}
+
+// Each section manages its own state
+function LikeSection({ userId }) {
+  const [likes, setLikes] = useState(0);
+  // Only this section re-renders when likes change
+  return &lt;LikeButton likes={likes} onLike={() => setLikes(l => l + 1)} /&gt;;
+}</code></pre>
+
+                <h3>Optimizing Context</h3>
+
+                <pre><code>// ❌ Bad: Single context with multiple values
+function AppProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [theme, setTheme] = useState('light');
+  const [language, setLanguage] = useState('en');
+
+  return (
+    &lt;AppContext.Provider value={{ user, setUser, theme, setTheme, language, setLanguage }}&gt;
+      {children}  {/* ALL consumers re-render on ANY change */}
+    &lt;/AppContext.Provider&gt;
+  );
+}
+
+// ✅ Good: Split contexts by update frequency
+const UserContext = createContext(null);
+const ThemeContext = createContext(null);
+const LanguageContext = createContext(null);
+
+function AppProvider({ children }) {
+  return (
+    &lt;UserProvider&gt;
+      &lt;ThemeProvider&gt;
+        &lt;LanguageProvider&gt;
+          {children}
+        &lt;/LanguageProvider&gt;
+      &lt;/ThemeProvider&gt;
+    &lt;/UserProvider&gt;
+  );
+}
+
+// ✅ Also: Memoize context value
+function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light');
+  
+  const value = useMemo(() => ({
+    theme,
+    setTheme,
+  }), [theme]);
+
+  return (
+    &lt;ThemeContext.Provider value={value}&gt;
+      {children}
+    &lt;/ThemeContext.Provider&gt;
+  );
+}
+
+// ✅ Advanced: Split state and dispatch
+const ThemeStateContext = createContext(null);
+const ThemeDispatchContext = createContext(null);
+
+function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light');
+
+  return (
+    &lt;ThemeStateContext.Provider value={theme}&gt;
+      &lt;ThemeDispatchContext.Provider value={setTheme}&gt;
+        {children}
+      &lt;/ThemeDispatchContext.Provider&gt;
+    &lt;/ThemeStateContext.Provider&gt;
+  );
+}
+
+// Components that only need to READ don't re-render when dispatch changes
+const theme = useContext(ThemeStateContext);
+
+// Components that only need to WRITE don't re-render when state changes
+const setTheme = useContext(ThemeDispatchContext);</code></pre>
+            </section>
+
+            <!-- List Optimization -->
+            <section id="list-optimization">
+                <h2>List Optimization</h2>
+
+                <p>Lists are often the biggest performance bottleneck. Proper optimization here has huge impact.</p>
+
+                <h3>FlatList Optimization Props</h3>
+
+                <pre><code>function OptimizedList({ data }) {
+  // Memoize renderItem
+  const renderItem = useCallback(({ item }) => (
+    &lt;ListItem item={item} /&gt;
+  ), []);
+
+  // Stable keyExtractor
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  // Memoize item layout if fixed height
+  const getItemLayout = useCallback((data, index) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  }), []);
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
+      
+      // Performance props
+      removeClippedSubviews={true}    // Unmount off-screen items
+      maxToRenderPerBatch={10}        // Items per batch
+      updateCellsBatchingPeriod={50}  // Batch update frequency
+      initialNumToRender={10}         // Initial render count
+      windowSize={5}                  // Render window multiplier
+      
+      // Reduce memory
+      maintainVisibleContentPosition={{
+        minIndexForVisible: 0,
+      }}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Optimizing List Items</h3>
+
+                <pre><code>// ✅ Memoize list items
+const ListItem = memo(function ListItem({ item, onPress }) {
+  const handlePress = useCallback(() => {
+    onPress(item.id);
+  }, [item.id, onPress]);
+
+  return (
+    &lt;Pressable onPress={handlePress} style={styles.item}&gt;
+      &lt;Image source={{ uri: item.image }} style={styles.image} /&gt;
+      &lt;View style={styles.content}&gt;
+        &lt;Text style={styles.title}&gt;{item.title}&lt;/Text&gt;
+        &lt;Text style={styles.subtitle}&gt;{item.subtitle}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+// ✅ Use StyleSheet (not inline styles)
+const styles = StyleSheet.create({
+  item: {
+    flexDirection: 'row',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  image: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  content: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+});</code></pre>
+
+                <h3>FlashList for Maximum Performance</h3>
+
+                <pre><code>// FlashList from Shopify is faster than FlatList
+import { FlashList } from '@shopify/flash-list';
+
+function SuperFastList({ data }) {
+  const renderItem = useCallback(({ item }) => (
+    &lt;ListItem item={item} /&gt;
+  ), []);
+
+  return (
+    &lt;FlashList
+      data={data}
+      renderItem={renderItem}
+      estimatedItemSize={80}  // Required: approximate item height
+      keyExtractor={(item) => item.id}
+    /&gt;
+  );
+}
+
+// FlashList benefits:
+// - Recycles views instead of creating new ones
+// - Better memory management
+// - Smoother scrolling on low-end devices
+// - Built-in performance warnings</code></pre>
+
+                <h3>Avoiding Common List Mistakes</h3>
+
+                <pre><code>// ❌ Mistake 1: Anonymous functions in renderItem
+&lt;FlatList
+  renderItem={({ item }) => (
+    &lt;Item onPress={() => handlePress(item.id)} /&gt; // New function!
+  )}
+/&gt;
+
+// ❌ Mistake 2: Inline styles
+&lt;FlatList
+  renderItem={({ item }) => (
+    &lt;View style={{ padding: 10 }}&gt; // New object!
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+/&gt;
+
+// ❌ Mistake 3: Heavy computation in renderItem
+&lt;FlatList
+  renderItem={({ item }) => {
+    const formatted = expensiveFormat(item); // Every render!
+    return &lt;Item data={formatted} /&gt;;
+  }}
+/&gt;
+
+// ❌ Mistake 4: Not using key extractor properly
+&lt;FlatList
+  data={items}
+  keyExtractor={(item, index) => index.toString()} // Index as key!
+/&gt;
+
+// ✅ Correct approach
+const renderItem = useCallback(({ item }) => (
+  &lt;MemoizedItem item={item} onPress={handlePress} /&gt;
+), [handlePress]);
+
+const keyExtractor = useCallback((item) => item.id, []);
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={keyExtractor}
+/&gt;</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Fix Re-render Issues</h3>
+                    <p>This component has multiple performance problems. Identify and fix them.</p>
+                    
+                    <pre><code>function ChatRoom({ roomId }) {
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  const sendMessage = () => {
+    if (inputText.trim()) {
+      setMessages([...messages, { id: Date.now(), text: inputText }]);
+      setInputText('');
+    }
+  };
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;FlatList
+        data={messages}
+        renderItem={({ item }) => (
+          &lt;View style={{ padding: 10, backgroundColor: '#f0f0f0', marginVertical: 5 }}&gt;
+            &lt;Text&gt;{item.text}&lt;/Text&gt;
+          &lt;/View&gt;
+        )}
+        keyExtractor={(item, index) => index.toString()}
+      /&gt;
+      
+      {isTyping && &lt;Text&gt;Someone is typing...&lt;/Text&gt;}
+      
+      &lt;View style={{ flexDirection: 'row' }}&gt;
+        &lt;TextInput
+          value={inputText}
+          onChangeText={setInputText}
+          style={{ flex: 1, borderWidth: 1, padding: 10 }}
+        /&gt;
+        &lt;Pressable onPress={sendMessage} style={{ padding: 10, backgroundColor: 'blue' }}&gt;
+          &lt;Text style={{ color: 'white' }}&gt;Send&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// Optimized ChatRoom
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  messageContainer: { padding: 10, backgroundColor: '#f0f0f0', marginVertical: 5 },
+  inputRow: { flexDirection: 'row' },
+  input: { flex: 1, borderWidth: 1, padding: 10 },
+  sendButton: { padding: 10, backgroundColor: 'blue' },
+  sendButtonText: { color: 'white' },
+});
+
+// Memoized message component
+const MessageItem = memo(function MessageItem({ message }) {
+  return (
+    &lt;View style={styles.messageContainer}&gt;
+      &lt;Text&gt;{message.text}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});
+
+function ChatRoom({ roomId }) {
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  const sendMessage = useCallback(() => {
+    if (inputText.trim()) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), text: inputText }]);
+      setInputText('');
+    }
+  }, [inputText]);
+
+  const renderItem = useCallback(({ item }) => (
+    &lt;MessageItem message={item} /&gt;
+  ), []);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList
+        data={messages}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+      /&gt;
+      
+      {isTyping && &lt;Text&gt;Someone is typing...&lt;/Text&gt;}
+      
+      &lt;View style={styles.inputRow}&gt;
+        &lt;TextInput
+          value={inputText}
+          onChangeText={setInputText}
+          style={styles.input}
+        /&gt;
+        &lt;Pressable onPress={sendMessage} style={styles.sendButton}&gt;
+          &lt;Text style={styles.sendButtonText}&gt;Send&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Fixes:
+// 1. StyleSheet instead of inline styles
+// 2. Memoized MessageItem component
+// 3. useCallback for sendMessage
+// 4. useCallback for renderItem and keyExtractor
+// 5. Unique string IDs instead of index
+// 6. FlatList performance props</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Optimize a Dashboard</h3>
+                    <p>Restructure this dashboard to minimize re-renders when filters change.</p>
+                    
+                    <pre><code>function Dashboard() {
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [dateFilter, setDateFilter] = useState('week');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  useEffect(() => {
+    fetchStats().then(setStats);
+    fetchUsers().then(setUsers);
+  }, []);
+
+  const filteredUsers = users.filter(u => 
+    categoryFilter === 'all' || u.category === categoryFilter
+  );
+
+  return (
+    &lt;ScrollView&gt;
+      &lt;StatsCards stats={stats} /&gt;
+      
+      &lt;FilterBar
+        dateFilter={dateFilter}
+        onDateChange={setDateFilter}
+        categoryFilter={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+      /&gt;
+      
+      &lt;UserTable users={filteredUsers} /&gt;
+      
+      &lt;RevenueChart dateFilter={dateFilter} /&gt;
+      
+      &lt;ActivityFeed /&gt;
+    &lt;/ScrollView&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// Split into focused components with their own state
+
+function Dashboard() {
+  return (
+    &lt;ScrollView&gt;
+      &lt;StatsSection /&gt;
+      &lt;UsersSection /&gt;
+      &lt;RevenueSection /&gt;
+      &lt;ActivitySection /&gt;
+    &lt;/ScrollView&gt;
+  );
+}
+
+// Stats has its own data fetching
+const StatsSection = memo(function StatsSection() {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    fetchStats().then(setStats);
+  }, []);
+
+  return &lt;StatsCards stats={stats} /&gt;;
+});
+
+// Users section has its own filter state
+function UsersSection() {
+  const [users, setUsers] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  useEffect(() => {
+    fetchUsers().then(setUsers);
+  }, []);
+
+  const filteredUsers = useMemo(() =>
+    users.filter(u => categoryFilter === 'all' || u.category === categoryFilter),
+    [users, categoryFilter]
+  );
+
+  return (
+    &lt;View&gt;
+      &lt;CategoryFilter value={categoryFilter} onChange={setCategoryFilter} /&gt;
+      &lt;UserTable users={filteredUsers} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Revenue section has its own date filter
+function RevenueSection() {
+  const [dateFilter, setDateFilter] = useState('week');
+
+  return (
+    &lt;View&gt;
+      &lt;DateFilter value={dateFilter} onChange={setDateFilter} /&gt;
+      &lt;RevenueChart dateFilter={dateFilter} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Activity is independent
+const ActivitySection = memo(function ActivitySection() {
+  return &lt;ActivityFeed /&gt;;
+});
+
+// Benefits:
+// 1. Changing category filter only re-renders UsersSection
+// 2. Changing date filter only re-renders RevenueSection
+// 3. Stats and Activity are isolated from filter changes
+// 4. Each section can load data independently</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Create Optimized Selectable List</h3>
+                    <p>Build a list where items can be selected without re-rendering all items.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>List of 100+ items</li>
+                        <li>Tap to select/deselect items</li>
+                        <li>Show selection count at top</li>
+                        <li>Only selected item should re-render on tap</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// Optimized selectable list
+const SelectableItem = memo(function SelectableItem({ 
+  item, 
+  isSelected, 
+  onToggle 
+}) {
+  const handlePress = useCallback(() => {
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
+  return (
+    &lt;Pressable
+      onPress={handlePress}
+      style={[
+        styles.item,
+        isSelected && styles.itemSelected
+      ]}
+    &gt;
+      &lt;Text&gt;{isSelected ? '✓' : '○'} {item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+function SelectableList({ items }) {
+  const [selectedIds, setSelectedIds] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+
+  // Stable toggle function
+  const handleToggle = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Memoize renderItem
+  const renderItem = useCallback(({ item }) => {
+    return (
+      &lt;SelectableItem
+        item={item}
+        isSelected={selectedIds.has(item.id)}
+        onToggle={handleToggle}
+      /&gt;
+    );
+  }, [selectedIds, handleToggle]);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  // Selection count (outside of list)
+  const selectionCount = selectedIds.size;
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.header}&gt;
+        Selected: {selectionCount} / {items.length}
+      &lt;/Text&gt;
+      
+      &lt;FlatList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        extraData={selectedIds} // Important: tells FlatList to re-render when selection changes
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={15}
+        windowSize={5}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { padding: 16, fontSize: 16, fontWeight: 'bold' },
+  item: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  itemSelected: { backgroundColor: '#e3f2fd' },
+});
+
+// Key optimizations:
+// 1. SelectableItem is memoized
+// 2. handleToggle is stable (useCallback with no deps)
+// 3. Set for O(1) selection lookups
+// 4. extraData prop tells FlatList about selection changes
+// 5. FlatList performance props enabled</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Rendering optimization is about preventing unnecessary work. Use the right tools at the right time, and always measure before and after optimizing.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Rendering ≠ Screen update:</strong> Render phase calculates changes, commit phase applies them</li>
+                        <li><strong>Identify first:</strong> Use Profiler and "Why Did You Render?" before optimizing</li>
+                        <li><strong>React.memo:</strong> Prevents re-renders when props haven't changed</li>
+                        <li><strong>useMemo:</strong> Memoizes expensive calculations and object references</li>
+                        <li><strong>useCallback:</strong> Memoizes functions for stable references</li>
+                        <li><strong>Component structure:</strong> Move state down, lift content up</li>
+                        <li><strong>Context splitting:</strong> Separate contexts by update frequency</li>
+                        <li><strong>List optimization:</strong> Memoize items, use proper keys, FlatList props</li>
+                        <li><strong>FlashList:</strong> Consider for maximum list performance</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll explore memory management—preventing leaks and optimizing memory usage for smoother app performance.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m10_l01_app_performance.html" class="prev-link">← Previous: App Performance</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m10_l03_memory_management.html" class="next-link">Next: Memory Management →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

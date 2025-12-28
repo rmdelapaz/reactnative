@@ -1,0 +1,2552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn to read, write, and manage files on devices with expo-file-system in React Native">
+    <meta name="author" content="React Native & Expo Course">
+    <title>File System | Module 8: Native Features | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m08_l01_permissions.html">Module 8</a> &gt;
+            <span>Lesson 8.7</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 8: Native Features and Device APIs</p>
+                <h1>File System</h1>
+                <p class="lesson-subtitle">Read, write, download, and manage files on the device with expo-file-system</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand the file system directories available on mobile devices</li>
+                    <li>Read and write files using expo-file-system</li>
+                    <li>Download files from the network and track progress</li>
+                    <li>Manage cached data and storage efficiently</li>
+                    <li>Implement common file management patterns</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#file-system-overview">File System Overview</a></li>
+                        <li><a href="#directories">Understanding Directories</a></li>
+                        <li><a href="#reading-files">Reading Files</a></li>
+                        <li><a href="#writing-files">Writing Files</a></li>
+                        <li><a href="#downloading-files">Downloading Files</a></li>
+                        <li><a href="#file-management">File Management Operations</a></li>
+                        <li><a href="#cache-management">Cache Management</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- File System Overview -->
+            <section id="file-system-overview">
+                <h2>File System Overview</h2>
+
+                <p>Mobile apps often need to work with files—downloading documents, caching images, storing user-generated content, or persisting data locally. The <code>expo-file-system</code> module provides a comprehensive API for interacting with the device's file system.</p>
+
+                <h3>Why File System Access?</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph UseCases["Common Use Cases"]
+        A[📥 Download Files]
+        B[📄 Read Documents]
+        C[💾 Save User Data]
+        D[🖼️ Cache Images]
+        E[📤 Upload Files]
+    end
+    
+    subgraph FileSystem["expo-file-system"]
+        F[readAsStringAsync]
+        G[writeAsStringAsync]
+        H[downloadAsync]
+        I[copyAsync / moveAsync]
+        J[deleteAsync]
+    end
+    
+    subgraph Storage["Device Storage"]
+        K[📁 Document Directory]
+        L[📁 Cache Directory]
+        M[📁 Bundle Directory]
+    end
+    
+    UseCases --> FileSystem
+    FileSystem --> Storage
+    
+    style UseCases fill:#e3f2fd
+    style FileSystem fill:#fff3e0
+    style Storage fill:#e8f5e9
+</pre>
+
+                <h3>Installation</h3>
+
+                <pre><code># Install expo-file-system
+npx expo install expo-file-system</code></pre>
+
+                <h3>Basic Import and Usage</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Access built-in directory URIs
+const documentDir = FileSystem.documentDirectory;
+const cacheDir = FileSystem.cacheDirectory;
+const bundleDir = FileSystem.bundleDirectory; // Read-only
+
+console.log('Document Directory:', documentDir);
+// iOS: file:///var/mobile/.../Documents/
+// Android: file:///data/user/0/com.yourapp/files/
+
+console.log('Cache Directory:', cacheDir);
+// iOS: file:///var/mobile/.../Library/Caches/
+// Android: file:///data/user/0/com.yourapp/cache/</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Directory URIs</h4>
+                    <p>All file paths in <code>expo-file-system</code> are URIs that start with <code>file://</code>. The module provides constants for the main directories, and you build file paths by concatenating filenames to these base URIs.</p>
+                </div>
+            </section>
+
+            <!-- Understanding Directories -->
+            <section id="directories">
+                <h2>Understanding Directories</h2>
+
+                <p>Mobile devices provide different directories for different purposes. Understanding when to use each is crucial for building well-behaved apps.</p>
+
+                <h3>Directory Types</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Directory</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Constant</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Persists</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Document</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>documentDirectory</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">User data, important files</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ Yes (backed up)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Cache</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>cacheDirectory</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Temporary files, re-downloadable content</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">⚠️ May be cleared</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Bundle</strong></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>bundleDirectory</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">App assets (read-only)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">✅ With app</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Choosing the Right Directory</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// User-generated content that should persist
+const userDataPath = FileSystem.documentDirectory + 'userData/';
+
+// Downloaded files that can be re-downloaded
+const downloadCachePath = FileSystem.cacheDirectory + 'downloads/';
+
+// Temporary processing files
+const tempPath = FileSystem.cacheDirectory + 'temp/';
+
+// Function to get appropriate directory for file type
+function getDirectoryForFileType(type: 'user' | 'cache' | 'temp'): string {
+  switch (type) {
+    case 'user':
+      return FileSystem.documentDirectory + 'user/';
+    case 'cache':
+      return FileSystem.cacheDirectory + 'cache/';
+    case 'temp':
+      return FileSystem.cacheDirectory + 'temp/';
+    default:
+      return FileSystem.cacheDirectory;
+  }
+}</code></pre>
+
+                <h3>Creating Directories</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Create a directory (including intermediate directories)
+async function ensureDirectoryExists(dirPath: string): Promise&lt;void&gt; {
+  const dirInfo = await FileSystem.getInfoAsync(dirPath);
+  
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(dirPath, { 
+      intermediates: true  // Create parent directories if needed
+    });
+    console.log('Directory created:', dirPath);
+  }
+}
+
+// Usage
+await ensureDirectoryExists(FileSystem.documentDirectory + 'images/thumbnails/');
+
+// List directory contents
+async function listDirectory(dirPath: string): Promise&lt;string[]&gt; {
+  try {
+    const files = await FileSystem.readDirectoryAsync(dirPath);
+    return files;
+  } catch (error) {
+    console.error('Error reading directory:', error);
+    return [];
+  }
+}
+
+// Get file/directory info
+async function getFileInfo(filePath: string) {
+  const info = await FileSystem.getInfoAsync(filePath, {
+    size: true,      // Include file size
+    md5: false,      // Include MD5 hash (slower)
+  });
+  
+  console.log('Exists:', info.exists);
+  if (info.exists) {
+    console.log('Is directory:', info.isDirectory);
+    console.log('Size:', info.size, 'bytes');
+    console.log('Modified:', info.modificationTime);
+    console.log('URI:', info.uri);
+  }
+  
+  return info;
+}</code></pre>
+
+                <h3>Directory Structure Visualization</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph App["Your App's File System"]
+        direction TB
+        
+        subgraph DocDir["📁 documentDirectory"]
+            D1[📁 userData/]
+            D2[📁 exports/]
+            D3[📄 settings.json]
+        end
+        
+        subgraph CacheDir["📁 cacheDirectory"]
+            C1[📁 images/]
+            C2[📁 downloads/]
+            C3[📁 temp/]
+        end
+        
+        subgraph BundleDir["📁 bundleDirectory"]
+            B1[📄 assets/...]
+            B2[📄 (read-only)]
+        end
+    end
+    
+    style DocDir fill:#e8f5e9
+    style CacheDir fill:#fff3e0
+    style BundleDir fill:#e3f2fd
+</pre>
+            </section>
+
+            <!-- Reading Files -->
+            <section id="reading-files">
+                <h2>Reading Files</h2>
+
+                <p>The <code>expo-file-system</code> module provides several methods to read file contents, supporting both text and binary data.</p>
+
+                <h3>Reading Text Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Read file as string (UTF-8 by default)
+async function readTextFile(filename: string): Promise&lt;string | null&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(filePath);
+    
+    if (!fileInfo.exists) {
+      console.log('File does not exist:', filename);
+      return null;
+    }
+    
+    const content = await FileSystem.readAsStringAsync(filePath);
+    return content;
+  } catch (error) {
+    console.error('Error reading file:', error);
+    return null;
+  }
+}
+
+// Usage
+const content = await readTextFile('notes.txt');
+if (content) {
+  console.log('File content:', content);
+}</code></pre>
+
+                <h3>Reading JSON Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface UserSettings {
+  theme: 'light' | 'dark';
+  notifications: boolean;
+  language: string;
+}
+
+// Read and parse JSON file
+async function readJsonFile&lt;T&gt;(filename: string): Promise&lt;T | null&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(filePath);
+    
+    if (!fileInfo.exists) {
+      return null;
+    }
+    
+    const content = await FileSystem.readAsStringAsync(filePath);
+    return JSON.parse(content) as T;
+  } catch (error) {
+    console.error('Error reading JSON file:', error);
+    return null;
+  }
+}
+
+// Usage
+const settings = await readJsonFile&lt;UserSettings&gt;('settings.json');
+if (settings) {
+  console.log('Theme:', settings.theme);
+  console.log('Notifications:', settings.notifications);
+}</code></pre>
+
+                <h3>Reading Binary Files (Base64)</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Read file as Base64 encoded string
+async function readBinaryFile(filePath: string): Promise&lt;string | null&gt; {
+  try {
+    const content = await FileSystem.readAsStringAsync(filePath, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return content;
+  } catch (error) {
+    console.error('Error reading binary file:', error);
+    return null;
+  }
+}
+
+// Read image as Base64 (useful for displaying or uploading)
+async function readImageAsBase64(imagePath: string): Promise&lt;string | null&gt; {
+  const base64 = await readBinaryFile(imagePath);
+  
+  if (base64) {
+    // Can be used directly in Image source
+    // { uri: `data:image/jpeg;base64,${base64}` }
+    return base64;
+  }
+  
+  return null;
+}
+
+// Get image data URI for display
+async function getImageDataUri(imagePath: string): Promise&lt;string | null&gt; {
+  const base64 = await readBinaryFile(imagePath);
+  
+  if (!base64) return null;
+  
+  // Determine MIME type from extension
+  const extension = imagePath.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record&lt;string, string&gt; = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+  };
+  
+  const mimeType = mimeTypes[extension || ''] || 'application/octet-stream';
+  
+  return `data:${mimeType};base64,${base64}`;
+}</code></pre>
+
+                <h3>Reading with Encoding Options</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Available encoding types
+const encodingTypes = {
+  // Default UTF-8 text encoding
+  utf8: FileSystem.EncodingType.UTF8,
+  
+  // Base64 for binary data
+  base64: FileSystem.EncodingType.Base64,
+};
+
+// Read with specific encoding
+async function readWithEncoding(
+  filePath: string, 
+  encoding: FileSystem.EncodingType = FileSystem.EncodingType.UTF8
+): Promise&lt;string&gt; {
+  return await FileSystem.readAsStringAsync(filePath, { encoding });
+}
+
+// Example: Read a text file with explicit UTF-8 encoding
+const textContent = await readWithEncoding(
+  FileSystem.documentDirectory + 'data.txt',
+  FileSystem.EncodingType.UTF8
+);
+
+// Example: Read an image as Base64
+const imageBase64 = await readWithEncoding(
+  FileSystem.cacheDirectory + 'image.png',
+  FileSystem.EncodingType.Base64
+);</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Memory Considerations</h4>
+                    <p>Reading large files into memory can cause performance issues or crashes. For files larger than a few megabytes, consider reading in chunks or streaming the content. Base64 encoding also increases the memory footprint by approximately 33%.</p>
+                </div>
+            </section>
+            <!-- Writing Files -->
+            <section id="writing-files">
+                <h2>Writing Files</h2>
+
+                <p>Writing files allows you to persist user data, cache processed content, or prepare files for sharing or uploading.</p>
+
+                <h3>Writing Text Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Write a string to a file
+async function writeTextFile(
+  filename: string, 
+  content: string
+): Promise&lt;boolean&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    await FileSystem.writeAsStringAsync(filePath, content);
+    console.log('File written successfully:', filename);
+    return true;
+  } catch (error) {
+    console.error('Error writing file:', error);
+    return false;
+  }
+}
+
+// Usage
+await writeTextFile('notes.txt', 'This is my note content.');
+await writeTextFile('log.txt', `Log entry: ${new Date().toISOString()}`);</code></pre>
+
+                <h3>Writing JSON Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface AppData {
+  version: string;
+  lastSync: string;
+  items: Array&lt;{ id: string; name: string }&gt;;
+}
+
+// Write object as JSON file
+async function writeJsonFile&lt;T&gt;(
+  filename: string, 
+  data: T
+): Promise&lt;boolean&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    const jsonString = JSON.stringify(data, null, 2);
+    await FileSystem.writeAsStringAsync(filePath, jsonString);
+    return true;
+  } catch (error) {
+    console.error('Error writing JSON file:', error);
+    return false;
+  }
+}
+
+// Usage
+const appData: AppData = {
+  version: '1.0.0',
+  lastSync: new Date().toISOString(),
+  items: [
+    { id: '1', name: 'Item One' },
+    { id: '2', name: 'Item Two' },
+  ],
+};
+
+await writeJsonFile('appData.json', appData);
+
+// Read-modify-write pattern
+async function updateJsonFile&lt;T extends object&gt;(
+  filename: string,
+  updater: (data: T) => T,
+  defaultValue: T
+): Promise&lt;boolean&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    // Read existing data
+    let data: T = defaultValue;
+    const info = await FileSystem.getInfoAsync(filePath);
+    
+    if (info.exists) {
+      const content = await FileSystem.readAsStringAsync(filePath);
+      data = JSON.parse(content);
+    }
+    
+    // Apply updates
+    const updatedData = updater(data);
+    
+    // Write back
+    await FileSystem.writeAsStringAsync(
+      filePath, 
+      JSON.stringify(updatedData, null, 2)
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating JSON file:', error);
+    return false;
+  }
+}
+
+// Usage: Add an item to existing data
+await updateJsonFile&lt;AppData&gt;(
+  'appData.json',
+  (data) => ({
+    ...data,
+    items: [...data.items, { id: '3', name: 'New Item' }],
+    lastSync: new Date().toISOString(),
+  }),
+  { version: '1.0.0', lastSync: '', items: [] }
+);</code></pre>
+
+                <h3>Writing Binary Files (Base64)</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Write Base64 content as binary file
+async function writeBinaryFile(
+  filename: string, 
+  base64Content: string
+): Promise&lt;string | null&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    await FileSystem.writeAsStringAsync(filePath, base64Content, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return filePath;
+  } catch (error) {
+    console.error('Error writing binary file:', error);
+    return null;
+  }
+}
+
+// Save a Base64 image to file
+async function saveBase64Image(
+  base64Data: string, 
+  filename: string
+): Promise&lt;string | null&gt; {
+  // Remove data URI prefix if present
+  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  
+  const filePath = await writeBinaryFile(filename, base64Content);
+  return filePath;
+}
+
+// Usage
+const imageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ...';
+const savedPath = await saveBase64Image(imageBase64, 'captured-image.png');
+
+if (savedPath) {
+  console.log('Image saved to:', savedPath);
+}</code></pre>
+
+                <h3>Appending to Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Append content to an existing file
+async function appendToFile(
+  filename: string, 
+  content: string
+): Promise&lt;boolean&gt; {
+  const filePath = FileSystem.documentDirectory + filename;
+  
+  try {
+    // Read existing content
+    const info = await FileSystem.getInfoAsync(filePath);
+    let existingContent = '';
+    
+    if (info.exists) {
+      existingContent = await FileSystem.readAsStringAsync(filePath);
+    }
+    
+    // Append new content
+    const newContent = existingContent + content;
+    await FileSystem.writeAsStringAsync(filePath, newContent);
+    
+    return true;
+  } catch (error) {
+    console.error('Error appending to file:', error);
+    return false;
+  }
+}
+
+// Log file utility
+class FileLogger {
+  private logPath: string;
+  
+  constructor(filename: string = 'app.log') {
+    this.logPath = FileSystem.documentDirectory + filename;
+  }
+  
+  async log(message: string, level: 'INFO' | 'WARN' | 'ERROR' = 'INFO') {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] [${level}] ${message}\n`;
+    
+    await appendToFile('app.log', logEntry);
+  }
+  
+  async clear() {
+    await FileSystem.deleteAsync(this.logPath, { idempotent: true });
+  }
+  
+  async read(): Promise&lt;string&gt; {
+    const info = await FileSystem.getInfoAsync(this.logPath);
+    if (!info.exists) return '';
+    
+    return await FileSystem.readAsStringAsync(this.logPath);
+  }
+}
+
+// Usage
+const logger = new FileLogger();
+await logger.log('App started');
+await logger.log('User logged in', 'INFO');
+await logger.log('API timeout', 'WARN');
+await logger.log('Critical failure', 'ERROR');</code></pre>
+
+                <h3>Atomic Writes (Safe File Updates)</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Write file atomically (write to temp, then rename)
+async function writeFileAtomically(
+  filePath: string, 
+  content: string
+): Promise&lt;boolean&gt; {
+  const tempPath = filePath + '.tmp';
+  
+  try {
+    // Write to temporary file
+    await FileSystem.writeAsStringAsync(tempPath, content);
+    
+    // Delete original if exists
+    const originalInfo = await FileSystem.getInfoAsync(filePath);
+    if (originalInfo.exists) {
+      await FileSystem.deleteAsync(filePath);
+    }
+    
+    // Rename temp to original
+    await FileSystem.moveAsync({
+      from: tempPath,
+      to: filePath,
+    });
+    
+    return true;
+  } catch (error) {
+    // Clean up temp file if it exists
+    const tempInfo = await FileSystem.getInfoAsync(tempPath);
+    if (tempInfo.exists) {
+      await FileSystem.deleteAsync(tempPath, { idempotent: true });
+    }
+    
+    console.error('Error in atomic write:', error);
+    return false;
+  }
+}
+
+// Usage for critical data
+const criticalData = JSON.stringify({ balance: 1000, lastUpdate: Date.now() });
+await writeFileAtomically(
+  FileSystem.documentDirectory + 'wallet.json',
+  criticalData
+);</code></pre>
+            </section>
+
+            <!-- Downloading Files -->
+            <section id="downloading-files">
+                <h2>Downloading Files</h2>
+
+                <p>The <code>downloadAsync</code> method allows you to download files from the network directly to the device's file system, with optional progress tracking.</p>
+
+                <h3>Basic Download</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Simple file download
+async function downloadFile(
+  url: string, 
+  filename: string
+): Promise&lt;string | null&gt; {
+  const localPath = FileSystem.cacheDirectory + filename;
+  
+  try {
+    const result = await FileSystem.downloadAsync(url, localPath);
+    
+    if (result.status === 200) {
+      console.log('Download complete:', result.uri);
+      return result.uri;
+    } else {
+      console.error('Download failed with status:', result.status);
+      return null;
+    }
+  } catch (error) {
+    console.error('Download error:', error);
+    return null;
+  }
+}
+
+// Usage
+const imageUrl = 'https://example.com/image.jpg';
+const localUri = await downloadFile(imageUrl, 'downloaded-image.jpg');
+
+if (localUri) {
+  // Use the local file
+  console.log('File saved to:', localUri);
+}</code></pre>
+
+                <h3>Download with Progress Tracking</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface DownloadProgress {
+  totalBytesWritten: number;
+  totalBytesExpectedToWrite: number;
+  progress: number; // 0 to 1
+}
+
+// Download with progress callback
+async function downloadWithProgress(
+  url: string,
+  filename: string,
+  onProgress: (progress: DownloadProgress) => void
+): Promise&lt;string | null&gt; {
+  const localPath = FileSystem.cacheDirectory + filename;
+  
+  // Create download resumable
+  const downloadResumable = FileSystem.createDownloadResumable(
+    url,
+    localPath,
+    {},
+    (downloadProgress) => {
+      const progress = 
+        downloadProgress.totalBytesWritten / 
+        downloadProgress.totalBytesExpectedToWrite;
+      
+      onProgress({
+        totalBytesWritten: downloadProgress.totalBytesWritten,
+        totalBytesExpectedToWrite: downloadProgress.totalBytesExpectedToWrite,
+        progress,
+      });
+    }
+  );
+  
+  try {
+    const result = await downloadResumable.downloadAsync();
+    
+    if (result?.status === 200) {
+      return result.uri;
+    }
+    return null;
+  } catch (error) {
+    console.error('Download error:', error);
+    return null;
+  }
+}
+
+// Usage example
+await downloadWithProgress(
+  'https://example.com/large-file.zip',
+  'file.zip',
+  (progress) => {
+    console.log(`Downloaded: ${Math.round(progress.progress * 100)}%`);
+    console.log(`${progress.totalBytesWritten} / ${progress.totalBytesExpectedToWrite} bytes`);
+  }
+);</code></pre>
+
+                <h3>Resumable Downloads</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+class ResumableDownloadManager {
+  private downloadResumable: FileSystem.DownloadResumable | null = null;
+  private storageKey: string;
+  
+  constructor(downloadId: string) {
+    this.storageKey = `download_${downloadId}`;
+  }
+  
+  async startDownload(
+    url: string,
+    localPath: string,
+    onProgress?: (progress: number) => void
+  ): Promise&lt;string | null&gt; {
+    // Check for existing paused download
+    const savedData = await AsyncStorage.getItem(this.storageKey);
+    
+    if (savedData) {
+      // Resume existing download
+      const { savableUri, savableOptions } = JSON.parse(savedData);
+      
+      this.downloadResumable = new FileSystem.DownloadResumable(
+        savableUri.uri,
+        savableUri.fileUri,
+        savableOptions,
+        (downloadProgress) => {
+          const progress = 
+            downloadProgress.totalBytesWritten / 
+            downloadProgress.totalBytesExpectedToWrite;
+          onProgress?.(progress);
+        },
+        savableUri.resumeData
+      );
+    } else {
+      // Start new download
+      this.downloadResumable = FileSystem.createDownloadResumable(
+        url,
+        localPath,
+        {},
+        (downloadProgress) => {
+          const progress = 
+            downloadProgress.totalBytesWritten / 
+            downloadProgress.totalBytesExpectedToWrite;
+          onProgress?.(progress);
+        }
+      );
+    }
+    
+    try {
+      const result = await this.downloadResumable.downloadAsync();
+      
+      // Clear saved state on completion
+      await AsyncStorage.removeItem(this.storageKey);
+      
+      return result?.uri ?? null;
+    } catch (error) {
+      console.error('Download error:', error);
+      return null;
+    }
+  }
+  
+  async pauseDownload(): Promise&lt;void&gt; {
+    if (!this.downloadResumable) return;
+    
+    try {
+      const savable = await this.downloadResumable.pauseAsync();
+      
+      // Save state for later resumption
+      await AsyncStorage.setItem(
+        this.storageKey,
+        JSON.stringify(savable)
+      );
+      
+      console.log('Download paused');
+    } catch (error) {
+      console.error('Error pausing download:', error);
+    }
+  }
+  
+  async cancelDownload(): Promise&lt;void&gt; {
+    if (!this.downloadResumable) return;
+    
+    try {
+      await this.downloadResumable.pauseAsync();
+      await AsyncStorage.removeItem(this.storageKey);
+      this.downloadResumable = null;
+      
+      console.log('Download cancelled');
+    } catch (error) {
+      console.error('Error cancelling download:', error);
+    }
+  }
+}
+
+// Usage
+const manager = new ResumableDownloadManager('video_001');
+
+// Start/resume download
+const uri = await manager.startDownload(
+  'https://example.com/large-video.mp4',
+  FileSystem.cacheDirectory + 'video.mp4',
+  (progress) => console.log(`Progress: ${Math.round(progress * 100)}%`)
+);
+
+// User pauses download
+await manager.pauseDownload();
+
+// Later, resume by calling startDownload again
+// It will automatically detect and resume from saved state</code></pre>
+
+                <h3>Download Component Example</h3>
+
+                <pre><code>import React, { useState, useCallback } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+
+interface DownloadButtonProps {
+  url: string;
+  filename: string;
+  onComplete?: (uri: string) => void;
+}
+
+export function DownloadButton({ url, filename, onComplete }: DownloadButtonProps) {
+  const [status, setStatus] = useState&lt;'idle' | 'downloading' | 'complete' | 'error'&gt;('idle');
+  const [progress, setProgress] = useState(0);
+  
+  const handleDownload = useCallback(async () => {
+    const localPath = FileSystem.cacheDirectory + filename;
+    
+    setStatus('downloading');
+    setProgress(0);
+    
+    const downloadResumable = FileSystem.createDownloadResumable(
+      url,
+      localPath,
+      {},
+      (downloadProgress) => {
+        const prog = 
+          downloadProgress.totalBytesWritten / 
+          downloadProgress.totalBytesExpectedToWrite;
+        setProgress(prog);
+      }
+    );
+    
+    try {
+      const result = await downloadResumable.downloadAsync();
+      
+      if (result?.status === 200) {
+        setStatus('complete');
+        onComplete?.(result.uri);
+      } else {
+        setStatus('error');
+      }
+    } catch (error) {
+      setStatus('error');
+      console.error('Download failed:', error);
+    }
+  }, [url, filename, onComplete]);
+  
+  const getButtonText = () => {
+    switch (status) {
+      case 'idle': return '⬇️ Download';
+      case 'downloading': return `Downloading ${Math.round(progress * 100)}%`;
+      case 'complete': return '✓ Downloaded';
+      case 'error': return '⚠️ Retry';
+    }
+  };
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Pressable
+        style={[
+          styles.button,
+          status === 'downloading' && styles.buttonDownloading,
+          status === 'complete' && styles.buttonComplete,
+          status === 'error' && styles.buttonError,
+        ]}
+        onPress={handleDownload}
+        disabled={status === 'downloading'}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;{getButtonText()}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      
+      {status === 'downloading' && (
+        &lt;View style={styles.progressBarContainer}&gt;
+          &lt;View 
+            style={[styles.progressBar, { width: `${progress * 100}%` }]} 
+          /&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDownloading: {
+    backgroundColor: '#FF9500',
+  },
+  buttonComplete: {
+    backgroundColor: '#34C759',
+  },
+  buttonError: {
+    backgroundColor: '#FF3B30',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#E5E5E5',
+    borderRadius: 2,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+  },
+});</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Download Headers</h4>
+                    <p>You can pass custom headers to downloads for authentication or other purposes:</p>
+                    <pre><code>FileSystem.createDownloadResumable(
+  url,
+  localPath,
+  {
+    headers: {
+      'Authorization': 'Bearer token123',
+      'Accept': 'application/octet-stream',
+    },
+  },
+  callback
+);</code></pre>
+                </div>
+            </section>
+            <!-- File Management -->
+            <section id="file-management">
+                <h2>File Management Operations</h2>
+
+                <p>Beyond reading and writing, you'll often need to copy, move, rename, and delete files. The <code>expo-file-system</code> module provides all the tools you need.</p>
+
+                <h3>Copy Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Copy a file to a new location
+async function copyFile(
+  sourceUri: string, 
+  destFilename: string
+): Promise&lt;string | null&gt; {
+  const destUri = FileSystem.documentDirectory + destFilename;
+  
+  try {
+    await FileSystem.copyAsync({
+      from: sourceUri,
+      to: destUri,
+    });
+    
+    console.log('File copied to:', destUri);
+    return destUri;
+  } catch (error) {
+    console.error('Error copying file:', error);
+    return null;
+  }
+}
+
+// Copy from cache to documents (for permanent storage)
+async function saveCachedFile(
+  cacheFilename: string, 
+  saveFilename: string
+): Promise&lt;string | null&gt; {
+  const sourceUri = FileSystem.cacheDirectory + cacheFilename;
+  const destUri = FileSystem.documentDirectory + saveFilename;
+  
+  const sourceInfo = await FileSystem.getInfoAsync(sourceUri);
+  if (!sourceInfo.exists) {
+    console.error('Source file does not exist');
+    return null;
+  }
+  
+  await FileSystem.copyAsync({ from: sourceUri, to: destUri });
+  return destUri;
+}
+
+// Usage: Save a downloaded file permanently
+const permanentPath = await saveCachedFile(
+  'temp-download.pdf', 
+  'saved-documents/my-document.pdf'
+);</code></pre>
+
+                <h3>Move and Rename Files</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Move a file to a new location
+async function moveFile(
+  sourceUri: string, 
+  destUri: string
+): Promise&lt;boolean&gt; {
+  try {
+    await FileSystem.moveAsync({
+      from: sourceUri,
+      to: destUri,
+    });
+    
+    console.log('File moved successfully');
+    return true;
+  } catch (error) {
+    console.error('Error moving file:', error);
+    return false;
+  }
+}
+
+// Rename a file (move within same directory)
+async function renameFile(
+  directory: string,
+  oldName: string, 
+  newName: string
+): Promise&lt;boolean&gt; {
+  const oldPath = directory + oldName;
+  const newPath = directory + newName;
+  
+  return await moveFile(oldPath, newPath);
+}
+
+// Usage
+await renameFile(
+  FileSystem.documentDirectory,
+  'old-filename.txt',
+  'new-filename.txt'
+);
+
+// Move from cache to documents
+await moveFile(
+  FileSystem.cacheDirectory + 'processed-image.jpg',
+  FileSystem.documentDirectory + 'photos/image-001.jpg'
+);</code></pre>
+
+                <h3>Delete Files and Directories</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+// Delete a single file
+async function deleteFile(filePath: string): Promise&lt;boolean&gt; {
+  try {
+    await FileSystem.deleteAsync(filePath, { 
+      idempotent: true  // Don't throw if file doesn't exist
+    });
+    console.log('File deleted:', filePath);
+    return true;
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    return false;
+  }
+}
+
+// Delete a directory and all its contents
+async function deleteDirectory(dirPath: string): Promise&lt;boolean&gt; {
+  try {
+    const info = await FileSystem.getInfoAsync(dirPath);
+    
+    if (!info.exists) {
+      console.log('Directory does not exist');
+      return true;
+    }
+    
+    await FileSystem.deleteAsync(dirPath, { idempotent: true });
+    console.log('Directory deleted:', dirPath);
+    return true;
+  } catch (error) {
+    console.error('Error deleting directory:', error);
+    return false;
+  }
+}
+
+// Delete multiple files
+async function deleteFiles(filePaths: string[]): Promise&lt;void&gt; {
+  await Promise.all(
+    filePaths.map((path) => 
+      FileSystem.deleteAsync(path, { idempotent: true })
+    )
+  );
+}
+
+// Delete files older than a certain date
+async function deleteOldFiles(
+  directory: string, 
+  maxAgeMs: number
+): Promise&lt;number&gt; {
+  const files = await FileSystem.readDirectoryAsync(directory);
+  const now = Date.now();
+  let deletedCount = 0;
+  
+  for (const filename of files) {
+    const filePath = directory + filename;
+    const info = await FileSystem.getInfoAsync(filePath);
+    
+    if (info.exists && info.modificationTime) {
+      const ageMs = now - info.modificationTime * 1000;
+      
+      if (ageMs > maxAgeMs) {
+        await FileSystem.deleteAsync(filePath, { idempotent: true });
+        deletedCount++;
+      }
+    }
+  }
+  
+  return deletedCount;
+}
+
+// Usage: Delete files older than 7 days
+const weekInMs = 7 * 24 * 60 * 60 * 1000;
+const deletedCount = await deleteOldFiles(
+  FileSystem.cacheDirectory + 'temp/',
+  weekInMs
+);
+console.log(`Deleted ${deletedCount} old files`);</code></pre>
+
+                <h3>File Information and Metadata</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface FileMetadata {
+  exists: boolean;
+  uri: string;
+  size?: number;
+  modificationTime?: Date;
+  isDirectory: boolean;
+  md5?: string;
+}
+
+// Get detailed file information
+async function getFileMetadata(filePath: string): Promise&lt;FileMetadata&gt; {
+  const info = await FileSystem.getInfoAsync(filePath, {
+    size: true,
+    md5: true,  // Calculate MD5 hash (can be slow for large files)
+  });
+  
+  return {
+    exists: info.exists,
+    uri: info.uri,
+    size: info.exists ? info.size : undefined,
+    modificationTime: info.exists && info.modificationTime 
+      ? new Date(info.modificationTime * 1000) 
+      : undefined,
+    isDirectory: info.exists ? info.isDirectory : false,
+    md5: info.exists ? info.md5 : undefined,
+  };
+}
+
+// Check if two files are identical (by MD5)
+async function filesAreIdentical(
+  filePath1: string, 
+  filePath2: string
+): Promise&lt;boolean&gt; {
+  const [info1, info2] = await Promise.all([
+    FileSystem.getInfoAsync(filePath1, { md5: true }),
+    FileSystem.getInfoAsync(filePath2, { md5: true }),
+  ]);
+  
+  if (!info1.exists || !info2.exists) {
+    return false;
+  }
+  
+  return info1.md5 === info2.md5;
+}
+
+// Get total size of a directory
+async function getDirectorySize(dirPath: string): Promise&lt;number&gt; {
+  let totalSize = 0;
+  
+  const items = await FileSystem.readDirectoryAsync(dirPath);
+  
+  for (const item of items) {
+    const itemPath = dirPath + item;
+    const info = await FileSystem.getInfoAsync(itemPath, { size: true });
+    
+    if (info.exists) {
+      if (info.isDirectory) {
+        // Recursively get subdirectory size
+        totalSize += await getDirectorySize(itemPath + '/');
+      } else {
+        totalSize += info.size || 0;
+      }
+    }
+  }
+  
+  return totalSize;
+}
+
+// Format file size for display
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Usage
+const cacheSize = await getDirectorySize(FileSystem.cacheDirectory);
+console.log('Cache size:', formatFileSize(cacheSize));</code></pre>
+
+                <h3>File Operations Diagram</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Operations["File Operations"]
+        A[copyAsync] --> |"Duplicate"| B[New File]
+        C[moveAsync] --> |"Relocate"| D[New Location]
+        E[deleteAsync] --> |"Remove"| F[Gone]
+        G[getInfoAsync] --> |"Inspect"| H[Metadata]
+    end
+    
+    subgraph Options["Common Options"]
+        I["idempotent: true"]
+        J["intermediates: true"]
+        K["size: true, md5: true"]
+    end
+    
+    style Operations fill:#e3f2fd
+    style Options fill:#fff3e0
+</pre>
+            </section>
+
+            <!-- Cache Management -->
+            <section id="cache-management">
+                <h2>Cache Management</h2>
+
+                <p>Effective cache management is crucial for mobile apps. You need to balance between keeping frequently accessed files available and not consuming too much device storage.</p>
+
+                <h3>Cache Strategy Overview</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    A[Request Resource] --> B{In Cache?}
+    B -->|Yes| C{Still Valid?}
+    B -->|No| D[Download/Generate]
+    C -->|Yes| E[Use Cached]
+    C -->|No| D
+    D --> F[Save to Cache]
+    F --> E
+    
+    G[Storage Pressure] --> H{Cache Too Large?}
+    H -->|Yes| I[Clean Old Files]
+    H -->|No| J[No Action]
+    
+    style A fill:#e3f2fd
+    style E fill:#e8f5e9
+    style I fill:#fff3e0
+</pre>
+
+                <h3>Cache Manager Class</h3>
+
+                <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface CacheConfig {
+  maxSize: number;        // Maximum cache size in bytes
+  maxAge: number;         // Maximum file age in milliseconds
+  directory: string;      // Cache subdirectory name
+}
+
+class CacheManager {
+  private cacheDir: string;
+  private maxSize: number;
+  private maxAge: number;
+  
+  constructor(config: CacheConfig) {
+    this.cacheDir = FileSystem.cacheDirectory + config.directory + '/';
+    this.maxSize = config.maxSize;
+    this.maxAge = config.maxAge;
+  }
+  
+  async initialize(): Promise&lt;void&gt; {
+    const dirInfo = await FileSystem.getInfoAsync(this.cacheDir);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(this.cacheDir, { 
+        intermediates: true 
+      });
+    }
+  }
+  
+  // Generate cache key from URL
+  private getCacheKey(url: string): string {
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      const char = url.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    // Get file extension from URL
+    const urlPath = url.split('?')[0];
+    const extension = urlPath.split('.').pop() || 'bin';
+    
+    return `${Math.abs(hash).toString(16)}.${extension}`;
+  }
+  
+  // Get cached file path for a URL
+  getCachePath(url: string): string {
+    return this.cacheDir + this.getCacheKey(url);
+  }
+  
+  // Check if URL is cached and valid
+  async isCached(url: string): Promise&lt;boolean&gt; {
+    const cachePath = this.getCachePath(url);
+    const info = await FileSystem.getInfoAsync(cachePath);
+    
+    if (!info.exists) return false;
+    
+    // Check if file is too old
+    if (info.modificationTime) {
+      const ageMs = Date.now() - (info.modificationTime * 1000);
+      if (ageMs > this.maxAge) {
+        // File expired, delete it
+        await FileSystem.deleteAsync(cachePath, { idempotent: true });
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  // Get cached file or download
+  async get(url: string): Promise&lt;string | null&gt; {
+    const cachePath = this.getCachePath(url);
+    
+    // Check cache first
+    if (await this.isCached(url)) {
+      return cachePath;
+    }
+    
+    // Download and cache
+    try {
+      const result = await FileSystem.downloadAsync(url, cachePath);
+      
+      if (result.status === 200) {
+        // Trigger cleanup if needed
+        this.cleanup();
+        return cachePath;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Cache download error:', error);
+      return null;
+    }
+  }
+  
+  // Get current cache size
+  async getSize(): Promise&lt;number&gt; {
+    let totalSize = 0;
+    
+    try {
+      const files = await FileSystem.readDirectoryAsync(this.cacheDir);
+      
+      for (const file of files) {
+        const info = await FileSystem.getInfoAsync(
+          this.cacheDir + file, 
+          { size: true }
+        );
+        if (info.exists && info.size) {
+          totalSize += info.size;
+        }
+      }
+    } catch (error) {
+      console.error('Error getting cache size:', error);
+    }
+    
+    return totalSize;
+  }
+  
+  // Clean up old or excess files
+  async cleanup(): Promise&lt;void&gt; {
+    try {
+      const files = await FileSystem.readDirectoryAsync(this.cacheDir);
+      const fileInfos: Array&lt;{
+        path: string;
+        modTime: number;
+        size: number;
+      }&gt; = [];
+      
+      // Gather file information
+      for (const file of files) {
+        const path = this.cacheDir + file;
+        const info = await FileSystem.getInfoAsync(path, { size: true });
+        
+        if (info.exists && !info.isDirectory) {
+          fileInfos.push({
+            path,
+            modTime: info.modificationTime || 0,
+            size: info.size || 0,
+          });
+        }
+      }
+      
+      // Sort by modification time (oldest first)
+      fileInfos.sort((a, b) => a.modTime - b.modTime);
+      
+      const now = Date.now();
+      let currentSize = fileInfos.reduce((sum, f) => sum + f.size, 0);
+      
+      for (const file of fileInfos) {
+        const ageMs = now - (file.modTime * 1000);
+        
+        // Delete if too old or cache is too large
+        if (ageMs > this.maxAge || currentSize > this.maxSize) {
+          await FileSystem.deleteAsync(file.path, { idempotent: true });
+          currentSize -= file.size;
+        }
+      }
+    } catch (error) {
+      console.error('Cache cleanup error:', error);
+    }
+  }
+  
+  // Clear entire cache
+  async clear(): Promise&lt;void&gt; {
+    try {
+      await FileSystem.deleteAsync(this.cacheDir, { idempotent: true });
+      await this.initialize();
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
+  }
+}
+
+// Usage
+const imageCache = new CacheManager({
+  maxSize: 100 * 1024 * 1024, // 100 MB
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  directory: 'images',
+});
+
+await imageCache.initialize();
+
+// Get cached image or download
+const localPath = await imageCache.get('https://example.com/image.jpg');
+if (localPath) {
+  // Use the local file path
+}</code></pre>
+
+                <h3>Image Cache Hook</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import * as FileSystem from 'expo-file-system';
+
+const IMAGE_CACHE_DIR = FileSystem.cacheDirectory + 'images/';
+
+// Ensure cache directory exists
+async function ensureCacheDir() {
+  const info = await FileSystem.getInfoAsync(IMAGE_CACHE_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(IMAGE_CACHE_DIR, { 
+      intermediates: true 
+    });
+  }
+}
+
+// Get cache path for URL
+function getCachePath(url: string): string {
+  const filename = url.split('/').pop() || 'image';
+  const hash = url.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return IMAGE_CACHE_DIR + `${Math.abs(hash)}_${filename}`;
+}
+
+// Hook for cached images
+export function useCachedImage(url: string): {
+  uri: string | null;
+  loading: boolean;
+  error: Error | null;
+} {
+  const [uri, setUri] = useState&lt;string | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;Error | null&gt;(null);
+  
+  useEffect(() => {
+    let mounted = true;
+    
+    async function loadImage() {
+      try {
+        await ensureCacheDir();
+        
+        const cachePath = getCachePath(url);
+        const info = await FileSystem.getInfoAsync(cachePath);
+        
+        if (info.exists) {
+          // Use cached version
+          if (mounted) {
+            setUri(cachePath);
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Download and cache
+        const result = await FileSystem.downloadAsync(url, cachePath);
+        
+        if (mounted) {
+          if (result.status === 200) {
+            setUri(cachePath);
+          } else {
+            setError(new Error(`Download failed: ${result.status}`));
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err as Error);
+          setLoading(false);
+        }
+      }
+    }
+    
+    loadImage();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [url]);
+  
+  return { uri, loading, error };
+}
+
+// Usage in component
+function CachedImage({ url, style }: { url: string; style?: object }) {
+  const { uri, loading, error } = useCachedImage(url);
+  
+  if (loading) {
+    return &lt;ActivityIndicator /&gt;;
+  }
+  
+  if (error || !uri) {
+    return &lt;Text&gt;Failed to load image&lt;/Text&gt;;
+  }
+  
+  return &lt;Image source={{ uri }} style={style} /&gt;;
+}</code></pre>
+
+                <h3>Storage Usage Component</h3>
+
+                <pre><code>import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+
+interface StorageInfo {
+  cacheSize: number;
+  documentSize: number;
+  freeSpace: number;
+  totalSpace: number;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+async function getDirectorySize(dir: string): Promise&lt;number&gt; {
+  let size = 0;
+  
+  try {
+    const files = await FileSystem.readDirectoryAsync(dir);
+    
+    for (const file of files) {
+      const path = dir + file;
+      const info = await FileSystem.getInfoAsync(path, { size: true });
+      
+      if (info.exists) {
+        if (info.isDirectory) {
+          size += await getDirectorySize(path + '/');
+        } else {
+          size += info.size || 0;
+        }
+      }
+    }
+  } catch (error) {
+    // Directory might not exist
+  }
+  
+  return size;
+}
+
+export function StorageManager() {
+  const [storageInfo, setStorageInfo] = useState&lt;StorageInfo | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  
+  const loadStorageInfo = async () => {
+    setLoading(true);
+    
+    const [cacheSize, documentSize, diskInfo] = await Promise.all([
+      getDirectorySize(FileSystem.cacheDirectory!),
+      getDirectorySize(FileSystem.documentDirectory!),
+      FileSystem.getFreeDiskStorageAsync(),
+    ]);
+    
+    const totalInfo = await FileSystem.getTotalDiskCapacityAsync();
+    
+    setStorageInfo({
+      cacheSize,
+      documentSize,
+      freeSpace: diskInfo,
+      totalSpace: totalInfo,
+    });
+    
+    setLoading(false);
+  };
+  
+  useEffect(() => {
+    loadStorageInfo();
+  }, []);
+  
+  const clearCache = async () => {
+    Alert.alert(
+      'Clear Cache',
+      'This will delete all cached files. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            await FileSystem.deleteAsync(
+              FileSystem.cacheDirectory!, 
+              { idempotent: true }
+            );
+            await loadStorageInfo();
+            Alert.alert('Done', 'Cache cleared successfully');
+          },
+        },
+      ]
+    );
+  };
+  
+  if (loading || !storageInfo) {
+    return &lt;Text&gt;Loading storage info...&lt;/Text&gt;;
+  }
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Storage&lt;/Text&gt;
+      
+      &lt;View style={styles.row}&gt;
+        &lt;Text style={styles.label}&gt;Cache&lt;/Text&gt;
+        &lt;Text style={styles.value}&gt;
+          {formatBytes(storageInfo.cacheSize)}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;View style={styles.row}&gt;
+        &lt;Text style={styles.label}&gt;App Data&lt;/Text&gt;
+        &lt;Text style={styles.value}&gt;
+          {formatBytes(storageInfo.documentSize)}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;View style={styles.row}&gt;
+        &lt;Text style={styles.label}&gt;Device Free&lt;/Text&gt;
+        &lt;Text style={styles.value}&gt;
+          {formatBytes(storageInfo.freeSpace)} / {formatBytes(storageInfo.totalSpace)}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;Pressable 
+        style={styles.clearButton} 
+        onPress={clearCache}
+      &gt;
+        &lt;Text style={styles.clearButtonText}&gt;Clear Cache&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  label: {
+    fontSize: 16,
+    color: '#333',
+  },
+  value: {
+    fontSize: 16,
+    color: '#666',
+  },
+  clearButton: {
+    marginTop: 16,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Cache Cleanup Best Practices</h4>
+                    <ul>
+                        <li>Run cache cleanup in the background, not on the main thread</li>
+                        <li>Use <code>InteractionManager.runAfterInteractions</code> to defer cleanup</li>
+                        <li>Consider cleaning up when the app goes to background</li>
+                        <li>Implement LRU (Least Recently Used) eviction for optimal cache performance</li>
+                        <li>Monitor <code>getFreeDiskStorageAsync</code> to avoid running out of space</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Build a Note-Taking File Manager</h3>
+                    <p>Create a simple note-taking system that stores notes as individual files with full CRUD operations.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Save notes as JSON files with title, content, and timestamp</li>
+                        <li>List all saved notes</li>
+                        <li>Edit existing notes</li>
+                        <li>Delete notes</li>
+                        <li>Search notes by title</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import * as FileSystem from 'expo-file-system';
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const NOTES_DIR = FileSystem.documentDirectory + 'notes/';
+
+class NoteManager {
+  async initialize(): Promise&lt;void&gt; {
+    const info = await FileSystem.getInfoAsync(NOTES_DIR);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(NOTES_DIR, { 
+        intermediates: true 
+      });
+    }
+  }
+  
+  private getNotePath(id: string): string {
+    return NOTES_DIR + `${id}.json`;
+  }
+  
+  async createNote(title: string, content: string): Promise&lt;Note&gt; {
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const now = new Date().toISOString();
+    
+    const note: Note = {
+      id,
+      title,
+      content,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    await FileSystem.writeAsStringAsync(
+      this.getNotePath(id),
+      JSON.stringify(note, null, 2)
+    );
+    
+    return note;
+  }
+  
+  async getNote(id: string): Promise&lt;Note | null&gt; {
+    const path = this.getNotePath(id);
+    const info = await FileSystem.getInfoAsync(path);
+    
+    if (!info.exists) return null;
+    
+    const content = await FileSystem.readAsStringAsync(path);
+    return JSON.parse(content);
+  }
+  
+  async updateNote(
+    id: string, 
+    updates: Partial&lt;Pick&lt;Note, 'title' | 'content'&gt;&gt;
+  ): Promise&lt;Note | null&gt; {
+    const note = await this.getNote(id);
+    if (!note) return null;
+    
+    const updatedNote: Note = {
+      ...note,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await FileSystem.writeAsStringAsync(
+      this.getNotePath(id),
+      JSON.stringify(updatedNote, null, 2)
+    );
+    
+    return updatedNote;
+  }
+  
+  async deleteNote(id: string): Promise&lt;boolean&gt; {
+    const path = this.getNotePath(id);
+    
+    try {
+      await FileSystem.deleteAsync(path, { idempotent: true });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  async listNotes(): Promise&lt;Note[]&gt; {
+    const files = await FileSystem.readDirectoryAsync(NOTES_DIR);
+    const notes: Note[] = [];
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const content = await FileSystem.readAsStringAsync(NOTES_DIR + file);
+        notes.push(JSON.parse(content));
+      }
+    }
+    
+    // Sort by updated date, newest first
+    return notes.sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }
+  
+  async searchNotes(query: string): Promise&lt;Note[]&gt; {
+    const allNotes = await this.listNotes();
+    const lowerQuery = query.toLowerCase();
+    
+    return allNotes.filter(note => 
+      note.title.toLowerCase().includes(lowerQuery) ||
+      note.content.toLowerCase().includes(lowerQuery)
+    );
+  }
+}
+
+// React Component using the NoteManager
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  View, Text, TextInput, FlatList, 
+  Pressable, StyleSheet, Alert 
+} from 'react-native';
+
+export function NotesApp() {
+  const [notes, setNotes] = useState&lt;Note[]&gt;([]);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState&lt;string | null&gt;(null);
+  
+  const noteManager = new NoteManager();
+  
+  const loadNotes = useCallback(async () => {
+    await noteManager.initialize();
+    const loadedNotes = searchQuery 
+      ? await noteManager.searchNotes(searchQuery)
+      : await noteManager.listNotes();
+    setNotes(loadedNotes);
+  }, [searchQuery]);
+  
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+  
+  const handleSave = async () => {
+    if (!title.trim()) {
+      Alert.alert('Error', 'Title is required');
+      return;
+    }
+    
+    if (editingId) {
+      await noteManager.updateNote(editingId, { title, content });
+      setEditingId(null);
+    } else {
+      await noteManager.createNote(title, content);
+    }
+    
+    setTitle('');
+    setContent('');
+    loadNotes();
+  };
+  
+  const handleEdit = (note: Note) => {
+    setEditingId(note.id);
+    setTitle(note.title);
+    setContent(note.content);
+  };
+  
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete Note',
+      'Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await noteManager.deleteNote(id);
+            loadNotes();
+          },
+        },
+      ]
+    );
+  };
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;TextInput
+        style={styles.searchInput}
+        placeholder="Search notes..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      /&gt;
+      
+      &lt;View style={styles.form}&gt;
+        &lt;TextInput
+          style={styles.input}
+          placeholder="Title"
+          value={title}
+          onChangeText={setTitle}
+        /&gt;
+        &lt;TextInput
+          style={[styles.input, styles.contentInput]}
+          placeholder="Content"
+          value={content}
+          onChangeText={setContent}
+          multiline
+        /&gt;
+        &lt;Pressable style={styles.saveButton} onPress={handleSave}&gt;
+          &lt;Text style={styles.saveButtonText}&gt;
+            {editingId ? 'Update Note' : 'Save Note'}
+          &lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+      
+      &lt;FlatList
+        data={notes}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          &lt;View style={styles.noteItem}&gt;
+            &lt;View style={styles.noteContent}&gt;
+              &lt;Text style={styles.noteTitle}&gt;{item.title}&lt;/Text&gt;
+              &lt;Text style={styles.notePreview} numberOfLines={2}&gt;
+                {item.content}
+              &lt;/Text&gt;
+              &lt;Text style={styles.noteDate}&gt;
+                {new Date(item.updatedAt).toLocaleDateString()}
+              &lt;/Text&gt;
+            &lt;/View&gt;
+            &lt;View style={styles.noteActions}&gt;
+              &lt;Pressable onPress={() => handleEdit(item)}&gt;
+                &lt;Text&gt;✏️&lt;/Text&gt;
+              &lt;/Pressable&gt;
+              &lt;Pressable onPress={() => handleDelete(item.id)}&gt;
+                &lt;Text&gt;🗑️&lt;/Text&gt;
+              &lt;/Pressable&gt;
+            &lt;/View&gt;
+          &lt;/View&gt;
+        )}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16 },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  form: { marginBottom: 16 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  contentInput: { height: 100, textAlignVertical: 'top' },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonText: { color: 'white', fontWeight: '600' },
+  noteItem: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  noteContent: { flex: 1 },
+  noteTitle: { fontSize: 16, fontWeight: '600' },
+  notePreview: { color: '#666', marginTop: 4 },
+  noteDate: { color: '#999', fontSize: 12, marginTop: 4 },
+  noteActions: { flexDirection: 'row', gap: 12 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Build an Offline-Capable Image Gallery</h3>
+                    <p>Create an image gallery that downloads and caches remote images for offline viewing with download progress.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Download images from URLs with progress indicator</li>
+                        <li>Cache downloaded images locally</li>
+                        <li>Display cached images when offline</li>
+                        <li>Show storage usage and allow cache clearing</li>
+                        <li>Support pull-to-refresh for new images</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, Image, FlatList, Pressable,
+  StyleSheet, RefreshControl, ActivityIndicator, Alert,
+} from 'react-native';
+import * as FileSystem from 'expo-file-system';
+
+const IMAGE_CACHE_DIR = FileSystem.cacheDirectory + 'gallery/';
+
+const SAMPLE_IMAGES = [
+  'https://picsum.photos/id/10/400/300',
+  'https://picsum.photos/id/20/400/300',
+  'https://picsum.photos/id/30/400/300',
+  'https://picsum.photos/id/40/400/300',
+  'https://picsum.photos/id/50/400/300',
+  'https://picsum.photos/id/60/400/300',
+];
+
+interface CachedImage {
+  url: string;
+  localUri: string | null;
+  downloading: boolean;
+  progress: number;
+  error: boolean;
+}
+
+async function ensureCacheDir() {
+  const info = await FileSystem.getInfoAsync(IMAGE_CACHE_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(IMAGE_CACHE_DIR, { 
+      intermediates: true 
+    });
+  }
+}
+
+function getLocalPath(url: string): string {
+  const hash = url.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return IMAGE_CACHE_DIR + `image_${Math.abs(hash)}.jpg`;
+}
+
+async function getCacheSize(): Promise&lt;number&gt; {
+  let size = 0;
+  try {
+    const files = await FileSystem.readDirectoryAsync(IMAGE_CACHE_DIR);
+    for (const file of files) {
+      const info = await FileSystem.getInfoAsync(
+        IMAGE_CACHE_DIR + file, 
+        { size: true }
+      );
+      if (info.exists && info.size) {
+        size += info.size;
+      }
+    }
+  } catch (e) {}
+  return size;
+}
+
+export function OfflineGallery() {
+  const [images, setImages] = useState&lt;CachedImage[]&gt;([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [cacheSize, setCacheSize] = useState(0);
+  
+  const initializeImages = useCallback(async () => {
+    await ensureCacheDir();
+    
+    const initialImages: CachedImage[] = await Promise.all(
+      SAMPLE_IMAGES.map(async (url) => {
+        const localPath = getLocalPath(url);
+        const info = await FileSystem.getInfoAsync(localPath);
+        
+        return {
+          url,
+          localUri: info.exists ? localPath : null,
+          downloading: false,
+          progress: info.exists ? 1 : 0,
+          error: false,
+        };
+      })
+    );
+    
+    setImages(initialImages);
+    setCacheSize(await getCacheSize());
+  }, []);
+  
+  useEffect(() => {
+    initializeImages();
+  }, [initializeImages]);
+  
+  const downloadImage = async (url: string) => {
+    const localPath = getLocalPath(url);
+    
+    setImages(prev => prev.map(img => 
+      img.url === url 
+        ? { ...img, downloading: true, progress: 0, error: false }
+        : img
+    ));
+    
+    const downloadResumable = FileSystem.createDownloadResumable(
+      url,
+      localPath,
+      {},
+      (downloadProgress) => {
+        const progress = 
+          downloadProgress.totalBytesWritten / 
+          downloadProgress.totalBytesExpectedToWrite;
+        
+        setImages(prev => prev.map(img =>
+          img.url === url ? { ...img, progress } : img
+        ));
+      }
+    );
+    
+    try {
+      const result = await downloadResumable.downloadAsync();
+      
+      if (result?.status === 200) {
+        setImages(prev => prev.map(img =>
+          img.url === url 
+            ? { ...img, localUri: result.uri, downloading: false, progress: 1 }
+            : img
+        ));
+        setCacheSize(await getCacheSize());
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      setImages(prev => prev.map(img =>
+        img.url === url 
+          ? { ...img, downloading: false, error: true }
+          : img
+      ));
+    }
+  };
+  
+  const downloadAll = async () => {
+    const uncached = images.filter(img => !img.localUri);
+    for (const img of uncached) {
+      await downloadImage(img.url);
+    }
+  };
+  
+  const clearCache = async () => {
+    Alert.alert(
+      'Clear Cache',
+      'Delete all cached images?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            await FileSystem.deleteAsync(IMAGE_CACHE_DIR, { idempotent: true });
+            await initializeImages();
+          },
+        },
+      ]
+    );
+  };
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await initializeImages();
+    setRefreshing(false);
+  };
+  
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  
+  const renderImage = ({ item }: { item: CachedImage }) => (
+    &lt;View style={styles.imageCard}&gt;
+      {item.localUri ? (
+        &lt;Image source={{ uri: item.localUri }} style={styles.image} /&gt;
+      ) : item.downloading ? (
+        &lt;View style={styles.placeholder}&gt;
+          &lt;ActivityIndicator size="large" color="#007AFF" /&gt;
+          &lt;Text style={styles.progressText}&gt;
+            {Math.round(item.progress * 100)}%
+          &lt;/Text&gt;
+          &lt;View style={styles.progressBar}&gt;
+            &lt;View 
+              style={[
+                styles.progressFill, 
+                { width: `${item.progress * 100}%` }
+              ]} 
+            /&gt;
+          &lt;/View&gt;
+        &lt;/View&gt;
+      ) : item.error ? (
+        &lt;Pressable 
+          style={styles.placeholder}
+          onPress={() => downloadImage(item.url)}
+        &gt;
+          &lt;Text style={styles.errorText}&gt;⚠️ Failed&lt;/Text&gt;
+          &lt;Text style={styles.retryText}&gt;Tap to retry&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      ) : (
+        &lt;Pressable 
+          style={styles.placeholder}
+          onPress={() => downloadImage(item.url)}
+        &gt;
+          &lt;Text style={styles.downloadText}&gt;📥&lt;/Text&gt;
+          &lt;Text style={styles.tapText}&gt;Tap to download&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    &lt;/View&gt;
+  );
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={styles.header}&gt;
+        &lt;Text style={styles.title}&gt;Offline Gallery&lt;/Text&gt;
+        &lt;Text style={styles.cacheInfo}&gt;
+          Cache: {formatSize(cacheSize)}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;View style={styles.actions}&gt;
+        &lt;Pressable style={styles.actionButton} onPress={downloadAll}&gt;
+          &lt;Text style={styles.actionText}&gt;Download All&lt;/Text&gt;
+        &lt;/Pressable&gt;
+        &lt;Pressable 
+          style={[styles.actionButton, styles.clearButton]} 
+          onPress={clearCache}
+        &gt;
+          &lt;Text style={[styles.actionText, styles.clearText]}&gt;
+            Clear Cache
+          &lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+      
+      &lt;FlatList
+        data={images}
+        keyExtractor={(item) => item.url}
+        renderItem={renderImage}
+        numColumns={2}
+        contentContainerStyle={styles.grid}
+        refreshControl={
+          &lt;RefreshControl refreshing={refreshing} onRefresh={onRefresh} /&gt;
+        }
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  title: { fontSize: 24, fontWeight: 'bold' },
+  cacheInfo: { color: '#666', marginTop: 4 },
+  actions: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearButton: { backgroundColor: '#FF3B30' },
+  actionText: { color: 'white', fontWeight: '600' },
+  clearText: {},
+  grid: { padding: 8 },
+  imageCard: {
+    flex: 1,
+    margin: 4,
+    aspectRatio: 4/3,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#ddd',
+  },
+  image: { width: '100%', height: '100%' },
+  placeholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
+  },
+  progressText: { marginTop: 8, color: '#007AFF', fontWeight: '600' },
+  progressBar: {
+    width: '80%',
+    height: 4,
+    backgroundColor: '#ccc',
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: '#007AFF' },
+  downloadText: { fontSize: 32 },
+  tapText: { color: '#666', marginTop: 8 },
+  errorText: { fontSize: 24 },
+  retryText: { color: '#FF3B30', marginTop: 8 },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>The file system is a powerful capability that enables your app to persist data, cache content for offline use, and manage user-generated files effectively.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Directories:</strong> Use <code>documentDirectory</code> for persistent user data, <code>cacheDirectory</code> for temporary/re-downloadable content</li>
+                        <li><strong>Reading:</strong> Use <code>readAsStringAsync</code> with appropriate encoding (UTF8 for text, Base64 for binary)</li>
+                        <li><strong>Writing:</strong> Use <code>writeAsStringAsync</code> and consider atomic writes for critical data</li>
+                        <li><strong>Downloading:</strong> Use <code>createDownloadResumable</code> for progress tracking and resumable downloads</li>
+                        <li><strong>File operations:</strong> <code>copyAsync</code>, <code>moveAsync</code>, <code>deleteAsync</code> for managing files</li>
+                        <li><strong>Cache management:</strong> Implement size limits, age-based expiration, and cleanup routines</li>
+                        <li><strong>Storage monitoring:</strong> Use <code>getInfoAsync</code> with size option and <code>getFreeDiskStorageAsync</code></li>
+                    </ul>
+                </div>
+
+                <p>This concludes Module 8 on Native Features and Device APIs. You now have the knowledge to access camera, location, notifications, sensors, sharing, and file system capabilities in your React Native apps. In the next module, we'll explore animations and gestures to create fluid, delightful user experiences.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m08_l06_sharing_and_linking.html" class="prev-link">← Previous: Sharing and Linking</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l01_animation_fundamentals.html" class="next-link">Next: Animation Fundamentals →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

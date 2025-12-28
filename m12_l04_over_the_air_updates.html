@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Push JavaScript updates instantly without app store review using EAS Update">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Over-the-Air Updates | Module 12: Production and Deployment | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m12_l01_app_configuration_deep_dive.html">Module 12</a> &gt;
+            <span>Lesson 12.4</span>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <p class="module-tag">Module 12: Production and Deployment</p>
+                <h1>Over-the-Air Updates</h1>
+                <p class="lesson-subtitle">Push JavaScript updates instantly without app store review</p>
+            </header>
+
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand how OTA updates work in React Native</li>
+                    <li>Set up EAS Update for your project</li>
+                    <li>Configure update channels and branches</li>
+                    <li>Publish and manage updates</li>
+                    <li>Implement update policies and user experiences</li>
+                    <li>Handle rollbacks and version compatibility</li>
+                </ul>
+            </div>
+
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#what-is-ota">What are OTA Updates?</a></li>
+                        <li><a href="#setup">Setting Up EAS Update</a></li>
+                        <li><a href="#channels-branches">Channels and Branches</a></li>
+                        <li><a href="#publishing">Publishing Updates</a></li>
+                        <li><a href="#update-policies">Update Policies</a></li>
+                        <li><a href="#runtime-versions">Runtime Versions</a></li>
+                        <li><a href="#rollbacks">Rollbacks and Recovery</a></li>
+                        <li><a href="#best-practices">Best Practices</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <section id="what-is-ota">
+                <h2>What are OTA Updates?</h2>
+
+                <p>Over-the-Air (OTA) updates allow you to push JavaScript and asset changes directly to users' devices without going through the app store review process. This enables rapid bug fixes and feature deployments.</p>
+
+                <h3>How OTA Updates Work</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Native["Native Binary (App Store)"]
+        N1[Native Code]
+        N2[React Native Runtime]
+        N3[Initial JS Bundle]
+    end
+    
+    subgraph OTA["OTA Update (EAS)"]
+        O1[Updated JS Bundle]
+        O2[Updated Assets]
+    end
+    
+    subgraph Device["User's Device"]
+        D1[Download Update]
+        D2[Apply on Next Launch]
+        D3[Run Updated Code]
+    end
+    
+    Native --> Device
+    OTA --> D1
+    D1 --> D2
+    D2 --> D3
+    
+    style OTA fill:#e8f5e9,stroke:#4CAF50
+    style Native fill:#e3f2fd,stroke:#2196F3
+</pre>
+
+                <h3>What Can Be Updated OTA</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Can Update OTA ✅</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Requires New Build ❌</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">JavaScript/TypeScript code</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Native module changes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Images, fonts, sounds</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">app.json/app.config.js changes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Styles and layouts</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">New native dependencies</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Navigation structure</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Permission changes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">API integrations</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Splash screen/icon changes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Bug fixes in JS</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Expo SDK upgrades</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Key Insight</h4>
+                    <p>Think of it this way: if your change only affects JavaScript files or static assets that are bundled with your JS, it can be delivered via OTA. If it requires changes to the native iOS or Android projects, you need a new app store build.</p>
+                </div>
+
+                <h3>Benefits of OTA Updates</h3>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                    <div class="card">
+                        <h4>⚡ Speed</h4>
+                        <p>Deploy fixes in minutes instead of waiting days for app store review.</p>
+                    </div>
+                    <div class="card">
+                        <h4>🔄 Iteration</h4>
+                        <p>Test changes with real users quickly and iterate faster.</p>
+                    </div>
+                    <div class="card">
+                        <h4>🎯 Targeting</h4>
+                        <p>Push updates to specific channels or user groups.</p>
+                    </div>
+                    <div class="card">
+                        <h4>↩️ Rollback</h4>
+                        <p>Instantly revert to a previous version if issues arise.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="setup">
+                <h2>Setting Up EAS Update</h2>
+
+                <p>EAS Update is Expo's OTA update service. Let's configure it for your project.</p>
+
+                <h3>Prerequisites</h3>
+
+                <pre><code># Ensure you have the latest EAS CLI
+npm install -g eas-cli
+
+# Login to your Expo account
+eas login
+
+# Your project should already have EAS configured
+# If not, run:
+eas build:configure</code></pre>
+
+                <h3>Install expo-updates</h3>
+
+                <pre><code># Install the updates package
+npx expo install expo-updates
+
+# This adds expo-updates to your dependencies
+# and configures it in app.json</code></pre>
+
+                <h3>Configure app.json</h3>
+
+                <pre><code>{
+  "expo": {
+    "name": "My App",
+    "slug": "my-app",
+    "version": "1.0.0",
+    
+    // EAS Update configuration
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id"
+    },
+    
+    // Runtime version for update compatibility
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
+  }
+}</code></pre>
+
+                <h3>Configure eas.json</h3>
+
+                <pre><code>{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview"
+    },
+    "production": {
+      "channel": "production"
+    }
+  }
+}</code></pre>
+
+                <h3>Build with Update Support</h3>
+
+                <pre><code># Build with a channel configured
+eas build --platform all --profile production
+
+# The build will be configured to receive updates
+# from the "production" channel</code></pre>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Important</h4>
+                    <p>OTA updates only work with builds that have <code>expo-updates</code> installed and a channel configured. Development builds with <code>developmentClient: true</code> use a different update mechanism (Expo Go or dev client hot reload).</p>
+                </div>
+            </section>
+
+            <section id="channels-branches">
+                <h2>Channels and Branches</h2>
+
+                <p>EAS Update uses a channel-branch architecture that gives you fine-grained control over which updates reach which users.</p>
+
+                <h3>Understanding the Architecture</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Builds["App Builds"]
+        B1[Production Build<br/>channel: production]
+        B2[Preview Build<br/>channel: preview]
+        B3[Dev Build<br/>channel: development]
+    end
+    
+    subgraph Channels["Channels"]
+        C1[production channel]
+        C2[preview channel]
+        C3[development channel]
+    end
+    
+    subgraph Branches["Branches"]
+        BR1[production branch]
+        BR2[staging branch]
+        BR3[feature-x branch]
+    end
+    
+    B1 --> C1
+    B2 --> C2
+    B3 --> C3
+    
+    C1 --> BR1
+    C2 --> BR2
+    C3 --> BR3
+    
+    style Builds fill:#e3f2fd
+    style Channels fill:#fff3e0
+    style Branches fill:#e8f5e9
+</pre>
+
+                <h3>Channels</h3>
+
+                <p>Channels are configured at build time and determine which updates a build can receive.</p>
+
+                <pre><code># Channels are set in eas.json build profiles
+{
+  "build": {
+    "production": {
+      "channel": "production"  // This build receives "production" updates
+    }
+  }
+}
+
+# A build can only receive updates from its assigned channel
+# You cannot change a build's channel after it's created</code></pre>
+
+                <h3>Branches</h3>
+
+                <p>Branches contain the actual updates. You point a channel to a branch to control which updates users receive.</p>
+
+                <pre><code># View all branches
+eas branch:list
+
+# Create a new branch
+eas branch:create feature-dark-mode
+
+# View updates on a branch
+eas branch:view production
+
+# Point a channel to a branch
+eas channel:edit production --branch production
+
+# Point channel to a different branch (for testing)
+eas channel:edit production --branch staging</code></pre>
+
+                <h3>Common Workflows</h3>
+
+                <pre><code># Workflow 1: Simple (channel = branch)
+# Each channel points to a branch with the same name
+eas channel:edit production --branch production
+eas channel:edit preview --branch preview
+
+# Workflow 2: Staged Rollout
+# Test on preview, then promote to production
+eas update --branch preview --message "New feature"
+# Test with preview users...
+eas update --branch production --message "New feature"
+
+# Workflow 3: Feature Flags
+# Point some users to a feature branch
+eas channel:edit beta-testers --branch feature-new-ui</code></pre>
+
+                <h3>Channel Management Commands</h3>
+
+                <pre><code># List all channels
+eas channel:list
+
+# View channel details
+eas channel:view production
+
+# Create a new channel
+eas channel:create beta
+
+# Edit channel (point to different branch)
+eas channel:edit production --branch hotfix-123
+
+# Rollback channel to previous branch
+eas channel:rollback production</code></pre>
+            </section>
+
+            <section id="publishing">
+                <h2>Publishing Updates</h2>
+
+                <p>Publishing an update bundles your JavaScript and assets and uploads them to EAS.</p>
+
+                <h3>Basic Update Command</h3>
+
+                <pre><code># Publish to a specific branch
+eas update --branch production --message "Fix login bug"
+
+# Publish to multiple platforms
+eas update --branch production --platform all
+
+# Publish iOS only
+eas update --branch production --platform ios
+
+# Publish Android only
+eas update --branch production --platform android</code></pre>
+
+                <h3>Update with Auto-Versioning</h3>
+
+                <pre><code># EAS auto-generates update group IDs
+eas update --branch production --message "v1.2.1 hotfix"
+
+# View the update
+eas update:list --branch production
+
+# Output shows:
+# Update Group ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# Branch: production
+# Message: v1.2.1 hotfix
+# Runtime Version: 1.0.0
+# Platforms: android, ios</code></pre>
+
+                <h3>Update Management</h3>
+
+                <pre><code># List all updates on a branch
+eas update:list --branch production
+
+# View specific update details
+eas update:view [UPDATE_GROUP_ID]
+
+# Delete an update
+eas update:delete [UPDATE_GROUP_ID]
+
+# Republish (create new update from current code)
+eas update --branch production --message "Republish"</code></pre>
+
+                <h3>Interactive Update</h3>
+
+                <pre><code># Interactive mode prompts for options
+eas update
+
+# Prompts:
+# ? Select a branch: production
+# ? Enter a message: Fixed payment processing
+# ? Select platforms: All</code></pre>
+
+                <h3>CI/CD Integration</h3>
+
+                <pre><code># GitHub Actions example
+name: Publish Update
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: Publish update
+        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive</code></pre>
+            </section>
+
+            <section id="update-policies">
+                <h2>Update Policies</h2>
+
+                <p>Control how and when updates are downloaded and applied on user devices.</p>
+
+                <h3>Update Check Timing</h3>
+
+                <pre><code>// app.json - Configure when to check for updates
+{
+  "expo": {
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id",
+      
+      // When to check for updates
+      "checkAutomatically": "ON_LOAD", // or "ON_ERROR_RECOVERY", "NEVER"
+      
+      // Fallback behavior
+      "fallbackToCacheTimeout": 0
+    }
+  }
+}</code></pre>
+
+                <h3>Automatic Updates (Default)</h3>
+
+                <pre><code>// With checkAutomatically: "ON_LOAD"
+// 1. App launches with current bundle
+// 2. Update check happens in background
+// 3. If update available, downloads in background
+// 4. Update applies on NEXT app launch
+
+// User experience:
+// - No interruption on current session
+// - Update ready for next launch
+// - May take 2 launches to see new version</code></pre>
+
+                <h3>Manual Update Control</h3>
+
+                <pre><code>// For full control, use expo-updates API
+import * as Updates from 'expo-updates';
+
+// Check for updates manually
+async function checkForUpdates() {
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    
+    if (update.isAvailable) {
+      // Download the update
+      await Updates.fetchUpdateAsync();
+      
+      // Ask user to restart
+      Alert.alert(
+        'Update Available',
+        'A new version has been downloaded. Restart to apply?',
+        [
+          { text: 'Later', style: 'cancel' },
+          { 
+            text: 'Restart', 
+            onPress: () => Updates.reloadAsync() 
+          }
+        ]
+      );
+    }
+  } catch (error) {
+    console.log('Error checking for updates:', error);
+  }
+}
+
+// Call on app start or periodically
+useEffect(() => {
+  checkForUpdates();
+}, []);</code></pre>
+
+                <h3>Force Update Pattern</h3>
+
+                <pre><code>// Force critical updates immediately
+import * as Updates from 'expo-updates';
+import { AppState } from 'react-native';
+
+function useForceUpdate() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (state) => {
+      if (state === 'active') {
+        try {
+          const update = await Updates.checkForUpdateAsync();
+          
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            
+            // Check if this is a critical update (from your API)
+            const isCritical = await checkIfCriticalUpdate();
+            
+            if (isCritical) {
+              // Force restart without asking
+              await Updates.reloadAsync();
+            }
+          }
+        } catch (e) {
+          // Handle error silently
+        }
+      }
+    });
+    
+    return () => subscription.remove();
+  }, []);
+}</code></pre>
+
+                <h3>Update Status UI</h3>
+
+                <pre><code>import * as Updates from 'expo-updates';
+import { useEffect, useState } from 'react';
+
+function UpdateBanner() {
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  
+  useEffect(() => {
+    checkUpdate();
+  }, []);
+  
+  async function checkUpdate() {
+    if (__DEV__) return; // Skip in development
+    
+    try {
+      const { isAvailable } = await Updates.checkForUpdateAsync();
+      setUpdateAvailable(isAvailable);
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+  
+  async function downloadAndRestart() {
+    setDownloading(true);
+    try {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (e) {
+      setDownloading(false);
+      Alert.alert('Update Failed', 'Please try again later.');
+    }
+  }
+  
+  if (!updateAvailable) return null;
+  
+  return (
+    &lt;View style={styles.banner}&gt;
+      &lt;Text&gt;A new version is available!&lt;/Text&gt;
+      &lt;Button 
+        title={downloading ? 'Updating...' : 'Update Now'}
+        onPress={downloadAndRestart}
+        disabled={downloading}
+      /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>expo-updates API Reference</h3>
+
+                <pre><code>import * as Updates from 'expo-updates';
+
+// Constants
+Updates.channel           // Current channel name
+Updates.updateId          // Current update ID
+Updates.createdAt         // When current update was created
+Updates.isEmbeddedLaunch  // Is running embedded bundle?
+Updates.isEmergencyLaunch // Launched due to error recovery?
+
+// Methods
+Updates.checkForUpdateAsync()   // Check if update available
+Updates.fetchUpdateAsync()      // Download available update
+Updates.reloadAsync()           // Restart app with new update
+Updates.readLogEntriesAsync()   // Read update logs
+
+// Event Listener
+Updates.addListener((event) => {
+  if (event.type === Updates.UpdateEventType.UPDATE_AVAILABLE) {
+    console.log('Update available!');
+  }
+  if (event.type === Updates.UpdateEventType.NO_UPDATE_AVAILABLE) {
+    console.log('No updates');
+  }
+  if (event.type === Updates.UpdateEventType.ERROR) {
+    console.log('Update error:', event.message);
+  }
+});</code></pre>
+            </section>
+
+            <section id="runtime-versions">
+                <h2>Runtime Versions</h2>
+
+                <p>Runtime versions ensure updates are only applied to compatible builds. An update built for one native configuration won't break an incompatible app.</p>
+
+                <h3>Why Runtime Versions Matter</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Problem["Without Runtime Versions"]
+        P1[Build v1.0 with SDK 50]
+        P2[Update uses SDK 51 API]
+        P3[💥 Crash - API doesn't exist]
+    end
+    
+    subgraph Solution["With Runtime Versions"]
+        S1[Build v1.0 - Runtime: 1.0.0]
+        S2[Update - Runtime: 1.1.0]
+        S3[✅ Update skipped - incompatible]
+    end
+    
+    style Problem fill:#ffebee,stroke:#f44336
+    style Solution fill:#e8f5e9,stroke:#4CAF50
+</pre>
+
+                <h3>Runtime Version Policies</h3>
+
+                <pre><code>// app.json - Choose a policy
+{
+  "expo": {
+    "runtimeVersion": {
+      // Policy options:
+      "policy": "appVersion"           // Use app version (1.0.0)
+      // "policy": "nativeVersion"      // Use native build version
+      // "policy": "sdkVersion"         // Use Expo SDK version
+      // "policy": "fingerprintExperimental"  // Auto-detect changes
+    }
+  }
+}
+
+// Or set explicit version
+{
+  "expo": {
+    "runtimeVersion": "1.0.0"
+  }
+}</code></pre>
+
+                <h3>Policy Comparison</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Policy</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Value Source</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Best For</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>appVersion</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">expo.version in app.json</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Simple apps, manual control</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>nativeVersion</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">iOS buildNumber / Android versionCode</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Apps with native changes per build</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>sdkVersion</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Expo SDK version</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">SDK upgrades = new runtime</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>fingerprint</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Hash of native dependencies</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Automatic, most accurate</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Fingerprint Policy (Recommended)</h3>
+
+                <pre><code>// app.json - Automatic runtime version detection
+{
+  "expo": {
+    "runtimeVersion": {
+      "policy": "fingerprintExperimental"
+    }
+  }
+}
+
+// Fingerprint automatically changes when:
+// - Native dependencies change
+// - Expo SDK version changes
+// - Native code modifications
+// - iOS/Android config changes
+
+// Check current fingerprint
+npx expo-updates fingerprint:generate</code></pre>
+
+                <h3>Managing Multiple Runtime Versions</h3>
+
+                <pre><code># Users on different app versions need different updates
+# EAS handles this automatically
+
+# Publish update for runtime 1.0.0
+eas update --branch production --message "Fix for v1.0"
+# Only users with runtime 1.0.0 receive this
+
+# Build new version with runtime 1.1.0
+eas build --profile production
+# This build has a new runtime version
+
+# Publish update for runtime 1.1.0
+eas update --branch production --message "Fix for v1.1"
+# Only users with runtime 1.1.0 receive this
+
+# Both versions coexist on the same branch!</code></pre>
+            </section>
+
+            <section id="rollbacks">
+                <h2>Rollbacks and Recovery</h2>
+
+                <p>When an update causes issues, you need to quickly revert to a working version.</p>
+
+                <h3>Rollback Strategies</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Current["Current State"]
+        C1[Bad Update Live]
+        C2[Users Affected]
+    end
+    
+    subgraph Options["Rollback Options"]
+        O1[Republish Old Code]
+        O2[Point Channel to Old Branch]
+        O3[Publish Hotfix]
+    end
+    
+    subgraph Result["Result"]
+        R1[Users Get Fixed Version]
+    end
+    
+    Current --> Options
+    Options --> Result
+    
+    style Current fill:#ffebee
+    style Options fill:#fff3e0
+    style Result fill:#e8f5e9
+</pre>
+
+                <h3>Option 1: Republish Previous Code</h3>
+
+                <pre><code># Checkout the previous working commit
+git checkout [PREVIOUS_COMMIT_HASH]
+
+# Publish as new update
+eas update --branch production --message "Rollback to v1.2.0"
+
+# Users will receive this "new" update
+# which contains the old, working code
+
+# Return to main branch
+git checkout main</code></pre>
+
+                <h3>Option 2: Use Channel Rollback</h3>
+
+                <pre><code># View channel history
+eas channel:view production
+
+# Rollback channel to previous branch state
+eas channel:rollback production
+
+# Or point to a specific branch
+eas channel:edit production --branch stable-backup</code></pre>
+
+                <h3>Option 3: Publish Hotfix</h3>
+
+                <pre><code># Fix the issue in code
+git commit -m "Fix critical bug from v1.2.1"
+
+# Publish immediately
+eas update --branch production --message "Hotfix v1.2.2"
+
+# This is usually the fastest option
+# if you can quickly identify and fix the issue</code></pre>
+
+                <h3>Automatic Rollback on Error</h3>
+
+                <pre><code>// expo-updates has built-in crash recovery
+// If an update causes immediate crashes:
+// 1. App detects repeated crashes
+// 2. Falls back to embedded bundle
+// 3. User can continue using app
+
+// Configure fallback behavior
+{
+  "expo": {
+    "updates": {
+      "fallbackToCacheTimeout": 0,  // Immediate fallback
+      "checkAutomatically": "ON_ERROR_RECOVERY"
+    }
+  }
+}</code></pre>
+
+                <h3>Testing Before Production</h3>
+
+                <pre><code># Always test updates before production!
+
+# 1. Publish to preview first
+eas update --branch preview --message "New feature"
+
+# 2. Test with internal team
+# Use preview builds to verify
+
+# 3. Only then publish to production
+eas update --branch production --message "New feature (tested)"
+
+# Consider a staged rollout:
+# - 10% of users first
+# - Monitor crash reports
+# - Expand to 100%</code></pre>
+            </section>
+
+            <section id="best-practices">
+                <h2>Best Practices</h2>
+
+                <h3>Update Strategy</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Do</h4>
+                    <ul>
+                        <li>Test updates on preview/staging before production</li>
+                        <li>Use meaningful update messages for tracking</li>
+                        <li>Monitor crash reports after publishing</li>
+                        <li>Keep runtime versions in sync with native changes</li>
+                        <li>Implement graceful update UX for users</li>
+                        <li>Have a rollback plan ready</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>❌ Don't</h4>
+                    <ul>
+                        <li>Push updates directly to production untested</li>
+                        <li>Ignore runtime version compatibility</li>
+                        <li>Force restart without user consent (except critical fixes)</li>
+                        <li>Forget to update runtime version when adding native deps</li>
+                        <li>Rely solely on OTA for major version changes</li>
+                    </ul>
+                </div>
+
+                <h3>Update Frequency Guidelines</h3>
+
+                <pre><code>// Critical Bug Fixes
+// - Push immediately via OTA
+// - Test quickly, deploy fast
+// - Notify users if needed
+
+// Regular Bug Fixes
+// - Batch into weekly updates
+// - Test on preview for 24-48 hours
+// - Deploy to production
+
+// New Features
+// - Consider app store update for major features
+// - OTA for minor enhancements
+// - Use feature flags for gradual rollout
+
+// Native Changes
+// - Always requires new build
+// - Plan app store submission
+// - Coordinate OTA updates with build releases</code></pre>
+
+                <h3>Monitoring Updates</h3>
+
+                <pre><code>// Track update status in analytics
+import * as Updates from 'expo-updates';
+import analytics from './analytics';
+
+async function trackUpdateStatus() {
+  analytics.track('app_launch', {
+    updateId: Updates.updateId,
+    channel: Updates.channel,
+    isEmbedded: Updates.isEmbeddedLaunch,
+    createdAt: Updates.createdAt?.toISOString(),
+  });
+}
+
+// Track update events
+Updates.addListener((event) => {
+  analytics.track('update_event', {
+    type: event.type,
+    message: event.message,
+  });
+});</code></pre>
+
+                <h3>Version Display for Debugging</h3>
+
+                <pre><code>// Show version info in settings/about screen
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
+
+function VersionInfo() {
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;App Version: {Constants.expoConfig?.version}&lt;/Text&gt;
+      &lt;Text&gt;Build: {Constants.expoConfig?.ios?.buildNumber || 
+                    Constants.expoConfig?.android?.versionCode}&lt;/Text&gt;
+      &lt;Text&gt;Update ID: {Updates.updateId || 'embedded'}&lt;/Text&gt;
+      &lt;Text&gt;Channel: {Updates.channel || 'N/A'}&lt;/Text&gt;
+      &lt;Text&gt;Runtime: {Constants.expoConfig?.runtimeVersion}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Configure EAS Update</h3>
+                    <p>Set up EAS Update for a new project with proper channels and runtime versioning.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// 1. Install expo-updates
+npx expo install expo-updates
+
+// 2. Configure app.json
+{
+  "expo": {
+    "name": "My App",
+    "slug": "my-app",
+    "version": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/YOUR_PROJECT_ID",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_PROJECT_ID"
+      }
+    }
+  }
+}
+
+// 3. Configure eas.json
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview"
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true
+    }
+  }
+}
+
+// 4. Build with channels
+eas build --profile preview --platform all
+
+// 5. Publish first update
+eas update --branch preview --message "Initial update"</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Implement Update UI</h3>
+                    <p>Create a component that checks for updates and shows a user-friendly prompt.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/UpdateChecker.tsx
+import * as Updates from 'expo-updates';
+import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+
+type UpdateStatus = 'checking' | 'available' | 'downloading' | 'ready' | 'none' | 'error';
+
+export function UpdateChecker() {
+  const [status, setStatus] = useState&lt;UpdateStatus&gt;('checking');
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  useEffect(() => {
+    checkForUpdate();
+  }, []);
+
+  async function checkForUpdate() {
+    if (__DEV__) {
+      setStatus('none');
+      return;
+    }
+
+    try {
+      setStatus('checking');
+      const update = await Updates.checkForUpdateAsync();
+      
+      if (update.isAvailable) {
+        setStatus('available');
+      } else {
+        setStatus('none');
+      }
+    } catch (e) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    }
+  }
+
+  async function downloadAndApply() {
+    try {
+      setStatus('downloading');
+      await Updates.fetchUpdateAsync();
+      setStatus('ready');
+    } catch (e) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Download failed');
+    }
+  }
+
+  async function applyUpdate() {
+    await Updates.reloadAsync();
+  }
+
+  if (status === 'none' || status === 'checking') {
+    return null;
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      {status === 'available' && (
+        &lt;&gt;
+          &lt;Text style={styles.text}&gt;Update available!&lt;/Text&gt;
+          &lt;TouchableOpacity style={styles.button} onPress={downloadAndApply}&gt;
+            &lt;Text style={styles.buttonText}&gt;Download&lt;/Text&gt;
+          &lt;/TouchableOpacity&gt;
+        &lt;/&gt;
+      )}
+      
+      {status === 'downloading' && (
+        &lt;&gt;
+          &lt;ActivityIndicator color="white" /&gt;
+          &lt;Text style={styles.text}&gt;Downloading...&lt;/Text&gt;
+        &lt;/&gt;
+      )}
+      
+      {status === 'ready' && (
+        &lt;&gt;
+          &lt;Text style={styles.text}&gt;Ready to install!&lt;/Text&gt;
+          &lt;TouchableOpacity style={styles.button} onPress={applyUpdate}&gt;
+            &lt;Text style={styles.buttonText}&gt;Restart Now&lt;/Text&gt;
+          &lt;/TouchableOpacity&gt;
+        &lt;/&gt;
+      )}
+      
+      {status === 'error' && (
+        &lt;Text style={styles.errorText}&gt;Update failed: {error}&lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#4CAF50',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  text: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  button: {
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  buttonText: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#ffcdd2',
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Staged Rollout Workflow</h3>
+                    <p>Practice a staged rollout: preview → production with proper testing.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code># Step 1: Make your code changes
+# Edit files, fix bugs, add features
+
+# Step 2: Publish to preview branch
+eas update --branch preview --message "New checkout flow v2"
+
+# Step 3: Test with preview builds
+# - Install preview build on test devices
+# - Verify update is received
+# - Test all affected functionality
+# - Check for crashes/errors
+
+# Step 4: Monitor for 24-48 hours
+# - Check analytics for errors
+# - Gather tester feedback
+# - Verify performance metrics
+
+# Step 5: If issues found, fix and republish to preview
+eas update --branch preview --message "Fix checkout validation"
+
+# Step 6: Once stable, publish to production
+eas update --branch production --message "New checkout flow v2 (tested)"
+
+# Step 7: Monitor production
+# - Watch crash reports
+# - Monitor user feedback
+# - Be ready to rollback if needed
+
+# Rollback if critical issues arise:
+git checkout HEAD~1  # Go to previous commit
+eas update --branch production --message "Rollback: checkout issues"</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>OTA updates:</strong> Push JS/asset changes without app store review</li>
+                        <li><strong>Channels:</strong> Configured at build time, determine which updates a build receives</li>
+                        <li><strong>Branches:</strong> Contain actual updates, can be swapped for channels</li>
+                        <li><strong>Runtime versions:</strong> Ensure update compatibility with native code</li>
+                        <li><strong>Update policies:</strong> Control automatic vs manual update behavior</li>
+                        <li><strong>Rollbacks:</strong> Republish old code or point channel to stable branch</li>
+                        <li><strong>Best practice:</strong> Always test on preview before production</li>
+                    </ul>
+                </div>
+
+                <h3>EAS Update Command Reference</h3>
+
+                <pre><code># Publishing
+eas update --branch [BRANCH] --message "[MSG]"
+eas update --branch production --platform ios
+
+# Branch Management
+eas branch:list
+eas branch:create [NAME]
+eas branch:view [NAME]
+eas branch:delete [NAME]
+
+# Channel Management
+eas channel:list
+eas channel:create [NAME]
+eas channel:view [NAME]
+eas channel:edit [NAME] --branch [BRANCH]
+eas channel:rollback [NAME]
+
+# Update Management
+eas update:list --branch [BRANCH]
+eas update:view [UPDATE_GROUP_ID]
+eas update:delete [UPDATE_GROUP_ID]</code></pre>
+
+                <p>In the next lesson, we'll cover deploying your app to the Apple App Store and Google Play Store.</p>
+            </section>
+
+            <div class="lesson-nav">
+                <a href="m12_l03_building_with_eas_build.html" class="prev-link">← Previous: Building with EAS Build</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m12_l05_app_store_deployment.html" class="next-link">Next: App Store Deployment →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

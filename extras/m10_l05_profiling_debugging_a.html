@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master profiling and debugging techniques for React Native performance optimization">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Profiling and Debugging | Module 10: Performance Optimization | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m10_l01_app_performance.html">Module 10</a> &gt;
+            <span>Lesson 10.5</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 10: Performance Optimization</p>
+                <h1>Profiling and Debugging</h1>
+                <p class="lesson-subtitle">Systematic approaches to finding and fixing performance issues</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Use React DevTools Profiler effectively</li>
+                    <li>Profile with Flipper and native tools</li>
+                    <li>Analyze JavaScript bundle size</li>
+                    <li>Debug performance on real devices</li>
+                    <li>Implement systematic performance audits</li>
+                    <li>Set up performance monitoring in production</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#debugging-workflow">Performance Debugging Workflow</a></li>
+                        <li><a href="#react-devtools">React DevTools Profiler</a></li>
+                        <li><a href="#flipper">Flipper</a></li>
+                        <li><a href="#native-profiling">Native Profiling Tools</a></li>
+                        <li><a href="#bundle-analysis">Bundle Analysis</a></li>
+                        <li><a href="#production-monitoring">Production Monitoring</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Performance Debugging Workflow -->
+            <section id="debugging-workflow">
+                <h2>Performance Debugging Workflow</h2>
+
+                <p>Effective performance debugging follows a systematic approach. Don't guess—measure, analyze, fix, and verify.</p>
+
+                <h3>The Performance Debugging Process</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    A[Identify Symptom] --> B[Reproduce Consistently]
+    B --> C[Measure Baseline]
+    C --> D[Profile to Find Cause]
+    D --> E[Form Hypothesis]
+    E --> F[Implement Fix]
+    F --> G[Measure Again]
+    G --> H{Improved?}
+    H -->|No| D
+    H -->|Yes| I{Good Enough?}
+    I -->|No| D
+    I -->|Yes| J[Document & Deploy]
+    
+    style A fill:#f44336,color:#fff
+    style J fill:#4CAF50,color:#fff
+</pre>
+
+                <h3>Common Performance Symptoms</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Symptom</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Likely Cause</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Tool to Use</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Janky scrolling</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Heavy renders, large images</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">React Profiler, Perf Monitor</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Slow app start</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Large bundle, sync init</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Bundle analyzer, Hermes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Frozen UI</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Blocking JS thread</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Perf Monitor, Systrace</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Memory warnings</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Leaks, large images</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Flipper, Xcode Instruments</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Laggy animations</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">JS-driven animations</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Perf Monitor (UI FPS)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Slow screen transitions</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Heavy initial render</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">React Profiler</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Setting Up for Profiling</h3>
+
+                <pre><code>// 1. Use a production-like build for accurate profiling
+// Development mode adds overhead
+
+// For Expo:
+npx expo start --no-dev
+
+// 2. Test on real devices, not simulators
+// Simulators use your computer's CPU/RAM
+
+// 3. Use Hermes for accurate JS profiling
+// app.json
+{
+  "expo": {
+    "jsEngine": "hermes"
+  }
+}
+
+// 4. Enable profiling in development builds
+// For React Profiler to work in production builds:
+// Add to metro.config.js
+module.exports = {
+  transformer: {
+    minifierConfig: {
+      keep_fnames: true, // Preserve function names
+    },
+  },
+};</code></pre>
+            </section>
+
+            <!-- React DevTools Profiler -->
+            <section id="react-devtools">
+                <h2>React DevTools Profiler</h2>
+
+                <p>The React Profiler is your primary tool for understanding component render performance.</p>
+
+                <h3>Setting Up React DevTools</h3>
+
+                <pre><code># Install globally
+npm install -g react-devtools
+
+# Run in separate terminal
+react-devtools
+
+# Connect your app
+# - Shake device → Debug
+# - Or: Expo Dev Menu → Debug Remote JS</code></pre>
+
+                <h3>Using the Profiler</h3>
+
+                <!-- SVG: Profiler Interface -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 350" style="max-width: 700px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="350" fill="#1e1e1e"/>
+                        
+                        <!-- Title bar -->
+                        <rect width="700" height="30" fill="#333"/>
+                        <text x="20" y="20" font-size="12" fill="#fff">React DevTools - Profiler</text>
+                        <circle cx="660" cy="15" r="6" fill="#4CAF50"/>
+                        <circle cx="640" cy="15" r="6" fill="#FFC107"/>
+                        <circle cx="620" cy="15" r="6" fill="#f44336"/>
+                        
+                        <!-- Toolbar -->
+                        <rect y="30" width="700" height="35" fill="#2d2d2d"/>
+                        <rect x="10" y="40" width="60" height="18" fill="#61dafb" rx="3"/>
+                        <text x="40" y="53" text-anchor="middle" font-size="10" fill="#000">⏺ Record</text>
+                        
+                        <rect x="80" y="40" width="50" height="18" fill="#444" rx="3"/>
+                        <text x="105" y="53" text-anchor="middle" font-size="10" fill="#fff">Reload</text>
+                        
+                        <text x="200" y="53" font-size="10" fill="#888">Commit 3 of 15</text>
+                        
+                        <!-- Flame graph -->
+                        <rect x="10" y="75" width="480" height="200" fill="#252525" rx="5"/>
+                        <text x="20" y="95" font-size="11" fill="#888">Flamegraph</text>
+                        
+                        <!-- Components -->
+                        <rect x="20" y="110" width="460" height="25" fill="#8b5cf6" rx="2"/>
+                        <text x="30" y="127" font-size="10" fill="#fff">App (12.3ms)</text>
+                        
+                        <rect x="30" y="140" width="200" height="25" fill="#3b82f6" rx="2"/>
+                        <text x="40" y="157" font-size="10" fill="#fff">Header (0.8ms)</text>
+                        
+                        <rect x="240" y="140" width="230" height="25" fill="#f59e0b" rx="2"/>
+                        <text x="250" y="157" font-size="10" fill="#fff">ProductList (8.2ms) ⚠️</text>
+                        
+                        <rect x="250" y="170" width="100" height="20" fill="#ef4444" rx="2"/>
+                        <text x="260" y="184" font-size="9" fill="#fff">ProductCard</text>
+                        
+                        <rect x="360" y="170" width="100" height="20" fill="#ef4444" rx="2"/>
+                        <text x="370" y="184" font-size="9" fill="#fff">ProductCard</text>
+                        
+                        <rect x="30" y="200" width="440" height="25" fill="#22c55e" rx="2"/>
+                        <text x="40" y="217" font-size="10" fill="#fff">Footer (0.3ms)</text>
+                        
+                        <!-- Sidebar -->
+                        <rect x="500" y="75" width="190" height="265" fill="#252525" rx="5"/>
+                        <text x="510" y="95" font-size="11" fill="#888">Selected: ProductList</text>
+                        
+                        <text x="510" y="120" font-size="10" fill="#fff">Render time: 8.2ms</text>
+                        <text x="510" y="140" font-size="10" fill="#fff">Re-rendered: 15 times</text>
+                        <text x="510" y="165" font-size="10" fill="#888">Why did this render?</text>
+                        <text x="520" y="185" font-size="9" fill="#f59e0b">• Props changed: items</text>
+                        <text x="520" y="200" font-size="9" fill="#f59e0b">• Parent re-rendered</text>
+                        
+                        <rect x="510" y="220" width="170" height="30" fill="#333" rx="3"/>
+                        <text x="595" y="240" text-anchor="middle" font-size="10" fill="#61dafb">View source →</text>
+                        
+                        <!-- Legend -->
+                        <rect x="10" y="285" width="480" height="55" fill="#252525" rx="5"/>
+                        <text x="20" y="305" font-size="10" fill="#888">Render time:</text>
+                        <rect x="100" y="295" width="40" height="15" fill="#22c55e" rx="2"/>
+                        <text x="145" y="306" font-size="9" fill="#888">&lt;1ms</text>
+                        <rect x="180" y="295" width="40" height="15" fill="#3b82f6" rx="2"/>
+                        <text x="225" y="306" font-size="9" fill="#888">1-5ms</text>
+                        <rect x="260" y="295" width="40" height="15" fill="#f59e0b" rx="2"/>
+                        <text x="305" y="306" font-size="9" fill="#888">5-10ms</text>
+                        <rect x="350" y="295" width="40" height="15" fill="#ef4444" rx="2"/>
+                        <text x="395" y="306" font-size="9" fill="#888">&gt;10ms</text>
+                        
+                        <text x="20" y="330" font-size="9" fill="#666">Gray = did not render | Wider bars = longer render time</text>
+                    </svg>
+                </div>
+
+                <h3>Interpreting Profiler Results</h3>
+
+                <pre><code>// What to look for in the Profiler:
+
+// 1. Commit frequency
+// - Many commits = many re-renders
+// - Look for commits that shouldn't happen
+
+// 2. Render times
+// - Green (&lt;1ms): Good
+// - Blue (1-5ms): OK
+// - Yellow (5-10ms): Worth investigating
+// - Red (&gt;10ms): Needs optimization
+
+// 3. "Why did this render?"
+// - Props changed: Check if prop is actually different
+// - Parent re-rendered: Consider memo()
+// - State changed: Expected, but check frequency
+
+// 4. Wasted renders
+// - Components that render but produce same output
+// - Gray in ranked chart = didn't render (good!)
+
+// 5. Render cascades
+// - One component triggers many children
+// - Look for opportunities to memo or restructure</code></pre>
+
+                <h3>Profiler API for Programmatic Tracking</h3>
+
+                <pre><code>import { Profiler } from 'react';
+
+function onRenderCallback(
+  id: string,                // Component name
+  phase: 'mount' | 'update', // Mount or re-render
+  actualDuration: number,    // Time spent rendering
+  baseDuration: number,      // Estimated time without memoization
+  startTime: number,         // When React started rendering
+  commitTime: number,        // When React committed
+) {
+  // Log slow renders
+  if (actualDuration > 16) {
+    console.warn(`Slow render: ${id} took ${actualDuration.toFixed(2)}ms`);
+  }
+
+  // Send to analytics
+  analytics.track('render', {
+    component: id,
+    phase,
+    duration: actualDuration,
+  });
+}
+
+// Wrap components to profile
+function App() {
+  return (
+    &lt;Profiler id="App" onRender={onRenderCallback}&gt;
+      &lt;Profiler id="ProductList" onRender={onRenderCallback}&gt;
+        &lt;ProductList /&gt;
+      &lt;/Profiler&gt;
+    &lt;/Profiler&gt;
+  );
+}</code></pre>
+
+                <h3>Highlight Updates</h3>
+
+                <pre><code>// Enable "Highlight updates when components render"
+// in React DevTools settings
+
+// Visual indicators:
+// - Blue border: Fast render
+// - Green border: Medium render
+// - Yellow/Red border: Slow render
+
+// This helps identify:
+// - Components re-rendering too often
+// - Cascade effects
+// - Animations triggering renders</code></pre>
+            </section>
+
+            <!-- Flipper -->
+            <section id="flipper">
+                <h2>Flipper</h2>
+
+                <p>Flipper is Meta's extensible mobile debugging platform with powerful React Native plugins.</p>
+
+                <h3>Setting Up Flipper</h3>
+
+                <pre><code># Download Flipper from https://fbflipper.com/
+
+# For Expo development builds:
+npx expo install expo-dev-client react-native-flipper
+
+# Flipper auto-connects when your app runs</code></pre>
+
+                <h3>Key Flipper Plugins</h3>
+
+                <div class="card">
+                    <h4>🔧 Essential Flipper Plugins</h4>
+                    
+                    <p><strong>React DevTools</strong> - Same as standalone, integrated in Flipper</p>
+                    
+                    <p><strong>Network</strong> - Inspect all HTTP/HTTPS requests:</p>
+                    <ul>
+                        <li>Request/response headers and bodies</li>
+                        <li>Timing breakdown</li>
+                        <li>Mock responses for testing</li>
+                    </ul>
+                    
+                    <p><strong>Databases</strong> - View SQLite/AsyncStorage:</p>
+                    <ul>
+                        <li>Browse tables and data</li>
+                        <li>Execute queries</li>
+                        <li>Edit data for testing</li>
+                    </ul>
+                    
+                    <p><strong>Layout</strong> - Inspect view hierarchy:</p>
+                    <ul>
+                        <li>View tree with properties</li>
+                        <li>Highlight elements</li>
+                        <li>Edit styles live</li>
+                    </ul>
+                    
+                    <p><strong>Crash Reporter</strong> - Debug crashes:</p>
+                    <ul>
+                        <li>Stack traces</li>
+                        <li>Device info</li>
+                        <li>Breadcrumbs</li>
+                    </ul>
+                </div>
+
+                <h3>Performance Plugin</h3>
+
+                <pre><code>// Flipper's Performance plugin provides:
+
+// 1. CPU Usage
+// - Track CPU over time
+// - Identify spikes during actions
+
+// 2. Memory Usage
+// - Heap size tracking
+// - Detect memory leaks
+// - Compare snapshots
+
+// 3. FPS Monitoring
+// - Frame rate graph
+// - Dropped frame detection
+// - JS vs UI thread breakdown
+
+// Usage:
+// 1. Open Flipper → Performance plugin
+// 2. Start recording
+// 3. Perform the action to profile
+// 4. Stop recording
+// 5. Analyze timeline</code></pre>
+
+                <h3>Custom Flipper Plugin</h3>
+
+                <pre><code>// Create custom plugins for app-specific debugging
+// client plugin (in your app)
+import { addPlugin } from 'react-native-flipper';
+
+if (__DEV__) {
+  addPlugin({
+    getId() {
+      return 'MyAppState';
+    },
+    onConnect(connection) {
+      // Send state updates to Flipper
+      const unsubscribe = store.subscribe(() => {
+        connection.send('stateUpdate', store.getState());
+      });
+
+      connection.receive('getState', (data, responder) => {
+        responder.success(store.getState());
+      });
+
+      return () => unsubscribe();
+    },
+    onDisconnect() {},
+  });
+}</code></pre>
+            </section>
+
+            <!-- Native Profiling Tools -->
+            <section id="native-profiling">
+                <h2>Native Profiling Tools</h2>
+
+                <p>For deep native performance issues, use platform-specific profiling tools.</p>
+
+                <h3>iOS: Xcode Instruments</h3>
+
+                <pre><code>// Xcode Instruments provides detailed profiling
+
+// Time Profiler
+// - CPU usage by function
+// - Call tree analysis
+// - Find hotspots
+
+// Allocations
+// - Memory allocation tracking
+// - Find leaks and zombies
+// - Heap snapshots
+
+// Core Animation
+// - GPU rendering issues
+// - Offscreen rendering
+// - Blending issues
+
+// To profile:
+// 1. Build release version in Xcode
+// 2. Product → Profile (⌘I)
+// 3. Choose instrument
+// 4. Record while using app
+// 5. Analyze results</code></pre>
+
+                <h3>Android: Android Studio Profiler</h3>
+
+                <pre><code>// Android Studio Profiler
+
+// CPU Profiler
+// - Method tracing
+// - System trace
+// - Sample vs instrumented
+
+// Memory Profiler
+// - Real-time heap
+// - Allocation tracking
+// - Heap dumps
+// - Leak detection
+
+// Network Profiler
+// - Request timeline
+// - Payload inspection
+
+// Energy Profiler
+// - Battery usage
+// - Wake locks
+// - CPU/Network impact
+
+// To profile:
+// 1. Run app in Android Studio
+// 2. View → Tool Windows → Profiler
+// 3. Select CPU/Memory/Network
+// 4. Record session
+// 5. Analyze</code></pre>
+
+                <h3>Systrace for Frame Analysis</h3>
+
+                <pre><code>// Systrace captures detailed timing info
+
+// Enable in Dev Menu:
+// Settings → Start Systrace
+
+// Or programmatically:
+import { Systrace } from 'react-native';
+
+Systrace.beginEvent('myExpensiveOperation');
+// ... do work
+Systrace.endEvent();
+
+// Analyze trace:
+// 1. Capture trace file
+// 2. Open in chrome://tracing
+// 3. Look for:
+//    - Long frames (>16ms)
+//    - JS thread blocking
+//    - Bridge congestion</code></pre>
+
+                <h3>Hermes Profiler</h3>
+
+                <pre><code>// Hermes (React Native's JS engine) has built-in profiling
+
+// Enable sampling profiler in Dev Menu:
+// Settings → Start/Stop Sampling Profiler
+
+// Or programmatically:
+if (__DEV__) {
+  const Hermes = global.HermesInternal;
+  
+  // Start profiling
+  Hermes?.enableSamplingProfiler?.();
+  
+  // ... run code to profile
+  
+  // Stop and get profile
+  const profile = Hermes?.disableSamplingProfiler?.();
+  
+  // Save to file or send to analytics
+}
+
+// Analyze with:
+// - Chrome DevTools (import profile)
+// - hermes-profile-transformer
+// - Flipper Hermes plugin</code></pre>
+            </section>
+
+            <!-- Bundle Analysis -->
+            <section id="bundle-analysis">
+                <h2>Bundle Analysis</h2>
+
+                <p>Large JavaScript bundles slow down app startup. Analyze and optimize your bundle size.</p>
+
+                <h3>Analyzing Bundle Size</h3>
+
+                <pre><code># Generate bundle stats
+npx react-native bundle \
+  --platform ios \
+  --dev false \
+  --entry-file index.js \
+  --bundle-output bundle.js \
+  --sourcemap-output bundle.js.map
+
+# Analyze with source-map-explorer
+npx source-map-explorer bundle.js bundle.js.map
+
+# Or use bundle-visualizer for Expo
+npx expo export --dump-sourcemap
+npx source-map-explorer dist/bundles/ios-*.js</code></pre>
+
+                <h3>What to Look For</h3>
+
+                <!-- SVG: Bundle Analysis -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 600px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Bundle Composition (Typical App)</text>
+                        
+                        <!-- Treemap visualization -->
+                        <rect x="20" y="45" width="280" height="120" fill="#2196F3" rx="3"/>
+                        <text x="160" y="100" text-anchor="middle" font-size="14" fill="white" font-weight="bold">node_modules</text>
+                        <text x="160" y="120" text-anchor="middle" font-size="11" fill="white">~60-70%</text>
+                        
+                        <rect x="310" y="45" width="140" height="120" fill="#4CAF50" rx="3"/>
+                        <text x="380" y="100" text-anchor="middle" font-size="12" fill="white" font-weight="bold">Your Code</text>
+                        <text x="380" y="118" text-anchor="middle" font-size="10" fill="white">~20-30%</text>
+                        
+                        <rect x="460" y="45" width="120" height="60" fill="#FF9800" rx="3"/>
+                        <text x="520" y="75" text-anchor="middle" font-size="10" fill="white">Assets</text>
+                        <text x="520" y="90" text-anchor="middle" font-size="9" fill="white">~5%</text>
+                        
+                        <rect x="460" y="110" width="120" height="55" fill="#9C27B0" rx="3"/>
+                        <text x="520" y="138" text-anchor="middle" font-size="10" fill="white">Polyfills</text>
+                        <text x="520" y="152" text-anchor="middle" font-size="9" fill="white">~5%</text>
+                        
+                        <!-- Common culprits -->
+                        <rect x="20" y="175" width="560" height="110" fill="#fff" stroke="#ddd" rx="5"/>
+                        <text x="300" y="195" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Common Bundle Bloaters</text>
+                        
+                        <text x="40" y="220" font-size="10" fill="#666">• moment.js (300KB) → Use date-fns or dayjs (20KB)</text>
+                        <text x="40" y="238" font-size="10" fill="#666">• lodash (70KB) → Import specific functions or use native</text>
+                        <text x="40" y="256" font-size="10" fill="#666">• Large icon libraries → Import only used icons</text>
+                        <text x="40" y="274" font-size="10" fill="#666">• Unused exports → Enable tree shaking</text>
+                    </svg>
+                </div>
+
+                <h3>Reducing Bundle Size</h3>
+
+                <pre><code>// 1. Import specific functions, not entire libraries
+// ❌ Bad
+import _ from 'lodash';
+_.debounce(fn, 300);
+
+// ✅ Good
+import debounce from 'lodash/debounce';
+debounce(fn, 300);
+
+// 2. Use lighter alternatives
+// moment.js → date-fns or dayjs
+// lodash → native methods or lodash-es
+// axios → ky or native fetch
+
+// 3. Lazy load heavy features
+const HeavyEditor = lazy(() => import('./HeavyEditor'));
+
+// 4. Remove unused code
+// Check for dead imports
+// Remove development-only code in production
+
+// 5. Optimize images in bundle
+// Use WebP format
+// Resize to needed dimensions
+// Consider loading from CDN instead</code></pre>
+
+                <h3>Monitoring Bundle Size</h3>
+
+                <pre><code>// Add bundle size check to CI
+// package.json
+{
+  "scripts": {
+    "bundle:analyze": "npx react-native bundle --platform ios --dev false --entry-file index.js --bundle-output /tmp/bundle.js && stat -f%z /tmp/bundle.js",
+    "bundle:check": "node scripts/check-bundle-size.js"
+  }
+}
+
+// scripts/check-bundle-size.js
+const { execSync } = require('child_process');
+const MAX_BUNDLE_SIZE = 2 * 1024 * 1024; // 2MB
+
+const output = execSync('npm run bundle:analyze', { encoding: 'utf8' });
+const size = parseInt(output.trim());
+
+if (size > MAX_BUNDLE_SIZE) {
+  console.error(`Bundle size ${size} exceeds limit ${MAX_BUNDLE_SIZE}`);
+  process.exit(1);
+}
+
+console.log(`Bundle size OK: ${(size / 1024 / 1024).toFixed(2)}MB`);</code></pre>
+            </section>

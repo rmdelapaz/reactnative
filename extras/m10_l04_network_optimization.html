@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Optimize network requests and API performance in React Native apps">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Network Optimization | Module 10: Performance Optimization | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m10_l01_app_performance.html">Module 10</a> &gt;
+            <span>Lesson 10.4</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 10: Performance Optimization</p>
+                <h1>Network Optimization</h1>
+                <p class="lesson-subtitle">Making API calls faster, more efficient, and more reliable</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand network performance bottlenecks</li>
+                    <li>Implement effective caching strategies</li>
+                    <li>Optimize API request patterns</li>
+                    <li>Handle offline scenarios gracefully</li>
+                    <li>Reduce payload sizes</li>
+                    <li>Implement request deduplication and batching</li>
+                    <li>Monitor network performance</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#network-basics">Network Performance Basics</a></li>
+                        <li><a href="#caching">Caching Strategies</a></li>
+                        <li><a href="#request-patterns">Optimizing Request Patterns</a></li>
+                        <li><a href="#payload-optimization">Payload Optimization</a></li>
+                        <li><a href="#offline">Offline Support</a></li>
+                        <li><a href="#monitoring">Network Monitoring</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Network Performance Basics -->
+            <section id="network-basics">
+                <h2>Network Performance Basics</h2>
+
+                <p>Mobile network performance is unpredictable. Users switch between WiFi, 4G, and poor connectivity. Your app needs to handle all scenarios gracefully.</p>
+
+                <h3>The Network Request Timeline</h3>
+
+                <!-- SVG: Request Timeline -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 200" style="max-width: 700px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="200" fill="#f8f9fa"/>
+                        
+                        <!-- Timeline base -->
+                        <line x1="50" y1="100" x2="650" y2="100" stroke="#333" stroke-width="2"/>
+                        
+                        <!-- Segments -->
+                        <rect x="50" y="80" width="80" height="40" fill="#f44336" rx="3"/>
+                        <text x="90" y="105" text-anchor="middle" font-size="10" fill="white">DNS</text>
+                        
+                        <rect x="130" y="80" width="80" height="40" fill="#FF9800" rx="3"/>
+                        <text x="170" y="105" text-anchor="middle" font-size="10" fill="white">TCP</text>
+                        
+                        <rect x="210" y="80" width="80" height="40" fill="#FFC107" rx="3"/>
+                        <text x="250" y="105" text-anchor="middle" font-size="10" fill="white">TLS</text>
+                        
+                        <rect x="290" y="80" width="100" height="40" fill="#4CAF50" rx="3"/>
+                        <text x="340" y="105" text-anchor="middle" font-size="10" fill="white">Request</text>
+                        
+                        <rect x="390" y="80" width="120" height="40" fill="#2196F3" rx="3"/>
+                        <text x="450" y="105" text-anchor="middle" font-size="10" fill="white">Server Processing</text>
+                        
+                        <rect x="510" y="80" width="140" height="40" fill="#9C27B0" rx="3"/>
+                        <text x="580" y="105" text-anchor="middle" font-size="10" fill="white">Response Download</text>
+                        
+                        <!-- Labels -->
+                        <text x="90" y="145" text-anchor="middle" font-size="9" fill="#666">~50ms</text>
+                        <text x="170" y="145" text-anchor="middle" font-size="9" fill="#666">~50ms</text>
+                        <text x="250" y="145" text-anchor="middle" font-size="9" fill="#666">~100ms</text>
+                        <text x="340" y="145" text-anchor="middle" font-size="9" fill="#666">~20ms</text>
+                        <text x="450" y="145" text-anchor="middle" font-size="9" fill="#666">varies</text>
+                        <text x="580" y="145" text-anchor="middle" font-size="9" fill="#666">varies</text>
+                        
+                        <!-- Title -->
+                        <text x="350" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">HTTP Request Lifecycle</text>
+                        
+                        <!-- Total -->
+                        <text x="350" y="180" text-anchor="middle" font-size="11" fill="#333">Total latency = DNS + TCP + TLS + Request + Processing + Download</text>
+                    </svg>
+                </div>
+
+                <h3>Mobile Network Challenges</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Network Type</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Typical Latency</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Considerations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">WiFi</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">20-50ms</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Fast but can be congested</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">4G/LTE</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">50-100ms</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Good coverage, variable speed</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">3G</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">100-500ms</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Still common in many areas</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Offline/Spotty</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">∞</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Tunnels, elevators, rural areas</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Key Optimization Strategies</h3>
+
+                <pre class="mermaid">
+mindmap
+  root((Network<br/>Optimization))
+    Caching
+      HTTP cache headers
+      In-memory cache
+      Persistent cache
+      Stale-while-revalidate
+    Request Patterns
+      Parallel requests
+      Request deduplication
+      Batching
+      Prefetching
+    Payload
+      Compression
+      Pagination
+      Field selection
+      Image optimization
+    Offline
+      Queue requests
+      Local-first
+      Sync on reconnect
+</pre>
+            </section>
+
+            <!-- Caching Strategies -->
+            <section id="caching">
+                <h2>Caching Strategies</h2>
+
+                <p>The fastest request is one you don't have to make. Effective caching dramatically improves perceived performance.</p>
+
+                <h3>React Query Caching</h3>
+
+                <pre><code>import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+
+// Configure QueryClient with caching settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Data considered fresh for 5 minutes
+      staleTime: 5 * 60 * 1000,
+      
+      // Keep unused data in cache for 30 minutes
+      gcTime: 30 * 60 * 1000,
+      
+      // Retry failed requests
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      
+      // Refetch settings
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
+
+// Usage with automatic caching
+function UserProfile({ userId }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+    
+    // Override defaults for this query
+    staleTime: 10 * 60 * 1000, // 10 minutes for user data
+  });
+
+  if (isLoading) return &lt;Skeleton /&gt;;
+  if (error) return &lt;Error message={error.message} /&gt;;
+  
+  return &lt;ProfileCard user={data} /&gt;;
+}</code></pre>
+
+                <h3>Stale-While-Revalidate Pattern</h3>
+
+                <pre><code>// Show cached data immediately, then update in background
+function ProductList() {
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+    
+    // Show stale data while fetching fresh
+    staleTime: 0, // Always considered stale
+    
+    // But use cached data while refetching
+    placeholderData: (previousData) => previousData,
+  });
+
+  return (
+    &lt;View&gt;
+      {/* Show subtle loading indicator when refetching */}
+      {isFetching && &lt;RefreshIndicator /&gt;}
+      
+      {/* Show data immediately from cache */}
+      &lt;FlatList data={data} /* ... */ /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Persistent Cache</h3>
+
+                <pre><code>import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+
+// Create persister
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'REACT_QUERY_CACHE',
+});
+
+// Wrap app with persistent provider
+function App() {
+  return (
+    &lt;PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: asyncStoragePersister,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            // Only persist certain queries
+            return query.state.status === 'success' &&
+                   !query.queryKey.includes('sensitive');
+          },
+        },
+      }}
+    &gt;
+      &lt;AppContent /&gt;
+    &lt;/PersistQueryClientProvider&gt;
+  );
+}
+
+// Now data persists across app restarts!
+// User opens app → sees cached data instantly → background refresh</code></pre>
+
+                <h3>Cache Invalidation</h3>
+
+                <pre><code>import { useQueryClient } from '@tanstack/react-query';
+
+function useProductActions() {
+  const queryClient = useQueryClient();
+
+  const updateProduct = async (id: string, updates: Partial&lt;Product&gt;) => {
+    // Optimistic update
+    queryClient.setQueryData(['product', id], (old: Product) => ({
+      ...old,
+      ...updates,
+    }));
+
+    try {
+      await api.updateProduct(id, updates);
+      
+      // Invalidate related queries to refetch
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product', id] });
+    } catch (error) {
+      // Rollback on error
+      queryClient.invalidateQueries({ queryKey: ['product', id] });
+      throw error;
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    await api.deleteProduct(id);
+    
+    // Remove from cache
+    queryClient.removeQueries({ queryKey: ['product', id] });
+    
+    // Refetch list
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+  };
+
+  return { updateProduct, deleteProduct };
+}</code></pre>
+
+                <h3>HTTP Cache Headers</h3>
+
+                <pre><code>// Configure fetch to respect cache headers
+async function fetchWithCache(url: string) {
+  const response = await fetch(url, {
+    headers: {
+      'Cache-Control': 'max-age=300', // Request caching for 5 min
+    },
+  });
+  
+  // Server should respond with:
+  // Cache-Control: max-age=300, stale-while-revalidate=60
+  // ETag: "abc123"
+  
+  return response.json();
+}
+
+// Conditional requests with ETag
+async function fetchWithETag(url: string, etag?: string) {
+  const headers: HeadersInit = {};
+  
+  if (etag) {
+    headers['If-None-Match'] = etag;
+  }
+
+  const response = await fetch(url, { headers });
+  
+  if (response.status === 304) {
+    // Not modified - use cached data
+    return null;
+  }
+  
+  const newEtag = response.headers.get('ETag');
+  const data = await response.json();
+  
+  return { data, etag: newEtag };
+}</code></pre>
+            </section>
+
+            <!-- Optimizing Request Patterns -->
+            <section id="request-patterns">
+                <h2>Optimizing Request Patterns</h2>
+
+                <p>How you make requests is as important as caching them. Avoid common anti-patterns that slow down your app.</p>
+
+                <h3>Avoid Waterfall Requests</h3>
+
+                <pre><code>// ❌ Bad: Sequential requests (waterfall)
+async function loadDashboard() {
+  const user = await fetchUser();        // 200ms
+  const posts = await fetchPosts();      // 300ms
+  const comments = await fetchComments(); // 250ms
+  // Total: 750ms
+}
+
+// ✅ Good: Parallel requests
+async function loadDashboard() {
+  const [user, posts, comments] = await Promise.all([
+    fetchUser(),      // 200ms
+    fetchPosts(),     // 300ms  
+    fetchComments(),  // 250ms
+  ]);
+  // Total: 300ms (slowest request)
+}
+
+// ✅ Even better: Start fetching as early as possible
+function DashboardScreen() {
+  // All queries start fetching immediately in parallel
+  const userQuery = useQuery({ queryKey: ['user'], queryFn: fetchUser });
+  const postsQuery = useQuery({ queryKey: ['posts'], queryFn: fetchPosts });
+  const commentsQuery = useQuery({ queryKey: ['comments'], queryFn: fetchComments });
+
+  // ...
+}</code></pre>
+
+                <h3>Request Deduplication</h3>
+
+                <pre><code>// React Query automatically deduplicates identical requests
+function UserAvatar({ userId }) {
+  // If multiple components request same user simultaneously,
+  // only one network request is made
+  const { data } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+  });
+  
+  return &lt;Avatar source={{ uri: data?.avatar }} /&gt;;
+}
+
+// Manual deduplication for non-React Query scenarios
+const pendingRequests = new Map&lt;string, Promise&lt;any&gt;&gt;();
+
+async function deduplicatedFetch&lt;T&gt;(key: string, fetcher: () => Promise&lt;T&gt;): Promise&lt;T&gt; {
+  // Return existing promise if request in flight
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key)!;
+  }
+
+  // Start new request
+  const promise = fetcher().finally(() => {
+    pendingRequests.delete(key);
+  });
+
+  pendingRequests.set(key, promise);
+  return promise;
+}
+
+// Usage
+const user = await deduplicatedFetch(`user-${userId}`, () => fetchUser(userId));</code></pre>
+
+                <h3>Request Batching</h3>
+
+                <pre><code>// Batch multiple requests into one
+class RequestBatcher {
+  private queue: { id: string; resolve: (data: any) => void }[] = [];
+  private timeout: NodeJS.Timeout | null = null;
+  private batchSize = 20;
+  private delay = 50;
+
+  async fetch(id: string): Promise&lt;any&gt; {
+    return new Promise((resolve) => {
+      this.queue.push({ id, resolve });
+      this.scheduleFlush();
+    });
+  }
+
+  private scheduleFlush() {
+    if (this.timeout) return;
+    
+    this.timeout = setTimeout(() => {
+      this.flush();
+    }, this.delay);
+  }
+
+  private async flush() {
+    this.timeout = null;
+    
+    const batch = this.queue.splice(0, this.batchSize);
+    if (batch.length === 0) return;
+
+    const ids = batch.map(item => item.id);
+    
+    // Single request for multiple items
+    const results = await fetch('/api/batch', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }).then(res => res.json());
+
+    // Resolve individual promises
+    batch.forEach((item, index) => {
+      item.resolve(results[item.id]);
+    });
+
+    // Flush remaining if any
+    if (this.queue.length > 0) {
+      this.scheduleFlush();
+    }
+  }
+}
+
+const userBatcher = new RequestBatcher();
+
+// These will be batched into one request
+const user1 = userBatcher.fetch('user-1');
+const user2 = userBatcher.fetch('user-2');
+const user3 = userBatcher.fetch('user-3');</code></pre>
+
+                <h3>Prefetching</h3>
+
+                <pre><code>import { useQueryClient } from '@tanstack/react-query';
+
+function ProductList({ products }) {
+  const queryClient = useQueryClient();
+
+  // Prefetch product details on hover/focus
+  const prefetchProduct = (productId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: ['product', productId],
+      queryFn: () => fetchProduct(productId),
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+
+  return (
+    &lt;FlatList
+      data={products}
+      renderItem={({ item }) => (
+        &lt;Pressable
+          onPressIn={() => prefetchProduct(item.id)} // Prefetch on touch
+          onPress={() => navigate('Product', { id: item.id })}
+        &gt;
+          &lt;ProductCard product={item} /&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Prefetch on navigation focus
+function useScreenPrefetch() {
+  const queryClient = useQueryClient();
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Prefetch likely next screens
+      queryClient.prefetchQuery({
+        queryKey: ['notifications'],
+        queryFn: fetchNotifications,
+      });
+    });
+
+    return unsubscribe;
+  }, [navigation, queryClient]);
+}</code></pre>
+
+                <h3>Pagination Strategies</h3>
+
+                <pre><code>// Cursor-based pagination (more efficient)
+function useInfiniteProducts() {
+  return useInfiniteQuery({
+    queryKey: ['products'],
+    queryFn: ({ pageParam }) => fetchProducts({ cursor: pageParam }),
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    
+    // Keep previous pages in memory
+    maxPages: 10, // Limit for memory
+  });
+}
+
+function ProductList() {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteProducts();
+
+  const products = data?.pages.flatMap(page => page.items) ?? [];
+
+  return (
+    &lt;FlatList
+      data={products}
+      renderItem={({ item }) => &lt;ProductCard product={item} /&gt;}
+      onEndReached={() => {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      }}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={isFetchingNextPage ? &lt;Loading /&gt; : null}
+    /&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Payload Optimization -->
+            <section id="payload-optimization">
+                <h2>Payload Optimization</h2>
+
+                <p>Smaller payloads mean faster downloads and less data usage for your users.</p>
+
+                <h3>Request Only What You Need</h3>
+
+                <pre><code>// ❌ Bad: Fetching everything
+const response = await fetch('/api/users');
+// Returns: 100 users with ALL fields (50KB)
+
+// ✅ Good: Field selection (sparse fieldsets)
+const response = await fetch('/api/users?fields=id,name,avatar');
+// Returns: 100 users with only needed fields (5KB)
+
+// GraphQL makes this natural
+const query = gql`
+  query GetUsers {
+    users {
+      id
+      name
+      avatar
+    }
+  }
+`;
+
+// REST API with field selection
+async function fetchUsers(fields: string[]) {
+  const params = new URLSearchParams({
+    fields: fields.join(','),
+  });
+  
+  return fetch(`/api/users?${params}`).then(res => res.json());
+}</code></pre>
+
+                <h3>Pagination and Limiting</h3>
+
+                <pre><code>// ❌ Bad: Fetching all items at once
+const allProducts = await fetch('/api/products');
+// Returns: 10,000 products (2MB)
+
+// ✅ Good: Paginated with limit
+const products = await fetch('/api/products?limit=20&offset=0');
+// Returns: 20 products (40KB)
+
+// Even better: Only fetch visible items + buffer
+function useVisibleItems(totalItems: number, itemHeight: number) {
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 20 });
+
+  const handleScroll = useCallback((event) => {
+    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const start = Math.floor(contentOffset.y / itemHeight);
+    const visibleCount = Math.ceil(layoutMeasurement.height / itemHeight);
+    const buffer = 5;
+    
+    setVisibleRange({
+      start: Math.max(0, start - buffer),
+      end: Math.min(totalItems, start + visibleCount + buffer),
+    });
+  }, [totalItems, itemHeight]);
+
+  return { visibleRange, handleScroll };
+}</code></pre>
+
+                <h3>Compression</h3>
+
+                <pre><code>// Request compressed responses
+async function fetchWithCompression(url: string) {
+  const response = await fetch(url, {
+    headers: {
+      'Accept-Encoding': 'gzip, deflate, br',
+    },
+  });
+  
+  // Response is automatically decompressed
+  return response.json();
+}
+
+// For uploading large data, compress first
+import pako from 'pako';
+
+async function uploadCompressed(url: string, data: object) {
+  const jsonString = JSON.stringify(data);
+  const compressed = pako.gzip(jsonString);
+  
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Encoding': 'gzip',
+    },
+    body: compressed,
+  });
+}</code></pre>
+
+                <h3>Image Optimization</h3>
+
+                <pre><code>// Request appropriately sized images
+function getImageUrl(baseUrl: string, width: number, quality = 80) {
+  // Many image CDNs support on-the-fly resizing
+  return `${baseUrl}?w=${width}&q=${quality}&fm=webp`;
+}
+
+// Use device pixel ratio
+import { PixelRatio, Dimensions } from 'react-native';
+
+function getOptimalImageUrl(baseUrl: string, displayWidth: number) {
+  const pixelWidth = PixelRatio.getPixelSizeForLayoutSize(displayWidth);
+  // Round up to nearest 100 for cache efficiency
+  const requestWidth = Math.ceil(pixelWidth / 100) * 100;
+  
+  return `${baseUrl}?w=${requestWidth}&fm=webp`;
+}
+
+// Usage
+&lt;Image
+  source={{ uri: getOptimalImageUrl(product.image, 150) }}
+  style={{ width: 150, height: 150 }}
+/&gt;</code></pre>
+            </section>
+            <!-- Offline Support -->
+            <section id="offline">
+                <h2>Offline Support</h2>
+
+                <p>Great apps work even without an internet connection. Implement offline-first patterns for a reliable user experience.</p>
+
+                <h3>Detecting Network Status</h3>
+
+                <pre><code>import NetInfo from '@react-native-community/netinfo';
+import { useEffect, useState } from 'react';
+import { onlineManager } from '@tanstack/react-query';
+
+// Hook for network status
+function useNetworkStatus() {
+  const [isConnected, setIsConnected] = useState(true);
+  const [connectionType, setConnectionType] = useState&lt;string | null&gt;(null);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected ?? true);
+      setConnectionType(state.type);
+      
+      // Sync React Query's online status
+      onlineManager.setOnline(state.isConnected ?? true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return { isConnected, connectionType };
+}
+
+// Show offline banner
+function OfflineBanner() {
+  const { isConnected } = useNetworkStatus();
+
+  if (isConnected) return null;
+
+  return (
+    &lt;View style={styles.offlineBanner}&gt;
+      &lt;Text style={styles.offlineText}&gt;
+        You're offline. Some features may be limited.
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Offline Request Queue</h3>
+
+                <pre><code>import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface QueuedRequest {
+  id: string;
+  url: string;
+  method: string;
+  body?: string;
+  timestamp: number;
+}
+
+class OfflineQueue {
+  private static QUEUE_KEY = 'OFFLINE_QUEUE';
+
+  static async add(request: Omit&lt;QueuedRequest, 'id' | 'timestamp'&gt;) {
+    const queue = await this.getQueue();
+    
+    queue.push({
+      ...request,
+      id: Math.random().toString(36).slice(2),
+      timestamp: Date.now(),
+    });
+    
+    await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+  }
+
+  static async getQueue(): Promise&lt;QueuedRequest[]&gt; {
+    const data = await AsyncStorage.getItem(this.QUEUE_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+
+  static async processQueue() {
+    const queue = await this.getQueue();
+    const failed: QueuedRequest[] = [];
+
+    for (const request of queue) {
+      try {
+        await fetch(request.url, {
+          method: request.method,
+          body: request.body,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        failed.push(request);
+      }
+    }
+
+    await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(failed));
+    
+    return {
+      processed: queue.length - failed.length,
+      failed: failed.length,
+    };
+  }
+
+  static async clear() {
+    await AsyncStorage.removeItem(this.QUEUE_KEY);
+  }
+}
+
+// Use with network status
+function useSyncOnReconnect() {
+  const { isConnected } = useNetworkStatus();
+  const wasOffline = useRef(false);
+
+  useEffect(() => {
+    if (!isConnected) {
+      wasOffline.current = true;
+      return;
+    }
+
+    if (wasOffline.current) {
+      wasOffline.current = false;
+      
+      // Process queued requests
+      OfflineQueue.processQueue().then(({ processed, failed }) => {
+        if (processed > 0) {
+          showToast(`Synced ${processed} changes`);
+        }
+        if (failed > 0) {
+          showToast(`${failed} changes failed to sync`);
+        }
+      });
+    }
+  }, [isConnected]);
+}</code></pre>
+
+                <h3>Optimistic Updates with Rollback</h3>
+
+                <pre><code>import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+function useOptimisticUpdate&lt;T&gt;(
+  queryKey: unknown[],
+  mutationFn: (data: T) => Promise&lt;T&gt;
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    
+    onMutate: async (newData) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+      
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData(queryKey);
+      
+      // Optimistically update
+      queryClient.setQueryData(queryKey, newData);
+      
+      // Return context for rollback
+      return { previousData };
+    },
+    
+    onError: (err, newData, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
+    },
+    
+    onSettled: () => {
+      // Refetch to ensure sync
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
+// Usage
+function TodoItem({ todo }) {
+  const toggleMutation = useOptimisticUpdate(
+    ['todos'],
+    (updatedTodo) => api.updateTodo(updatedTodo)
+  );
+
+  const handleToggle = () => {
+    toggleMutation.mutate({
+      ...todo,
+      completed: !todo.completed,
+    });
+  };
+
+  return (
+    &lt;Pressable onPress={handleToggle}&gt;
+      &lt;Text&gt;{todo.completed ? '✓' : '○'} {todo.text}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Local-First Architecture</h3>
+
+                <pre><code>// Store data locally first, sync in background
+import * as SQLite from 'expo-sqlite';
+
+const db = SQLite.openDatabaseAsync('app.db');
+
+// Local-first CRUD
+class LocalFirstStore {
+  static async createTodo(todo: Omit&lt;Todo, 'id' | 'syncStatus'&gt;) {
+    const id = generateId();
+    
+    // Save locally immediately
+    await db.runAsync(
+      'INSERT INTO todos (id, text, completed, syncStatus) VALUES (?, ?, ?, ?)',
+      [id, todo.text, todo.completed ? 1 : 0, 'pending']
+    );
+    
+    // Queue for sync
+    this.queueSync('todos', id, 'create');
+    
+    return { id, ...todo, syncStatus: 'pending' };
+  }
+
+  static async updateTodo(id: string, updates: Partial&lt;Todo&gt;) {
+    // Update locally
+    await db.runAsync(
+      'UPDATE todos SET text = ?, completed = ?, syncStatus = ? WHERE id = ?',
+      [updates.text, updates.completed ? 1 : 0, 'pending', id]
+    );
+    
+    // Queue for sync
+    this.queueSync('todos', id, 'update');
+  }
+
+  static async syncAll() {
+    const pendingItems = await db.getAllAsync(
+      'SELECT * FROM todos WHERE syncStatus = ?',
+      ['pending']
+    );
+    
+    for (const item of pendingItems) {
+      try {
+        await api.syncTodo(item);
+        await db.runAsync(
+          'UPDATE todos SET syncStatus = ? WHERE id = ?',
+          ['synced', item.id]
+        );
+      } catch (error) {
+        console.error(`Failed to sync ${item.id}:`, error);
+      }
+    }
+  }
+}
+
+// Sync when online
+function useLocalFirstSync() {
+  const { isConnected } = useNetworkStatus();
+
+  useEffect(() => {
+    if (isConnected) {
+      LocalFirstStore.syncAll();
+    }
+  }, [isConnected]);
+}</code></pre>
+            </section>
+
+            <!-- Network Monitoring -->
+            <section id="monitoring">
+                <h2>Network Monitoring</h2>
+
+                <p>Track network performance to identify issues and measure improvements.</p>
+
+                <h3>Request Timing</h3>
+
+                <pre><code>// Wrapper to measure request timing
+async function timedFetch(url: string, options?: RequestInit) {
+  const startTime = performance.now();
+  
+  try {
+    const response = await fetch(url, options);
+    const endTime = performance.now();
+    
+    const timing = {
+      url,
+      method: options?.method || 'GET',
+      duration: endTime - startTime,
+      status: response.status,
+      size: parseInt(response.headers.get('content-length') || '0'),
+    };
+    
+    // Log in development
+    if (__DEV__) {
+      console.log(`🌐 ${timing.method} ${timing.url}: ${timing.duration.toFixed(0)}ms`);
+    }
+    
+    // Track in production
+    analytics.track('api_request', timing);
+    
+    return response;
+  } catch (error) {
+    const endTime = performance.now();
+    
+    analytics.track('api_error', {
+      url,
+      method: options?.method || 'GET',
+      duration: endTime - startTime,
+      error: error.message,
+    });
+    
+    throw error;
+  }
+}</code></pre>
+
+                <h3>Network Performance Hook</h3>
+
+                <pre><code>// hooks/useNetworkPerformance.ts
+interface RequestMetrics {
+  url: string;
+  duration: number;
+  status: number;
+  timestamp: number;
+}
+
+const requestHistory: RequestMetrics[] = [];
+const MAX_HISTORY = 100;
+
+export function trackRequest(metrics: RequestMetrics) {
+  requestHistory.push(metrics);
+  if (requestHistory.length > MAX_HISTORY) {
+    requestHistory.shift();
+  }
+}
+
+export function useNetworkStats() {
+  const [stats, setStats] = useState({
+    averageLatency: 0,
+    errorRate: 0,
+    requestCount: 0,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (requestHistory.length === 0) return;
+
+      const recentRequests = requestHistory.filter(
+        r => Date.now() - r.timestamp < 60000 // Last minute
+      );
+
+      const averageLatency = recentRequests.reduce(
+        (sum, r) => sum + r.duration, 0
+      ) / recentRequests.length;
+
+      const errorCount = recentRequests.filter(
+        r => r.status >= 400
+      ).length;
+
+      setStats({
+        averageLatency,
+        errorRate: errorCount / recentRequests.length,
+        requestCount: recentRequests.length,
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return stats;
+}
+
+// Debug component
+function NetworkDebugOverlay() {
+  const stats = useNetworkStats();
+  const { isConnected, connectionType } = useNetworkStatus();
+
+  if (!__DEV__) return null;
+
+  return (
+    &lt;View style={styles.debugOverlay}&gt;
+      &lt;Text&gt;📶 {connectionType} ({isConnected ? 'Online' : 'Offline'})&lt;/Text&gt;
+      &lt;Text&gt;⏱ Avg: {stats.averageLatency.toFixed(0)}ms&lt;/Text&gt;
+      &lt;Text&gt;❌ Errors: {(stats.errorRate * 100).toFixed(1)}%&lt;/Text&gt;
+      &lt;Text&gt;📊 Requests: {stats.requestCount}/min&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Flipper Network Plugin</h3>
+
+                <pre><code>// Flipper provides detailed network inspection
+
+// For Expo dev builds, network inspection is built-in
+// View in Flipper desktop app:
+// - All network requests
+// - Request/response headers
+// - Payload inspection
+// - Timing breakdown
+// - Mock responses for testing
+
+// Filter slow requests
+// Sort by duration to find bottlenecks
+// Export HAR files for analysis</code></pre>
+
+                <h3>Production Network Monitoring</h3>
+
+                <pre><code>// Use Sentry for production network monitoring
+import * as Sentry from '@sentry/react-native';
+
+// Automatic breadcrumbs for fetch
+Sentry.init({
+  dsn: 'YOUR_SENTRY_DSN',
+  enableAutoPerformanceTracing: true,
+  tracesSampleRate: 0.2,
+});
+
+// Create spans for API calls
+async function fetchWithTracing(url: string) {
+  const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
+  
+  const span = transaction?.startChild({
+    op: 'http.client',
+    description: `GET ${url}`,
+  });
+
+  try {
+    const response = await fetch(url);
+    span?.setStatus(response.ok ? 'ok' : 'error');
+    return response;
+  } catch (error) {
+    span?.setStatus('error');
+    throw error;
+  } finally {
+    span?.finish();
+  }
+}</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Implement Request Deduplication</h3>
+                    <p>Build a utility that prevents duplicate concurrent requests.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Same URL called twice simultaneously = one request</li>
+                        <li>Different URLs = separate requests</li>
+                        <li>After request completes, new calls make new requests</li>
+                        <li>Handle errors properly</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>class RequestDeduplicator {
+  private inFlight = new Map&lt;string, Promise&lt;any&gt;&gt;();
+
+  async fetch&lt;T&gt;(url: string, options?: RequestInit): Promise&lt;T&gt; {
+    const key = this.getKey(url, options);
+
+    // Return existing promise if request in flight
+    if (this.inFlight.has(key)) {
+      return this.inFlight.get(key)!;
+    }
+
+    // Create new request
+    const promise = this.executeRequest&lt;T&gt;(url, options)
+      .finally(() => {
+        // Clean up after completion
+        this.inFlight.delete(key);
+      });
+
+    this.inFlight.set(key, promise);
+    return promise;
+  }
+
+  private getKey(url: string, options?: RequestInit): string {
+    const method = options?.method || 'GET';
+    const body = options?.body || '';
+    return `${method}:${url}:${body}`;
+  }
+
+  private async executeRequest&lt;T&gt;(url: string, options?: RequestInit): Promise&lt;T&gt; {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
+  // Get count of in-flight requests (for debugging)
+  get pendingCount(): number {
+    return this.inFlight.size;
+  }
+}
+
+// Singleton instance
+export const deduplicator = new RequestDeduplicator();
+
+// Usage
+async function example() {
+  // These will share the same request
+  const [result1, result2] = await Promise.all([
+    deduplicator.fetch('/api/users'),
+    deduplicator.fetch('/api/users'),
+  ]);
+  
+  // Only ONE network request was made
+  console.log(result1 === result2); // true (same promise)
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Build an Offline-First Todo List</h3>
+                    <p>Create a todo list that works offline and syncs when reconnected.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Add/toggle/delete todos works offline</li>
+                        <li>Changes stored locally immediately</li>
+                        <li>Sync with server when online</li>
+                        <li>Show sync status for each item</li>
+                        <li>Handle sync conflicts</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+
+interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+  syncStatus: 'synced' | 'pending' | 'error';
+  updatedAt: number;
+}
+
+const STORAGE_KEY = 'TODOS';
+
+// Local storage operations
+async function loadTodos(): Promise&lt;Todo[]&gt; {
+  const data = await AsyncStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+async function saveTodos(todos: Todo[]): Promise&lt;void&gt; {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+}
+
+// Hook for offline-first todos
+export function useOfflineTodos() {
+  const [todos, setTodos] = useState&lt;Todo[]&gt;([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { isConnected } = useNetworkStatus();
+
+  // Load from storage on mount
+  useEffect(() => {
+    loadTodos().then(setTodos);
+  }, []);
+
+  // Save to storage whenever todos change
+  useEffect(() => {
+    saveTodos(todos);
+  }, [todos]);
+
+  // Sync when coming online
+  useEffect(() => {
+    if (isConnected) {
+      syncPendingTodos();
+    }
+  }, [isConnected]);
+
+  const addTodo = useCallback((text: string) => {
+    const newTodo: Todo = {
+      id: `local-${Date.now()}`,
+      text,
+      completed: false,
+      syncStatus: 'pending',
+      updatedAt: Date.now(),
+    };
+
+    setTodos(prev => [...prev, newTodo]);
+
+    // Try to sync immediately if online
+    if (isConnected) {
+      syncTodo(newTodo);
+    }
+  }, [isConnected]);
+
+  const toggleTodo = useCallback((id: string) => {
+    setTodos(prev => prev.map(todo => {
+      if (todo.id !== id) return todo;
+      return {
+        ...todo,
+        completed: !todo.completed,
+        syncStatus: 'pending',
+        updatedAt: Date.now(),
+      };
+    }));
+  }, []);
+
+  const deleteTodo = useCallback((id: string) => {
+    setTodos(prev => prev.filter(todo => todo.id !== id));
+    
+    // Queue delete for sync
+    if (isConnected) {
+      api.deleteTodo(id).catch(console.error);
+    }
+  }, [isConnected]);
+
+  const syncTodo = async (todo: Todo) => {
+    try {
+      const synced = await api.saveTodo(todo);
+      
+      setTodos(prev => prev.map(t => 
+        t.id === todo.id 
+          ? { ...synced, syncStatus: 'synced' }
+          : t
+      ));
+    } catch (error) {
+      setTodos(prev => prev.map(t =>
+        t.id === todo.id
+          ? { ...t, syncStatus: 'error' }
+          : t
+      ));
+    }
+  };
+
+  const syncPendingTodos = async () => {
+    const pending = todos.filter(t => t.syncStatus === 'pending');
+    if (pending.length === 0) return;
+
+    setIsSyncing(true);
+    
+    for (const todo of pending) {
+      await syncTodo(todo);
+    }
+    
+    setIsSyncing(false);
+  };
+
+  const pendingCount = todos.filter(t => t.syncStatus === 'pending').length;
+
+  return {
+    todos,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    isSyncing,
+    pendingCount,
+    isOnline: isConnected,
+  };
+}
+
+// Component
+function TodoList() {
+  const {
+    todos,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    isSyncing,
+    pendingCount,
+    isOnline,
+  } = useOfflineTodos();
+
+  return (
+    &lt;View&gt;
+      &lt;StatusBar 
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        isSyncing={isSyncing}
+      /&gt;
+      
+      &lt;FlatList
+        data={todos}
+        renderItem={({ item }) => (
+          &lt;TodoItem
+            todo={item}
+            onToggle={toggleTodo}
+            onDelete={deleteTodo}
+          /&gt;
+        )}
+      /&gt;
+      
+      &lt;AddTodoInput onAdd={addTodo} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Network optimization is about making requests smarter, not just faster. Cache aggressively, batch wisely, and always plan for offline scenarios.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Caching is key:</strong> Use stale-while-revalidate, persist cache to storage</li>
+                        <li><strong>Avoid waterfalls:</strong> Parallelize requests with Promise.all</li>
+                        <li><strong>Deduplicate:</strong> Don't make the same request twice simultaneously</li>
+                        <li><strong>Batch requests:</strong> Combine multiple small requests into one</li>
+                        <li><strong>Prefetch:</strong> Load data before user needs it</li>
+                        <li><strong>Optimize payloads:</strong> Request only needed fields, paginate</li>
+                        <li><strong>Go offline-first:</strong> Store locally, sync when connected</li>
+                        <li><strong>Monitor:</strong> Track latency, error rates, and payload sizes</li>
+                    </ul>
+                </div>
+
+                <p>In the final lesson of this module, we'll cover profiling and debugging techniques to identify and fix performance issues systematically.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m10_l03_memory_management.html" class="prev-link">← Previous: Memory Management</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m10_l05_profiling_debugging.html" class="next-link">Next: Profiling & Debugging →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

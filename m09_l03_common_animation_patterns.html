@@ -1,0 +1,2916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn common animation patterns in React Native - fades, slides, bounces, and more reusable animations">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Common Animation Patterns | Module 9: Animations and Gestures | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m09_l01_animation_fundamentals.html">Module 9</a> &gt;
+            <span>Lesson 9.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 9: Animations and Gestures</p>
+                <h1>Common Animation Patterns</h1>
+                <p class="lesson-subtitle">Build reusable animation components for fades, slides, bounces, and more</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Implement fade in/out animations for content transitions</li>
+                    <li>Create slide animations from different directions</li>
+                    <li>Build bounce and scale effects for interactive feedback</li>
+                    <li>Design staggered list animations for dynamic content</li>
+                    <li>Create skeleton loading animations</li>
+                    <li>Build reusable animated wrapper components</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#fade-animations">Fade Animations</a></li>
+                        <li><a href="#slide-animations">Slide Animations</a></li>
+                        <li><a href="#scale-bounce">Scale and Bounce Effects</a></li>
+                        <li><a href="#staggered-lists">Staggered List Animations</a></li>
+                        <li><a href="#skeleton-loading">Skeleton Loading</a></li>
+                        <li><a href="#button-animations">Button Animations</a></li>
+                        <li><a href="#page-transitions">Page Transitions</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Fade Animations -->
+            <section id="fade-animations">
+                <h2>Fade Animations</h2>
+
+                <p>Fades are the most common animation pattern—they provide smooth transitions for appearing and disappearing content without jarring visual changes.</p>
+
+                <h3>Basic Fade In Component</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { ViewProps } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
+
+interface FadeInProps extends ViewProps {
+  delay?: number;
+  duration?: number;
+  children: React.ReactNode;
+}
+
+export function FadeIn({ 
+  delay = 0, 
+  duration = 400, 
+  style, 
+  children,
+  ...props 
+}: FadeInProps) {
+  const opacity = useSharedValue(0);
+  
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, { duration })
+    );
+  }, [delay, duration]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]} {...props}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage
+function MyScreen() {
+  return (
+    &lt;View&gt;
+      &lt;FadeIn&gt;
+        &lt;Text&gt;This fades in immediately&lt;/Text&gt;
+      &lt;/FadeIn&gt;
+      
+      &lt;FadeIn delay={200}&gt;
+        &lt;Text&gt;This fades in after 200ms&lt;/Text&gt;
+      &lt;/FadeIn&gt;
+      
+      &lt;FadeIn delay={400} duration={800}&gt;
+        &lt;Text&gt;This fades in slowly after 400ms&lt;/Text&gt;
+      &lt;/FadeIn&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Controllable Fade Component</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
+
+interface FadeProps {
+  visible: boolean;
+  duration?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function Fade({ 
+  visible, 
+  duration = 300, 
+  children, 
+  style 
+}: FadeProps) {
+  const opacity = useSharedValue(visible ? 1 : 0);
+  
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, { duration });
+  }, [visible, duration]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage
+function ToggleContent() {
+  const [isVisible, setIsVisible] = useState(true);
+  
+  return (
+    &lt;View&gt;
+      &lt;Pressable onPress={() => setIsVisible(!isVisible)}&gt;
+        &lt;Text&gt;Toggle Content&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      
+      &lt;Fade visible={isVisible}&gt;
+        &lt;View style={styles.content}&gt;
+          &lt;Text&gt;This content fades in and out&lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/Fade&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Fade with Unmount</h3>
+
+                <pre><code>import React, { useState, useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+
+interface FadeUnmountProps {
+  visible: boolean;
+  duration?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function FadeUnmount({ 
+  visible, 
+  duration = 300, 
+  children, 
+  style 
+}: FadeUnmountProps) {
+  const [shouldRender, setShouldRender] = useState(visible);
+  const opacity = useSharedValue(visible ? 1 : 0);
+  
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      opacity.value = withTiming(1, { duration });
+    } else {
+      opacity.value = withTiming(0, { duration }, (finished) => {
+        if (finished) {
+          runOnJS(setShouldRender)(false);
+        }
+      });
+    }
+  }, [visible, duration]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+  
+  if (!shouldRender) return null;
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage - component unmounts after fade out
+function Modal({ isOpen, onClose, children }) {
+  return (
+    &lt;FadeUnmount visible={isOpen}&gt;
+      &lt;View style={styles.modalBackdrop}&gt;
+        &lt;View style={styles.modalContent}&gt;
+          {children}
+          &lt;Pressable onPress={onClose}&gt;
+            &lt;Text&gt;Close&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/FadeUnmount&gt;
+  );
+}</code></pre>
+
+                <h3>Cross-Fade Transition</h3>
+
+                <pre><code>import React, { useState, useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
+
+interface CrossFadeProps {
+  activeIndex: number;
+  children: React.ReactNode[];
+  duration?: number;
+}
+
+export function CrossFade({ 
+  activeIndex, 
+  children, 
+  duration = 300 
+}: CrossFadeProps) {
+  return (
+    &lt;View style={{ position: 'relative' }}&gt;
+      {React.Children.map(children, (child, index) => (
+        &lt;CrossFadeItem 
+          key={index}
+          isActive={index === activeIndex}
+          duration={duration}
+          isFirst={index === 0}
+        &gt;
+          {child}
+        &lt;/CrossFadeItem&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+function CrossFadeItem({ 
+  isActive, 
+  duration, 
+  isFirst, 
+  children 
+}: {
+  isActive: boolean;
+  duration: number;
+  isFirst: boolean;
+  children: React.ReactNode;
+}) {
+  const opacity = useSharedValue(isActive ? 1 : 0);
+  
+  useEffect(() => {
+    opacity.value = withTiming(isActive ? 1 : 0, { duration });
+  }, [isActive, duration]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    position: isFirst ? 'relative' : 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  }));
+  
+  return (
+    &lt;Animated.View style={animatedStyle}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage - smooth transition between views
+function ImageCarousel() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const images = ['image1.jpg', 'image2.jpg', 'image3.jpg'];
+  
+  return (
+    &lt;View&gt;
+      &lt;CrossFade activeIndex={currentIndex}&gt;
+        {images.map((img, index) => (
+          &lt;Image key={index} source={{ uri: img }} style={styles.image} /&gt;
+        ))}
+      &lt;/CrossFade&gt;
+      
+      &lt;View style={styles.dots}&gt;
+        {images.map((_, index) => (
+          &lt;Pressable 
+            key={index}
+            onPress={() => setCurrentIndex(index)}
+          &gt;
+            &lt;View style={[
+              styles.dot,
+              index === currentIndex && styles.activeDot
+            ]} /&gt;
+          &lt;/Pressable&gt;
+        ))}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Slide Animations -->
+            <section id="slide-animations">
+                <h2>Slide Animations</h2>
+
+                <p>Slide animations create a sense of spatial movement and are perfect for screen transitions, drawers, and content reveals.</p>
+
+                <h3>Slide In Component</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { useWindowDimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+} from 'react-native-reanimated';
+
+type SlideDirection = 'left' | 'right' | 'up' | 'down';
+
+interface SlideInProps {
+  direction?: SlideDirection;
+  delay?: number;
+  distance?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function SlideIn({
+  direction = 'up',
+  delay = 0,
+  distance,
+  children,
+  style,
+}: SlideInProps) {
+  const { width, height } = useWindowDimensions();
+  const translate = useSharedValue(0);
+  
+  // Calculate initial offset based on direction
+  const getInitialOffset = () => {
+    const defaultDistance = distance ?? (
+      direction === 'left' || direction === 'right' ? width : height * 0.3
+    );
+    
+    switch (direction) {
+      case 'left': return -defaultDistance;
+      case 'right': return defaultDistance;
+      case 'up': return defaultDistance;
+      case 'down': return -defaultDistance;
+    }
+  };
+  
+  useEffect(() => {
+    translate.value = getInitialOffset();
+    translate.value = withDelay(
+      delay,
+      withSpring(0, { damping: 15, stiffness: 100 })
+    );
+  }, [direction, delay, distance]);
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    const isHorizontal = direction === 'left' || direction === 'right';
+    
+    return {
+      transform: [
+        isHorizontal 
+          ? { translateX: translate.value }
+          : { translateY: translate.value }
+      ],
+    };
+  });
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage
+function WelcomeScreen() {
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;SlideIn direction="down" delay={0}&gt;
+        &lt;Text style={styles.title}&gt;Welcome&lt;/Text&gt;
+      &lt;/SlideIn&gt;
+      
+      &lt;SlideIn direction="left" delay={200}&gt;
+        &lt;Text style={styles.subtitle}&gt;Let's get started&lt;/Text&gt;
+      &lt;/SlideIn&gt;
+      
+      &lt;SlideIn direction="up" delay={400}&gt;
+        &lt;Pressable style={styles.button}&gt;
+          &lt;Text&gt;Continue&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/SlideIn&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Slide and Fade Combo</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
+
+interface SlideAndFadeProps {
+  visible: boolean;
+  direction?: 'up' | 'down' | 'left' | 'right';
+  distance?: number;
+  duration?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function SlideAndFade({
+  visible,
+  direction = 'up',
+  distance = 20,
+  duration = 300,
+  children,
+  style,
+}: SlideAndFadeProps) {
+  const opacity = useSharedValue(visible ? 1 : 0);
+  const translate = useSharedValue(visible ? 0 : distance);
+  
+  useEffect(() => {
+    const config = { 
+      duration, 
+      easing: Easing.out(Easing.ease) 
+    };
+    
+    if (visible) {
+      opacity.value = withTiming(1, config);
+      translate.value = withTiming(0, config);
+    } else {
+      opacity.value = withTiming(0, config);
+      translate.value = withTiming(distance, config);
+    }
+  }, [visible, distance, duration]);
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateProp = 
+      direction === 'left' || direction === 'right' 
+        ? 'translateX' 
+        : 'translateY';
+    
+    const sign = direction === 'down' || direction === 'right' ? -1 : 1;
+    
+    return {
+      opacity: opacity.value,
+      transform: [{ [translateProp]: translate.value * sign }],
+    };
+  });
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage
+function NotificationBanner({ message, visible }) {
+  return (
+    &lt;SlideAndFade visible={visible} direction="down"&gt;
+      &lt;View style={styles.banner}&gt;
+        &lt;Text style={styles.bannerText}&gt;{message}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/SlideAndFade&gt;
+  );
+}</code></pre>
+
+                <h3>Drawer Animation</h3>
+
+                <pre><code>import React from 'react';
+import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+} from 'react-native-reanimated';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
+
+interface DrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  drawerContent: React.ReactNode;
+}
+
+export function Drawer({ 
+  isOpen, 
+  onClose, 
+  children, 
+  drawerContent 
+}: DrawerProps) {
+  const progress = useSharedValue(0);
+  
+  React.useEffect(() => {
+    progress.value = withSpring(isOpen ? 1 : 0, {
+      damping: 20,
+      stiffness: 100,
+    });
+  }, [isOpen]);
+  
+  const drawerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(
+        progress.value,
+        [0, 1],
+        [-DRAWER_WIDTH, 0]
+      )},
+    ],
+  }));
+  
+  const contentStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(
+        progress.value,
+        [0, 1],
+        [0, DRAWER_WIDTH * 0.3]
+      )},
+      { scale: interpolate(
+        progress.value,
+        [0, 1],
+        [1, 0.95]
+      )},
+    ],
+    borderRadius: interpolate(progress.value, [0, 1], [0, 20]),
+    overflow: 'hidden',
+  }));
+  
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: progress.value * 0.5,
+    pointerEvents: isOpen ? 'auto' : 'none',
+  }));
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      {/* Main Content */}
+      &lt;Animated.View style={[styles.content, contentStyle]}&gt;
+        {children}
+      &lt;/Animated.View&gt;
+      
+      {/* Backdrop */}
+      &lt;Animated.View style={[styles.backdrop, backdropStyle]}&gt;
+        &lt;Pressable style={StyleSheet.absoluteFill} onPress={onClose} /&gt;
+      &lt;/Animated.View&gt;
+      
+      {/* Drawer */}
+      &lt;Animated.View style={[styles.drawer, drawerStyle]}&gt;
+        {drawerContent}
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+  },
+  drawer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: DRAWER_WIDTH,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+});</code></pre>
+            </section>
+            <!-- Scale and Bounce -->
+            <section id="scale-bounce">
+                <h2>Scale and Bounce Effects</h2>
+
+                <p>Scale animations provide immediate tactile feedback and help users understand what's interactive. Bounce effects add personality and delight to your UI.</p>
+
+                <h3>Press Scale Effect</h3>
+
+                <pre><code>import React from 'react';
+import { Pressable, PressableProps, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+interface ScalePressableProps extends PressableProps {
+  scaleValue?: number;
+  children: React.ReactNode;
+}
+
+export function ScalePressable({ 
+  scaleValue = 0.95, 
+  style, 
+  children, 
+  ...props 
+}: ScalePressableProps) {
+  const scale = useSharedValue(1);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    &lt;AnimatedPressable
+      onPressIn={() => {
+        scale.value = withSpring(scaleValue, {
+          damping: 15,
+          stiffness: 400,
+        });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, {
+          damping: 15,
+          stiffness: 400,
+        });
+      }}
+      style={[animatedStyle, style]}
+      {...props}
+    &gt;
+      {children}
+    &lt;/AnimatedPressable&gt;
+  );
+}
+
+// Usage
+function ButtonExample() {
+  return (
+    &lt;ScalePressable 
+      style={styles.button}
+      onPress={() => console.log('Pressed!')}
+    &gt;
+      &lt;Text style={styles.buttonText}&gt;Press Me&lt;/Text&gt;
+    &lt;/ScalePressable&gt;
+  );
+}</code></pre>
+
+                <h3>Bounce Animation</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withDelay,
+} from 'react-native-reanimated';
+
+interface BounceInProps {
+  delay?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function BounceIn({ delay = 0, children, style }: BounceInProps) {
+  const scale = useSharedValue(0);
+  
+  useEffect(() => {
+    scale.value = withDelay(
+      delay,
+      withSpring(1, {
+        damping: 8,
+        stiffness: 100,
+      })
+    );
+  }, [delay]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Pop animation (scale up then settle)
+export function PopIn({ delay = 0, children, style }) {
+  const scale = useSharedValue(0);
+  
+  useEffect(() => {
+    scale.value = withDelay(
+      delay,
+      withSequence(
+        withSpring(1.2, { damping: 10, stiffness: 200 }),
+        withSpring(1, { damping: 15, stiffness: 150 })
+      )
+    );
+  }, [delay]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage
+function BadgeNotification() {
+  const [count, setCount] = useState(0);
+  
+  return (
+    &lt;View&gt;
+      &lt;Pressable onPress={() => setCount(c => c + 1)}&gt;
+        &lt;View style={styles.icon}&gt;
+          &lt;Text&gt;🔔&lt;/Text&gt;
+        &lt;/View&gt;
+        
+        {count > 0 && (
+          &lt;PopIn key={count}&gt;
+            &lt;View style={styles.badge}&gt;
+              &lt;Text style={styles.badgeText}&gt;{count}&lt;/Text&gt;
+            &lt;/View&gt;
+          &lt;/PopIn&gt;
+        )}
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Shake Animation</h3>
+
+                <pre><code>import React, { useImperativeHandle, forwardRef } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+
+export interface ShakeRef {
+  shake: () => void;
+}
+
+interface ShakeProps {
+  children: React.ReactNode;
+  style?: any;
+}
+
+export const Shake = forwardRef&lt;ShakeRef, ShakeProps&gt;(
+  ({ children, style }, ref) => {
+    const translateX = useSharedValue(0);
+    
+    useImperativeHandle(ref, () => ({
+      shake: () => {
+        translateX.value = withSequence(
+          withTiming(-10, { duration: 50 }),
+          withTiming(10, { duration: 50 }),
+          withTiming(-10, { duration: 50 }),
+          withTiming(10, { duration: 50 }),
+          withTiming(-5, { duration: 50 }),
+          withTiming(5, { duration: 50 }),
+          withTiming(0, { duration: 50 })
+        );
+      },
+    }));
+    
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateX: translateX.value }],
+    }));
+    
+    return (
+      &lt;Animated.View style={[animatedStyle, style]}&gt;
+        {children}
+      &lt;/Animated.View&gt;
+    );
+  }
+);
+
+// Usage - shake on error
+function LoginForm() {
+  const shakeRef = useRef&lt;ShakeRef&gt;(null);
+  const [error, setError] = useState(false);
+  
+  const handleSubmit = () => {
+    if (/* validation fails */) {
+      setError(true);
+      shakeRef.current?.shake();
+    }
+  };
+  
+  return (
+    &lt;View&gt;
+      &lt;Shake ref={shakeRef}&gt;
+        &lt;TextInput
+          style={[styles.input, error && styles.inputError]}
+          placeholder="Password"
+        /&gt;
+      &lt;/Shake&gt;
+      
+      &lt;Pressable onPress={handleSubmit}&gt;
+        &lt;Text&gt;Login&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Pulse Animation</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+
+interface PulseProps {
+  duration?: number;
+  minScale?: number;
+  maxScale?: number;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function Pulse({
+  duration = 1000,
+  minScale = 1,
+  maxScale = 1.1,
+  children,
+  style,
+}: PulseProps) {
+  const scale = useSharedValue(minScale);
+  
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(maxScale, { 
+          duration: duration / 2,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(minScale, { 
+          duration: duration / 2,
+          easing: Easing.inOut(Easing.ease),
+        })
+      ),
+      -1, // Infinite repeat
+      false // Don't reverse
+    );
+  }, [duration, minScale, maxScale]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    &lt;Animated.View style={[animatedStyle, style]}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage - attention-grabbing button
+function RecordButton() {
+  const [isRecording, setIsRecording] = useState(false);
+  
+  return (
+    &lt;Pressable onPress={() => setIsRecording(!isRecording)}&gt;
+      {isRecording ? (
+        &lt;Pulse minScale={0.9} maxScale={1.1} duration={800}&gt;
+          &lt;View style={[styles.recordButton, styles.recording]}&gt;
+            &lt;View style={styles.recordDot} /&gt;
+          &lt;/View&gt;
+        &lt;/Pulse&gt;
+      ) : (
+        &lt;View style={styles.recordButton}&gt;
+          &lt;View style={styles.recordDot} /&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Staggered Lists -->
+            <section id="staggered-lists">
+                <h2>Staggered List Animations</h2>
+
+                <p>Staggered animations bring lists to life by animating items in sequence. This creates a cascading effect that guides the user's attention through content.</p>
+
+                <h3>Basic Staggered List</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withDelay,
+  withSpring,
+  FadeIn,
+  FadeOut,
+  Layout,
+} from 'react-native-reanimated';
+
+interface StaggeredItemProps {
+  index: number;
+  children: React.ReactNode;
+}
+
+function StaggeredItem({ index, children }: StaggeredItemProps) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+  
+  useEffect(() => {
+    const delay = index * 100;
+    
+    opacity.value = withDelay(delay, withSpring(1));
+    translateY.value = withDelay(
+      delay, 
+      withSpring(0, { damping: 15, stiffness: 100 })
+    );
+  }, [index]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+  
+  return (
+    &lt;Animated.View style={animatedStyle}&gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}
+
+// Usage with FlatList
+function StaggeredFlatList({ data }) {
+  const renderItem = ({ item, index }) => (
+    &lt;StaggeredItem index={index}&gt;
+      &lt;View style={styles.listItem}&gt;
+        &lt;Text style={styles.itemTitle}&gt;{item.title}&lt;/Text&gt;
+        &lt;Text style={styles.itemSubtitle}&gt;{item.subtitle}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/StaggeredItem&gt;
+  );
+  
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={styles.list}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Reanimated Layout Animations</h3>
+
+                <p>Reanimated provides built-in entering and exiting animations that work seamlessly with lists.</p>
+
+                <pre><code>import React from 'react';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInRight,
+  SlideOutLeft,
+  Layout,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated';
+
+interface Item {
+  id: string;
+  title: string;
+}
+
+function AnimatedList() {
+  const [items, setItems] = useState&lt;Item[]&gt;([
+    { id: '1', title: 'First Item' },
+    { id: '2', title: 'Second Item' },
+    { id: '3', title: 'Third Item' },
+  ]);
+  
+  const addItem = () => {
+    const newItem = {
+      id: Date.now().toString(),
+      title: `Item ${items.length + 1}`,
+    };
+    setItems([newItem, ...items]);
+  };
+  
+  const removeItem = (id: string) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+  
+  const renderItem = ({ item, index }: { item: Item; index: number }) => (
+    &lt;Animated.View
+      entering={SlideInRight.delay(index * 100).springify()}
+      exiting={SlideOutLeft.duration(300)}
+      layout={Layout.springify()}
+      style={styles.item}
+    &gt;
+      &lt;Text style={styles.itemText}&gt;{item.title}&lt;/Text&gt;
+      &lt;Pressable onPress={() => removeItem(item.id)}&gt;
+        &lt;Text style={styles.deleteText}&gt;Delete&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/Animated.View&gt;
+  );
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Pressable style={styles.addButton} onPress={addItem}&gt;
+        &lt;Text style={styles.addButtonText}&gt;Add Item&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      
+      &lt;FlatList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Built-in entering animations:
+// - FadeIn, FadeInUp, FadeInDown, FadeInLeft, FadeInRight
+// - SlideInUp, SlideInDown, SlideInLeft, SlideInRight
+// - ZoomIn, ZoomInUp, ZoomInDown, ZoomInLeft, ZoomInRight
+// - BounceIn, BounceInUp, BounceInDown, BounceInLeft, BounceInRight
+// - FlipInXUp, FlipInXDown, FlipInYLeft, FlipInYRight
+// - StretchInX, StretchInY
+// - LightSpeedInLeft, LightSpeedInRight
+
+// Built-in exiting animations:
+// - FadeOut, FadeOutUp, FadeOutDown, FadeOutLeft, FadeOutRight
+// - SlideOutUp, SlideOutDown, SlideOutLeft, SlideOutRight
+// - ZoomOut, ZoomOutUp, ZoomOutDown, ZoomOutLeft, ZoomOutRight
+// - BounceOut, BounceOutUp, BounceOutDown, BounceOutLeft, BounceOutRight</code></pre>
+
+                <h3>Custom Entering/Exiting Animations</h3>
+
+                <pre><code>import Animated, {
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
+
+// Custom entering animation
+const CustomEntering = (targetValues) => {
+  'worklet';
+  const animations = {
+    opacity: withTiming(1, { duration: 300 }),
+    transform: [
+      { translateY: withSpring(0, { damping: 15 }) },
+      { scale: withSpring(1, { damping: 12 }) },
+      { rotate: withTiming('0deg', { duration: 300 }) },
+    ],
+  };
+  
+  const initialValues = {
+    opacity: 0,
+    transform: [
+      { translateY: 50 },
+      { scale: 0.8 },
+      { rotate: '-10deg' },
+    ],
+  };
+  
+  return {
+    initialValues,
+    animations,
+  };
+};
+
+// Custom exiting animation
+const CustomExiting = (values) => {
+  'worklet';
+  const animations = {
+    opacity: withTiming(0, { duration: 200 }),
+    transform: [
+      { translateX: withTiming(-100, { duration: 200 }) },
+      { scale: withTiming(0.5, { duration: 200 }) },
+    ],
+  };
+  
+  const initialValues = {
+    opacity: 1,
+    transform: [
+      { translateX: 0 },
+      { scale: 1 },
+    ],
+  };
+  
+  return {
+    initialValues,
+    animations,
+  };
+};
+
+// Usage
+function CustomAnimatedItem({ item }) {
+  return (
+    &lt;Animated.View
+      entering={CustomEntering}
+      exiting={CustomExiting}
+      style={styles.item}
+    &gt;
+      &lt;Text&gt;{item.title}&lt;/Text&gt;
+    &lt;/Animated.View&gt;
+  );
+}</code></pre>
+
+                <h3>Staggered Grid Animation</h3>
+
+                <pre><code>import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withDelay,
+  withSpring,
+} from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
+const COLUMNS = 3;
+const ITEM_SIZE = (width - 40 - (COLUMNS - 1) * 10) / COLUMNS;
+
+interface GridItem {
+  id: string;
+  color: string;
+}
+
+function StaggeredGridItem({ 
+  item, 
+  index 
+}: { 
+  item: GridItem; 
+  index: number;
+}) {
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  
+  // Calculate row and column for stagger delay
+  const row = Math.floor(index / COLUMNS);
+  const col = index % COLUMNS;
+  const delay = (row + col) * 50; // Diagonal stagger
+  
+  useEffect(() => {
+    scale.value = withDelay(delay, withSpring(1, { damping: 12 }));
+    opacity.value = withDelay(delay, withSpring(1));
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    &lt;Animated.View
+      style={[
+        styles.gridItem,
+        { backgroundColor: item.color },
+        animatedStyle,
+      ]}
+    /&gt;
+  );
+}
+
+function StaggeredGrid() {
+  const items: GridItem[] = Array.from({ length: 12 }, (_, i) => ({
+    id: `item-${i}`,
+    color: `hsl(${i * 30}, 70%, 60%)`,
+  }));
+  
+  return (
+    &lt;View style={styles.grid}&gt;
+      {items.map((item, index) => (
+        &lt;StaggeredGridItem key={item.id} item={item} index={index} /&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 20,
+    gap: 10,
+  },
+  gridItem: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    borderRadius: 12,
+  },
+});</code></pre>
+            </section>
+
+            <!-- Skeleton Loading -->
+            <section id="skeleton-loading">
+                <h2>Skeleton Loading</h2>
+
+                <p>Skeleton screens provide perceived performance improvements by showing a preview of the content structure while data loads.</p>
+
+                <h3>Shimmer Effect</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface SkeletonProps {
+  width?: number | string;
+  height?: number;
+  borderRadius?: number;
+  style?: any;
+}
+
+export function Skeleton({
+  width = '100%',
+  height = 20,
+  borderRadius = 4,
+  style,
+}: SkeletonProps) {
+  const translateX = useSharedValue(-SCREEN_WIDTH);
+  
+  useEffect(() => {
+    translateX.value = withRepeat(
+      withTiming(SCREEN_WIDTH, {
+        duration: 1500,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1, // Infinite
+      false // Don't reverse
+    );
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+  
+  return (
+    &lt;View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: '#E1E9EE',
+          overflow: 'hidden',
+        },
+        style,
+      ]}
+    &gt;
+      &lt;Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}&gt;
+        &lt;LinearGradient
+          colors={['#E1E9EE', '#F2F8FC', '#E1E9EE']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[StyleSheet.absoluteFill, { width: SCREEN_WIDTH }]}
+        /&gt;
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Card skeleton composition
+export function CardSkeleton() {
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Skeleton width={60} height={60} borderRadius={30} /&gt;
+      &lt;View style={styles.cardContent}&gt;
+        &lt;Skeleton width="70%" height={16} /&gt;
+        &lt;Skeleton width="50%" height={14} style={{ marginTop: 8 }} /&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// List skeleton
+export function ListSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    &lt;View&gt;
+      {Array.from({ length: count }).map((_, index) => (
+        &lt;CardSkeleton key={index} /&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    marginBottom: 8,
+    borderRadius: 12,
+  },
+  cardContent: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+});</code></pre>
+
+                <h3>Pulse Skeleton (Alternative)</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+
+interface PulseSkeletonProps {
+  width?: number | string;
+  height?: number;
+  borderRadius?: number;
+  style?: any;
+}
+
+export function PulseSkeleton({
+  width = '100%',
+  height = 20,
+  borderRadius = 4,
+  style,
+}: PulseSkeletonProps) {
+  const opacity = useSharedValue(0.3);
+  
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(1, {
+        duration: 800,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true // Reverse each time
+    );
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+  
+  return (
+    &lt;Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: '#E1E9EE',
+        },
+        animatedStyle,
+        style,
+      ]}
+    /&gt;
+  );
+}
+
+// Usage with conditional rendering
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    fetchUser(userId).then(data => {
+      setUser(data);
+      setLoading(false);
+    });
+  }, [userId]);
+  
+  if (loading) {
+    return (
+      &lt;View style={styles.profile}&gt;
+        &lt;PulseSkeleton width={80} height={80} borderRadius={40} /&gt;
+        &lt;PulseSkeleton width={150} height={24} style={{ marginTop: 16 }} /&gt;
+        &lt;PulseSkeleton width={100} height={16} style={{ marginTop: 8 }} /&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  return (
+    &lt;View style={styles.profile}&gt;
+      &lt;Image source={{ uri: user.avatar }} style={styles.avatar} /&gt;
+      &lt;Text style={styles.name}&gt;{user.name}&lt;/Text&gt;
+      &lt;Text style={styles.email}&gt;{user.email}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- Button Animations -->
+            <section id="button-animations">
+                <h2>Button Animations</h2>
+
+                <p>Well-animated buttons provide clear feedback and make interactions feel responsive. Here are several button animation patterns you can use throughout your apps.</p>
+
+                <h3>Ripple Effect Button</h3>
+
+                <pre><code>import React, { useState } from 'react';
+import { Pressable, View, StyleSheet, GestureResponderEvent } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+
+interface RippleButtonProps {
+  onPress?: () => void;
+  children: React.ReactNode;
+  style?: any;
+  rippleColor?: string;
+}
+
+export function RippleButton({
+  onPress,
+  children,
+  style,
+  rippleColor = 'rgba(255, 255, 255, 0.3)',
+}: RippleButtonProps) {
+  const [ripplePosition, setRipplePosition] = useState({ x: 0, y: 0 });
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  
+  const handlePressIn = (event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+    setRipplePosition({ x: locationX, y: locationY });
+    
+    scale.value = 0;
+    opacity.value = 1;
+    scale.value = withTiming(4, { duration: 400 });
+  };
+  
+  const handlePressOut = () => {
+    opacity.value = withTiming(0, { duration: 200 });
+  };
+  
+  const rippleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+  
+  return (
+    &lt;Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.button, style]}
+    &gt;
+      &lt;View style={styles.content}&gt;
+        {children}
+      &lt;/View&gt;
+      
+      &lt;Animated.View
+        style={[
+          styles.ripple,
+          {
+            backgroundColor: rippleColor,
+            left: ripplePosition.x - 50,
+            top: ripplePosition.y - 50,
+          },
+          rippleStyle,
+        ]}
+      /&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+  },
+  content: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  ripple: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+});</code></pre>
+
+                <h3>Loading Button</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { Pressable, Text, View, StyleSheet, ActivityIndicator } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  Easing,
+} from 'react-native-reanimated';
+
+interface LoadingButtonProps {
+  onPress: () => void;
+  loading: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+  style?: any;
+}
+
+export function LoadingButton({
+  onPress,
+  loading,
+  disabled,
+  children,
+  style,
+}: LoadingButtonProps) {
+  const scale = useSharedValue(1);
+  const contentOpacity = useSharedValue(1);
+  const loaderOpacity = useSharedValue(0);
+  
+  useEffect(() => {
+    if (loading) {
+      contentOpacity.value = withTiming(0, { duration: 150 });
+      loaderOpacity.value = withTiming(1, { duration: 150 });
+    } else {
+      contentOpacity.value = withTiming(1, { duration: 150 });
+      loaderOpacity.value = withTiming(0, { duration: 150 });
+    }
+  }, [loading]);
+  
+  const handlePressIn = () => {
+    if (!loading && !disabled) {
+      scale.value = withTiming(0.97, { duration: 100 });
+    }
+  };
+  
+  const handlePressOut = () => {
+    scale.value = withTiming(1, { duration: 100 });
+  };
+  
+  const buttonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
+  
+  const loaderStyle = useAnimatedStyle(() => ({
+    opacity: loaderOpacity.value,
+  }));
+  
+  return (
+    &lt;Pressable
+      onPress={loading || disabled ? undefined : onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    &gt;
+      &lt;Animated.View
+        style={[
+          styles.button,
+          disabled && styles.disabled,
+          buttonStyle,
+          style,
+        ]}
+      &gt;
+        &lt;Animated.View style={[styles.contentContainer, contentStyle]}&gt;
+          {children}
+        &lt;/Animated.View&gt;
+        
+        &lt;Animated.View style={[styles.loaderContainer, loaderStyle]}&gt;
+          &lt;ActivityIndicator color="white" /&gt;
+        &lt;/Animated.View&gt;
+      &lt;/Animated.View&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  disabled: {
+    backgroundColor: '#A0A0A0',
+  },
+  contentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loaderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+// Usage
+function SubmitForm() {
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async () => {
+    setLoading(true);
+    await submitData();
+    setLoading(false);
+  };
+  
+  return (
+    &lt;LoadingButton loading={loading} onPress={handleSubmit}&gt;
+      &lt;Text style={styles.buttonText}&gt;Submit&lt;/Text&gt;
+    &lt;/LoadingButton&gt;
+  );
+}</code></pre>
+
+                <h3>Success/Error Button State</h3>
+
+                <pre><code>import React, { useEffect } from 'react';
+import { Pressable, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  interpolateColor,
+} from 'react-native-reanimated';
+
+type ButtonState = 'idle' | 'loading' | 'success' | 'error';
+
+interface StatefulButtonProps {
+  state: ButtonState;
+  onPress: () => void;
+  idleText: string;
+  loadingText?: string;
+  successText?: string;
+  errorText?: string;
+}
+
+export function StatefulButton({
+  state,
+  onPress,
+  idleText,
+  loadingText = 'Loading...',
+  successText = 'Success!',
+  errorText = 'Error',
+}: StatefulButtonProps) {
+  const stateProgress = useSharedValue(0);
+  const scale = useSharedValue(1);
+  
+  useEffect(() => {
+    switch (state) {
+      case 'idle':
+        stateProgress.value = withTiming(0, { duration: 200 });
+        break;
+      case 'loading':
+        stateProgress.value = withTiming(1, { duration: 200 });
+        break;
+      case 'success':
+        stateProgress.value = withTiming(2, { duration: 200 });
+        // Celebratory bounce
+        scale.value = withSequence(
+          withTiming(1.1, { duration: 100 }),
+          withTiming(1, { duration: 100 })
+        );
+        break;
+      case 'error':
+        stateProgress.value = withTiming(3, { duration: 200 });
+        // Error shake
+        scale.value = withSequence(
+          withTiming(1.02, { duration: 50 }),
+          withTiming(0.98, { duration: 50 }),
+          withTiming(1.02, { duration: 50 }),
+          withTiming(1, { duration: 50 })
+        );
+        break;
+    }
+  }, [state]);
+  
+  const buttonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      stateProgress.value,
+      [0, 1, 2, 3],
+      ['#007AFF', '#FF9500', '#34C759', '#FF3B30']
+    );
+    
+    return {
+      backgroundColor,
+      transform: [{ scale: scale.value }],
+    };
+  });
+  
+  const getText = () => {
+    switch (state) {
+      case 'idle': return idleText;
+      case 'loading': return loadingText;
+      case 'success': return successText;
+      case 'error': return errorText;
+    }
+  };
+  
+  const getIcon = () => {
+    switch (state) {
+      case 'success': return '✓ ';
+      case 'error': return '✕ ';
+      default: return '';
+    }
+  };
+  
+  return (
+    &lt;Pressable
+      onPress={state === 'idle' ? onPress : undefined}
+      disabled={state !== 'idle'}
+    &gt;
+      &lt;Animated.View style={[styles.button, buttonStyle]}&gt;
+        &lt;Text style={styles.buttonText}&gt;
+          {getIcon()}{getText()}
+        &lt;/Text&gt;
+      &lt;/Animated.View&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});</code></pre>
+            </section>
+
+            <!-- Page Transitions -->
+            <section id="page-transitions">
+                <h2>Page Transitions</h2>
+
+                <p>Custom page transitions can significantly enhance the user experience by providing visual continuity between screens.</p>
+
+                <h3>Shared Element Concept</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Screen1["Screen A"]
+        A[🖼️ Image]
+        B[Title]
+        C[Subtitle]
+    end
+    
+    subgraph Transition["Transition"]
+        D[🖼️ Image animates position/size]
+        E[Content fades]
+    end
+    
+    subgraph Screen2["Screen B"]
+        F[🖼️ Image - larger]
+        G[Full content]
+    end
+    
+    Screen1 --> Transition --> Screen2
+    
+    style Transition fill:#fff3e0
+</pre>
+
+                <h3>Hero Transition Pattern</h3>
+
+                <pre><code>import React, { useState } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+} from 'react-native-reanimated';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface Item {
+  id: string;
+  title: string;
+  image: string;
+  description: string;
+}
+
+interface HeroTransitionProps {
+  items: Item[];
+}
+
+export function HeroTransition({ items }: HeroTransitionProps) {
+  const [selectedItem, setSelectedItem] = useState&lt;Item | null&gt;(null);
+  const [origin, setOrigin] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  
+  const progress = useSharedValue(0);
+  
+  const openDetail = (item: Item, layout: any) => {
+    setOrigin(layout);
+    setSelectedItem(item);
+    progress.value = withSpring(1, { damping: 15 });
+  };
+  
+  const closeDetail = () => {
+    progress.value = withSpring(0, { damping: 15 }, (finished) => {
+      if (finished) {
+        runOnJS(setSelectedItem)(null);
+      }
+    });
+  };
+  
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    pointerEvents: progress.value > 0.5 ? 'auto' : 'none',
+  }));
+  
+  const detailContainerStyle = useAnimatedStyle(() => {
+    const x = interpolate(progress.value, [0, 1], [origin.x, 0]);
+    const y = interpolate(progress.value, [0, 1], [origin.y, 100]);
+    const width = interpolate(progress.value, [0, 1], [origin.width, SCREEN_WIDTH]);
+    const height = interpolate(progress.value, [0, 1], [origin.height, 300]);
+    
+    return {
+      position: 'absolute',
+      left: x,
+      top: y,
+      width,
+      height,
+    };
+  });
+  
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0.5, 1], [0, 1]),
+    transform: [
+      { translateY: interpolate(progress.value, [0.5, 1], [20, 0]) },
+    ],
+  }));
+  
+  const renderItem = (item: Item, index: number) => (
+    &lt;Pressable
+      key={item.id}
+      onPress={(event) => {
+        event.target.measure((x, y, width, height, pageX, pageY) => {
+          openDetail(item, { x: pageX, y: pageY, width, height });
+        });
+      }}
+      style={styles.listItem}
+    &gt;
+      &lt;Image source={{ uri: item.image }} style={styles.thumbnail} /&gt;
+      &lt;Text style={styles.itemTitle}&gt;{item.title}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      {/* List */}
+      &lt;View style={styles.list}&gt;
+        {items.map(renderItem)}
+      &lt;/View&gt;
+      
+      {/* Detail overlay */}
+      {selectedItem && (
+        &lt;&gt;
+          &lt;Animated.View style={[styles.backdrop, backdropStyle]}&gt;
+            &lt;Pressable 
+              style={StyleSheet.absoluteFill} 
+              onPress={closeDetail} 
+            /&gt;
+          &lt;/Animated.View&gt;
+          
+          &lt;Animated.View style={detailContainerStyle}&gt;
+            &lt;Image 
+              source={{ uri: selectedItem.image }} 
+              style={styles.detailImage}
+            /&gt;
+          &lt;/Animated.View&gt;
+          
+          &lt;Animated.View style={[styles.detailContent, contentStyle]}&gt;
+            &lt;Text style={styles.detailTitle}&gt;{selectedItem.title}&lt;/Text&gt;
+            &lt;Text style={styles.detailDescription}&gt;
+              {selectedItem.description}
+            &lt;/Text&gt;
+          &lt;/Animated.View&gt;
+        &lt;/&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  list: { padding: 16 },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    width: 80,
+    height: 80,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  detailImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  detailContent: {
+    position: 'absolute',
+    top: 420,
+    left: 0,
+    right: 0,
+    padding: 20,
+  },
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  detailDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#666',
+  },
+});</code></pre>
+
+                <h3>Page Flip Transition</h3>
+
+                <pre><code>import React, { useState } from 'react';
+import { View, Pressable, Text, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface FlipPageProps {
+  frontContent: React.ReactNode;
+  backContent: React.ReactNode;
+}
+
+export function FlipPage({ frontContent, backContent }: FlipPageProps) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const rotation = useSharedValue(0);
+  
+  const flip = () => {
+    const newFlipped = !isFlipped;
+    setIsFlipped(newFlipped);
+    rotation.value = withSpring(newFlipped ? 180 : 0, {
+      damping: 15,
+      stiffness: 100,
+    });
+  };
+  
+  const frontStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(
+      rotation.value,
+      [0, 180],
+      [0, 180]
+    );
+    
+    return {
+      transform: [
+        { perspective: 1000 },
+        { rotateY: `${rotateY}deg` },
+      ],
+      backfaceVisibility: 'hidden',
+    };
+  });
+  
+  const backStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(
+      rotation.value,
+      [0, 180],
+      [180, 360]
+    );
+    
+    return {
+      transform: [
+        { perspective: 1000 },
+        { rotateY: `${rotateY}deg` },
+      ],
+      backfaceVisibility: 'hidden',
+    };
+  });
+  
+  return (
+    &lt;Pressable onPress={flip} style={styles.container}&gt;
+      &lt;Animated.View style={[styles.page, frontStyle]}&gt;
+        {frontContent}
+      &lt;/Animated.View&gt;
+      
+      &lt;Animated.View style={[styles.page, styles.backPage, backStyle]}&gt;
+        {backContent}
+      &lt;/Animated.View&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    width: SCREEN_WIDTH - 40,
+    height: 200,
+  },
+  page: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  backPage: {
+    backgroundColor: '#34C759',
+  },
+});
+
+// Usage
+function FlipCard() {
+  return (
+    &lt;FlipPage
+      frontContent={
+        &lt;View&gt;
+          &lt;Text style={styles.cardTitle}&gt;Front Side&lt;/Text&gt;
+          &lt;Text style={styles.cardHint}&gt;Tap to flip&lt;/Text&gt;
+        &lt;/View&gt;
+      }
+      backContent={
+        &lt;View&gt;
+          &lt;Text style={styles.cardTitle}&gt;Back Side&lt;/Text&gt;
+          &lt;Text style={styles.cardHint}&gt;Hidden content revealed!&lt;/Text&gt;
+        &lt;/View&gt;
+      }
+    /&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Animated Toast Notification</h3>
+                    <p>Create a toast notification system with animated entrance and exit.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Slides in from the top with bounce</li>
+                        <li>Auto-dismisses after 3 seconds</li>
+                        <li>Supports different types (success, error, info)</li>
+                        <li>Can be manually dismissed by swiping up</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useEffect, useState, createContext, useContext } from 'react';
+import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  useAnimatedGestureHandler,
+} from 'react-native-reanimated';
+import { PanGestureHandler } from 'react-native-gesture-handler';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type ToastType = 'success' | 'error' | 'info';
+
+interface Toast {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
+// Toast Context
+const ToastContext = createContext&lt;{
+  showToast: (message: string, type?: ToastType) => void;
+}&gt;({ showToast: () => {} });
+
+export function useToast() {
+  return useContext(ToastContext);
+}
+
+// Individual Toast Component
+function ToastItem({ 
+  toast, 
+  onDismiss 
+}: { 
+  toast: Toast; 
+  onDismiss: (id: string) => void;
+}) {
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
+  
+  useEffect(() => {
+    // Animate in
+    translateY.value = withSpring(0, { damping: 12 });
+    opacity.value = withTiming(1, { duration: 200 });
+    
+    // Auto dismiss after 3 seconds
+    const timeout = setTimeout(() => {
+      dismiss();
+    }, 3000);
+    
+    return () => clearTimeout(timeout);
+  }, []);
+  
+  const dismiss = () => {
+    translateY.value = withTiming(-100, { duration: 200 });
+    opacity.value = withTiming(0, { duration: 200 }, (finished) => {
+      if (finished) {
+        runOnJS(onDismiss)(toast.id);
+      }
+    });
+  };
+  
+  const gestureHandler = useAnimatedGestureHandler({
+    onActive: (event) => {
+      if (event.translationY < 0) {
+        translateY.value = event.translationY;
+      }
+    },
+    onEnd: (event) => {
+      if (event.translationY < -50 || event.velocityY < -500) {
+        // Swipe up to dismiss
+        translateY.value = withTiming(-100, { duration: 150 });
+        opacity.value = withTiming(0, { duration: 150 }, (finished) => {
+          if (finished) {
+            runOnJS(onDismiss)(toast.id);
+          }
+        });
+      } else {
+        // Snap back
+        translateY.value = withSpring(0, { damping: 12 });
+      }
+    },
+  });
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+  
+  const getColors = () => {
+    switch (toast.type) {
+      case 'success': return { bg: '#34C759', icon: '✓' };
+      case 'error': return { bg: '#FF3B30', icon: '✕' };
+      case 'info': return { bg: '#007AFF', icon: 'ℹ' };
+    }
+  };
+  
+  const colors = getColors();
+  
+  return (
+    &lt;PanGestureHandler onGestureEvent={gestureHandler}&gt;
+      &lt;Animated.View style={[styles.toast, animatedStyle]}&gt;
+        &lt;View style={[styles.toastContent, { backgroundColor: colors.bg }]}&gt;
+          &lt;Text style={styles.toastIcon}&gt;{colors.icon}&lt;/Text&gt;
+          &lt;Text style={styles.toastMessage}&gt;{toast.message}&lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/Animated.View&gt;
+    &lt;/PanGestureHandler&gt;
+  );
+}
+
+// Toast Provider
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState&lt;Toast[]&gt;([]);
+  
+  const showToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+  
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+  
+  return (
+    &lt;ToastContext.Provider value={{ showToast }}&gt;
+      {children}
+      &lt;View style={styles.toastContainer} pointerEvents="box-none"&gt;
+        {toasts.map(toast => (
+          &lt;ToastItem 
+            key={toast.id} 
+            toast={toast} 
+            onDismiss={dismissToast}
+          /&gt;
+        ))}
+      &lt;/View&gt;
+    &lt;/ToastContext.Provider&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  toastContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  toast: {
+    marginBottom: 8,
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    minWidth: SCREEN_WIDTH - 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  toastIcon: {
+    fontSize: 18,
+    color: 'white',
+    marginRight: 12,
+    fontWeight: 'bold',
+  },
+  toastMessage: {
+    color: 'white',
+    fontSize: 16,
+    flex: 1,
+  },
+});
+
+// Usage
+function App() {
+  return (
+    &lt;ToastProvider&gt;
+      &lt;MyScreen /&gt;
+    &lt;/ToastProvider&gt;
+  );
+}
+
+function MyScreen() {
+  const { showToast } = useToast();
+  
+  return (
+    &lt;View&gt;
+      &lt;Pressable onPress={() => showToast('Success!', 'success')}&gt;
+        &lt;Text&gt;Show Success&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      &lt;Pressable onPress={() => showToast('Error occurred', 'error')}&gt;
+        &lt;Text&gt;Show Error&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Animated Accordion</h3>
+                    <p>Build an accordion component with smooth expand/collapse animations.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Click header to expand/collapse content</li>
+                        <li>Smooth height animation</li>
+                        <li>Rotating chevron indicator</li>
+                        <li>Support for multiple sections (only one open at a time optional)</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  measure,
+  useAnimatedRef,
+  runOnUI,
+} from 'react-native-reanimated';
+
+interface AccordionItemProps {
+  title: string;
+  children: React.ReactNode;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function AccordionItem({ 
+  title, 
+  children, 
+  isExpanded, 
+  onToggle 
+}: AccordionItemProps) {
+  const contentRef = useAnimatedRef&lt;Animated.View&gt;();
+  const height = useSharedValue(0);
+  const rotation = useSharedValue(0);
+  
+  React.useEffect(() => {
+    if (isExpanded) {
+      // Measure content and animate to full height
+      runOnUI(() => {
+        'worklet';
+        const measured = measure(contentRef);
+        if (measured) {
+          height.value = withTiming(measured.height, { duration: 300 });
+        }
+      })();
+      rotation.value = withTiming(180, { duration: 300 });
+    } else {
+      height.value = withTiming(0, { duration: 300 });
+      rotation.value = withTiming(0, { duration: 300 });
+    }
+  }, [isExpanded]);
+  
+  const containerStyle = useAnimatedStyle(() => ({
+    height: height.value,
+    overflow: 'hidden',
+  }));
+  
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+  
+  return (
+    &lt;View style={styles.accordionItem}&gt;
+      &lt;Pressable onPress={onToggle} style={styles.accordionHeader}&gt;
+        &lt;Text style={styles.accordionTitle}&gt;{title}&lt;/Text&gt;
+        &lt;Animated.Text style={[styles.chevron, chevronStyle]}&gt;
+          ▼
+        &lt;/Animated.Text&gt;
+      &lt;/Pressable&gt;
+      
+      &lt;Animated.View style={containerStyle}&gt;
+        &lt;Animated.View 
+          ref={contentRef}
+          style={styles.accordionContent}
+          collapsable={false}
+        &gt;
+          {children}
+        &lt;/Animated.View&gt;
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}
+
+interface AccordionSection {
+  id: string;
+  title: string;
+  content: React.ReactNode;
+}
+
+interface AccordionProps {
+  sections: AccordionSection[];
+  allowMultiple?: boolean;
+}
+
+export function Accordion({ sections, allowMultiple = false }: AccordionProps) {
+  const [expandedIds, setExpandedIds] = useState&lt;string[]&gt;([]);
+  
+  const toggleSection = (id: string) => {
+    if (allowMultiple) {
+      setExpandedIds(prev => 
+        prev.includes(id) 
+          ? prev.filter(i => i !== id)
+          : [...prev, id]
+      );
+    } else {
+      setExpandedIds(prev => 
+        prev.includes(id) ? [] : [id]
+      );
+    }
+  };
+  
+  return (
+    &lt;View style={styles.accordion}&gt;
+      {sections.map(section => (
+        &lt;AccordionItem
+          key={section.id}
+          title={section.title}
+          isExpanded={expandedIds.includes(section.id)}
+          onToggle={() => toggleSection(section.id)}
+        &gt;
+          {section.content}
+        &lt;/AccordionItem&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  accordion: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  accordionItem: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  accordionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chevron: {
+    fontSize: 12,
+    color: '#666',
+  },
+  accordionContent: {
+    padding: 16,
+    paddingTop: 0,
+  },
+});
+
+// Usage
+function FAQScreen() {
+  const sections = [
+    {
+      id: '1',
+      title: 'How do I create an account?',
+      content: &lt;Text&gt;To create an account, tap the Sign Up button...&lt;/Text&gt;,
+    },
+    {
+      id: '2',
+      title: 'How do I reset my password?',
+      content: &lt;Text&gt;Go to Settings &gt; Account &gt; Reset Password...&lt;/Text&gt;,
+    },
+    {
+      id: '3',
+      title: 'How do I contact support?',
+      content: &lt;Text&gt;You can reach us at support@example.com...&lt;/Text&gt;,
+    },
+  ];
+  
+  return &lt;Accordion sections={sections} /&gt;;
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Pull-to-Refresh Animation</h3>
+                    <p>Create a custom pull-to-refresh indicator with a unique animation.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Custom refresh indicator (not the default spinner)</li>
+                        <li>Animate based on pull distance</li>
+                        <li>Different animation when refreshing vs. pulling</li>
+                        <li>Works with ScrollView or FlatList</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import React, { useState } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withSpring,
+  withRepeat,
+  withTiming,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+  cancelAnimation,
+} from 'react-native-reanimated';
+
+const REFRESH_THRESHOLD = 80;
+
+interface PullToRefreshProps {
+  onRefresh: () => Promise&lt;void&gt;;
+  children: React.ReactNode;
+}
+
+export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useSharedValue(0);
+  const pullProgress = useSharedValue(0);
+  const refreshRotation = useSharedValue(0);
+  
+  const triggerRefresh = async () => {
+    setRefreshing(true);
+    
+    // Start spinning animation
+    refreshRotation.value = withRepeat(
+      withTiming(360, { duration: 1000 }),
+      -1,
+      false
+    );
+    
+    try {
+      await onRefresh();
+    } finally {
+      cancelAnimation(refreshRotation);
+      refreshRotation.value = withTiming(0, { duration: 200 });
+      setRefreshing(false);
+    }
+  };
+  
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      
+      if (event.contentOffset.y < 0) {
+        pullProgress.value = Math.min(
+          Math.abs(event.contentOffset.y) / REFRESH_THRESHOLD,
+          1.5
+        );
+      } else {
+        pullProgress.value = 0;
+      }
+    },
+    onEndDrag: (event) => {
+      if (event.contentOffset.y < -REFRESH_THRESHOLD && !refreshing) {
+        runOnJS(triggerRefresh)();
+      }
+    },
+  });
+  
+  // Indicator container style
+  const indicatorContainerStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      pullProgress.value,
+      [0, 1],
+      [-60, 20],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      transform: [{ translateY }],
+      opacity: interpolate(
+        pullProgress.value,
+        [0, 0.5, 1],
+        [0, 0.5, 1],
+        Extrapolation.CLAMP
+      ),
+    };
+  });
+  
+  // Dots animation
+  const dot1Style = useAnimatedStyle(() => {
+    const scale = refreshing 
+      ? 1 
+      : interpolate(
+          pullProgress.value,
+          [0, 0.3, 0.6, 1],
+          [0.3, 1, 0.5, 1],
+          Extrapolation.CLAMP
+        );
+    
+    return {
+      transform: [
+        { scale },
+        { rotate: `${refreshRotation.value}deg` },
+      ],
+    };
+  });
+  
+  const dot2Style = useAnimatedStyle(() => {
+    const scale = refreshing 
+      ? 1 
+      : interpolate(
+          pullProgress.value,
+          [0, 0.4, 0.7, 1],
+          [0.3, 0.5, 1, 1],
+          Extrapolation.CLAMP
+        );
+    
+    return {
+      transform: [
+        { scale },
+        { rotate: `${refreshRotation.value + 120}deg` },
+      ],
+    };
+  });
+  
+  const dot3Style = useAnimatedStyle(() => {
+    const scale = refreshing 
+      ? 1 
+      : interpolate(
+          pullProgress.value,
+          [0, 0.5, 0.8, 1],
+          [0.3, 0.5, 0.8, 1],
+          Extrapolation.CLAMP
+        );
+    
+    return {
+      transform: [
+        { scale },
+        { rotate: `${refreshRotation.value + 240}deg` },
+      ],
+    };
+  });
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      {/* Refresh Indicator */}
+      &lt;Animated.View style={[styles.indicatorContainer, indicatorContainerStyle]}&gt;
+        &lt;View style={styles.dotsContainer}&gt;
+          &lt;Animated.View style={[styles.dot, styles.dot1, dot1Style]} /&gt;
+          &lt;Animated.View style={[styles.dot, styles.dot2, dot2Style]} /&gt;
+          &lt;Animated.View style={[styles.dot, styles.dot3, dot3Style]} /&gt;
+        &lt;/View&gt;
+        &lt;Text style={styles.indicatorText}&gt;
+          {refreshing ? 'Refreshing...' : 'Pull to refresh'}
+        &lt;/Text&gt;
+      &lt;/Animated.View&gt;
+      
+      {/* Scrollable Content */}
+      &lt;Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.scrollContent}
+      &gt;
+        {children}
+      &lt;/Animated.ScrollView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  indicatorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginHorizontal: 4,
+  },
+  dot1: { backgroundColor: '#FF3B30' },
+  dot2: { backgroundColor: '#34C759' },
+  dot3: { backgroundColor: '#007AFF' },
+  indicatorText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  scrollContent: {
+    paddingTop: 20,
+  },
+});
+
+// Usage
+function RefreshableList() {
+  const [items, setItems] = useState(['Item 1', 'Item 2', 'Item 3']);
+  
+  const handleRefresh = async () => {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setItems(prev => [`New Item ${Date.now()}`, ...prev]);
+  };
+  
+  return (
+    &lt;PullToRefresh onRefresh={handleRefresh}&gt;
+      {items.map((item, index) => (
+        &lt;View key={index} style={styles.listItem}&gt;
+          &lt;Text&gt;{item}&lt;/Text&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/PullToRefresh&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Animation patterns are the building blocks of engaging mobile experiences. By mastering these common patterns, you can create polished, professional apps that feel native and responsive.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Fade animations:</strong> Use for content transitions, modals, and visibility changes</li>
+                        <li><strong>Slide animations:</strong> Perfect for drawers, page transitions, and directional reveals</li>
+                        <li><strong>Scale and bounce:</strong> Provide tactile feedback for interactive elements</li>
+                        <li><strong>Staggered lists:</strong> Use built-in entering/exiting animations or custom delays for list items</li>
+                        <li><strong>Skeleton loading:</strong> Shimmer or pulse effects improve perceived performance</li>
+                        <li><strong>Button animations:</strong> Ripples, loading states, and success/error feedback enhance interactions</li>
+                        <li><strong>Page transitions:</strong> Hero animations and flips create visual continuity</li>
+                    </ul>
+                </div>
+
+                <h3>Animation Pattern Quick Reference</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: #f5f5f5;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Pattern</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Best Animation Type</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Fade In/Out</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withTiming</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Modals, tooltips, transitions</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Slide</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withSpring</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Drawers, sheets, menus</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Press feedback</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withSpring</code> (stiff)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Buttons, cards, list items</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Bounce/Pop</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withSpring</code> (bouncy)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Notifications, badges, alerts</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Loading pulse</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withRepeat</code> + <code>withTiming</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Skeletons, activity indicators</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Staggered list</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>withDelay</code> + any</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #eee;">Lists, grids, onboarding</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>In the next lesson, we'll explore React Native Gesture Handler to create touch interactions that work seamlessly with these animations.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l02_react_native_reanimated.html" class="prev-link">← Previous: React Native Reanimated</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l04_gesture_handler.html" class="next-link">Next: Gesture Handler →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
