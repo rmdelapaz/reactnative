@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn when React Context isn't enough and how to implement global state management with Zustand and Redux Toolkit in React Native">
+    <meta name="author" content="React Native & Expo Course">
+    <title>State Management at Scale | Module 7: Data Management and Networking | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m07_l01_fetching_data.html">Module 7</a> &gt;
+            <span>Lesson 7.4</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 7: Data Management and Networking</p>
+                <h1>State Management at Scale</h1>
+                <p class="lesson-subtitle">When local state and React Query aren't enough</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Recognize when you need global state management beyond React Context</li>
+                    <li>Understand the difference between server state and client state</li>
+                    <li>Implement lightweight global state with Zustand</li>
+                    <li>Use Redux Toolkit for complex state requirements</li>
+                    <li>Persist state to local storage for app restarts</li>
+                    <li>Combine state management with React Query effectively</li>
+                    <li>Choose the right state management approach for your app</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#when-context-fails">When Context Isn't Enough</a></li>
+                        <li><a href="#state-types">Server State vs Client State</a></li>
+                        <li><a href="#zustand">Zustand: The Lightweight Champion</a></li>
+                        <li><a href="#zustand-patterns">Zustand Patterns and Best Practices</a></li>
+                        <li><a href="#redux-toolkit">Redux Toolkit: For Complex Apps</a></li>
+                        <li><a href="#persistence">State Persistence</a></li>
+                        <li><a href="#combining">Combining with React Query</a></li>
+                        <li><a href="#choosing">Choosing Your Approach</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- When Context Isn't Enough -->
+            <section id="when-context-fails">
+                <h2>When Context Isn't Enough</h2>
+
+                <p>React Context is great for simple global state like themes, authentication status, or user preferences. But as your app grows, you'll hit limitations that make Context frustrating to work with.</p>
+
+                <div class="card">
+                    <h4>😫 Context Pain Points</h4>
+                    <ul>
+                        <li><strong>Re-render avalanche:</strong> Any context change re-renders ALL consumers, even if they only use part of the state</li>
+                        <li><strong>Provider hell:</strong> Multiple contexts mean deeply nested providers</li>
+                        <li><strong>Boilerplate explosion:</strong> Each piece of state needs its own context, provider, and hook</li>
+                        <li><strong>No middleware:</strong> No built-in way to intercept or transform state changes</li>
+                        <li><strong>Debugging difficulties:</strong> Hard to trace state changes across the app</li>
+                        <li><strong>No persistence:</strong> State resets on every app restart</li>
+                    </ul>
+                </div>
+
+                <p>Let's see the re-render problem in action:</p>
+
+                <pre><code>// ❌ The Context Problem
+const AppContext = createContext&lt;{
+  user: User | null;
+  theme: 'light' | 'dark';
+  notifications: Notification[];
+  cart: CartItem[];
+}&gt;(null!);
+
+function App() {
+  const [state, setState] = useState({
+    user: null,
+    theme: 'light',
+    notifications: [],
+    cart: [],
+  });
+
+  return (
+    &lt;AppContext.Provider value={state}&gt;
+      &lt;Header /&gt;      {/* Uses user, theme */}
+      &lt;ProductList /&gt; {/* Uses cart */}
+      &lt;Footer /&gt;      {/* Uses theme */}
+    &lt;/AppContext.Provider&gt;
+  );
+}
+
+// Problem: When a notification arrives...
+// - Header re-renders (even though it doesn't use notifications)
+// - ProductList re-renders (even though it doesn't use notifications)
+// - Footer re-renders (even though it doesn't use notifications)
+// - EVERY component using this context re-renders!</code></pre>
+
+                <p>You can split into multiple contexts, but that leads to provider hell:</p>
+
+                <pre><code>// ❌ Provider Hell
+function App() {
+  return (
+    &lt;AuthProvider&gt;
+      &lt;ThemeProvider&gt;
+        &lt;NotificationProvider&gt;
+          &lt;CartProvider&gt;
+            &lt;NavigationProvider&gt;
+              &lt;ModalProvider&gt;
+                &lt;ToastProvider&gt;
+                  &lt;ActualApp /&gt;
+                &lt;/ToastProvider&gt;
+              &lt;/ModalProvider&gt;
+            &lt;/NavigationProvider&gt;
+          &lt;/CartProvider&gt;
+        &lt;/NotificationProvider&gt;
+      &lt;/ThemeProvider&gt;
+    &lt;/AuthProvider&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ When Context IS Enough</h4>
+                    <p>Context is still perfect for:</p>
+                    <ul>
+                        <li>Theme (changes infrequently, affects everything anyway)</li>
+                        <li>Authenticated user (changes rarely)</li>
+                        <li>Locale/language settings</li>
+                        <li>Feature flags</li>
+                        <li>Any state that changes rarely and is read by many components</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Server State vs Client State -->
+            <section id="state-types">
+                <h2>Server State vs Client State</h2>
+
+                <p>Before adding a state management library, understand what kind of state you're dealing with. This is crucial for choosing the right tool.</p>
+
+                <!-- SVG: State Types -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 350" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="350" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Two Types of State</text>
+                        
+                        <!-- Server State Box -->
+                        <rect x="40" y="60" width="290" height="250" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="12"/>
+                        <text x="185" y="90" text-anchor="middle" font-size="14" font-weight="bold" fill="#1976D2">🌐 Server State</text>
+                        
+                        <text x="60" y="120" font-size="11" fill="#333">• Lives on a remote server</text>
+                        <text x="60" y="140" font-size="11" fill="#333">• Can become stale</text>
+                        <text x="60" y="160" font-size="11" fill="#333">• Needs synchronization</text>
+                        <text x="60" y="180" font-size="11" fill="#333">• Shared across clients</text>
+                        <text x="60" y="200" font-size="11" fill="#333">• You don't own it</text>
+                        
+                        <text x="185" y="235" text-anchor="middle" font-size="10" font-weight="bold" fill="#1976D2">Examples:</text>
+                        <text x="185" y="255" text-anchor="middle" font-size="10" fill="#666">User profiles, posts, products,</text>
+                        <text x="185" y="270" text-anchor="middle" font-size="10" fill="#666">comments, orders, messages</text>
+                        
+                        <rect x="60" y="285" width="250" height="20" fill="#2196F3" rx="4"/>
+                        <text x="185" y="299" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Use: React Query / SWR</text>
+                        
+                        <!-- Client State Box -->
+                        <rect x="370" y="60" width="290" height="250" fill="#fff3e0" stroke="#FF9800" stroke-width="2" rx="12"/>
+                        <text x="515" y="90" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">📱 Client State</text>
+                        
+                        <text x="390" y="120" font-size="11" fill="#333">• Lives in the app</text>
+                        <text x="390" y="140" font-size="11" fill="#333">• Always current</text>
+                        <text x="390" y="160" font-size="11" fill="#333">• No network needed</text>
+                        <text x="390" y="180" font-size="11" fill="#333">• Specific to this client</text>
+                        <text x="390" y="200" font-size="11" fill="#333">• You control it fully</text>
+                        
+                        <text x="515" y="235" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">Examples:</text>
+                        <text x="515" y="255" text-anchor="middle" font-size="10" fill="#666">UI state, filters, modals,</text>
+                        <text x="515" y="270" text-anchor="middle" font-size="10" fill="#666">theme, cart, form drafts</text>
+                        
+                        <rect x="390" y="285" width="250" height="20" fill="#FF9800" rx="4"/>
+                        <text x="515" y="299" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Use: Zustand / Redux / Context</text>
+                    </svg>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Key Insight</h4>
+                    <p style="color: white;"><strong>React Query handles server state. Zustand/Redux handles client state.</strong> They solve different problems and work great together. Don't use Redux for API data, and don't use React Query for UI state.</p>
+                </div>
+
+                <h3>Examples of Client State</h3>
+
+                <pre><code>// Client state examples - perfect for Zustand/Redux
+interface ClientState {
+  // UI State
+  isMenuOpen: boolean;
+  activeTab: string;
+  selectedFilters: string[];
+  sortOrder: 'asc' | 'desc';
+  
+  // User Preferences (not from server)
+  theme: 'light' | 'dark';
+  fontSize: 'small' | 'medium' | 'large';
+  
+  // Ephemeral State
+  formDraft: Partial&lt;FormData&gt;;
+  searchQuery: string;
+  
+  // Shopping Cart (until checkout)
+  cartItems: CartItem[];
+  
+  // Auth State (token, not user profile)
+  isAuthenticated: boolean;
+  
+  // Notifications (UI, not from API)
+  toasts: Toast[];
+}</code></pre>
+            </section>
+
+            <!-- Zustand -->
+            <section id="zustand">
+                <h2>Zustand: The Lightweight Champion</h2>
+
+                <p>Zustand (German for "state") is a small, fast, and scalable state management library. It has minimal boilerplate, great TypeScript support, and no provider wrappers needed.</p>
+
+                <h3>Why Zustand?</h3>
+
+                <div class="card">
+                    <h4>🚀 Zustand Benefits</h4>
+                    <ul>
+                        <li><strong>Tiny:</strong> ~1KB gzipped</li>
+                        <li><strong>No providers:</strong> Use stores anywhere, no context wrapper needed</li>
+                        <li><strong>Selective re-renders:</strong> Components only re-render when their selected state changes</li>
+                        <li><strong>Simple API:</strong> Just create a store and use it</li>
+                        <li><strong>Middleware support:</strong> Persistence, devtools, immer, and more</li>
+                        <li><strong>TypeScript-first:</strong> Excellent type inference</li>
+                    </ul>
+                </div>
+
+                <h3>Installation</h3>
+
+                <pre><code>npx expo install zustand</code></pre>
+
+                <h3>Your First Store</h3>
+
+                <pre><code>// stores/counterStore.ts
+import { create } from 'zustand';
+
+interface CounterState {
+  count: number;
+  increment: () => void;
+  decrement: () => void;
+  reset: () => void;
+}
+
+export const useCounterStore = create&lt;CounterState&gt;((set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  decrement: () => set((state) => ({ count: state.count - 1 })),
+  reset: () => set({ count: 0 }),
+}));
+
+// Usage in component - no provider needed!
+function Counter() {
+  const count = useCounterStore((state) => state.count);
+  const increment = useCounterStore((state) => state.increment);
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Count: {count}&lt;/Text&gt;
+      &lt;Button title="+" onPress={increment} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>A Real-World Store: Shopping Cart</h3>
+
+                <pre><code>// stores/cartStore.ts
+import { create } from 'zustand';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+interface CartState {
+  items: CartItem[];
+  
+  // Computed values (not stored, calculated)
+  totalItems: () => number;
+  totalPrice: () => number;
+  
+  // Actions
+  addItem: (item: Omit&lt;CartItem, 'quantity'&gt;) => void;
+  removeItem: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  clearCart: () => void;
+}
+
+export const useCartStore = create&lt;CartState&gt;((set, get) => ({
+  items: [],
+
+  // Computed values using get()
+  totalItems: () => {
+    return get().items.reduce((sum, item) => sum + item.quantity, 0);
+  },
+
+  totalPrice: () => {
+    return get().items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+  },
+
+  addItem: (newItem) => {
+    set((state) => {
+      const existingItem = state.items.find((item) => item.id === newItem.id);
+
+      if (existingItem) {
+        // Increase quantity if already in cart
+        return {
+          items: state.items.map((item) =>
+            item.id === newItem.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          ),
+        };
+      }
+
+      // Add new item with quantity 1
+      return {
+        items: [...state.items, { ...newItem, quantity: 1 }],
+      };
+    });
+  },
+
+  removeItem: (id) => {
+    set((state) => ({
+      items: state.items.filter((item) => item.id !== id),
+    }));
+  },
+
+  updateQuantity: (id, quantity) => {
+    set((state) => {
+      if (quantity <= 0) {
+        return { items: state.items.filter((item) => item.id !== id) };
+      }
+
+      return {
+        items: state.items.map((item) =>
+          item.id === id ? { ...item, quantity } : item
+        ),
+      };
+    });
+  },
+
+  clearCart: () => set({ items: [] }),
+}));
+
+// Usage
+function CartScreen() {
+  const items = useCartStore((state) => state.items);
+  const totalPrice = useCartStore((state) => state.totalPrice);
+  const removeItem = useCartStore((state) => state.removeItem);
+
+  return (
+    &lt;View&gt;
+      &lt;FlatList
+        data={items}
+        renderItem={({ item }) =&gt; (
+          &lt;CartItemRow
+            item={item}
+            onRemove={() => removeItem(item.id)}
+          /&gt;
+        )}
+      /&gt;
+      &lt;Text&gt;Total: ${totalPrice().toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Adding to cart from product screen
+function ProductCard({ product }: { product: Product }) {
+  const addItem = useCartStore((state) => state.addItem);
+
+  return (
+    &lt;Pressable onPress={() => addItem(product)}&gt;
+      &lt;Text&gt;Add to Cart&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Selective Subscriptions (Avoiding Re-renders)</h3>
+
+                <p>The magic of Zustand is that components only re-render when their specific slice of state changes:</p>
+
+                <pre><code>// ✅ This component ONLY re-renders when items change
+function CartBadge() {
+  const itemCount = useCartStore((state) => state.items.length);
+  return &lt;Badge count={itemCount} /&gt;;
+}
+
+// ✅ This component ONLY re-renders when totalPrice changes
+function CartTotal() {
+  const totalPrice = useCartStore((state) => state.totalPrice());
+  return &lt;Text&gt;Total: ${totalPrice.toFixed(2)}&lt;/Text&gt;;
+}
+
+// ✅ Select multiple values with shallow comparison
+import { shallow } from 'zustand/shallow';
+
+function CartSummary() {
+  const { items, totalPrice } = useCartStore(
+    (state) => ({
+      items: state.items,
+      totalPrice: state.totalPrice(),
+    }),
+    shallow // Use shallow comparison for object selector
+  );
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{items.length} items&lt;/Text&gt;
+      &lt;Text&gt;${totalPrice.toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Selector Best Practices</h4>
+                    <ul>
+                        <li>Always use selectors to pick only what you need</li>
+                        <li>Use <code>shallow</code> when selecting multiple values as an object</li>
+                        <li>Avoid selecting the entire store: <code>useStore()</code> re-renders on ANY change</li>
+                        <li>Create stable selectors for complex derivations</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Zustand Patterns -->
+            <section id="zustand-patterns">
+                <h2>Zustand Patterns and Best Practices</h2>
+
+                <h3>Slicing Stores</h3>
+
+                <p>For larger apps, split your store into slices:</p>
+
+                <pre><code>// stores/slices/userSlice.ts
+import { StateCreator } from 'zustand';
+
+export interface UserSlice {
+  user: User | null;
+  isAuthenticated: boolean;
+  setUser: (user: User | null) => void;
+  logout: () => void;
+}
+
+export const createUserSlice: StateCreator&lt;UserSlice&gt; = (set) => ({
+  user: null,
+  isAuthenticated: false,
+  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  logout: () => set({ user: null, isAuthenticated: false }),
+});
+
+// stores/slices/settingsSlice.ts
+export interface SettingsSlice {
+  theme: 'light' | 'dark';
+  language: string;
+  setTheme: (theme: 'light' | 'dark') => void;
+  setLanguage: (language: string) => void;
+}
+
+export const createSettingsSlice: StateCreator&lt;SettingsSlice&gt; = (set) => ({
+  theme: 'light',
+  language: 'en',
+  setTheme: (theme) => set({ theme }),
+  setLanguage: (language) => set({ language }),
+});
+
+// stores/appStore.ts - Combine slices
+import { create } from 'zustand';
+import { createUserSlice, UserSlice } from './slices/userSlice';
+import { createSettingsSlice, SettingsSlice } from './slices/settingsSlice';
+
+type AppState = UserSlice & SettingsSlice;
+
+export const useAppStore = create&lt;AppState&gt;()((...a) => ({
+  ...createUserSlice(...a),
+  ...createSettingsSlice(...a),
+}));</code></pre>
+
+                <h3>Async Actions</h3>
+
+                <pre><code>// stores/authStore.ts
+import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+import { api } from '../api/client';
+
+interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+  error: string | null;
+  
+  login: (email: string, password: string) => Promise&lt;void&gt;;
+  logout: () => Promise&lt;void&gt;;
+  checkAuth: () => Promise&lt;void&gt;;
+}
+
+export const useAuthStore = create&lt;AuthState&gt;((set, get) => ({
+  user: null,
+  isLoading: true,
+  error: null,
+
+  login: async (email, password) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { user, token } = response.data;
+      
+      await SecureStore.setItemAsync('authToken', token);
+      
+      set({ user, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Login failed',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    await SecureStore.deleteItemAsync('authToken');
+    set({ user: null });
+  },
+
+  checkAuth: async () => {
+    set({ isLoading: true });
+    
+    try {
+      const token = await SecureStore.getItemAsync('authToken');
+      
+      if (!token) {
+        set({ user: null, isLoading: false });
+        return;
+      }
+      
+      const response = await api.get('/auth/me');
+      set({ user: response.data, isLoading: false });
+    } catch (error) {
+      await SecureStore.deleteItemAsync('authToken');
+      set({ user: null, isLoading: false });
+    }
+  },
+}));</code></pre>
+
+                <h3>Using Store Outside React</h3>
+
+                <p>Zustand stores work outside React components—great for API interceptors, navigation, etc.:</p>
+
+                <pre><code>// api/client.ts
+import { useAuthStore } from '../stores/authStore';
+
+// Access store directly (not a hook!)
+const logout = useAuthStore.getState().logout;
+const getUser = () => useAuthStore.getState().user;
+
+// Use in API interceptor
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token expired - logout
+      await logout();
+      // Redirect to login...
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Subscribe to changes outside React
+const unsubscribe = useAuthStore.subscribe(
+  (state) => state.user,
+  (user) => {
+    console.log('User changed:', user);
+  }
+);</code></pre>
+            </section>
+
+            <!-- Redux Toolkit -->
+            <section id="redux-toolkit">
+                <h2>Redux Toolkit: For Complex Apps</h2>
+
+                <p>Redux Toolkit (RTK) is the modern way to use Redux. It eliminates the boilerplate that made Redux infamous. Use RTK when you need Redux DevTools, complex middleware, or are already familiar with Redux.</p>
+
+                <h3>When to Consider Redux</h3>
+
+                <div class="card">
+                    <h4>🤔 Consider Redux When:</h4>
+                    <ul>
+                        <li>Your team already knows Redux</li>
+                        <li>You need extensive DevTools debugging</li>
+                        <li>You have complex state update logic</li>
+                        <li>You need middleware for side effects</li>
+                        <li>You're migrating from an existing Redux codebase</li>
+                    </ul>
+                    <p style="margin-top: 1rem;"><strong>For most React Native apps, Zustand is simpler and sufficient.</strong></p>
+                </div>
+
+                <h3>Installation</h3>
+
+                <pre><code>npx expo install @reduxjs/toolkit react-redux</code></pre>
+
+                <h3>Creating a Slice</h3>
+
+                <pre><code>// store/slices/cartSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface CartState {
+  items: CartItem[];
+}
+
+const initialState: CartState = {
+  items: [],
+};
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState,
+  reducers: {
+    addItem: (state, action: PayloadAction&lt;Omit&lt;CartItem, 'quantity'&gt;&gt;) => {
+      const existing = state.items.find((item) => item.id === action.payload.id);
+      
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        state.items.push({ ...action.payload, quantity: 1 });
+      }
+    },
+    
+    removeItem: (state, action: PayloadAction&lt;string&gt;) => {
+      state.items = state.items.filter((item) => item.id !== action.payload);
+    },
+    
+    updateQuantity: (
+      state,
+      action: PayloadAction&lt;{ id: string; quantity: number }&gt;
+    ) => {
+      const { id, quantity } = action.payload;
+      
+      if (quantity <= 0) {
+        state.items = state.items.filter((item) => item.id !== id);
+      } else {
+        const item = state.items.find((item) => item.id === id);
+        if (item) {
+          item.quantity = quantity;
+        }
+      }
+    },
+    
+    clearCart: (state) => {
+      state.items = [];
+    },
+  },
+});
+
+export const { addItem, removeItem, updateQuantity, clearCart } = cartSlice.actions;
+export default cartSlice.reducer;
+
+// Selectors
+export const selectCartItems = (state: RootState) => state.cart.items;
+export const selectCartTotal = (state: RootState) =>
+  state.cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+export const selectCartItemCount = (state: RootState) =>
+  state.cart.items.reduce((sum, item) => sum + item.quantity, 0);</code></pre>
+
+                <h3>Store Setup</h3>
+
+                <pre><code>// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import cartReducer from './slices/cartSlice';
+import userReducer from './slices/userSlice';
+
+export const store = configureStore({
+  reducer: {
+    cart: cartReducer,
+    user: userReducer,
+  },
+});
+
+export type RootState = ReturnType&lt;typeof store.getState&gt;;
+export type AppDispatch = typeof store.dispatch;
+
+// Typed hooks
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+
+export const useAppDispatch: () => AppDispatch = useDispatch;
+export const useAppSelector: TypedUseSelectorHook&lt;RootState&gt; = useSelector;</code></pre>
+
+                <h3>Provider Setup</h3>
+
+                <pre><code>// app/_layout.tsx
+import { Stack } from 'expo-router';
+import { Provider } from 'react-redux';
+import { store } from '../store';
+
+export default function RootLayout() {
+  return (
+    &lt;Provider store={store}&gt;
+      &lt;Stack /&gt;
+    &lt;/Provider&gt;
+  );
+}</code></pre>
+
+                <h3>Usage in Components</h3>
+
+                <pre><code>// components/CartScreen.tsx
+import { View, Text, FlatList } from 'react-native';
+import { useAppSelector, useAppDispatch } from '../store';
+import { 
+  selectCartItems, 
+  selectCartTotal, 
+  removeItem 
+} from '../store/slices/cartSlice';
+
+function CartScreen() {
+  const items = useAppSelector(selectCartItems);
+  const total = useAppSelector(selectCartTotal);
+  const dispatch = useAppDispatch();
+
+  return (
+    &lt;View&gt;
+      &lt;FlatList
+        data={items}
+        renderItem={({ item }) =&gt; (
+          &lt;CartItemRow
+            item={item}
+            onRemove={() => dispatch(removeItem(item.id))}
+          /&gt;
+        )}
+      /&gt;
+      &lt;Text&gt;Total: ${total.toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- State Persistence -->
+            <section id="persistence">
+                <h2>State Persistence</h2>
+
+                <p>Both Zustand and Redux Toolkit support persisting state to storage, so your app state survives restarts.</p>
+
+                <h3>Zustand Persistence with MMKV</h3>
+
+                <pre><code>// stores/cartStore.ts
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { MMKV } from 'react-native-mmkv';
+
+const storage = new MMKV({ id: 'cart-storage' });
+
+// MMKV storage adapter for Zustand
+const mmkvStorage = {
+  getItem: (name: string) => {
+    const value = storage.getString(name);
+    return value ?? null;
+  },
+  setItem: (name: string, value: string) => {
+    storage.set(name, value);
+  },
+  removeItem: (name: string) => {
+    storage.delete(name);
+  },
+};
+
+interface CartState {
+  items: CartItem[];
+  addItem: (item: CartItem) => void;
+  removeItem: (id: string) => void;
+  clearCart: () => void;
+}
+
+export const useCartStore = create&lt;CartState&gt;()(
+  persist(
+    (set) => ({
+      items: [],
+      addItem: (item) =>
+        set((state) => ({ items: [...state.items, item] })),
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+        })),
+      clearCart: () => set({ items: [] }),
+    }),
+    {
+      name: 'cart-storage', // Storage key
+      storage: createJSONStorage(() => mmkvStorage),
+      
+      // Optional: Only persist certain fields
+      partialize: (state) => ({ items: state.items }),
+    }
+  )
+);</code></pre>
+
+                <h3>Zustand Persistence with AsyncStorage</h3>
+
+                <pre><code>// For Expo Go compatibility (no native modules)
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const useCartStore = create&lt;CartState&gt;()(
+  persist(
+    (set) => ({
+      items: [],
+      // ... actions
+    }),
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);</code></pre>
+
+                <h3>Handling Hydration</h3>
+
+                <p>Persisted stores need to load data from storage on startup. Zustand handles this automatically, but you might want to show a loading state:</p>
+
+                <pre><code>// hooks/useHydration.ts
+import { useEffect, useState } from 'react';
+import { useCartStore } from '../stores/cartStore';
+
+export function useHydration() {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // Zustand persist middleware exposes onFinishHydration
+    const unsubFinishHydration = useCartStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    // Check if already hydrated
+    if (useCartStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return () => {
+      unsubFinishHydration();
+    };
+  }, []);
+
+  return hydrated;
+}
+
+// Usage in app root
+function App() {
+  const hydrated = useHydration();
+
+  if (!hydrated) {
+    return &lt;SplashScreen /&gt;;
+  }
+
+  return &lt;MainApp /&gt;;
+}</code></pre>
+
+                <h3>Redux Toolkit Persistence</h3>
+
+                <pre><code>// store/index.ts
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { 
+  persistStore, 
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import cartReducer from './slices/cartSlice';
+import userReducer from './slices/userSlice';
+
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['cart'], // Only persist cart, not user
+};
+
+const rootReducer = combineReducers({
+  cart: cartReducer,
+  user: userReducer,
+});
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
+
+// app/_layout.tsx
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import { store, persistor } from '../store';
+
+export default function RootLayout() {
+  return (
+    &lt;Provider store={store}&gt;
+      &lt;PersistGate loading={&lt;SplashScreen /&gt;} persistor={persistor}&gt;
+        &lt;Stack /&gt;
+      &lt;/PersistGate&gt;
+    &lt;/Provider&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ What NOT to Persist</h4>
+                    <ul>
+                        <li><strong>Loading states:</strong> Should start fresh each session</li>
+                        <li><strong>Error states:</strong> Clear on restart</li>
+                        <li><strong>Transient UI state:</strong> Modal open/closed, etc.</li>
+                        <li><strong>Sensitive data:</strong> Use SecureStore instead</li>
+                    </ul>
+                    <p>Use <code>partialize</code> (Zustand) or <code>whitelist</code>/<code>blacklist</code> (Redux) to control what gets persisted.</p>
+                </div>
+            </section>
+
+            <!-- Combining with React Query -->
+            <section id="combining">
+                <h2>Combining with React Query</h2>
+
+                <p>React Query and Zustand/Redux are complementary—use React Query for server state and Zustand/Redux for client state. Here's how they work together:</p>
+
+                <!-- Mermaid: Combined Architecture -->
+                <pre class="mermaid">
+flowchart TB
+    subgraph Server["🌐 Server State"]
+        RQ[React Query]
+        API[(API)]
+        RQ <--> API
+    end
+    
+    subgraph Client["📱 Client State"]
+        ZS[Zustand Store]
+        LS[(Local Storage)]
+        ZS <--> LS
+    end
+    
+    subgraph UI["🖼️ React Components"]
+        C1[ProductList]
+        C2[Cart]
+        C3[Settings]
+    end
+    
+    RQ --> C1
+    ZS --> C2
+    ZS --> C3
+    RQ --> C2
+    
+    style RQ fill:#e3f2fd,stroke:#2196F3
+    style ZS fill:#fff3e0,stroke:#FF9800
+                </pre>
+
+                <h3>Example: E-commerce App</h3>
+
+                <pre><code>// A component using BOTH React Query and Zustand
+
+import { useQuery } from '@tanstack/react-query';
+import { useCartStore } from '../stores/cartStore';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+}
+
+function ProductCard({ productId }: { productId: string }) {
+  // Server state: Product data from API
+  const { data: product, isLoading } = useQuery({
+    queryKey: ['products', productId],
+    queryFn: () => fetchProduct(productId),
+  });
+
+  // Client state: Cart from Zustand
+  const cartItems = useCartStore((state) => state.items);
+  const addToCart = useCartStore((state) => state.addItem);
+
+  // Derived state: Is this product in cart?
+  const isInCart = cartItems.some((item) => item.id === productId);
+  const cartQuantity = cartItems.find((item) => item.id === productId)?.quantity ?? 0;
+
+  if (isLoading || !product) {
+    return &lt;ProductSkeleton /&gt;;
+  }
+
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Image source={{ uri: product.image }} style={styles.image} /&gt;
+      &lt;Text style={styles.name}&gt;{product.name}&lt;/Text&gt;
+      &lt;Text style={styles.price}&gt;${product.price.toFixed(2)}&lt;/Text&gt;
+      
+      {isInCart ? (
+        &lt;View style={styles.inCart}&gt;
+          &lt;Text&gt;In cart: {cartQuantity}&lt;/Text&gt;
+        &lt;/View&gt;
+      ) : (
+        &lt;Pressable
+          style={styles.addButton}
+          onPress={() => addToCart({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+          })}
+        &gt;
+          &lt;Text style={styles.addButtonText}&gt;Add to Cart&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Syncing Client State with Server</h3>
+
+                <p>Sometimes you need to sync client state (like a cart) with the server:</p>
+
+                <pre><code>// stores/cartStore.ts with server sync
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { api } from '../api/client';
+
+interface CartState {
+  items: CartItem[];
+  isSyncing: boolean;
+  lastSyncedAt: number | null;
+  
+  addItem: (item: CartItem) => void;
+  syncWithServer: () => Promise&lt;void&gt;;
+}
+
+export const useCartStore = create&lt;CartState&gt;()(
+  persist(
+    (set, get) => ({
+      items: [],
+      isSyncing: false,
+      lastSyncedAt: null,
+
+      addItem: (item) => {
+        set((state) => ({
+          items: [...state.items, item],
+        }));
+        
+        // Debounced sync (implement debounce as needed)
+        get().syncWithServer();
+      },
+
+      syncWithServer: async () => {
+        const { items, isSyncing } = get();
+        
+        if (isSyncing) return;
+        
+        set({ isSyncing: true });
+        
+        try {
+          await api.post('/cart/sync', { items });
+          set({ lastSyncedAt: Date.now() });
+        } catch (error) {
+          console.error('Cart sync failed:', error);
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+    }),
+    {
+      name: 'cart-storage',
+      partialize: (state) => ({ 
+        items: state.items,
+        lastSyncedAt: state.lastSyncedAt,
+      }),
+    }
+  )
+);
+
+// Sync cart when user logs in
+function useAuthSync() {
+  const { user } = useAuthStore();
+  const syncCart = useCartStore((state) => state.syncWithServer);
+
+  useEffect(() => {
+    if (user) {
+      syncCart();
+    }
+  }, [user, syncCart]);
+}</code></pre>
+            </section>
+
+            <!-- Choosing Your Approach -->
+            <section id="choosing">
+                <h2>Choosing Your Approach</h2>
+
+                <p>Here's a decision framework for choosing the right state management approach:</p>
+
+                <!-- Mermaid: Decision Tree -->
+                <pre class="mermaid">
+flowchart TD
+    A[Need global state?] -->|No| B[useState / useReducer]
+    A -->|Yes| C{What type of state?}
+    
+    C -->|Server data| D[React Query / SWR]
+    C -->|Client state| E{Complexity?}
+    
+    E -->|Simple, rarely changes| F[React Context]
+    E -->|Medium complexity| G[Zustand]
+    E -->|Complex, team knows Redux| H[Redux Toolkit]
+    
+    style D fill:#e3f2fd,stroke:#2196F3
+    style F fill:#e8f5e9,stroke:#4CAF50
+    style G fill:#fff3e0,stroke:#FF9800
+    style H fill:#fce4ec,stroke:#E91E63
+                </pre>
+
+                <div class="card">
+                    <h4>📋 Quick Reference</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Scenario</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">API data (users, posts, products)</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>React Query</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Theme, language, feature flags</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>React Context</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Shopping cart, filters, UI state</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Zustand</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Complex flows, existing Redux app</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Redux Toolkit</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Form state</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>React Hook Form</strong> (next lesson!)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Our Recommendation</h4>
+                    <p>For most React Native apps, this combination works great:</p>
+                    <ul>
+                        <li><strong>React Query</strong> for all server/API data</li>
+                        <li><strong>Zustand</strong> for global client state (cart, UI, auth status)</li>
+                        <li><strong>React Context</strong> for theme and simple app-wide settings</li>
+                        <li><strong>Local useState</strong> for component-specific state</li>
+                    </ul>
+                    <p>This gives you the best of all worlds with minimal complexity.</p>
+                </div>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Create a Zustand Filter Store</h3>
+                    <p>Build a store for managing product list filters.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Track selected categories (array of strings)</li>
+                        <li>Track price range (min/max)</li>
+                        <li>Track sort order (price-asc, price-desc, name-asc, name-desc)</li>
+                        <li>Actions: toggleCategory, setPriceRange, setSortOrder, resetFilters</li>
+                        <li>A computed function to check if any filters are active</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>get()</code> to access current state in computed functions. For toggleCategory, check if the category exists and either add or remove it.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// stores/filterStore.ts
+import { create } from 'zustand';
+
+type SortOrder = 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
+
+interface FilterState {
+  categories: string[];
+  priceRange: { min: number; max: number };
+  sortOrder: SortOrder;
+  
+  // Actions
+  toggleCategory: (category: string) => void;
+  setPriceRange: (min: number, max: number) => void;
+  setSortOrder: (order: SortOrder) => void;
+  resetFilters: () => void;
+  
+  // Computed
+  hasActiveFilters: () => boolean;
+}
+
+const defaultFilters = {
+  categories: [],
+  priceRange: { min: 0, max: 1000 },
+  sortOrder: 'name-asc' as SortOrder,
+};
+
+export const useFilterStore = create&lt;FilterState&gt;((set, get) => ({
+  ...defaultFilters,
+
+  toggleCategory: (category) => {
+    set((state) => {
+      const exists = state.categories.includes(category);
+      return {
+        categories: exists
+          ? state.categories.filter((c) => c !== category)
+          : [...state.categories, category],
+      };
+    });
+  },
+
+  setPriceRange: (min, max) => {
+    set({ priceRange: { min, max } });
+  },
+
+  setSortOrder: (order) => {
+    set({ sortOrder: order });
+  },
+
+  resetFilters: () => {
+    set(defaultFilters);
+  },
+
+  hasActiveFilters: () => {
+    const state = get();
+    return (
+      state.categories.length > 0 ||
+      state.priceRange.min !== 0 ||
+      state.priceRange.max !== 1000 ||
+      state.sortOrder !== 'name-asc'
+    );
+  },
+}));
+
+// Usage
+function FilterBar() {
+  const categories = useFilterStore((s) => s.categories);
+  const hasFilters = useFilterStore((s) => s.hasActiveFilters());
+  const resetFilters = useFilterStore((s) => s.resetFilters);
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Selected: {categories.join(', ')}&lt;/Text&gt;
+      {hasFilters && (
+        &lt;Button title="Clear Filters" onPress={resetFilters} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Persisted Favorites Store</h3>
+                    <p>Create a favorites store that persists to AsyncStorage.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Store a list of favorited product IDs</li>
+                        <li>Actions: toggleFavorite, isFavorite (check if ID is in list)</li>
+                        <li>Persist favorites to AsyncStorage</li>
+                        <li>Handle hydration state for initial load</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use Zustand's <code>persist</code> middleware with <code>createJSONStorage(() => AsyncStorage)</code>. The <code>isFavorite</code> function can use <code>get().favorites.includes(id)</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// stores/favoritesStore.ts
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface FavoritesState {
+  favorites: string[];
+  toggleFavorite: (id: string) => void;
+  isFavorite: (id: string) => boolean;
+  clearFavorites: () => void;
+}
+
+export const useFavoritesStore = create&lt;FavoritesState&gt;()(
+  persist(
+    (set, get) => ({
+      favorites: [],
+
+      toggleFavorite: (id) => {
+        set((state) => {
+          const exists = state.favorites.includes(id);
+          return {
+            favorites: exists
+              ? state.favorites.filter((fId) => fId !== id)
+              : [...state.favorites, id],
+          };
+        });
+      },
+
+      isFavorite: (id) => {
+        return get().favorites.includes(id);
+      },
+
+      clearFavorites: () => {
+        set({ favorites: [] });
+      },
+    }),
+    {
+      name: 'favorites-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
+// Hydration hook
+export function useFavoritesHydration() {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const unsub = useFavoritesStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    if (useFavoritesStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return unsub;
+  }, []);
+
+  return hydrated;
+}
+
+// Usage
+function FavoriteButton({ productId }: { productId: string }) {
+  const isFavorite = useFavoritesStore((s) => s.isFavorite(productId));
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+
+  return (
+    &lt;Pressable onPress={() => toggleFavorite(productId)}&gt;
+      &lt;Text&gt;{isFavorite ? '❤️' : '🤍'}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Auth Store with Async Actions</h3>
+                    <p>Build a complete authentication store with login, logout, and token refresh.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Track: user, isAuthenticated, isLoading, error</li>
+                        <li>Async actions: login, logout, checkAuth (on app start)</li>
+                        <li>Store tokens in SecureStore (not in Zustand state)</li>
+                        <li>Handle loading and error states properly</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>In async actions, set <code>isLoading: true</code> first, then wrap in try-catch. Store tokens with SecureStore, but keep the user object in Zustand state. The <code>checkAuth</code> action should fetch the user if a token exists.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// stores/authStore.ts
+import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  
+  login: (email: string, password: string) => Promise&lt;void&gt;;
+  logout: () => Promise&lt;void&gt;;
+  checkAuth: () => Promise&lt;void&gt;;
+  clearError: () => void;
+}
+
+const TOKEN_KEY = 'auth_token';
+
+export const useAuthStore = create&lt;AuthState&gt;((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true, // Start true for initial auth check
+  error: null,
+
+  login: async (email, password) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      // Simulate API call
+      const response = await fetch('https://api.example.com/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Login failed');
+      }
+
+      const { user, token } = await response.json();
+
+      // Store token securely
+      await SecureStore.setItemAsync(TOKEN_KEY, token);
+
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Login failed',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    set({ isLoading: true });
+
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ isLoading: false });
+    }
+  },
+
+  checkAuth: async () => {
+    set({ isLoading: true });
+
+    try {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+
+      if (!token) {
+        set({ isLoading: false });
+        return;
+      }
+
+      // Validate token with server
+      const response = await fetch('https://api.example.com/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        await SecureStore.deleteItemAsync(TOKEN_KEY);
+        set({ isLoading: false });
+        return;
+      }
+
+      const user = await response.json();
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      set({ isLoading: false });
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));
+
+// Usage in app root
+function AppRoot() {
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  const isLoading = useAuthStore((s) => s.isLoading);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return &lt;SplashScreen /&gt;;
+  }
+
+  return &lt;RootNavigator /&gt;;
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>State management at scale is about choosing the right tool for each type of state. Don't over-engineer—start simple and add complexity only when needed.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Server state ≠ Client state</strong>—use different tools for each</li>
+                        <li><strong>React Query</strong> for API data (caching, background refresh, mutations)</li>
+                        <li><strong>Zustand</strong> for client state—simple, fast, no providers needed</li>
+                        <li><strong>Redux Toolkit</strong> when you need complex middleware or team knows Redux</li>
+                        <li><strong>Context</strong> is still great for theme, locale, and rarely-changing state</li>
+                        <li><strong>Selective subscriptions</strong> prevent unnecessary re-renders</li>
+                        <li><strong>Persistence middleware</strong> saves state across app restarts</li>
+                        <li><strong>Combine tools</strong>—React Query + Zustand is a powerful combo</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll dive into forms and validation—another crucial piece of data management that has its own specialized tools.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m07_l03_local_storage_options.html" class="prev-link">← Previous: Local Storage Options</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m07_l05_forms_and_validation.html" class="next-link">Next: Forms and Validation →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

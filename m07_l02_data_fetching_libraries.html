@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master React Query and SWR for powerful data fetching with caching, background updates, and optimistic mutations in React Native">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Data Fetching Libraries | Module 7: Data Management and Networking | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m07_l01_fetching_data.html">Module 7</a> &gt;
+            <span>Lesson 7.2</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 7: Data Management and Networking</p>
+                <h1>Data Fetching Libraries</h1>
+                <p class="lesson-subtitle">Let battle-tested libraries handle the hard parts of data management</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand why data fetching libraries exist and what problems they solve</li>
+                    <li>Set up and use TanStack Query (React Query) in a React Native app</li>
+                    <li>Implement automatic caching, background refetching, and stale-while-revalidate</li>
+                    <li>Handle mutations with automatic cache invalidation</li>
+                    <li>Build optimistic updates for instant UI feedback</li>
+                    <li>Implement infinite scroll with useInfiniteQuery</li>
+                    <li>Compare React Query with SWR and choose the right tool</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#why-libraries">Why Use a Data Fetching Library?</a></li>
+                        <li><a href="#react-query-setup">Setting Up TanStack Query</a></li>
+                        <li><a href="#use-query">useQuery: Fetching Data</a></li>
+                        <li><a href="#caching">Caching and Stale Data</a></li>
+                        <li><a href="#mutations">useMutation: Changing Data</a></li>
+                        <li><a href="#optimistic-updates">Optimistic Updates</a></li>
+                        <li><a href="#infinite-queries">Infinite Queries for Pagination</a></li>
+                        <li><a href="#swr-comparison">SWR: The Alternative</a></li>
+                        <li><a href="#choosing">Choosing the Right Library</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Why Use a Data Fetching Library? -->
+            <section id="why-libraries">
+                <h2>Why Use a Data Fetching Library?</h2>
+
+                <p>In the previous lesson, we built our own <code>useFetch</code> hook. It worked, but as your app grows, you'll encounter increasingly complex requirements that are tedious to implement yourself:</p>
+
+                <div class="card">
+                    <h4>😫 Problems You'll Eventually Face</h4>
+                    <ul>
+                        <li><strong>Duplicate requests</strong> — Two components need the same data, both fetch it</li>
+                        <li><strong>Stale data</strong> — User sees outdated information after navigating back</li>
+                        <li><strong>Cache invalidation</strong> — After updating data, related queries show old values</li>
+                        <li><strong>Loading states everywhere</strong> — Every component manages its own loading state</li>
+                        <li><strong>Background updates</strong> — Data could be fresher, but you only fetch on mount</li>
+                        <li><strong>Optimistic UI</strong> — User waits for server confirmation before seeing changes</li>
+                        <li><strong>Pagination complexity</strong> — Infinite scroll with proper caching is hard</li>
+                        <li><strong>Retry logic</strong> — Network errors need automatic retry with backoff</li>
+                    </ul>
+                </div>
+
+                <p>Data fetching libraries solve all of these problems with battle-tested solutions. The two most popular options are TanStack Query (formerly React Query) and SWR.</p>
+
+                <!-- SVG: What Libraries Provide -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 400" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="400" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">What Data Fetching Libraries Provide</text>
+                        
+                        <!-- Center: Your App -->
+                        <circle cx="350" cy="200" r="60" fill="#667eea" stroke="#5a67d8" stroke-width="2"/>
+                        <text x="350" y="195" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Your</text>
+                        <text x="350" y="212" text-anchor="middle" font-size="12" font-weight="bold" fill="white">App</text>
+                        
+                        <!-- Feature bubbles around center -->
+                        <!-- Top -->
+                        <ellipse cx="350" cy="80" rx="70" ry="30" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2"/>
+                        <text x="350" y="85" text-anchor="middle" font-size="11" fill="#2e7d32">Automatic Caching</text>
+                        
+                        <!-- Top Right -->
+                        <ellipse cx="500" cy="120" rx="75" ry="30" fill="#e3f2fd" stroke="#2196F3" stroke-width="2"/>
+                        <text x="500" y="125" text-anchor="middle" font-size="11" fill="#1976D2">Background Refetch</text>
+                        
+                        <!-- Right -->
+                        <ellipse cx="550" cy="200" rx="70" ry="30" fill="#fff3e0" stroke="#FF9800" stroke-width="2"/>
+                        <text x="550" y="205" text-anchor="middle" font-size="11" fill="#e65100">Deduplication</text>
+                        
+                        <!-- Bottom Right -->
+                        <ellipse cx="500" cy="280" rx="70" ry="30" fill="#fce4ec" stroke="#E91E63" stroke-width="2"/>
+                        <text x="500" y="285" text-anchor="middle" font-size="11" fill="#c2185b">Optimistic UI</text>
+                        
+                        <!-- Bottom -->
+                        <ellipse cx="350" cy="320" rx="80" ry="30" fill="#f3e5f5" stroke="#9C27B0" stroke-width="2"/>
+                        <text x="350" y="325" text-anchor="middle" font-size="11" fill="#7b1fa2">Cache Invalidation</text>
+                        
+                        <!-- Bottom Left -->
+                        <ellipse cx="200" cy="280" rx="70" ry="30" fill="#e0f2f1" stroke="#009688" stroke-width="2"/>
+                        <text x="200" y="285" text-anchor="middle" font-size="11" fill="#00796b">Retry Logic</text>
+                        
+                        <!-- Left -->
+                        <ellipse cx="150" cy="200" rx="70" ry="30" fill="#fff8e1" stroke="#FFC107" stroke-width="2"/>
+                        <text x="150" y="205" text-anchor="middle" font-size="11" fill="#ff8f00">Infinite Scroll</text>
+                        
+                        <!-- Top Left -->
+                        <ellipse cx="200" cy="120" rx="75" ry="30" fill="#efebe9" stroke="#795548" stroke-width="2"/>
+                        <text x="200" y="125" text-anchor="middle" font-size="11" fill="#5d4037">Stale While Revalidate</text>
+                        
+                        <!-- Connecting lines -->
+                        <line x1="350" y1="140" x2="350" y2="110" stroke="#ddd" stroke-width="1"/>
+                        <line x1="400" y1="160" x2="440" y2="135" stroke="#ddd" stroke-width="1"/>
+                        <line x1="410" y1="200" x2="480" y2="200" stroke="#ddd" stroke-width="1"/>
+                        <line x1="400" y1="240" x2="440" y2="265" stroke="#ddd" stroke-width="1"/>
+                        <line x1="350" y1="260" x2="350" y2="290" stroke="#ddd" stroke-width="1"/>
+                        <line x1="300" y1="240" x2="260" y2="265" stroke="#ddd" stroke-width="1"/>
+                        <line x1="290" y1="200" x2="220" y2="200" stroke="#ddd" stroke-width="1"/>
+                        <line x1="300" y1="160" x2="260" y2="135" stroke="#ddd" stroke-width="1"/>
+                        
+                        <!-- Footer note -->
+                        <text x="350" y="380" text-anchor="middle" font-size="10" fill="#666">All handled automatically — you just describe what data you need</text>
+                    </svg>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Core Insight</h4>
+                    <p style="color: white;">Data fetching libraries treat <strong>server state</strong> as fundamentally different from <strong>client state</strong>. Server state is data that lives on a remote server, can become stale, and needs to be synchronized. These libraries are purpose-built for managing this type of state.</p>
+                </div>
+            </section>
+
+            <!-- Setting Up TanStack Query -->
+            <section id="react-query-setup">
+                <h2>Setting Up TanStack Query</h2>
+
+                <p>TanStack Query (the new name for React Query) is the most popular and feature-rich option. Let's set it up in an Expo project.</p>
+
+                <h3>Installation</h3>
+
+                <pre><code>npx expo install @tanstack/react-query</code></pre>
+
+                <h3>Provider Setup</h3>
+
+                <p>Wrap your app with the <code>QueryClientProvider</code>:</p>
+
+                <pre><code>// app/_layout.tsx
+import { Stack } from 'expo-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a client outside of components to avoid recreation
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // How long data is considered fresh (won't refetch)
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      
+      // How long inactive data stays in cache
+      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      
+      // Retry failed requests
+      retry: 2,
+      
+      // Refetch when window regains focus (useful!)
+      refetchOnWindowFocus: true,
+      
+      // Refetch when network reconnects
+      refetchOnReconnect: true,
+    },
+  },
+});
+
+export default function RootLayout() {
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;Stack /&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 What These Options Mean</h4>
+                    <p><strong>staleTime:</strong> Data younger than this is "fresh" and won't trigger a refetch. Set to 0 (default) for always-stale data that refetches on every mount.</p>
+                    <p><strong>gcTime:</strong> How long to keep inactive (no active observers) data in memory before garbage collecting it.</p>
+                    <p><strong>refetchOnWindowFocus:</strong> In React Native, this triggers when the app comes to the foreground—great for keeping data fresh!</p>
+                </div>
+
+                <h3>React Native Specific Setup</h3>
+
+                <p>For React Native, you'll want to handle app state changes to trigger refetches when the app returns from background:</p>
+
+                <pre><code>// app/_layout.tsx
+import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
+import { Stack } from 'expo-router';
+import { 
+  QueryClient, 
+  QueryClientProvider,
+  focusManager,
+  onlineManager 
+} from '@tanstack/react-query';
+import NetInfo from '@react-native-community/netinfo';
+
+const queryClient = new QueryClient();
+
+export default function RootLayout() {
+  useEffect(() => {
+    // Handle app state changes (foreground/background)
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (Platform.OS !== 'web') {
+        focusManager.setFocused(status === 'active');
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    // Handle online/offline status
+    return NetInfo.addEventListener((state) => {
+      onlineManager.setOnline(
+        state.isConnected != null &&
+        state.isConnected &&
+        Boolean(state.isInternetReachable)
+      );
+    });
+  }, []);
+
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;Stack /&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+}</code></pre>
+
+                <p>This setup ensures that when users return to your app or regain network connectivity, stale queries automatically refetch.</p>
+            </section>
+
+            <!-- useQuery: Fetching Data -->
+            <section id="use-query">
+                <h2>useQuery: Fetching Data</h2>
+
+                <p>The <code>useQuery</code> hook is the foundation of TanStack Query. It takes a unique key and a function that returns a promise.</p>
+
+                <pre><code>import { useQuery } from '@tanstack/react-query';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+// Define your fetch function separately for reusability
+async function fetchUsers(): Promise&lt;User[]&gt; {
+  const response = await fetch('https://jsonplaceholder.typicode.com/users');
+  if (!response.ok) {
+    throw new Error('Failed to fetch users');
+  }
+  return response.json();
+}
+
+export default function UserList() {
+  const { 
+    data: users,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching
+  } = useQuery({
+    queryKey: ['users'],  // Unique identifier for this query
+    queryFn: fetchUsers,  // Function that fetches the data
+  });
+
+  if (isLoading) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;ActivityIndicator size="large" /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  if (isError) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;Text&gt;Error: {error.message}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;FlatList
+      data={users}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.userCard}&gt;
+          &lt;Text style={styles.name}&gt;{item.name}&lt;/Text&gt;
+          &lt;Text style={styles.email}&gt;{item.email}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+      onRefresh={refetch}
+      refreshing={isRefetching}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Query Keys Are Crucial</h3>
+
+                <p>Query keys uniquely identify your data. They determine caching, refetching, and sharing data between components.</p>
+
+                <pre><code>// Simple key - fetches all users
+useQuery({ queryKey: ['users'], queryFn: fetchUsers });
+
+// Key with parameter - fetches specific user
+useQuery({ 
+  queryKey: ['users', userId],  // Different userId = different cache entry
+  queryFn: () => fetchUser(userId) 
+});
+
+// Key with filters - fetches filtered data
+useQuery({ 
+  queryKey: ['users', { status: 'active', page: 1 }],
+  queryFn: () => fetchUsers({ status: 'active', page: 1 }) 
+});
+
+// Nested keys for related data
+useQuery({
+  queryKey: ['users', userId, 'posts'],  // Posts for a specific user
+  queryFn: () => fetchUserPosts(userId)
+});</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Key Matching Rules</h4>
+                    <p>Query keys are matched using deep equality. <code>['users', { page: 1 }]</code> and <code>['users', { page: 2 }]</code> are different queries with separate cache entries. This is powerful but requires careful key design.</p>
+                </div>
+
+                <h3>Dependent Queries</h3>
+
+                <p>Sometimes you need data from one query before you can run another. Use the <code>enabled</code> option:</p>
+
+                <pre><code>function UserProfile({ userId }: { userId: string }) {
+  // First, fetch the user
+  const { data: user } = useQuery({
+    queryKey: ['users', userId],
+    queryFn: () => fetchUser(userId),
+  });
+
+  // Then, fetch their posts (only when we have the user)
+  const { data: posts } = useQuery({
+    queryKey: ['users', userId, 'posts'],
+    queryFn: () => fetchUserPosts(userId),
+    enabled: !!user,  // Only run when user exists
+  });
+
+  // Even more dependent - fetch comments for first post
+  const { data: comments } = useQuery({
+    queryKey: ['posts', posts?.[0]?.id, 'comments'],
+    queryFn: () => fetchPostComments(posts![0].id),
+    enabled: !!posts && posts.length > 0,  // Only when posts exist
+  });
+
+  // ...
+}</code></pre>
+
+                <!-- Mermaid: Dependent Queries Flow -->
+                <pre class="mermaid">
+sequenceDiagram
+    participant C as Component
+    participant Q1 as useQuery (user)
+    participant Q2 as useQuery (posts)
+    participant Q3 as useQuery (comments)
+    participant S as Server
+
+    C->>Q1: Mount with userId
+    Q1->>S: Fetch user
+    Note over Q2: enabled: false (waiting)
+    Note over Q3: enabled: false (waiting)
+    S-->>Q1: User data
+    Q1-->>C: user = {...}
+    
+    Note over Q2: enabled: true (user exists)
+    Q2->>S: Fetch posts
+    S-->>Q2: Posts data
+    Q2-->>C: posts = [...]
+    
+    Note over Q3: enabled: true (posts exist)
+    Q3->>S: Fetch comments
+    S-->>Q3: Comments data
+    Q3-->>C: comments = [...]
+                </pre>
+            </section>
+
+            <!-- Caching and Stale Data -->
+            <section id="caching">
+                <h2>Caching and Stale Data</h2>
+
+                <p>The real magic of TanStack Query is its caching system. Understanding how it works is key to building responsive apps.</p>
+
+                <h3>The Stale-While-Revalidate Pattern</h3>
+
+                <p>When you navigate to a screen that uses cached data:</p>
+
+                <ol>
+                    <li><strong>Immediately</strong> show cached data (even if stale)</li>
+                    <li><strong>Background</strong> fetch fresh data</li>
+                    <li><strong>Update</strong> the UI when fresh data arrives</li>
+                </ol>
+
+                <p>This means users see something instantly while getting updated data moments later.</p>
+
+                <!-- SVG: Stale While Revalidate -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 300" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Stale-While-Revalidate Pattern</text>
+                        
+                        <!-- Timeline -->
+                        <line x1="50" y1="150" x2="650" y2="150" stroke="#333" stroke-width="2"/>
+                        
+                        <!-- Time markers -->
+                        <circle cx="100" cy="150" r="8" fill="#667eea"/>
+                        <text x="100" y="180" text-anchor="middle" font-size="10" fill="#333">Navigate</text>
+                        <text x="100" y="195" text-anchor="middle" font-size="10" fill="#333">to screen</text>
+                        
+                        <circle cx="200" cy="150" r="8" fill="#4CAF50"/>
+                        <text x="200" y="180" text-anchor="middle" font-size="10" fill="#333">Show cached</text>
+                        <text x="200" y="195" text-anchor="middle" font-size="10" fill="#333">(instant!)</text>
+                        
+                        <circle cx="350" cy="150" r="8" fill="#FF9800"/>
+                        <text x="350" y="180" text-anchor="middle" font-size="10" fill="#333">Background</text>
+                        <text x="350" y="195" text-anchor="middle" font-size="10" fill="#333">fetch starts</text>
+                        
+                        <circle cx="550" cy="150" r="8" fill="#2196F3"/>
+                        <text x="550" y="180" text-anchor="middle" font-size="10" fill="#333">Fresh data</text>
+                        <text x="550" y="195" text-anchor="middle" font-size="10" fill="#333">arrives</text>
+                        
+                        <!-- User Experience bar -->
+                        <rect x="100" y="60" width="450" height="40" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        <text x="325" y="85" text-anchor="middle" font-size="11" fill="#2e7d32">✅ User sees data the entire time — no loading spinner!</text>
+                        
+                        <!-- Traditional approach comparison -->
+                        <rect x="100" y="220" width="150" height="40" fill="#ffebee" stroke="#f44336" stroke-width="2" rx="4"/>
+                        <text x="175" y="245" text-anchor="middle" font-size="10" fill="#c62828">❌ Traditional: Loading...</text>
+                        
+                        <rect x="250" y="220" width="300" height="40" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        <text x="400" y="245" text-anchor="middle" font-size="10" fill="#2e7d32">Data appears after fetch completes</text>
+                        
+                        <!-- Labels -->
+                        <text x="50" y="85" text-anchor="start" font-size="10" fill="#666">With SWR:</text>
+                        <text x="50" y="245" text-anchor="start" font-size="10" fill="#666">Without:</text>
+                    </svg>
+                </div>
+
+                <h3>Controlling Staleness</h3>
+
+                <pre><code>// Data is fresh for 5 minutes — no refetch if accessed within that time
+const { data } = useQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+  staleTime: 1000 * 60 * 5,  // 5 minutes
+});
+
+// Data is always stale — refetches on every mount (default behavior)
+const { data } = useQuery({
+  queryKey: ['posts'],
+  queryFn: fetchPosts,
+  staleTime: 0,  // Always stale (default)
+});
+
+// Data never goes stale — only fetches once ever
+const { data } = useQuery({
+  queryKey: ['config'],
+  queryFn: fetchConfig,
+  staleTime: Infinity,  // Never stale
+});</code></pre>
+
+                <h3>Cache Lifecycle</h3>
+
+                <pre class="mermaid">
+stateDiagram-v2
+    [*] --> Fetching: Query mounted
+    Fetching --> Fresh: Success
+    Fetching --> Error: Failure
+    
+    Fresh --> Stale: staleTime elapsed
+    Stale --> Fetching: Trigger (mount, focus, etc.)
+    
+    Fresh --> Inactive: All observers unmount
+    Stale --> Inactive: All observers unmount
+    
+    Inactive --> Fresh: New observer mounts
+    Inactive --> [*]: gcTime elapsed (garbage collected)
+    
+    Error --> Fetching: Retry
+                </pre>
+
+                <h3>Prefetching Data</h3>
+
+                <p>You can prefetch data before the user navigates, making the next screen instant:</p>
+
+                <pre><code>import { useQueryClient } from '@tanstack/react-query';
+import { Pressable, Text } from 'react-native';
+import { useRouter } from 'expo-router';
+
+function UserListItem({ user }: { user: User }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const handlePress = () => {
+    router.push(`/users/${user.id}`);
+  };
+
+  const handlePressIn = () => {
+    // Prefetch user details when finger touches down
+    // By the time they lift and navigate, data is cached!
+    queryClient.prefetchQuery({
+      queryKey: ['users', user.id],
+      queryFn: () => fetchUser(user.id),
+    });
+  };
+
+  return (
+    &lt;Pressable
+      onPress={handlePress}
+      onPressIn={handlePressIn}  // Prefetch on touch start
+      style={styles.item}
+    &gt;
+      &lt;Text&gt;{user.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Pro Tip: Prefetch on Hover/Focus</h4>
+                    <p>For list items, prefetch on <code>onPressIn</code>. The ~100-200ms between touch start and navigation is often enough to complete the fetch, making the detail screen appear instant.</p>
+                </div>
+            </section>
+
+            <!-- useMutation: Changing Data -->
+            <section id="mutations">
+                <h2>useMutation: Changing Data</h2>
+
+                <p>While <code>useQuery</code> is for reading data, <code>useMutation</code> is for creating, updating, or deleting data. It handles the request lifecycle and provides hooks for cache invalidation.</p>
+
+                <pre><code>import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { View, TextInput, Pressable, Text, Alert } from 'react-native';
+import { useState } from 'react';
+
+interface CreatePostData {
+  title: string;
+  body: string;
+}
+
+async function createPost(data: CreatePostData) {
+  const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to create post');
+  return response.json();
+}
+
+export default function CreatePostForm() {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: createPost,
+    
+    onSuccess: (newPost) => {
+      // Invalidate posts query to refetch the list
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      
+      // Clear the form
+      setTitle('');
+      setBody('');
+      
+      Alert.alert('Success', 'Post created!');
+    },
+    
+    onError: (error) => {
+      Alert.alert('Error', error.message);
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!title.trim() || !body.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    
+    mutation.mutate({ title, body });
+  };
+
+  return (
+    &lt;View style={styles.form}&gt;
+      &lt;TextInput
+        style={styles.input}
+        placeholder="Title"
+        value={title}
+        onChangeText={setTitle}
+        editable={!mutation.isPending}
+      /&gt;
+      
+      &lt;TextInput
+        style={[styles.input, styles.bodyInput]}
+        placeholder="Body"
+        value={body}
+        onChangeText={setBody}
+        multiline
+        editable={!mutation.isPending}
+      /&gt;
+      
+      &lt;Pressable
+        style={[
+          styles.button,
+          mutation.isPending && styles.buttonDisabled
+        ]}
+        onPress={handleSubmit}
+        disabled={mutation.isPending}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;
+          {mutation.isPending ? 'Creating...' : 'Create Post'}
+        &lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Cache Invalidation Strategies</h3>
+
+                <p>After a mutation, you need to update related cached data. There are several approaches:</p>
+
+                <pre><code>const queryClient = useQueryClient();
+
+// Strategy 1: Invalidate (refetch) related queries
+queryClient.invalidateQueries({ queryKey: ['posts'] });
+
+// Strategy 2: Invalidate with more specificity
+queryClient.invalidateQueries({ 
+  queryKey: ['posts'],
+  exact: true  // Only ['posts'], not ['posts', 1]
+});
+
+// Strategy 3: Update cache directly (no refetch)
+queryClient.setQueryData(['posts'], (oldPosts: Post[]) => {
+  return [...oldPosts, newPost];
+});
+
+// Strategy 4: Remove from cache
+queryClient.removeQueries({ queryKey: ['posts', deletedId] });</code></pre>
+
+                <div class="card">
+                    <h4>🔄 When to Invalidate vs Update Directly</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Approach</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">When to Use</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>invalidateQueries</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">When server might transform data or add computed fields</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>setQueryData</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">When you have all the data and want instant updates</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Both</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Update immediately, then invalidate to ensure consistency</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Optimistic Updates -->
+            <section id="optimistic-updates">
+                <h2>Optimistic Updates</h2>
+
+                <p>Optimistic updates make your app feel instant by updating the UI before the server confirms the change. If the mutation fails, you roll back to the previous state.</p>
+
+                <!-- SVG: Optimistic Updates Flow -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 250" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="250" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Optimistic Updates: Instant UI Feedback</text>
+                        
+                        <!-- Timeline -->
+                        <line x1="50" y1="120" x2="650" y2="120" stroke="#333" stroke-width="2"/>
+                        
+                        <!-- Step 1: User Action -->
+                        <circle cx="100" cy="120" r="25" fill="#667eea"/>
+                        <text x="100" y="125" text-anchor="middle" font-size="20" fill="white">1</text>
+                        <text x="100" y="165" text-anchor="middle" font-size="10" fill="#333">User taps</text>
+                        <text x="100" y="180" text-anchor="middle" font-size="10" fill="#333">"Like"</text>
+                        
+                        <!-- Step 2: Optimistic Update -->
+                        <circle cx="250" cy="120" r="25" fill="#4CAF50"/>
+                        <text x="250" y="125" text-anchor="middle" font-size="20" fill="white">2</text>
+                        <text x="250" y="165" text-anchor="middle" font-size="10" fill="#333">UI updates</text>
+                        <text x="250" y="180" text-anchor="middle" font-size="10" fill="#333">immediately ❤️</text>
+                        
+                        <!-- Step 3: Request -->
+                        <circle cx="400" cy="120" r="25" fill="#FF9800"/>
+                        <text x="400" y="125" text-anchor="middle" font-size="20" fill="white">3</text>
+                        <text x="400" y="165" text-anchor="middle" font-size="10" fill="#333">Request sent</text>
+                        <text x="400" y="180" text-anchor="middle" font-size="10" fill="#333">to server</text>
+                        
+                        <!-- Step 4: Success or Rollback -->
+                        <circle cx="550" cy="80" r="20" fill="#4CAF50"/>
+                        <text x="550" y="85" text-anchor="middle" font-size="10" fill="white">✓</text>
+                        <text x="620" y="85" text-anchor="start" font-size="10" fill="#2e7d32">Success: Keep change</text>
+                        
+                        <circle cx="550" cy="160" r="20" fill="#f44336"/>
+                        <text x="550" y="165" text-anchor="middle" font-size="10" fill="white">✗</text>
+                        <text x="620" y="165" text-anchor="start" font-size="10" fill="#c62828">Error: Rollback</text>
+                        
+                        <!-- Arrows -->
+                        <path d="M125,120 L220,120" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M275,120 L370,120" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M425,110 L530,85" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                        <path d="M425,130 L530,155" stroke="#f44336" stroke-width="2" marker-end="url(#arrowRed)"/>
+                        
+                        <!-- User perception -->
+                        <rect x="150" y="200" width="200" height="35" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        <text x="250" y="222" text-anchor="middle" font-size="11" fill="#2e7d32">User perceives: Instant!</text>
+                        
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+                            </marker>
+                            <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                            <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#f44336"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <pre><code>import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+interface Post {
+  id: number;
+  title: string;
+  likes: number;
+}
+
+async function likePost(postId: number): Promise&lt;Post&gt; {
+  const response = await fetch(`/api/posts/${postId}/like`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to like post');
+  return response.json();
+}
+
+function useLikePost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: likePost,
+    
+    // Called before the mutation function fires
+    onMutate: async (postId) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['posts', postId] });
+
+      // Snapshot the previous value
+      const previousPost = queryClient.getQueryData&lt;Post&gt;(['posts', postId]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData&lt;Post&gt;(['posts', postId], (old) => {
+        if (!old) return old;
+        return { ...old, likes: old.likes + 1 };
+      });
+
+      // Return context with the snapshot
+      return { previousPost };
+    },
+
+    // Called if the mutation fails
+    onError: (err, postId, context) => {
+      // Roll back to the previous value
+      if (context?.previousPost) {
+        queryClient.setQueryData(['posts', postId], context.previousPost);
+      }
+    },
+
+    // Called after success or failure
+    onSettled: (data, error, postId) => {
+      // Always refetch to ensure we're in sync with the server
+      queryClient.invalidateQueries({ queryKey: ['posts', postId] });
+    },
+  });
+}
+
+// Usage in component
+function PostCard({ post }: { post: Post }) {
+  const likeMutation = useLikePost();
+
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Text style={styles.title}&gt;{post.title}&lt;/Text&gt;
+      &lt;Pressable
+        onPress={() => likeMutation.mutate(post.id)}
+        style={styles.likeButton}
+      &gt;
+        &lt;Text&gt;❤️ {post.likes}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Optimistic Updates Require Careful Design</h4>
+                    <p>Only use optimistic updates when you're highly confident the mutation will succeed. For critical operations like payments or data deletion, wait for server confirmation before updating the UI.</p>
+                </div>
+            </section>
+            <!-- Infinite Queries for Pagination -->
+            <section id="infinite-queries">
+                <h2>Infinite Queries for Pagination</h2>
+
+                <p>Infinite scroll is a common pattern in mobile apps. TanStack Query provides <code>useInfiniteQuery</code> specifically for paginated data that accumulates (like a social media feed).</p>
+
+                <pre><code>import { useInfiniteQuery } from '@tanstack/react-query';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  ActivityIndicator,
+  StyleSheet 
+} from 'react-native';
+
+interface Post {
+  id: number;
+  title: string;
+  body: string;
+}
+
+interface PostsResponse {
+  posts: Post[];
+  nextCursor: number | null;
+  hasMore: boolean;
+}
+
+async function fetchPosts({ pageParam = 0 }): Promise&lt;PostsResponse&gt; {
+  const response = await fetch(
+    `https://api.example.com/posts?cursor=${pageParam}&limit=10`
+  );
+  if (!response.ok) throw new Error('Failed to fetch posts');
+  return response.json();
+}
+
+export default function InfiniteFeed() {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useInfiniteQuery({
+    queryKey: ['posts', 'infinite'],
+    queryFn: fetchPosts,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      // Return undefined to signal no more pages
+      return lastPage.hasMore ? lastPage.nextCursor : undefined;
+    },
+  });
+
+  // Flatten all pages into a single array
+  const allPosts = data?.pages.flatMap(page => page.posts) ?? [];
+
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;ActivityIndicator size="large" /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  if (isError) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;Text&gt;Error: {error.message}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;FlatList
+      data={allPosts}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.postCard}&gt;
+          &lt;Text style={styles.title}&gt;{item.title}&lt;/Text&gt;
+          &lt;Text style={styles.body}&gt;{item.body}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={() =&gt;
+        isFetchingNextPage ? (
+          &lt;ActivityIndicator style={styles.footer} /&gt;
+        ) : hasNextPage ? null : (
+          &lt;Text style={styles.endText}&gt;No more posts&lt;/Text&gt;
+        )
+      }
+      onRefresh={refetch}
+      refreshing={isRefetching}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postCard: {
+    padding: 16,
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  body: {
+    fontSize: 14,
+    color: '#666',
+  },
+  footer: {
+    padding: 20,
+  },
+  endText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#999',
+  },
+});</code></pre>
+
+                <h3>Understanding getNextPageParam</h3>
+
+                <p>The <code>getNextPageParam</code> function determines what to pass to the next fetch. Different APIs use different pagination styles:</p>
+
+                <pre><code>// Cursor-based pagination (most common for infinite scroll)
+getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+
+// Offset-based pagination  
+getNextPageParam: (lastPage, allPages) => {
+  const totalFetched = allPages.flatMap(p => p.items).length;
+  return totalFetched &lt; lastPage.total ? totalFetched : undefined;
+},
+
+// Page number pagination
+getNextPageParam: (lastPage, allPages) => {
+  return lastPage.hasMore ? allPages.length + 1 : undefined;
+},</code></pre>
+
+                <h3>Bi-directional Infinite Scroll</h3>
+
+                <p>For chat-like interfaces where you can scroll up to load older messages:</p>
+
+                <pre><code>const {
+  data,
+  fetchNextPage,     // Load newer messages
+  fetchPreviousPage, // Load older messages
+  hasPreviousPage,
+  isFetchingPreviousPage,
+} = useInfiniteQuery({
+  queryKey: ['messages', chatId],
+  queryFn: ({ pageParam }) => fetchMessages(chatId, pageParam),
+  initialPageParam: { direction: 'initial' },
+  getNextPageParam: (lastPage) => 
+    lastPage.hasNewer ? { cursor: lastPage.newestId, direction: 'newer' } : undefined,
+  getPreviousPageParam: (firstPage) =>
+    firstPage.hasOlder ? { cursor: firstPage.oldestId, direction: 'older' } : undefined,
+});</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 FlatList Integration Tips</h4>
+                    <ul>
+                        <li>Set <code>onEndReachedThreshold</code> to 0.3-0.5 for smoother loading</li>
+                        <li>Use <code>inverted</code> prop for chat-style lists (newest at bottom)</li>
+                        <li>Consider <code>maintainVisibleContentPosition</code> for bi-directional scroll</li>
+                        <li>Flatten pages with <code>data.pages.flatMap()</code></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- SWR: The Alternative -->
+            <section id="swr-comparison">
+                <h2>SWR: The Alternative</h2>
+
+                <p>SWR (Stale-While-Revalidate) is created by Vercel and offers a simpler API with fewer features. It's lighter-weight and might be a good choice for simpler apps.</p>
+
+                <h3>Installation</h3>
+
+                <pre><code>npx expo install swr</code></pre>
+
+                <h3>Basic Usage</h3>
+
+                <pre><code>import useSWR from 'swr';
+import { View, Text, ActivityIndicator } from 'react-native';
+
+// SWR uses a global fetcher function
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data, error, isLoading, mutate } = useSWR(
+    `https://api.example.com/users/${userId}`,
+    fetcher
+  );
+
+  if (isLoading) return &lt;ActivityIndicator /&gt;;
+  if (error) return &lt;Text&gt;Error loading user&lt;/Text&gt;;
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{data.name}&lt;/Text&gt;
+      &lt;Text&gt;{data.email}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>SWR Configuration</h3>
+
+                <pre><code>import { SWRConfig } from 'swr';
+
+function App() {
+  return (
+    &lt;SWRConfig 
+      value={{
+        fetcher: (url) => fetch(url).then(res => res.json()),
+        refreshInterval: 30000,  // Refetch every 30 seconds
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+        dedupingInterval: 2000,  // Dedupe requests within 2 seconds
+      }}
+    &gt;
+      &lt;MyApp /&gt;
+    &lt;/SWRConfig&gt;
+  );
+}</code></pre>
+
+                <h3>Mutations in SWR</h3>
+
+                <pre><code>import useSWR, { useSWRConfig } from 'swr';
+
+function UpdateUser({ userId }: { userId: string }) {
+  const { mutate } = useSWRConfig();
+  const { data: user } = useSWR(`/api/users/${userId}`);
+
+  const updateName = async (newName: string) => {
+    // Optimistic update
+    mutate(
+      `/api/users/${userId}`,
+      { ...user, name: newName },
+      false  // Don't revalidate yet
+    );
+
+    // Send to server
+    await fetch(`/api/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: newName }),
+    });
+
+    // Revalidate to ensure consistency
+    mutate(`/api/users/${userId}`);
+  };
+
+  // ...
+}</code></pre>
+
+                <h3>Key Differences from React Query</h3>
+
+                <div class="card">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Feature</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">TanStack Query</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">SWR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Bundle size</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">~13kb gzipped</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">~4kb gzipped</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Query keys</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array-based</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">String-based (simpler)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Mutations</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Dedicated useMutation hook</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Manual with mutate()</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Infinite queries</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Built-in useInfiniteQuery</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">useSWRInfinite (simpler)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>DevTools</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Excellent (Flipper plugin)</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Limited</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Cache control</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Fine-grained</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Simpler</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Learning curve</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Steeper</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Gentler</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Choosing the Right Library -->
+            <section id="choosing">
+                <h2>Choosing the Right Library</h2>
+
+                <p>Both libraries are excellent. Here's a decision framework:</p>
+
+                <!-- Mermaid: Decision Tree -->
+                <pre class="mermaid">
+flowchart TD
+    A[Starting a project] --> B{Complex data requirements?}
+    B -->|Yes| C{Need fine-grained cache control?}
+    B -->|No| D{Want simpler API?}
+    
+    C -->|Yes| E[TanStack Query]
+    C -->|No| F{Need DevTools?}
+    
+    D -->|Yes| G[SWR]
+    D -->|No| H{Bundle size critical?}
+    
+    F -->|Yes| E
+    F -->|No| I{Heavy mutations?}
+    
+    H -->|Yes| G
+    H -->|No| E
+    
+    I -->|Yes| E
+    I -->|No| G
+    
+    style E fill:#667eea,color:#fff
+    style G fill:#000,color:#fff
+                </pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Our Recommendation</h4>
+                    <p>For most React Native apps, <strong>TanStack Query is the better choice</strong>. The extra bundle size is negligible on mobile, and you'll likely need its advanced features as your app grows. The DevTools integration is invaluable for debugging.</p>
+                    <p>Choose SWR if you're building a simple app with basic data fetching needs, or if you're already using it in a Next.js project and want consistency.</p>
+                </div>
+
+                <h3>Quick Reference: Common Tasks</h3>
+
+                <pre><code>// ============= TanStack Query =============
+
+// Setup
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const queryClient = new QueryClient();
+
+// Fetch data
+const { data, isLoading, error } = useQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+});
+
+// Mutate data
+const mutation = useMutation({
+  mutationFn: createUser,
+  onSuccess: () => queryClient.invalidateQueries(['users']),
+});
+
+// Infinite scroll
+const { data, fetchNextPage } = useInfiniteQuery({
+  queryKey: ['posts'],
+  queryFn: fetchPosts,
+  getNextPageParam: (lastPage) => lastPage.nextCursor,
+});
+
+// ============= SWR =============
+
+// Setup
+import { SWRConfig } from 'swr';
+const fetcher = url => fetch(url).then(r => r.json());
+
+// Fetch data
+const { data, isLoading, error } = useSWR('/api/users', fetcher);
+
+// Mutate data (manual)
+const { mutate } = useSWRConfig();
+await updateUser(data);
+mutate('/api/users');
+
+// Infinite scroll
+const { data, size, setSize } = useSWRInfinite(
+  (index) => `/api/posts?page=${index}`,
+  fetcher
+);</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Basic Query Setup</h3>
+                    <p>Set up TanStack Query in an Expo app and fetch a list of todos.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Install and configure TanStack Query with a QueryClientProvider</li>
+                        <li>Create a component that fetches todos from <code>https://jsonplaceholder.typicode.com/todos</code></li>
+                        <li>Display loading, error, and success states</li>
+                        <li>Add pull-to-refresh functionality</li>
+                        <li>Set staleTime to 1 minute</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Remember to create the QueryClient outside of your component to avoid recreating it on every render. Use the <code>isLoading</code>, <code>isError</code>, and <code>data</code> properties from useQuery. The <code>refetch</code> function works great with FlatList's <code>onRefresh</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// app/_layout.tsx
+import { Stack } from 'expo-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+    },
+  },
+});
+
+export default function RootLayout() {
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;Stack /&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+}
+
+// app/index.tsx
+import { useQuery } from '@tanstack/react-query';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  ActivityIndicator 
+} from 'react-native';
+
+interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+async function fetchTodos(): Promise&lt;Todo[]&gt; {
+  const response = await fetch(
+    'https://jsonplaceholder.typicode.com/todos?_limit=20'
+  );
+  if (!response.ok) throw new Error('Failed to fetch todos');
+  return response.json();
+}
+
+export default function TodoList() {
+  const { 
+    data: todos, 
+    isLoading, 
+    isError, 
+    error, 
+    refetch,
+    isRefetching 
+  } = useQuery({
+    queryKey: ['todos'],
+    queryFn: fetchTodos,
+  });
+
+  if (isLoading) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;ActivityIndicator size="large" color="#667eea" /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  if (isError) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;Text style={styles.error}&gt;Error: {error.message}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;FlatList
+      data={todos}
+      keyExtractor={(item) => item.id.toString()}
+      contentContainerStyle={styles.list}
+      onRefresh={refetch}
+      refreshing={isRefetching}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.todoItem}&gt;
+          &lt;Text style={[
+            styles.todoTitle,
+            item.completed && styles.completed
+          ]}&gt;
+            {item.completed ? '✓ ' : '○ '}{item.title}
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    padding: 16,
+  },
+  todoItem: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  todoTitle: {
+    fontSize: 16,
+  },
+  completed: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  error: {
+    color: 'red',
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Mutations with Cache Invalidation</h3>
+                    <p>Add the ability to toggle todo completion status with optimistic updates.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Create a mutation that toggles the <code>completed</code> status of a todo</li>
+                        <li>Implement optimistic updates (UI updates immediately)</li>
+                        <li>Roll back if the mutation fails</li>
+                        <li>Make the todo item tappable to trigger the toggle</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>useMutation</code> with <code>onMutate</code>, <code>onError</code>, and <code>onSettled</code> callbacks. In <code>onMutate</code>, cancel outgoing queries, snapshot the current data, and optimistically update. In <code>onError</code>, restore from the snapshot.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
+
+interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+async function toggleTodo(todo: Todo): Promise&lt;Todo&gt; {
+  const response = await fetch(
+    `https://jsonplaceholder.typicode.com/todos/${todo.id}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: !todo.completed }),
+    }
+  );
+  if (!response.ok) throw new Error('Failed to update todo');
+  return response.json();
+}
+
+function useToggleTodo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: toggleTodo,
+    
+    onMutate: async (todo) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['todos'] });
+
+      // Snapshot current data
+      const previousTodos = queryClient.getQueryData&lt;Todo[]&gt;(['todos']);
+
+      // Optimistically update
+      queryClient.setQueryData&lt;Todo[]&gt;(['todos'], (old) =>
+        old?.map((t) =>
+          t.id === todo.id ? { ...t, completed: !t.completed } : t
+        )
+      );
+
+      return { previousTodos };
+    },
+
+    onError: (err, todo, context) => {
+      // Roll back on error
+      if (context?.previousTodos) {
+        queryClient.setQueryData(['todos'], context.previousTodos);
+      }
+    },
+
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+    },
+  });
+}
+
+function TodoItem({ todo }: { todo: Todo }) {
+  const toggleMutation = useToggleTodo();
+
+  return (
+    &lt;Pressable
+      onPress={() => toggleMutation.mutate(todo)}
+      style={({ pressed }) => [
+        styles.todoItem,
+        pressed && styles.pressed,
+      ]}
+    &gt;
+      &lt;Text style={[
+        styles.todoTitle,
+        todo.completed && styles.completed,
+      ]}&gt;
+        {todo.completed ? '✓ ' : '○ '}{todo.title}
+      &lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+// Use TodoItem in FlatList renderItem
+// renderItem={({ item }) => &lt;TodoItem todo={item} /&gt;}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Infinite Scroll Posts</h3>
+                    <p>Implement infinite scroll for a list of posts using useInfiniteQuery.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Fetch posts from JSONPlaceholder with pagination (10 per page)</li>
+                        <li>Implement infinite scroll using FlatList's onEndReached</li>
+                        <li>Show a loading indicator at the bottom while fetching more</li>
+                        <li>Display "No more posts" when all posts are loaded</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>JSONPlaceholder supports <code>_start</code> and <code>_limit</code> query parameters. Use page index * limit for <code>_start</code>. Flatten pages with <code>data.pages.flatMap()</code>. Check <code>hasNextPage</code> before calling <code>fetchNextPage</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useInfiniteQuery } from '@tanstack/react-query';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  ActivityIndicator,
+  StyleSheet 
+} from 'react-native';
+
+interface Post {
+  id: number;
+  title: string;
+  body: string;
+}
+
+const POSTS_PER_PAGE = 10;
+const TOTAL_POSTS = 100; // JSONPlaceholder has 100 posts
+
+async function fetchPosts({ pageParam = 0 }): Promise&lt;Post[]&gt; {
+  const response = await fetch(
+    `https://jsonplaceholder.typicode.com/posts?_start=${pageParam}&_limit=${POSTS_PER_PAGE}`
+  );
+  if (!response.ok) throw new Error('Failed to fetch posts');
+  return response.json();
+}
+
+export default function InfinitePostList() {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useInfiniteQuery({
+    queryKey: ['posts', 'infinite'],
+    queryFn: fetchPosts,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const totalFetched = allPages.flat().length;
+      // JSONPlaceholder has 100 posts total
+      return totalFetched &lt; TOTAL_POSTS 
+        ? totalFetched 
+        : undefined;
+    },
+  });
+
+  const allPosts = data?.pages.flat() ?? [];
+
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;ActivityIndicator size="large" color="#667eea" /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  if (isError) {
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;Text style={styles.error}&gt;{error.message}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;FlatList
+      data={allPosts}
+      keyExtractor={(item) => item.id.toString()}
+      contentContainerStyle={styles.list}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      onRefresh={refetch}
+      refreshing={isRefetching}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.postCard}&gt;
+          &lt;Text style={styles.title}&gt;{item.title}&lt;/Text&gt;
+          &lt;Text style={styles.body} numberOfLines={2}&gt;
+            {item.body}
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+      ListFooterComponent={() =&gt; (
+        &lt;View style={styles.footer}&gt;
+          {isFetchingNextPage ? (
+            &lt;ActivityIndicator color="#667eea" /&gt;
+          ) : hasNextPage ? null : (
+            &lt;Text style={styles.endText}&gt;No more posts&lt;/Text&gt;
+          )}
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    padding: 16,
+  },
+  postCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  body: {
+    fontSize: 14,
+    color: '#666',
+  },
+  footer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#999',
+  },
+  error: {
+    color: 'red',
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Data fetching libraries transform how you manage server state in React Native apps. They handle the complex problems of caching, synchronization, and updates so you can focus on your UI.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Server state is different</strong> from client state—it lives remotely and can become stale</li>
+                        <li><strong>TanStack Query</strong> provides useQuery, useMutation, and useInfiniteQuery for all data operations</li>
+                        <li><strong>Query keys</strong> uniquely identify cached data and control refetching behavior</li>
+                        <li><strong>Stale-while-revalidate</strong> shows cached data instantly while fetching fresh data</li>
+                        <li><strong>Mutations</strong> with cache invalidation keep your UI in sync with the server</li>
+                        <li><strong>Optimistic updates</strong> make your app feel instant by updating before server confirmation</li>
+                        <li><strong>Infinite queries</strong> simplify paginated data with built-in page management</li>
+                        <li><strong>SWR</strong> is a simpler alternative for basic data fetching needs</li>
+                        <li><strong>Choose TanStack Query</strong> for most React Native apps—the DevTools and features are worth it</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll explore local storage options for persisting data on the device—essential for offline functionality and improving app startup times.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m07_l01_fetching_data.html" class="prev-link">← Previous: Fetching Data</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m07_l03_local_storage_options.html" class="next-link">Next: Local Storage Options →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
