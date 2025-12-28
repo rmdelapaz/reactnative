@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Implement deep linking in Expo Router - URL schemes, universal links, and handling incoming navigation">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Deep Linking | Module 6: Navigation with Expo Router | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m06_l01_navigation_concepts.html">Module 6</a> &gt;
+            <span>Lesson 6.7</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 6: Navigation with Expo Router</p>
+                <h1>Deep Linking</h1>
+                <p class="lesson-subtitle">Connect your app to the web with URLs and universal links</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand deep linking concepts and benefits</li>
+                    <li>Configure URL schemes for your app</li>
+                    <li>Set up universal links (iOS) and app links (Android)</li>
+                    <li>Handle incoming deep links in Expo Router</li>
+                    <li>Navigate to specific screens from external URLs</li>
+                    <li>Integrate deep linking with push notifications</li>
+                    <li>Test deep links during development</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#deep-linking-overview">Deep Linking Overview</a></li>
+                        <li><a href="#url-schemes">URL Schemes</a></li>
+                        <li><a href="#universal-links">Universal Links & App Links</a></li>
+                        <li><a href="#expo-router-linking">Deep Linking with Expo Router</a></li>
+                        <li><a href="#handling-links">Handling Incoming Links</a></li>
+                        <li><a href="#push-notifications">Push Notification Deep Links</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Deep Linking Overview -->
+            <section id="deep-linking-overview">
+                <h2>Deep Linking Overview</h2>
+
+                <p>Deep linking allows external sources—websites, emails, other apps, push notifications—to navigate directly to specific content within your app. Instead of just opening your app's home screen, deep links take users exactly where they need to go.</p>
+
+                <h3>Why Deep Linking Matters</h3>
+
+                <div class="card">
+                    <h4>🔗 Deep Linking Benefits</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Marketing Campaigns</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Email links to specific products or promotions</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Push Notifications</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Tap notification to view a specific message or order</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Social Sharing</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Share a post that opens directly in the app</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>QR Codes</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Scan to open a specific screen or trigger an action</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>Web-to-App Handoff</strong></td>
+                                <td style="padding: 12px;">Continue browsing from website to app seamlessly</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Types of Deep Links</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Types["Deep Link Types"]
+        A["URL Scheme<br/>myapp://"]
+        B["Universal Links<br/>https://myapp.com"]
+        C["Deferred Links<br/>Install first, then route"]
+    end
+    
+    A --> D["Opens app directly<br/>No fallback"]
+    B --> E["Opens app or website<br/>Verified ownership"]
+    C --> F["Works even if<br/>app not installed"]
+    
+    style A fill:#e3f2fd
+    style B fill:#e8f5e9
+    style C fill:#fff3cd
+                </pre>
+
+                <!-- SVG: Deep Link Flow -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 650 200" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="650" height="200" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="325" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Deep Link Flow</text>
+                        
+                        <!-- Source -->
+                        <rect x="30" y="60" width="100" height="60" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="8"/>
+                        <text x="80" y="85" text-anchor="middle" font-size="11" fill="#1565c0">External</text>
+                        <text x="80" y="100" text-anchor="middle" font-size="11" fill="#1565c0">Source</text>
+                        <text x="80" y="140" text-anchor="middle" font-size="9" fill="#666">Email, Web, Push</text>
+                        
+                        <!-- Arrow 1 -->
+                        <path d="M135,90 L175,90" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        
+                        <!-- URL -->
+                        <rect x="180" y="60" width="140" height="60" fill="#fff" stroke="#9e9e9e" stroke-width="2" rx="8"/>
+                        <text x="250" y="85" text-anchor="middle" font-size="10" fill="#333">myapp://product/123</text>
+                        <text x="250" y="105" text-anchor="middle" font-size="10" fill="#666">or</text>
+                        <text x="250" y="120" text-anchor="middle" font-size="10" fill="#333">https://myapp.com/product/123</text>
+                        
+                        <!-- Arrow 2 -->
+                        <path d="M325,90 L365,90" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        
+                        <!-- OS Handler -->
+                        <rect x="370" y="60" width="100" height="60" fill="#fff3cd" stroke="#ffc107" stroke-width="2" rx="8"/>
+                        <text x="420" y="85" text-anchor="middle" font-size="11" fill="#f57c00">OS Link</text>
+                        <text x="420" y="100" text-anchor="middle" font-size="11" fill="#f57c00">Handler</text>
+                        <text x="420" y="140" text-anchor="middle" font-size="9" fill="#666">iOS / Android</text>
+                        
+                        <!-- Arrow 3 -->
+                        <path d="M475,90 L515,90" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        
+                        <!-- App Screen -->
+                        <rect x="520" y="60" width="100" height="60" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="8"/>
+                        <text x="570" y="85" text-anchor="middle" font-size="11" fill="#2e7d32">Your App</text>
+                        <text x="570" y="100" text-anchor="middle" font-size="11" fill="#2e7d32">Screen</text>
+                        <text x="570" y="140" text-anchor="middle" font-size="9" fill="#666">Product #123</text>
+                        
+                        <defs>
+                            <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- URL Schemes -->
+            <section id="url-schemes">
+                <h2>URL Schemes</h2>
+
+                <p>URL schemes (also called custom schemes or app schemes) are the simplest form of deep linking. They use a custom protocol like <code>myapp://</code> instead of <code>https://</code>.</p>
+
+                <h3>Configuring URL Scheme in Expo</h3>
+
+                <pre><code class="language-json">// app.json
+{
+  "expo": {
+    "name": "MyApp",
+    "slug": "my-app",
+    "scheme": "myapp",
+    "ios": {
+      "bundleIdentifier": "com.mycompany.myapp"
+    },
+    "android": {
+      "package": "com.mycompany.myapp"
+    }
+  }
+}</code></pre>
+
+                <p>With this configuration, your app responds to URLs like:</p>
+
+                <pre><code class="language-text">myapp://                        → Opens app root
+myapp://home                    → Opens /home route
+myapp://product/123             → Opens /product/123 route
+myapp://settings?tab=privacy    → Opens /settings with query params</code></pre>
+
+                <h3>Testing URL Schemes</h3>
+
+                <pre><code class="language-bash"># iOS Simulator
+npx uri-scheme open "myapp://product/123" --ios
+
+# Android Emulator
+npx uri-scheme open "myapp://product/123" --android
+
+# Or use adb directly for Android
+adb shell am start -W -a android.intent.action.VIEW -d "myapp://product/123"
+
+# From terminal on macOS (opens in simulator)
+xcrun simctl openurl booted "myapp://product/123"</code></pre>
+
+                <h3>Expo Go Development</h3>
+
+                <p>During development with Expo Go, the URL scheme format is different:</p>
+
+                <pre><code class="language-text"># Development URLs (Expo Go)
+exp://192.168.1.100:8081/--/product/123
+
+# Production URLs (standalone app)
+myapp://product/123</code></pre>
+
+                <pre><code class="language-tsx">// Get the correct scheme for current environment
+import * as Linking from 'expo-linking';
+
+const prefix = Linking.createURL('/');
+console.log('URL prefix:', prefix);
+// Development: exp://192.168.1.100:8081/--/
+// Production: myapp://</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ URL Scheme Limitations</h4>
+                    <ul>
+                        <li>No fallback if app isn't installed—the link just fails</li>
+                        <li>Any app can claim the same scheme (no verification)</li>
+                        <li>Not supported by all browsers (especially on iOS)</li>
+                        <li>Can be blocked by email clients as "suspicious"</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Universal Links & App Links -->
+            <section id="universal-links">
+                <h2>Universal Links &amp; App Links</h2>
+
+                <p>Universal Links (iOS) and App Links (Android) use standard HTTPS URLs that can open either your app or your website. They require domain verification to prove you own both the app and website.</p>
+
+                <h3>Benefits Over URL Schemes</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Universal/App Links Advantages</h4>
+                    <ul>
+                        <li><strong>Fallback to web:</strong> If app isn't installed, opens in browser</li>
+                        <li><strong>Secure:</strong> Only verified owners can claim a domain</li>
+                        <li><strong>Better UX:</strong> Works in emails, messages, social media</li>
+                        <li><strong>Single URL:</strong> Same link works for app and web</li>
+                    </ul>
+                </div>
+
+                <h3>Configuration for iOS (Universal Links)</h3>
+
+                <pre><code class="language-json">// app.json
+{
+  "expo": {
+    "ios": {
+      "bundleIdentifier": "com.mycompany.myapp",
+      "associatedDomains": [
+        "applinks:myapp.com",
+        "applinks:www.myapp.com"
+      ]
+    }
+  }
+}</code></pre>
+
+                <p>Host an Apple App Site Association file at your domain:</p>
+
+                <pre><code class="language-json">// https://myapp.com/.well-known/apple-app-site-association
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.mycompany.myapp",
+        "paths": [
+          "/product/*",
+          "/user/*",
+          "/settings",
+          "/NOT /admin/*"
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+                <h3>Configuration for Android (App Links)</h3>
+
+                <pre><code class="language-json">// app.json
+{
+  "expo": {
+    "android": {
+      "package": "com.mycompany.myapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "myapp.com",
+              "pathPrefix": "/product"
+            },
+            {
+              "scheme": "https",
+              "host": "myapp.com",
+              "pathPrefix": "/user"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}</code></pre>
+
+                <p>Host a Digital Asset Links file at your domain:</p>
+
+                <pre><code class="language-json">// https://myapp.com/.well-known/assetlinks.json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mycompany.myapp",
+      "sha256_cert_fingerprints": [
+        "YOUR_SHA256_FINGERPRINT"
+      ]
+    }
+  }
+]</code></pre>
+
+                <h3>Getting SHA256 Fingerprint</h3>
+
+                <pre><code class="language-bash"># For debug keystore
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+# For release keystore  
+keytool -list -v -keystore your-release-key.keystore -alias your-alias
+
+# Or get it from EAS Build
+eas credentials</code></pre>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant User
+    participant Browser
+    participant OS
+    participant Server
+    participant App
+    
+    User->>Browser: Clicks https://myapp.com/product/123
+    Browser->>OS: Handle URL
+    OS->>Server: Fetch .well-known/apple-app-site-association
+    Server-->>OS: Return association file
+    
+    alt App is installed & verified
+        OS->>App: Open with URL
+        App->>App: Navigate to /product/123
+    else App not installed
+        OS->>Browser: Open URL normally
+        Browser->>Server: Load webpage
+    end
+                </pre>
+            </section>
+
+            <!-- Deep Linking with Expo Router -->
+            <section id="expo-router-linking">
+                <h2>Deep Linking with Expo Router</h2>
+
+                <p>Expo Router has built-in deep linking support. Your file-based routes automatically become deep link paths—no additional configuration needed for basic functionality.</p>
+
+                <h3>Automatic Route Mapping</h3>
+
+                <pre><code class="language-text">File Structure                    Deep Link URL
+─────────────────────────────────────────────────────
+app/index.tsx                  → myapp://
+app/about.tsx                  → myapp://about
+app/products/index.tsx         → myapp://products
+app/products/[id].tsx          → myapp://products/123
+app/(tabs)/home.tsx            → myapp://home
+app/(auth)/login.tsx           → myapp://login
+app/user/[userId]/posts.tsx    → myapp://user/456/posts</code></pre>
+
+                <h3>Linking Configuration</h3>
+
+                <pre><code class="language-tsx">// app/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Screen name="index" /&gt;
+      &lt;Stack.Screen name="product/[id]" /&gt;
+      &lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;
+    &lt;/Stack&gt;
+  );
+}
+
+// That's it! Expo Router handles the linking automatically.</code></pre>
+
+                <h3>Custom Linking Configuration (Advanced)</h3>
+
+                <pre><code class="language-tsx">// If you need custom path mapping or additional schemes
+// app/_layout.tsx
+import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
+
+// Custom linking configuration
+const linking = {
+  prefixes: [
+    Linking.createURL('/'),
+    'myapp://',
+    'https://myapp.com',
+    'https://www.myapp.com',
+  ],
+  config: {
+    screens: {
+      index: '',
+      product: {
+        path: 'product/:id',
+        parse: {
+          id: (id: string) =&gt; id,
+        },
+      },
+      '(tabs)': {
+        screens: {
+          home: 'home',
+          search: 'search',
+          profile: 'profile',
+        },
+      },
+    },
+  },
+};
+
+// Note: Expo Router handles most of this automatically.
+// Only use custom config for special cases.</code></pre>
+
+                <h3>Query Parameters</h3>
+
+                <pre><code class="language-tsx">// Deep link: myapp://search?q=shoes&category=running
+// app/search.tsx
+import { useLocalSearchParams } from 'expo-router';
+
+export default function SearchScreen() {
+  const { q, category } = useLocalSearchParams&lt;{
+    q?: string;
+    category?: string;
+  }&gt;();
+
+  // q = "shoes"
+  // category = "running"
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Search: {q}&lt;/Text&gt;
+      &lt;Text&gt;Category: {category}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Creating Deep Links to Share</h3>
+
+                <pre><code class="language-tsx">import * as Linking from 'expo-linking';
+import { Share } from 'react-native';
+
+function ShareProductButton({ productId }: { productId: string }) {
+  const shareProduct = async () =&gt; {
+    // Create a deep link URL
+    const url = Linking.createURL(`/product/${productId}`);
+    
+    // For production, you might want to use your website URL
+    const webUrl = `https://myapp.com/product/${productId}`;
+
+    try {
+      await Share.share({
+        message: `Check out this product!`,
+        url: webUrl, // iOS
+        // Android uses message for URL
+      });
+    } catch (error) {
+      console.error('Share failed:', error);
+    }
+  };
+
+  return (
+    &lt;Pressable onPress={shareProduct}&gt;
+      &lt;Ionicons name="share-outline" size={24} /&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Handling Incoming Links -->
+            <section id="handling-links">
+                <h2>Handling Incoming Links</h2>
+
+                <p>When your app receives a deep link, you may need to perform additional logic—authentication checks, data fetching, or analytics tracking—before navigating.</p>
+
+                <h3>Listening for Links</h3>
+
+                <pre><code class="language-tsx">// hooks/useDeepLinkHandler.ts
+import { useEffect } from 'react';
+import * as Linking from 'expo-linking';
+import { useRouter } from 'expo-router';
+
+export function useDeepLinkHandler() {
+  const router = useRouter();
+
+  useEffect(() =&gt; {
+    // Handle link that opened the app
+    const handleInitialURL = async () =&gt; {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink(initialUrl);
+      }
+    };
+
+    // Handle links while app is open
+    const subscription = Linking.addEventListener('url', ({ url }) =&gt; {
+      handleDeepLink(url);
+    });
+
+    handleInitialURL();
+
+    return () =&gt; {
+      subscription.remove();
+    };
+  }, []);
+
+  const handleDeepLink = (url: string) =&gt; {
+    console.log('Deep link received:', url);
+    
+    // Parse the URL
+    const { path, queryParams } = Linking.parse(url);
+    
+    // Track analytics
+    analytics.trackDeepLink(url);
+    
+    // Expo Router handles navigation automatically,
+    // but you can add custom logic here if needed
+  };
+}</code></pre>
+
+                <h3>Authentication-Aware Deep Links</h3>
+
+                <pre><code class="language-tsx">// Handle deep links that require authentication
+import { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PENDING_DEEP_LINK_KEY = 'pending_deep_link';
+
+export function useAuthenticatedDeepLinks() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [pendingUrl, setPendingUrl] = useState&lt;string | null&gt;(null);
+
+  useEffect(() =&gt; {
+    const handleUrl = async (url: string) =&gt; {
+      const { path } = Linking.parse(url);
+      
+      // Check if route requires authentication
+      const requiresAuth = isProtectedRoute(path);
+      
+      if (requiresAuth &amp;&amp; !isAuthenticated) {
+        // Store the URL and redirect to login
+        await AsyncStorage.setItem(PENDING_DEEP_LINK_KEY, url);
+        router.replace('/(auth)/login');
+      } else {
+        // Navigate directly
+        router.push(path || '/');
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', ({ url }) =&gt; {
+      handleUrl(url);
+    });
+
+    // Check for initial URL
+    Linking.getInitialURL().then((url) =&gt; {
+      if (url) handleUrl(url);
+    });
+
+    return () =&gt; subscription.remove();
+  }, [isAuthenticated]);
+
+  // After login, check for pending deep link
+  useEffect(() =&gt; {
+    const checkPendingLink = async () =&gt; {
+      if (isAuthenticated &amp;&amp; !isLoading) {
+        const pendingUrl = await AsyncStorage.getItem(PENDING_DEEP_LINK_KEY);
+        if (pendingUrl) {
+          await AsyncStorage.removeItem(PENDING_DEEP_LINK_KEY);
+          const { path } = Linking.parse(pendingUrl);
+          router.replace(path || '/');
+        }
+      }
+    };
+
+    checkPendingLink();
+  }, [isAuthenticated, isLoading]);
+}
+
+function isProtectedRoute(path: string | null): boolean {
+  if (!path) return false;
+  
+  const protectedPaths = [
+    '/profile',
+    '/settings',
+    '/orders',
+    '/checkout',
+  ];
+  
+  return protectedPaths.some(p =&gt; path.startsWith(p));
+}</code></pre>
+
+                <h3>Validating Deep Link Parameters</h3>
+
+                <pre><code class="language-tsx">// app/product/[id].tsx
+import { useLocalSearchParams, Redirect } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+
+export default function ProductScreen() {
+  const { id } = useLocalSearchParams&lt;{ id: string }&gt;();
+
+  // Validate the ID format
+  if (!id || !/^\d+$/.test(id)) {
+    return &lt;Redirect href="/products" /&gt;;
+  }
+
+  // Fetch product data
+  const { data: product, isLoading, error } = useQuery({
+    queryKey: ['product', id],
+    queryFn: () =&gt; fetchProduct(id),
+  });
+
+  // Handle product not found
+  if (error) {
+    return &lt;Redirect href="/products?error=not-found" /&gt;;
+  }
+
+  if (isLoading) {
+    return &lt;LoadingScreen /&gt;;
+  }
+
+  return (
+    &lt;ProductDetails product={product} /&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- Push Notification Deep Links -->
+            <section id="push-notifications">
+                <h2>Push Notification Deep Links</h2>
+
+                <p>Push notifications often need to navigate users to specific screens. Combining deep links with push notifications creates powerful engagement opportunities.</p>
+
+                <h3>Setting Up Push Notifications</h3>
+
+                <pre><code class="language-bash"># Install Expo notifications
+npx expo install expo-notifications expo-device</code></pre>
+
+                <pre><code class="language-tsx">// services/notifications.ts
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+// Configure how notifications are handled when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () =&gt; ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+export async function registerForPushNotifications(): Promise&lt;string | null&gt; {
+  if (!Device.isDevice) {
+    console.log('Push notifications require a physical device');
+    return null;
+  }
+
+  // Check existing permissions
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  // Request permissions if not granted
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    console.log('Push notification permission denied');
+    return null;
+  }
+
+  // Get the Expo push token
+  const token = await Notifications.getExpoPushTokenAsync({
+    projectId: Constants.expoConfig?.extra?.eas?.projectId,
+  });
+
+  // Android requires a notification channel
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  return token.data;
+}</code></pre>
+
+                <h3>Handling Notification Navigation</h3>
+
+                <pre><code class="language-tsx">// hooks/useNotificationNavigation.ts
+import { useEffect, useRef } from 'react';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+
+interface NotificationData {
+  screen?: string;
+  params?: Record&lt;string, string&gt;;
+}
+
+export function useNotificationNavigation() {
+  const router = useRouter();
+  const notificationListener = useRef&lt;Notifications.Subscription&gt;();
+  const responseListener = useRef&lt;Notifications.Subscription&gt;();
+
+  useEffect(() =&gt; {
+    // Handle notification received while app is in foreground
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      (notification) =&gt; {
+        console.log('Notification received:', notification);
+        // You can show an in-app alert or update UI
+      }
+    );
+
+    // Handle notification tap (app in background or closed)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response) =&gt; {
+        const data = response.notification.request.content.data as NotificationData;
+        handleNotificationNavigation(data);
+      }
+    );
+
+    // Check if app was opened from a notification
+    Notifications.getLastNotificationResponseAsync().then((response) =&gt; {
+      if (response) {
+        const data = response.notification.request.content.data as NotificationData;
+        handleNotificationNavigation(data);
+      }
+    });
+
+    return () =&gt; {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, []);
+
+  const handleNotificationNavigation = (data: NotificationData) =&gt; {
+    if (!data.screen) return;
+
+    // Build the route path
+    let path = data.screen;
+    
+    // Add query params if present
+    if (data.params) {
+      const queryString = new URLSearchParams(data.params).toString();
+      path = `${path}?${queryString}`;
+    }
+
+    // Navigate to the screen
+    router.push(path as any);
+  };
+}</code></pre>
+
+                <h3>Sending Deep Link Notifications</h3>
+
+                <pre><code class="language-tsx">// Backend example: Sending a notification with deep link data
+// This would typically be done from your server
+
+// Using Expo's push notification service
+const message = {
+  to: 'ExponentPushToken[xxxxxx]',
+  sound: 'default',
+  title: 'New Order Update',
+  body: 'Your order #12345 has been shipped!',
+  data: {
+    screen: '/orders/12345',
+    params: {
+      tab: 'tracking',
+    },
+  },
+};
+
+await fetch('https://exp.host/--/api/v2/push/send', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(message),
+});</code></pre>
+
+                <h3>Complete Integration Example</h3>
+
+                <pre><code class="language-tsx">// app/_layout.tsx
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
+import { registerForPushNotifications } from '@/services/notifications';
+
+export default function RootLayout() {
+  // Set up notification navigation handling
+  useNotificationNavigation();
+
+  useEffect(() =&gt; {
+    // Register for push notifications on app start
+    registerForPushNotifications().then((token) =&gt; {
+      if (token) {
+        // Send token to your backend
+        sendTokenToServer(token);
+      }
+    });
+  }, []);
+
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;
+      &lt;Stack.Screen name="orders/[id]" options={{ title: 'Order Details' }} /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant Server
+    participant APNS/FCM
+    participant Device
+    participant App
+    participant Router
+    
+    Server->>APNS/FCM: Send push with deep link data
+    APNS/FCM->>Device: Deliver notification
+    
+    alt App in foreground
+        Device->>App: NotificationReceived event
+        App->>App: Show in-app UI
+    else App in background/closed
+        Device->>Device: Show system notification
+        Note over Device: User taps notification
+        Device->>App: Launch with notification data
+        App->>Router: Navigate to deep link screen
+    end
+                </pre>
+
+                <h3>Testing Push Notifications</h3>
+
+                <pre><code class="language-tsx">// Development: Schedule a local notification to test
+import * as Notifications from 'expo-notifications';
+
+async function testNotification() {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Test Deep Link',
+      body: 'Tap to navigate to product',
+      data: {
+        screen: '/product/123',
+      },
+    },
+    trigger: {
+      seconds: 5,
+    },
+  });
+}
+
+// Add a dev button somewhere in your app
+&lt;Button title="Test Notification" onPress={testNotification} /&gt;</code></pre>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Basic Deep Linking</h4>
+                    <p>Set up deep linking for an e-commerce app:</p>
+                    <ul>
+                        <li>Configure URL scheme <code>shopapp://</code></li>
+                        <li>Create routes for products, categories, and cart</li>
+                        <li>Test deep links: <code>shopapp://product/123</code></li>
+                        <li>Handle query params: <code>shopapp://search?q=shoes</code></li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-json">// app.json
+{
+  "expo": {
+    "scheme": "shopapp"
+  }
+}</code></pre>
+
+                        <pre><code class="language-text">// File structure
+app/
+├── _layout.tsx
+├── index.tsx              → shopapp://
+├── product/[id].tsx       → shopapp://product/123
+├── category/[slug].tsx    → shopapp://category/shoes
+├── search.tsx             → shopapp://search?q=...
+└── cart.tsx               → shopapp://cart</code></pre>
+
+                        <pre><code class="language-tsx">// app/search.tsx
+import { useLocalSearchParams } from 'expo-router';
+import { View, Text, FlatList } from 'react-native';
+
+export default function SearchScreen() {
+  const { q, sort, category } = useLocalSearchParams&lt;{
+    q?: string;
+    sort?: string;
+    category?: string;
+  }&gt;();
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Searching for: {q || 'all products'}&lt;/Text&gt;
+      {category &amp;&amp; &lt;Text&gt;Category: {category}&lt;/Text&gt;}
+      {/* Search results */}
+    &lt;/View&gt;
+  );
+}
+
+// Test with: shopapp://search?q=shoes&category=running</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Universal Links Setup</h4>
+                    <p>Configure universal links for <code>https://myshop.com</code>:</p>
+                    <ul>
+                        <li>Add associated domains to app.json</li>
+                        <li>Create the apple-app-site-association file</li>
+                        <li>Create the assetlinks.json file for Android</li>
+                        <li>Map paths: /product/*, /category/*, /user/*</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-json">// app.json
+{
+  "expo": {
+    "ios": {
+      "bundleIdentifier": "com.myshop.app",
+      "associatedDomains": [
+        "applinks:myshop.com",
+        "applinks:www.myshop.com"
+      ]
+    },
+    "android": {
+      "package": "com.myshop.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "myshop.com", "pathPrefix": "/product" },
+            { "scheme": "https", "host": "myshop.com", "pathPrefix": "/category" },
+            { "scheme": "https", "host": "myshop.com", "pathPrefix": "/user" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}</code></pre>
+
+                        <pre><code class="language-json">// .well-known/apple-app-site-association
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.myshop.app",
+        "paths": [
+          "/product/*",
+          "/category/*",
+          "/user/*",
+          "NOT /admin/*"
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+                        <pre><code class="language-json">// .well-known/assetlinks.json
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.myshop.app",
+    "sha256_cert_fingerprints": ["YOUR_SHA256"]
+  }
+}]</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Protected Deep Links</h4>
+                    <p>Implement authentication-aware deep linking:</p>
+                    <ul>
+                        <li>Store pending deep link when user isn't authenticated</li>
+                        <li>Redirect to login screen</li>
+                        <li>After successful login, navigate to original destination</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use AsyncStorage to persist the pending URL. In your auth context, after successful login, check for a pending URL and navigate to it. Remember to clear the stored URL after using it.</p>
+                    </details>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <h4>Exercise 4: Push Notification Navigation</h4>
+                    <p>Set up push notifications with deep linking:</p>
+                    <ul>
+                        <li>Register for push notifications</li>
+                        <li>Handle notification tap to navigate</li>
+                        <li>Support different notification types (order, message, promo)</li>
+                        <li>Test with local notifications</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">// hooks/useNotificationNavigation.ts
+import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+
+type NotificationType = 'order' | 'message' | 'promo';
+
+interface NotificationData {
+  type: NotificationType;
+  id: string;
+}
+
+export function useNotificationNavigation() {
+  const router = useRouter();
+
+  useEffect(() =&gt; {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) =&gt; {
+        const data = response.notification.request.content.data as NotificationData;
+        navigateByType(data);
+      }
+    );
+
+    return () =&gt; subscription.remove();
+  }, []);
+
+  const navigateByType = (data: NotificationData) =&gt; {
+    switch (data.type) {
+      case 'order':
+        router.push(`/orders/${data.id}`);
+        break;
+      case 'message':
+        router.push(`/messages/${data.id}`);
+        break;
+      case 'promo':
+        router.push(`/promo/${data.id}`);
+        break;
+      default:
+        router.push('/');
+    }
+  };
+}
+
+// Test function
+async function sendTestNotification(type: NotificationType) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `Test ${type} notification`,
+      body: 'Tap to navigate',
+      data: { type, id: '123' },
+    },
+    trigger: { seconds: 3 },
+  });
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've mastered deep linking—connecting your app to the wider world through URLs, universal links, and push notifications. Users can now navigate directly to any content in your app from anywhere.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>URL Schemes:</strong> Simple <code>myapp://</code> links, but no fallback if app isn't installed</li>
+                        <li><strong>Universal Links:</strong> HTTPS URLs that work on web and app, require domain verification</li>
+                        <li><strong>Expo Router:</strong> Automatic deep link support—file paths become URL paths</li>
+                        <li><strong>Query Parameters:</strong> Access with <code>useLocalSearchParams()</code></li>
+                        <li><strong>Protected Routes:</strong> Store pending URL, redirect to login, resume after auth</li>
+                        <li><strong>Push Notifications:</strong> Include <code>data</code> payload with screen path</li>
+                        <li><strong>Testing:</strong> Use <code>npx uri-scheme open</code> or local notifications</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🔗 Deep Linking Checklist</h4>
+                    <pre style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; color: white; margin: 0;"><code>Development:
+✓ Configure scheme in app.json
+✓ Test with npx uri-scheme open
+✓ Verify routes match file structure
+
+Production:
+✓ Set up universal links / app links
+✓ Host .well-known files on your domain
+✓ Verify domain ownership
+✓ Test on real devices
+✓ Handle auth-protected routes
+✓ Add analytics tracking
+✓ Test push notification deep links</code></pre>
+                </div>
+
+                <h3>What's Next?</h3>
+
+                <p>In the final lesson of this module, we'll explore <strong>Advanced Navigation Patterns</strong>—custom transitions, gesture handling, modal stacks, and performance optimization for complex navigation.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m06_l06_authentication_flows.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">Authentication Flows</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m06_l08_advanced_patterns.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">Advanced Patterns</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Advanced navigation patterns in Expo Router - custom transitions, shared elements, performance optimization, and complex patterns">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Advanced Patterns | Module 6: Navigation with Expo Router | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m06_l01_navigation_concepts.html">Module 6</a> &gt;
+            <span>Lesson 6.8</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 6: Navigation with Expo Router</p>
+                <h1>Advanced Patterns</h1>
+                <p class="lesson-subtitle">Master complex navigation with custom transitions and optimization</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Create custom screen transitions with Reanimated</li>
+                    <li>Implement shared element transitions between screens</li>
+                    <li>Build advanced modal patterns and bottom sheets</li>
+                    <li>Optimize navigation performance for large apps</li>
+                    <li>Handle complex navigation state scenarios</li>
+                    <li>Create conditional navigation flows</li>
+                    <li>Implement navigation analytics and logging</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#custom-transitions">Custom Screen Transitions</a></li>
+                        <li><a href="#shared-elements">Shared Element Transitions</a></li>
+                        <li><a href="#modal-patterns">Advanced Modal Patterns</a></li>
+                        <li><a href="#bottom-sheets">Bottom Sheet Navigation</a></li>
+                        <li><a href="#performance">Performance Optimization</a></li>
+                        <li><a href="#analytics">Navigation Analytics</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Custom Screen Transitions -->
+            <section id="custom-transitions">
+                <h2>Custom Screen Transitions</h2>
+
+                <p>While React Navigation provides built-in transitions, custom animations can make your app feel unique and polished. Use Reanimated for smooth, native-performance animations.</p>
+
+                <h3>Built-in Animation Options</h3>
+
+                <pre><code class="language-tsx">// app/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function Layout() {
+  return (
+    &lt;Stack
+      screenOptions={{
+        // Built-in animations
+        animation: 'slide_from_right', // default iOS
+        // animation: 'slide_from_bottom',
+        // animation: 'fade',
+        // animation: 'fade_from_bottom',
+        // animation: 'flip',
+        // animation: 'simple_push',
+        // animation: 'none',
+        
+        // iOS-specific
+        animationTypeForReplace: 'push', // or 'pop'
+        
+        // Timing
+        animationDuration: 350,
+      }}
+    &gt;
+      &lt;Stack.Screen name="index" /&gt;
+      &lt;Stack.Screen 
+        name="detail" 
+        options={{
+          animation: 'fade_from_bottom',
+        }}
+      /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <h3>Custom Transition with Reanimated</h3>
+
+                <pre><code class="language-bash"># Install Reanimated
+npx expo install react-native-reanimated</code></pre>
+
+                <pre><code class="language-tsx">// Custom fade and scale transition
+import { Stack } from 'expo-router';
+import { 
+  StackCardStyleInterpolator,
+  StackCardInterpolationProps 
+} from '@react-navigation/stack';
+import { Animated } from 'react-native';
+
+// Custom interpolator for fade + scale effect
+const forFadeScale: StackCardStyleInterpolator = ({
+  current,
+  next,
+  inverted,
+  layouts: { screen },
+}: StackCardInterpolationProps) =&gt; {
+  const progress = Animated.add(
+    current.progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    }),
+    next
+      ? next.progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 1],
+          extrapolate: 'clamp',
+        })
+      : 0
+  );
+
+  return {
+    cardStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 0.5, 0.9, 1],
+        outputRange: [0, 0.25, 0.7, 1],
+      }),
+      transform: [
+        {
+          scale: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.9, 1],
+            extrapolate: 'clamp',
+          }),
+        },
+      ],
+    },
+    overlayStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.5],
+        extrapolate: 'clamp',
+      }),
+    },
+  };
+};
+
+export default function Layout() {
+  return (
+    &lt;Stack
+      screenOptions={{
+        cardStyleInterpolator: forFadeScale,
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+      }}
+    &gt;
+      &lt;Stack.Screen name="index" /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <h3>Slide from Different Directions</h3>
+
+                <pre><code class="language-tsx">// Custom slide transitions
+import { TransitionPresets } from '@react-navigation/stack';
+
+// Slide from left (reverse of default)
+const slideFromLeft: StackCardStyleInterpolator = ({ current, layouts }) =&gt; ({
+  cardStyle: {
+    transform: [
+      {
+        translateX: current.progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-layouts.screen.width, 0],
+        }),
+      },
+    ],
+  },
+});
+
+// Slide from top
+const slideFromTop: StackCardStyleInterpolator = ({ current, layouts }) =&gt; ({
+  cardStyle: {
+    transform: [
+      {
+        translateY: current.progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-layouts.screen.height, 0],
+        }),
+      },
+    ],
+  },
+});
+
+// Usage per screen
+&lt;Stack.Screen
+  name="notifications"
+  options={{
+    cardStyleInterpolator: slideFromTop,
+    gestureDirection: 'vertical',
+  }}
+/&gt;</code></pre>
+
+                <h3>Platform-Specific Transitions</h3>
+
+                <pre><code class="language-tsx">import { Platform } from 'react-native';
+import { TransitionPresets } from '@react-navigation/stack';
+
+const screenOptions = Platform.select({
+  ios: {
+    ...TransitionPresets.SlideFromRightIOS,
+    gestureEnabled: true,
+    gestureResponseDistance: 50,
+  },
+  android: {
+    ...TransitionPresets.FadeFromBottomAndroid,
+    gestureEnabled: false,
+  },
+  default: {
+    animation: 'fade',
+  },
+});
+
+export default function Layout() {
+  return (
+    &lt;Stack screenOptions={screenOptions}&gt;
+      {/* screens */}
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <!-- SVG: Transition Types -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 650 180" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="650" height="180" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="325" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Common Screen Transitions</text>
+                        
+                        <!-- Slide Right -->
+                        <g transform="translate(50, 50)">
+                            <rect width="80" height="100" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="4"/>
+                            <rect x="20" y="20" width="60" height="60" fill="#fff" stroke="#90caf9" rx="2"/>
+                            <path d="M90,50 L110,50" stroke="#2196F3" stroke-width="2" marker-end="url(#arrowBlue)"/>
+                            <rect x="30" y="10" width="80" height="100" fill="#bbdefb" stroke="#2196F3" stroke-width="2" rx="4" opacity="0.7"/>
+                            <text x="40" y="130" font-size="10" fill="#666">Slide Right</text>
+                        </g>
+                        
+                        <!-- Fade -->
+                        <g transform="translate(200, 50)">
+                            <rect width="80" height="100" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                            <rect x="10" y="10" width="60" height="80" fill="#fff" stroke="#a5d6a7" rx="2" opacity="0.3"/>
+                            <rect x="10" y="10" width="60" height="80" fill="#c8e6c9" stroke="#4CAF50" rx="2" opacity="0.7"/>
+                            <text x="40" y="130" text-anchor="middle" font-size="10" fill="#666">Fade</text>
+                        </g>
+                        
+                        <!-- Scale -->
+                        <g transform="translate(350, 50)">
+                            <rect width="80" height="100" fill="#fff3cd" stroke="#ffc107" stroke-width="2" rx="4"/>
+                            <rect x="25" y="35" width="30" height="30" fill="#fff" stroke="#ffe082" rx="2"/>
+                            <rect x="10" y="10" width="60" height="80" fill="#ffecb3" stroke="#ffc107" rx="2" opacity="0.8"/>
+                            <text x="40" y="130" text-anchor="middle" font-size="10" fill="#666">Scale</text>
+                        </g>
+                        
+                        <!-- Modal -->
+                        <g transform="translate(500, 50)">
+                            <rect width="80" height="100" fill="#fce4ec" stroke="#e91e63" stroke-width="2" rx="4"/>
+                            <rect x="10" y="10" width="60" height="60" fill="#fff" stroke="#f48fb1" rx="2"/>
+                            <path d="M40,80 L40,95" stroke="#e91e63" stroke-width="2"/>
+                            <rect x="5" y="30" width="70" height="70" fill="#f8bbd0" stroke="#e91e63" stroke-width="2" rx="8"/>
+                            <text x="40" y="130" text-anchor="middle" font-size="10" fill="#666">Modal</text>
+                        </g>
+                        
+                        <defs>
+                            <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#2196F3"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Shared Element Transitions -->
+            <section id="shared-elements">
+                <h2>Shared Element Transitions</h2>
+
+                <p>Shared element transitions create visual continuity by animating an element from one screen to another. This is perfect for image galleries, product lists, and profile views.</p>
+
+                <h3>Using react-native-shared-element</h3>
+
+                <pre><code class="language-bash"># Install shared element library
+npx expo install react-native-shared-element
+npm install react-navigation-shared-element</code></pre>
+
+                <pre><code class="language-tsx">// Note: As of 2024, react-native-shared-element has limited 
+// compatibility with Expo Router. Here's an alternative approach
+// using Reanimated for a similar effect.
+
+// components/SharedImage.tsx
+import { useEffect } from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import { Image, StyleSheet, Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface SharedImageProps {
+  source: { uri: string };
+  isDetail?: boolean;
+  thumbnailSize?: number;
+}
+
+export function SharedImage({ 
+  source, 
+  isDetail = false,
+  thumbnailSize = 100,
+}: SharedImageProps) {
+  const progress = useSharedValue(isDetail ? 0 : 1);
+
+  useEffect(() =&gt; {
+    progress.value = withTiming(isDetail ? 1 : 0, { duration: 300 });
+  }, [isDetail]);
+
+  const animatedStyle = useAnimatedStyle(() =&gt; {
+    const size = interpolate(
+      progress.value,
+      [0, 1],
+      [thumbnailSize, SCREEN_WIDTH],
+      Extrapolation.CLAMP
+    );
+
+    const borderRadius = interpolate(
+      progress.value,
+      [0, 1],
+      [8, 0],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      width: size,
+      height: size,
+      borderRadius,
+    };
+  });
+
+  return (
+    &lt;Animated.Image
+      source={source}
+      style={[styles.image, animatedStyle]}
+      resizeMode="cover"
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  image: {
+    backgroundColor: '#f0f0f0',
+  },
+});</code></pre>
+
+                <h3>Hero Transition Pattern</h3>
+
+                <pre><code class="language-tsx">// A complete hero transition using layout animations
+// app/products/index.tsx
+import { View, FlatList, Pressable, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { Link } from 'expo-router';
+
+interface Product {
+  id: string;
+  title: string;
+  image: string;
+}
+
+export default function ProductList() {
+  return (
+    &lt;FlatList
+      data={products}
+      numColumns={2}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={({ item, index }) =&gt; (
+        &lt;Link href={`/products/${item.id}`} asChild&gt;
+          &lt;Pressable style={styles.card}&gt;
+            &lt;Animated.Image
+              entering={FadeIn.delay(index * 50)}
+              source={{ uri: item.image }}
+              style={styles.thumbnail}
+              sharedTransitionTag={`product-${item.id}`}
+            /&gt;
+            &lt;Animated.Text 
+              entering={FadeIn.delay(index * 50 + 100)}
+              style={styles.title}
+            &gt;
+              {item.title}
+            &lt;/Animated.Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/Link&gt;
+      )}
+    /&gt;
+  );
+}
+
+// app/products/[id].tsx
+import { useLocalSearchParams } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+
+export default function ProductDetail() {
+  const { id } = useLocalSearchParams&lt;{ id: string }&gt;();
+  const product = useProduct(id);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Animated.Image
+        source={{ uri: product.image }}
+        style={styles.heroImage}
+        sharedTransitionTag={`product-${id}`}
+      /&gt;
+      &lt;Animated.View 
+        entering={FadeInDown.delay(200).springify()}
+        style={styles.content}
+      &gt;
+        &lt;Text style={styles.title}&gt;{product.title}&lt;/Text&gt;
+        &lt;Text style={styles.description}&gt;{product.description}&lt;/Text&gt;
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Native Shared Element Transitions (SDK 50+)</h3>
+
+                <pre><code class="language-tsx">// Expo SDK 50+ supports native shared transitions via Reanimated
+import Animated from 'react-native-reanimated';
+
+// In list screen
+&lt;Animated.Image
+  source={{ uri: item.image }}
+  style={styles.thumbnail}
+  sharedTransitionTag={`image-${item.id}`} // Unique tag
+/&gt;
+
+// In detail screen - same tag creates the transition
+&lt;Animated.Image
+  source={{ uri: product.image }}
+  style={styles.fullImage}
+  sharedTransitionTag={`image-${product.id}`} // Matching tag
+/&gt;
+
+// The transition happens automatically when navigating!</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Shared Transition Tips</h4>
+                    <ul>
+                        <li>Use unique, consistent tags between screens</li>
+                        <li>Keep the same aspect ratio for smoothest transitions</li>
+                        <li>Avoid transforming other properties during the transition</li>
+                        <li>Test on real devices—simulators may show different performance</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Advanced Modal Patterns -->
+            <section id="modal-patterns">
+                <h2>Advanced Modal Patterns</h2>
+
+                <p>Modals are versatile for focused interactions. Let's explore advanced patterns beyond basic modals.</p>
+
+                <h3>Modal Stack Pattern</h3>
+
+                <pre><code class="language-tsx">// Multiple modals that stack on top of each other
+// app/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;
+      
+      {/* Modal Group - can stack multiple */}
+      &lt;Stack.Screen
+        name="modal/select-category"
+        options={{
+          presentation: 'modal',
+          title: 'Select Category',
+        }}
+      /&gt;
+      &lt;Stack.Screen
+        name="modal/select-subcategory"
+        options={{
+          presentation: 'modal',
+          title: 'Select Subcategory',
+        }}
+      /&gt;
+      &lt;Stack.Screen
+        name="modal/confirm"
+        options={{
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
+        }}
+      /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <h3>Transparent Modal with Custom Background</h3>
+
+                <pre><code class="language-tsx">// app/modal/confirm.tsx
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
+
+interface ConfirmModalProps {
+  title?: string;
+  message?: string;
+}
+
+export default function ConfirmModal() {
+  const router = useRouter();
+
+  const handleConfirm = () =&gt; {
+    // Do something
+    router.back();
+  };
+
+  const handleCancel = () =&gt; {
+    router.back();
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      {/* Backdrop */}
+      &lt;Animated.View
+        entering={FadeIn}
+        exiting={FadeOut}
+        style={styles.backdrop}
+      &gt;
+        &lt;Pressable style={StyleSheet.absoluteFill} onPress={handleCancel} /&gt;
+      &lt;/Animated.View&gt;
+
+      {/* Modal Content */}
+      &lt;Animated.View
+        entering={SlideInDown.springify().damping(15)}
+        style={styles.modal}
+      &gt;
+        &lt;Text style={styles.title}&gt;Confirm Action&lt;/Text&gt;
+        &lt;Text style={styles.message}&gt;
+          Are you sure you want to proceed?
+        &lt;/Text&gt;
+
+        &lt;View style={styles.buttons}&gt;
+          &lt;Pressable style={styles.cancelButton} onPress={handleCancel}&gt;
+            &lt;Text style={styles.cancelText}&gt;Cancel&lt;/Text&gt;
+          &lt;/Pressable&gt;
+          &lt;Pressable style={styles.confirmButton} onPress={handleConfirm}&gt;
+            &lt;Text style={styles.confirmText}&gt;Confirm&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  buttons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+  },
+  confirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+});</code></pre>
+
+                <h3>Form Sheet Modal (iOS Style)</h3>
+
+                <pre><code class="language-tsx">// app/modal/edit-profile.tsx
+&lt;Stack.Screen
+  name="modal/edit-profile"
+  options={{
+    presentation: 'formSheet', // iOS 15+ style
+    sheetAllowedDetents: [0.5, 0.75, 1], // Height stops
+    sheetLargestUndimmedDetent: 0.5, // Allow interaction behind
+    sheetGrabberVisible: true, // Show grabber handle
+    sheetCornerRadius: 24,
+  }}
+/&gt;</code></pre>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph Stack["Navigation Stack"]
+        A[Main Screen]
+        B[Modal 1: Category]
+        C[Modal 2: Subcategory]
+        D[Modal 3: Confirm]
+    end
+    
+    A -->|"push modal"| B
+    B -->|"push modal"| C
+    C -->|"push transparent"| D
+    
+    D -->|"dismiss"| C
+    C -->|"dismiss"| B
+    B -->|"dismiss"| A
+    
+    style A fill:#e8f5e9
+    style B fill:#e3f2fd
+    style C fill:#e3f2fd
+    style D fill:#fce4ec
+                </pre>
+            </section>
+
+            <!-- Bottom Sheet Navigation -->
+            <section id="bottom-sheets">
+                <h2>Bottom Sheet Navigation</h2>
+
+                <p>Bottom sheets provide a native-feeling way to present content that can be dismissed with a swipe gesture.</p>
+
+                <h3>Using @gorhom/bottom-sheet</h3>
+
+                <pre><code class="language-bash"># Install bottom sheet library
+npx expo install @gorhom/bottom-sheet react-native-gesture-handler react-native-reanimated</code></pre>
+
+                <pre><code class="language-tsx">// components/NavigableBottomSheet.tsx
+import { forwardRef, useCallback, useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
+import { useRouter } from 'expo-router';
+
+interface NavigableBottomSheetProps {
+  children: React.ReactNode;
+  snapPoints?: (string | number)[];
+  onDismiss?: () =&gt; void;
+}
+
+export const NavigableBottomSheet = forwardRef&lt;
+  BottomSheet,
+  NavigableBottomSheetProps
+&gt;(({ children, snapPoints: customSnapPoints, onDismiss }, ref) =&gt; {
+  const router = useRouter();
+  const snapPoints = useMemo(
+    () =&gt; customSnapPoints || ['25%', '50%', '90%'],
+    [customSnapPoints]
+  );
+
+  const handleSheetChanges = useCallback((index: number) =&gt; {
+    if (index === -1) {
+      // Sheet closed
+      onDismiss?.();
+    }
+  }, [onDismiss]);
+
+  const renderBackdrop = useCallback(
+    (props: any) =&gt; (
+      &lt;BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+      /&gt;
+    ),
+    []
+  );
+
+  return (
+    &lt;BottomSheet
+      ref={ref}
+      index={0}
+      snapPoints={snapPoints}
+      onChange={handleSheetChanges}
+      backdropComponent={renderBackdrop}
+      enablePanDownToClose
+      handleIndicatorStyle={styles.indicator}
+    &gt;
+      &lt;BottomSheetView style={styles.content}&gt;
+        {children}
+      &lt;/BottomSheetView&gt;
+    &lt;/BottomSheet&gt;
+  );
+});
+
+const styles = StyleSheet.create({
+  indicator: {
+    backgroundColor: '#ccc',
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+});</code></pre>
+
+                <h3>Bottom Sheet with Navigation</h3>
+
+                <pre><code class="language-tsx">// Using bottom sheet as a navigation destination
+// app/sheets/actions.tsx
+import { useRef, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import BottomSheet from '@gorhom/bottom-sheet';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+const actions = [
+  { id: 'share', icon: 'share-outline', label: 'Share', route: '/share' },
+  { id: 'edit', icon: 'create-outline', label: 'Edit', route: '/edit' },
+  { id: 'delete', icon: 'trash-outline', label: 'Delete', route: '/confirm-delete' },
+  { id: 'report', icon: 'flag-outline', label: 'Report', route: '/report' },
+];
+
+export default function ActionsSheet() {
+  const router = useRouter();
+  const { itemId } = useLocalSearchParams&lt;{ itemId: string }&gt;();
+  const bottomSheetRef = useRef&lt;BottomSheet&gt;(null);
+
+  const handleAction = (route: string) =&gt; {
+    bottomSheetRef.current?.close();
+    setTimeout(() =&gt; {
+      router.push(`${route}?itemId=${itemId}`);
+    }, 300);
+  };
+
+  const handleDismiss = () =&gt; {
+    router.back();
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Pressable style={styles.backdrop} onPress={handleDismiss} /&gt;
+      
+      &lt;BottomSheet
+        ref={bottomSheetRef}
+        snapPoints={['40%']}
+        onClose={handleDismiss}
+        enablePanDownToClose
+      &gt;
+        &lt;View style={styles.content}&gt;
+          &lt;Text style={styles.title}&gt;Actions&lt;/Text&gt;
+          
+          {actions.map((action) =&gt; (
+            &lt;Pressable
+              key={action.id}
+              style={styles.actionItem}
+              onPress={() =&gt; handleAction(action.route)}
+            &gt;
+              &lt;Ionicons name={action.icon as any} size={24} color="#333" /&gt;
+              &lt;Text style={styles.actionLabel}&gt;{action.label}&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          ))}
+        &lt;/View&gt;
+      &lt;/BottomSheet&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  content: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  actionLabel: {
+    fontSize: 16,
+    marginLeft: 16,
+  },
+});</code></pre>
+
+                <h3>Bottom Tab with Sheet Trigger</h3>
+
+                <pre><code class="language-tsx">// Create a center "+" button that opens a sheet instead of navigating
+// app/(tabs)/_layout.tsx
+import { Tabs, useRouter } from 'expo-router';
+import { Pressable, View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function TabLayout() {
+  const router = useRouter();
+
+  return (
+    &lt;Tabs&gt;
+      &lt;Tabs.Screen name="home" /&gt;
+      &lt;Tabs.Screen name="search" /&gt;
+      
+      {/* Center button - opens sheet instead of screen */}
+      &lt;Tabs.Screen
+        name="create"
+        options={{
+          tabBarButton: () =&gt; (
+            &lt;Pressable
+              style={styles.createButton}
+              onPress={() =&gt; router.push('/sheets/create')}
+            &gt;
+              &lt;View style={styles.createButtonInner}&gt;
+                &lt;Ionicons name="add" size={28} color="#fff" /&gt;
+              &lt;/View&gt;
+            &lt;/Pressable&gt;
+          ),
+        }}
+      /&gt;
+      
+      &lt;Tabs.Screen name="notifications" /&gt;
+      &lt;Tabs.Screen name="profile" /&gt;
+    &lt;/Tabs&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  createButton: {
+    top: -20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createButtonInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+});</code></pre>
+            </section>
+            <!-- Performance Optimization -->
+            <section id="performance">
+                <h2>Performance Optimization</h2>
+
+                <p>Navigation performance is critical for user experience. Slow transitions and janky animations make your app feel sluggish. Let's optimize.</p>
+
+                <h3>Screen Preloading</h3>
+
+                <pre><code class="language-tsx">// Preload screens that users are likely to visit
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+
+function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
+
+  // Preload detail screen when card becomes visible
+  useEffect(() =&gt; {
+    // Prefetch the route (if supported)
+    router.prefetch(`/product/${product.id}`);
+  }, [product.id]);
+
+  return (
+    &lt;Pressable onPress={() =&gt; router.push(`/product/${product.id}`)}&gt;
+      {/* card content */}
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Lazy Loading Screens</h3>
+
+                <pre><code class="language-tsx">// Use React.lazy for heavy screens
+import { Suspense, lazy } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+
+// Lazy load heavy components
+const HeavyChart = lazy(() =&gt; import('@/components/HeavyChart'));
+const MapView = lazy(() =&gt; import('@/components/MapView'));
+
+function AnalyticsScreen() {
+  return (
+    &lt;View&gt;
+      &lt;Suspense fallback={&lt;ActivityIndicator size="large" /&gt;}&gt;
+        &lt;HeavyChart /&gt;
+      &lt;/Suspense&gt;
+    &lt;/View&gt;
+  );
+}
+
+// For screens with maps - only load when needed
+function LocationScreen() {
+  const [showMap, setShowMap] = useState(false);
+
+  return (
+    &lt;View&gt;
+      {showMap ? (
+        &lt;Suspense fallback={&lt;MapPlaceholder /&gt;}&gt;
+          &lt;MapView /&gt;
+        &lt;/Suspense&gt;
+      ) : (
+        &lt;Button title="Load Map" onPress={() =&gt; setShowMap(true)} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Optimizing List Navigation</h3>
+
+                <pre><code class="language-tsx">// Optimize FlatList for navigation performance
+import { useCallback, memo } from 'react';
+import { FlatList } from 'react-native';
+import { useRouter } from 'expo-router';
+
+// Memoize list items to prevent re-renders
+const ProductItem = memo(function ProductItem({ 
+  product, 
+  onPress 
+}: { 
+  product: Product; 
+  onPress: (id: string) =&gt; void;
+}) {
+  return (
+    &lt;Pressable onPress={() =&gt; onPress(product.id)}&gt;
+      &lt;Text&gt;{product.title}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+function ProductList({ products }: { products: Product[] }) {
+  const router = useRouter();
+
+  // Memoize navigation handler
+  const handlePress = useCallback((id: string) =&gt; {
+    router.push(`/product/${id}`);
+  }, [router]);
+
+  // Memoize renderItem
+  const renderItem = useCallback(({ item }: { item: Product }) =&gt; (
+    &lt;ProductItem product={item} onPress={handlePress} /&gt;
+  ), [handlePress]);
+
+  // Memoize keyExtractor
+  const keyExtractor = useCallback((item: Product) =&gt; item.id, []);
+
+  return (
+    &lt;FlatList
+      data={products}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      // Performance optimizations
+      removeClippedSubviews
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      initialNumToRender={10}
+      getItemLayout={(data, index) =&gt; ({
+        length: ITEM_HEIGHT,
+        offset: ITEM_HEIGHT * index,
+        index,
+      })}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Preventing Unnecessary Re-renders</h3>
+
+                <pre><code class="language-tsx">// Use useFocusEffect wisely - don't over-fetch
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useRef } from 'react';
+
+function DataScreen() {
+  const hasLoaded = useRef(false);
+  const lastFetch = useRef&lt;number&gt;(0);
+
+  useFocusEffect(
+    useCallback(() =&gt; {
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetch.current;
+      
+      // Only refetch if:
+      // 1. Never loaded before, OR
+      // 2. More than 5 minutes since last fetch
+      if (!hasLoaded.current || timeSinceLastFetch &gt; 5 * 60 * 1000) {
+        fetchData();
+        lastFetch.current = now;
+        hasLoaded.current = true;
+      }
+    }, [])
+  );
+
+  return (/* ... */);
+}
+
+// Use React Query for intelligent caching
+import { useQuery } from '@tanstack/react-query';
+
+function OptimizedDataScreen() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['data'],
+    queryFn: fetchData,
+    staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+  });
+
+  return (/* ... */);
+}</code></pre>
+
+                <h3>Reducing Navigation Stack Memory</h3>
+
+                <pre><code class="language-tsx">// Replace instead of push for certain flows
+import { useRouter } from 'expo-router';
+
+function CheckoutFlow() {
+  const router = useRouter();
+
+  const handleComplete = () =&gt; {
+    // Replace entire checkout flow with success screen
+    // This removes checkout screens from memory
+    router.replace('/order-success');
+  };
+
+  // For wizard steps, consider replace instead of push
+  const goToNextStep = () =&gt; {
+    router.replace('/checkout/step-2'); // Not push
+  };
+}
+
+// Dismiss multiple screens at once
+function DeepScreen() {
+  const router = useRouter();
+
+  const goBackToRoot = () =&gt; {
+    // Dismiss 3 screens at once
+    router.dismiss(3);
+    
+    // Or use dismissAll
+    router.dismissAll();
+  };
+}</code></pre>
+
+                <!-- SVG: Performance Tips -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 650 220" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="650" height="220" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="325" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Navigation Performance Checklist</text>
+                        
+                        <!-- Column 1 -->
+                        <g transform="translate(30, 50)">
+                            <rect width="180" height="150" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="8"/>
+                            <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">✓ Do</text>
+                            <text x="15" y="50" font-size="10" fill="#333">• Memoize components</text>
+                            <text x="15" y="70" font-size="10" fill="#333">• Use getItemLayout</text>
+                            <text x="15" y="90" font-size="10" fill="#333">• Lazy load heavy screens</text>
+                            <text x="15" y="110" font-size="10" fill="#333">• Cache API responses</text>
+                            <text x="15" y="130" font-size="10" fill="#333">• Use replace for flows</text>
+                        </g>
+                        
+                        <!-- Column 2 -->
+                        <g transform="translate(235, 50)">
+                            <rect width="180" height="150" fill="#ffebee" stroke="#ef5350" stroke-width="2" rx="8"/>
+                            <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="bold" fill="#c62828">✗ Don't</text>
+                            <text x="15" y="50" font-size="10" fill="#333">• Fetch on every focus</text>
+                            <text x="15" y="70" font-size="10" fill="#333">• Inline functions in render</text>
+                            <text x="15" y="90" font-size="10" fill="#333">• Deep stack without cleanup</text>
+                            <text x="15" y="110" font-size="10" fill="#333">• Heavy animations</text>
+                            <text x="15" y="130" font-size="10" fill="#333">• Sync operations on navigate</text>
+                        </g>
+                        
+                        <!-- Column 3 -->
+                        <g transform="translate(440, 50)">
+                            <rect width="180" height="150" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="8"/>
+                            <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">📊 Measure</text>
+                            <text x="15" y="50" font-size="10" fill="#333">• React DevTools Profiler</text>
+                            <text x="15" y="70" font-size="10" fill="#333">• Flipper performance</text>
+                            <text x="15" y="90" font-size="10" fill="#333">• Console timestamps</text>
+                            <text x="15" y="110" font-size="10" fill="#333">• useRenderCount hook</text>
+                            <text x="15" y="130" font-size="10" fill="#333">• Real device testing</text>
+                        </g>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Navigation Analytics -->
+            <section id="analytics">
+                <h2>Navigation Analytics</h2>
+
+                <p>Tracking navigation helps you understand user behavior, identify pain points, and measure feature adoption.</p>
+
+                <h3>Basic Screen Tracking</h3>
+
+                <pre><code class="language-tsx">// hooks/useNavigationTracking.ts
+import { useEffect } from 'react';
+import { usePathname, useSegments } from 'expo-router';
+
+export function useNavigationTracking() {
+  const pathname = usePathname();
+  const segments = useSegments();
+
+  useEffect(() =&gt; {
+    // Track screen view
+    trackScreenView({
+      screen_name: pathname,
+      screen_class: segments.join('/'),
+      timestamp: Date.now(),
+    });
+  }, [pathname, segments]);
+}
+
+// analytics.ts - example implementations
+export function trackScreenView(params: {
+  screen_name: string;
+  screen_class: string;
+  timestamp: number;
+}) {
+  // Firebase Analytics
+  // analytics().logScreenView(params);
+  
+  // Mixpanel
+  // mixpanel.track('Screen View', params);
+  
+  // Amplitude
+  // amplitude.logEvent('Screen View', params);
+  
+  // Custom backend
+  fetch('/api/analytics', {
+    method: 'POST',
+    body: JSON.stringify({
+      event: 'screen_view',
+      ...params,
+    }),
+  });
+}
+
+// Use in root layout
+export default function RootLayout() {
+  useNavigationTracking();
+  
+  return &lt;Stack&gt;{/* ... */}&lt;/Stack&gt;;
+}</code></pre>
+
+                <h3>Comprehensive Navigation Logger</h3>
+
+                <pre><code class="language-tsx">// hooks/useNavigationLogger.ts
+import { useEffect, useRef } from 'react';
+import { usePathname, useSegments, useLocalSearchParams } from 'expo-router';
+
+interface NavigationEvent {
+  type: 'screen_view' | 'navigation' | 'deep_link';
+  from?: string;
+  to: string;
+  params?: Record&lt;string, string&gt;;
+  timestamp: number;
+  duration?: number;
+}
+
+const navigationHistory: NavigationEvent[] = [];
+
+export function useNavigationLogger() {
+  const pathname = usePathname();
+  const segments = useSegments();
+  const params = useLocalSearchParams();
+  const previousPath = useRef&lt;string | null&gt;(null);
+  const screenStartTime = useRef&lt;number&gt;(Date.now());
+
+  useEffect(() =&gt; {
+    const now = Date.now();
+    
+    // Calculate time spent on previous screen
+    const duration = previousPath.current 
+      ? now - screenStartTime.current 
+      : undefined;
+
+    // Log the navigation event
+    const event: NavigationEvent = {
+      type: 'screen_view',
+      from: previousPath.current || undefined,
+      to: pathname,
+      params: Object.keys(params).length &gt; 0 
+        ? params as Record&lt;string, string&gt; 
+        : undefined,
+      timestamp: now,
+      duration,
+    };
+
+    navigationHistory.push(event);
+    
+    // Send to analytics
+    sendToAnalytics(event);
+
+    // Update refs
+    previousPath.current = pathname;
+    screenStartTime.current = now;
+
+    // Cleanup: track time when leaving screen
+    return () =&gt; {
+      const exitDuration = Date.now() - screenStartTime.current;
+      sendToAnalytics({
+        type: 'navigation',
+        from: pathname,
+        to: 'unknown', // Will be updated by next screen
+        timestamp: Date.now(),
+        duration: exitDuration,
+      });
+    };
+  }, [pathname]);
+
+  return { navigationHistory };
+}
+
+function sendToAnalytics(event: NavigationEvent) {
+  // Console logging for development
+  if (__DEV__) {
+    console.log('[Navigation]', {
+      ...event,
+      duration: event.duration ? `${event.duration}ms` : undefined,
+    });
+  }
+
+  // Send to your analytics service
+  // analytics.track('navigation', event);
+}</code></pre>
+
+                <h3>User Flow Analysis</h3>
+
+                <pre><code class="language-tsx">// Track complete user flows
+interface UserFlow {
+  flowName: string;
+  steps: string[];
+  startTime: number;
+  endTime?: number;
+  completed: boolean;
+}
+
+const activeFlows = new Map&lt;string, UserFlow&gt;();
+
+export function startFlow(flowName: string) {
+  activeFlows.set(flowName, {
+    flowName,
+    steps: [],
+    startTime: Date.now(),
+    completed: false,
+  });
+}
+
+export function addFlowStep(flowName: string, step: string) {
+  const flow = activeFlows.get(flowName);
+  if (flow) {
+    flow.steps.push(step);
+  }
+}
+
+export function completeFlow(flowName: string, success: boolean) {
+  const flow = activeFlows.get(flowName);
+  if (flow) {
+    flow.endTime = Date.now();
+    flow.completed = success;
+    
+    // Send flow analytics
+    sendFlowAnalytics(flow);
+    
+    // Cleanup
+    activeFlows.delete(flowName);
+  }
+}
+
+// Usage in checkout flow
+function CheckoutScreen() {
+  useEffect(() =&gt; {
+    startFlow('checkout');
+    addFlowStep('checkout', 'cart_review');
+  }, []);
+  
+  const handlePaymentComplete = () =&gt; {
+    addFlowStep('checkout', 'payment_success');
+    completeFlow('checkout', true);
+    router.push('/order-confirmation');
+  };
+}</code></pre>
+
+                <h3>Error Tracking in Navigation</h3>
+
+                <pre><code class="language-tsx">// Track navigation errors
+import { ErrorBoundary } from 'react-error-boundary';
+
+function NavigationErrorFallback({ error, resetErrorBoundary }) {
+  useEffect(() =&gt; {
+    // Track the navigation error
+    trackError({
+      type: 'navigation_error',
+      error: error.message,
+      stack: error.stack,
+      timestamp: Date.now(),
+    });
+  }, [error]);
+
+  return (
+    &lt;View style={styles.errorContainer}&gt;
+      &lt;Text&gt;Something went wrong&lt;/Text&gt;
+      &lt;Button title="Go Home" onPress={() =&gt; {
+        resetErrorBoundary();
+        router.replace('/');
+      }} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Wrap your layout
+export default function RootLayout() {
+  return (
+    &lt;ErrorBoundary FallbackComponent={NavigationErrorFallback}&gt;
+      &lt;Stack&gt;{/* ... */}&lt;/Stack&gt;
+    &lt;/ErrorBoundary&gt;
+  );
+}</code></pre>
+
+                <pre class="mermaid">
+flowchart LR
+    A[User Action] --> B[Navigation Event]
+    B --> C{Analytics Pipeline}
+    
+    C --> D[Screen Views]
+    C --> E[User Flows]
+    C --> F[Error Tracking]
+    C --> G[Performance Metrics]
+    
+    D --> H[Dashboard]
+    E --> H
+    F --> H
+    G --> H
+    
+    style H fill:#e8f5e9
+                </pre>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Custom Fade Transition</h4>
+                    <p>Create a custom screen transition that:</p>
+                    <ul>
+                        <li>Fades out the current screen while scaling down</li>
+                        <li>Fades in the new screen while scaling up</li>
+                        <li>Has a duration of 400ms</li>
+                        <li>Works with gesture navigation</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import { StackCardStyleInterpolator } from '@react-navigation/stack';
+
+const fadeScaleTransition: StackCardStyleInterpolator = ({
+  current,
+  next,
+}) =&gt; {
+  return {
+    cardStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+      }),
+      transform: [
+        {
+          scale: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.85, 1],
+          }),
+        },
+      ],
+    },
+    overlayStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.3],
+      }),
+    },
+  };
+};
+
+// Usage
+&lt;Stack
+  screenOptions={{
+    cardStyleInterpolator: fadeScaleTransition,
+    transitionSpec: {
+      open: {
+        animation: 'timing',
+        config: { duration: 400 },
+      },
+      close: {
+        animation: 'timing',
+        config: { duration: 400 },
+      },
+    },
+    gestureEnabled: true,
+    gestureDirection: 'horizontal',
+  }}
+&gt;</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Shared Element Gallery</h4>
+                    <p>Build an image gallery with shared element transitions:</p>
+                    <ul>
+                        <li>Grid of thumbnails on the list screen</li>
+                        <li>Full-screen image on the detail screen</li>
+                        <li>Smooth transition between thumbnail and full image</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use Reanimated's <code>sharedTransitionTag</code> on both <code>Animated.Image</code> components with matching unique IDs. The transition happens automatically when navigating between screens.</p>
+                    </details>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Action Sheet Navigator</h4>
+                    <p>Create a reusable action sheet that:</p>
+                    <ul>
+                        <li>Opens as a bottom sheet</li>
+                        <li>Accepts dynamic action items</li>
+                        <li>Navigates to different screens based on selection</li>
+                        <li>Closes smoothly before navigating</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution Outline</summary>
+                        <pre><code class="language-tsx">// app/sheets/[actions].tsx
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import BottomSheet from '@gorhom/bottom-sheet';
+
+export default function ActionSheet() {
+  const { actions } = useLocalSearchParams&lt;{ actions: string }&gt;();
+  const router = useRouter();
+  const parsedActions = JSON.parse(actions || '[]');
+  const sheetRef = useRef&lt;BottomSheet&gt;(null);
+
+  const handleSelect = async (route: string) =&gt; {
+    sheetRef.current?.close();
+    await new Promise(r =&gt; setTimeout(r, 300));
+    router.push(route);
+  };
+
+  return (
+    &lt;BottomSheet ref={sheetRef} snapPoints={['40%']} enablePanDownToClose&gt;
+      {parsedActions.map((action) =&gt; (
+        &lt;Pressable key={action.id} onPress={() =&gt; handleSelect(action.route)}&gt;
+          &lt;Text&gt;{action.label}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      ))}
+    &lt;/BottomSheet&gt;
+  );
+}
+
+// Usage
+router.push({
+  pathname: '/sheets/actions',
+  params: {
+    actions: JSON.stringify([
+      { id: 'edit', label: 'Edit', route: '/edit' },
+      { id: 'delete', label: 'Delete', route: '/delete' },
+    ]),
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <h4>Exercise 4: Navigation Analytics Dashboard</h4>
+                    <p>Implement comprehensive navigation tracking:</p>
+                    <ul>
+                        <li>Track all screen views with timestamps</li>
+                        <li>Calculate time spent on each screen</li>
+                        <li>Track navigation paths (from → to)</li>
+                        <li>Create a debug screen showing navigation history</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">// Store navigation history
+const navigationStore = {
+  history: [] as NavigationEvent[],
+  
+  addEvent(event: NavigationEvent) {
+    this.history.push(event);
+    // Keep last 100 events
+    if (this.history.length &gt; 100) {
+      this.history.shift();
+    }
+  },
+  
+  getAverageTimeOnScreen(screenName: string) {
+    const screenEvents = this.history.filter(
+      e =&gt; e.to === screenName &amp;&amp; e.duration
+    );
+    if (screenEvents.length === 0) return 0;
+    const total = screenEvents.reduce((sum, e) =&gt; sum + (e.duration || 0), 0);
+    return total / screenEvents.length;
+  },
+  
+  getMostVisitedScreens() {
+    const counts = this.history.reduce((acc, e) =&gt; {
+      acc[e.to] = (acc[e.to] || 0) + 1;
+      return acc;
+    }, {} as Record&lt;string, number&gt;);
+    
+    return Object.entries(counts)
+      .sort(([, a], [, b]) =&gt; b - a)
+      .slice(0, 10);
+  },
+};
+
+// Debug screen
+function NavigationDebugScreen() {
+  return (
+    &lt;ScrollView&gt;
+      &lt;Text&gt;Most Visited:&lt;/Text&gt;
+      {navigationStore.getMostVisitedScreens().map(([screen, count]) =&gt; (
+        &lt;Text key={screen}&gt;{screen}: {count} views&lt;/Text&gt;
+      ))}
+      
+      &lt;Text&gt;Recent History:&lt;/Text&gt;
+      {navigationStore.history.slice(-20).reverse().map((e, i) =&gt; (
+        &lt;Text key={i}&gt;{e.from} → {e.to} ({e.duration}ms)&lt;/Text&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Congratulations! You've completed the Navigation module and mastered advanced patterns for creating polished, performant navigation experiences.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>Custom Transitions:</strong> Use <code>cardStyleInterpolator</code> for unique animations</li>
+                        <li><strong>Shared Elements:</strong> Match <code>sharedTransitionTag</code> between screens for seamless transitions</li>
+                        <li><strong>Modal Patterns:</strong> Stack modals, use transparent modals for dialogs</li>
+                        <li><strong>Bottom Sheets:</strong> @gorhom/bottom-sheet for native-feeling interactions</li>
+                        <li><strong>Performance:</strong> Memoize, lazy load, use replace over push for flows</li>
+                        <li><strong>Analytics:</strong> Track screen views, user flows, and navigation errors</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🏆 Module 6 Complete!</h4>
+                    <p style="color: white;">You've mastered navigation with Expo Router:</p>
+                    <ul style="color: white;">
+                        <li>✅ Navigation concepts and patterns</li>
+                        <li>✅ File-based routing with Expo Router</li>
+                        <li>✅ Stack, Tab, and Drawer navigation</li>
+                        <li>✅ Nested navigation architectures</li>
+                        <li>✅ Authentication flows</li>
+                        <li>✅ Deep linking and push notifications</li>
+                        <li>✅ Advanced patterns and optimization</li>
+                    </ul>
+                </div>
+
+                <h3>What's Next?</h3>
+
+                <p>In the next module, we'll explore <strong>State Management</strong>—from React's built-in state to Context API, Zustand, and advanced state patterns for complex applications.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m06_l07_deep_linking.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">Deep Linking</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m07_l01_state_overview.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next Module</span>
+                        <span class="nav-title">State Management</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

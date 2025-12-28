@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master stack navigation in Expo Router - headers, transitions, gestures, and common navigation patterns">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Stack Navigation | Module 6: Navigation with Expo Router | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m06_l01_navigation_concepts.html">Module 6</a> &gt;
+            <span>Lesson 6.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 6: Navigation with Expo Router</p>
+                <h1>Stack Navigation</h1>
+                <p class="lesson-subtitle">Building hierarchical navigation with headers, transitions, and gestures</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Configure stack navigators with custom screen options</li>
+                    <li>Customize headers with titles, buttons, and styles</li>
+                    <li>Implement different transition animations</li>
+                    <li>Handle back navigation and gestures</li>
+                    <li>Pass and receive data between stack screens</li>
+                    <li>Build common patterns: master-detail, wizards, and confirmations</li>
+                    <li>Manage screen lifecycle and focus events</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#stack-fundamentals">Stack Fundamentals</a></li>
+                        <li><a href="#header-configuration">Header Configuration</a></li>
+                        <li><a href="#custom-headers">Custom Headers</a></li>
+                        <li><a href="#transitions">Transitions and Animations</a></li>
+                        <li><a href="#gestures">Gestures and Back Handling</a></li>
+                        <li><a href="#passing-data">Passing Data Between Screens</a></li>
+                        <li><a href="#screen-lifecycle">Screen Lifecycle and Focus</a></li>
+                        <li><a href="#common-patterns">Common Stack Patterns</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Stack Fundamentals -->
+            <section id="stack-fundamentals">
+                <h2>Stack Fundamentals</h2>
+
+                <p>Stack navigation is the backbone of most mobile apps. It manages a "stack" of screens where new screens are pushed on top and removed when going back. In Expo Router, you create a stack navigator using the <code>Stack</code> component in a <code>_layout.tsx</code> file.</p>
+
+                <pre><code class="language-tsx">// app/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Screen name="index" /&gt;
+      &lt;Stack.Screen name="details" /&gt;
+      &lt;Stack.Screen name="settings" /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 Stack.Screen</h4>
+                    <p style="color: white;">Each <code>Stack.Screen</code> component registers a route with the stack navigator. The <code>name</code> prop corresponds to the file path (without extension). You don't have to list every screen—unlisted screens will use default options.</p>
+                </div>
+
+                <h3>Screen Options</h3>
+
+                <p>You can configure screens in three places, each with different use cases:</p>
+
+                <pre><code class="language-tsx">// 1. In the layout file (static options)
+&lt;Stack.Screen 
+  name="profile" 
+  options={{ title: 'My Profile' }} 
+/&gt;
+
+// 2. In the screen file (static or based on route params)
+// app/profile.tsx
+import { Stack } from 'expo-router';
+
+export default function ProfileScreen() {
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen options={{ title: 'Profile Page' }} /&gt;
+      &lt;View&gt;{/* content */}&lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+// 3. Dynamically based on params
+// app/user/[id].tsx
+import { Stack, useLocalSearchParams } from 'expo-router';
+
+export default function UserScreen() {
+  const { id } = useLocalSearchParams();
+  
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen 
+        options={{ 
+          title: `User ${id}`,
+          // Can also be a function for dynamic options
+        }} 
+      /&gt;
+      &lt;View&gt;{/* content */}&lt;/View&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+
+                <h3>Default Screen Options</h3>
+
+                <p>Apply options to all screens using <code>screenOptions</code>:</p>
+
+                <pre><code class="language-tsx">// app/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+  return (
+    &lt;Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#6366f1',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerBackTitleVisible: false, // iOS: hide "Back" text
+        animation: 'slide_from_right',
+      }}
+    &gt;
+      &lt;Stack.Screen name="index" options={{ title: 'Home' }} /&gt;
+      &lt;Stack.Screen name="settings" options={{ title: 'Settings' }} /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Header Configuration -->
+            <section id="header-configuration">
+                <h2>Header Configuration</h2>
+
+                <p>The header (also called navigation bar or app bar) is the top bar that shows the title and navigation controls. Expo Router provides extensive customization options.</p>
+
+                <!-- SVG: Header Anatomy -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 200" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="200" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Header Anatomy</text>
+                        
+                        <!-- Header bar -->
+                        <rect x="50" y="45" width="500" height="60" fill="#6366f1" rx="4"/>
+                        
+                        <!-- Back button area -->
+                        <rect x="55" y="50" width="80" height="50" fill="rgba(255,255,255,0.1)" rx="4" stroke="#fff" stroke-width="1" stroke-dasharray="4"/>
+                        <text x="70" y="80" font-size="20" fill="white">←</text>
+                        <text x="90" y="80" font-size="14" fill="white">Back</text>
+                        
+                        <!-- Title area -->
+                        <rect x="145" y="50" width="200" height="50" fill="rgba(255,255,255,0.1)" rx="4" stroke="#fff" stroke-width="1" stroke-dasharray="4"/>
+                        <text x="245" y="82" text-anchor="middle" font-size="18" fill="white" font-weight="bold">Screen Title</text>
+                        
+                        <!-- Right buttons area -->
+                        <rect x="355" y="50" width="190" height="50" fill="rgba(255,255,255,0.1)" rx="4" stroke="#fff" stroke-width="1" stroke-dasharray="4"/>
+                        <text x="380" y="80" font-size="14" fill="white">Edit</text>
+                        <text x="430" y="80" font-size="14" fill="white">Share</text>
+                        <text x="490" y="80" font-size="18" fill="white">⋮</text>
+                        
+                        <!-- Labels -->
+                        <line x1="95" y1="105" x2="95" y2="130" stroke="#666" stroke-width="1"/>
+                        <text x="95" y="145" text-anchor="middle" font-size="11" fill="#666">headerLeft</text>
+                        
+                        <line x1="245" y1="105" x2="245" y2="130" stroke="#666" stroke-width="1"/>
+                        <text x="245" y="145" text-anchor="middle" font-size="11" fill="#666">headerTitle</text>
+                        
+                        <line x1="450" y1="105" x2="450" y2="130" stroke="#666" stroke-width="1"/>
+                        <text x="450" y="145" text-anchor="middle" font-size="11" fill="#666">headerRight</text>
+                        
+                        <!-- Style labels -->
+                        <text x="300" y="175" text-anchor="middle" font-size="10" fill="#999">headerStyle, headerTintColor, headerTitleStyle</text>
+                    </svg>
+                </div>
+
+                <h3>Common Header Options</h3>
+
+                <pre><code class="language-tsx">// Complete header configuration reference
+const screenOptions = {
+  // Title
+  title: 'Screen Title',              // Simple string title
+  headerTitle: 'Custom Title',        // Overrides title
+  headerTitleAlign: 'center',         // 'left' | 'center' (Android default: left)
+  
+  // Visibility
+  headerShown: true,                  // Show/hide entire header
+  headerTransparent: false,           // Transparent background
+  headerBlurEffect: 'regular',        // iOS blur effect
+  
+  // Styling
+  headerStyle: {
+    backgroundColor: '#6366f1',
+    height: 100,                      // Custom height
+  },
+  headerTintColor: '#ffffff',         // Color for back button and title
+  headerTitleStyle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  
+  // Shadow and border
+  headerShadowVisible: true,          // Shadow below header
+  
+  // Back button (iOS)
+  headerBackTitle: 'Back',            // Text next to back arrow
+  headerBackTitleVisible: true,       // Show/hide back text
+  headerBackTitleStyle: {
+    fontSize: 14,
+  },
+  
+  // Large title (iOS)
+  headerLargeTitle: true,             // iOS large title style
+  headerLargeTitleStyle: {
+    fontSize: 34,
+  },
+};</code></pre>
+
+                <h3>Header Buttons</h3>
+
+                <p>Add custom buttons to the header using <code>headerLeft</code> and <code>headerRight</code>:</p>
+
+                <pre><code class="language-tsx">// app/details.tsx
+import { Stack, useRouter } from 'expo-router';
+import { Pressable, Text, View, StyleSheet, Share } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function DetailsScreen() {
+  const router = useRouter();
+
+  const handleShare = async () =&gt; {
+    await Share.share({
+      message: 'Check out this awesome content!',
+    });
+  };
+
+  const handleEdit = () =&gt; {
+    router.push('/edit');
+  };
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen
+        options={{
+          title: 'Details',
+          
+          // Custom left button (replaces back button)
+          headerLeft: () =&gt; (
+            &lt;Pressable onPress={() =&gt; router.back()} style={styles.headerButton}&gt;
+              &lt;Ionicons name="close" size={24} color="#fff" /&gt;
+            &lt;/Pressable&gt;
+          ),
+          
+          // Right buttons
+          headerRight: () =&gt; (
+            &lt;View style={styles.headerRightContainer}&gt;
+              &lt;Pressable onPress={handleEdit} style={styles.headerButton}&gt;
+                &lt;Ionicons name="create-outline" size={22} color="#fff" /&gt;
+              &lt;/Pressable&gt;
+              &lt;Pressable onPress={handleShare} style={styles.headerButton}&gt;
+                &lt;Ionicons name="share-outline" size={22} color="#fff" /&gt;
+              &lt;/Pressable&gt;
+            &lt;/View&gt;
+          ),
+        }}
+      /&gt;
+      
+      &lt;View style={styles.container}&gt;
+        &lt;Text&gt;Details Content&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  headerButton: {
+    padding: 4,
+  },
+});</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ headerLeft Replaces Back Button</h4>
+                    <p>When you provide a custom <code>headerLeft</code>, it completely replaces the default back button. If you want to keep the back functionality, you need to implement it yourself using <code>router.back()</code> or <code>router.canGoBack()</code>.</p>
+                </div>
+
+                <h3>Dynamic Header Based on State</h3>
+
+                <pre><code class="language-tsx">// app/post/[id].tsx
+import { useState, useEffect } from 'react';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { View, Text, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function PostScreen() {
+  const { id } = useLocalSearchParams();
+  const [post, setPost] = useState&lt;Post | null&gt;(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() =&gt; {
+    // Fetch post data
+    fetchPost(id).then(setPost);
+  }, [id]);
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen
+        options={{
+          // Dynamic title from fetched data
+          title: post?.title ?? 'Loading...',
+          
+          // Dynamic right button based on state
+          headerRight: () =&gt; (
+            &lt;Pressable onPress={() =&gt; setIsFavorite(!isFavorite)}&gt;
+              &lt;Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={24}
+                color={isFavorite ? '#ef4444' : '#fff'}
+              /&gt;
+            &lt;/Pressable&gt;
+          ),
+        }}
+      /&gt;
+      
+      &lt;View&gt;
+        {post ? &lt;Text&gt;{post.content}&lt;/Text&gt; : &lt;Text&gt;Loading...&lt;/Text&gt;}
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Custom Headers -->
+            <section id="custom-headers">
+                <h2>Custom Headers</h2>
+
+                <p>Sometimes the default header options aren't enough. You can replace the entire header with a custom component.</p>
+
+                <pre><code class="language-tsx">// components/CustomHeader.tsx
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+
+interface CustomHeaderProps {
+  title: string;
+  showBack?: boolean;
+  rightElement?: React.ReactNode;
+}
+
+export function CustomHeader({ 
+  title, 
+  showBack = true, 
+  rightElement 
+}: CustomHeaderProps) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  return (
+    &lt;View style={[styles.container, { paddingTop: insets.top }]}&gt;
+      &lt;View style={styles.content}&gt;
+        {/* Left section */}
+        &lt;View style={styles.leftSection}&gt;
+          {showBack &amp;&amp; (
+            &lt;Pressable onPress={() =&gt; router.back()} style={styles.backButton}&gt;
+              &lt;Ionicons name="arrow-back" size={24} color="#333" /&gt;
+            &lt;/Pressable&gt;
+          )}
+        &lt;/View&gt;
+        
+        {/* Title */}
+        &lt;View style={styles.titleSection}&gt;
+          &lt;Text style={styles.title} numberOfLines={1}&gt;{title}&lt;/Text&gt;
+        &lt;/View&gt;
+        
+        {/* Right section */}
+        &lt;View style={styles.rightSection}&gt;
+          {rightElement}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    paddingHorizontal: 4,
+  },
+  leftSection: {
+    width: 60,
+    alignItems: 'flex-start',
+  },
+  titleSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  rightSection: {
+    width: 60,
+    alignItems: 'flex-end',
+    paddingRight: 8,
+  },
+  backButton: {
+    padding: 12,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#111',
+  },
+});</code></pre>
+
+                <p>Use your custom header by hiding the default and rendering your own:</p>
+
+                <pre><code class="language-tsx">// app/custom-header-demo.tsx
+import { View, Text, StyleSheet } from 'react-native';
+import { Stack } from 'expo-router';
+import { CustomHeader } from '@/components/CustomHeader';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function CustomHeaderDemo() {
+  return (
+    &lt;&gt;
+      {/* Hide the default header */}
+      &lt;Stack.Screen options={{ headerShown: false }} /&gt;
+      
+      {/* Render custom header */}
+      &lt;CustomHeader
+        title="Custom Header"
+        rightElement={
+          &lt;Ionicons name="settings-outline" size={22} color="#333" /&gt;
+        }
+      /&gt;
+      
+      &lt;View style={styles.content}&gt;
+        &lt;Text&gt;Screen content here&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+});</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 When to Use Custom Headers</h4>
+                    <ul>
+                        <li>Complex layouts (search bars, segmented controls)</li>
+                        <li>Animated headers (collapsing, parallax)</li>
+                        <li>Headers with images or gradients</li>
+                        <li>Unique branding requirements</li>
+                        <li>Headers with progress indicators or tabs</li>
+                    </ul>
+                </div>
+
+                <h3>Search Header Example</h3>
+
+                <pre><code class="language-tsx">// components/SearchHeader.tsx
+import { useState } from 'react';
+import { View, TextInput, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+
+interface SearchHeaderProps {
+  onSearch: (query: string) =&gt; void;
+  placeholder?: string;
+}
+
+export function SearchHeader({ onSearch, placeholder = 'Search...' }: SearchHeaderProps) {
+  const [query, setQuery] = useState('');
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const handleSubmit = () =&gt; {
+    onSearch(query);
+  };
+
+  const handleClear = () =&gt; {
+    setQuery('');
+    onSearch('');
+  };
+
+  return (
+    &lt;View style={[styles.container, { paddingTop: insets.top }]}&gt;
+      &lt;Pressable onPress={() =&gt; router.back()} style={styles.backButton}&gt;
+        &lt;Ionicons name="arrow-back" size={24} color="#333" /&gt;
+      &lt;/Pressable&gt;
+      
+      &lt;View style={styles.searchContainer}&gt;
+        &lt;Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} /&gt;
+        &lt;TextInput
+          style={styles.input}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={handleSubmit}
+          placeholder={placeholder}
+          placeholderTextColor="#9ca3af"
+          returnKeyType="search"
+          autoFocus
+        /&gt;
+        {query.length &gt; 0 &amp;&amp; (
+          &lt;Pressable onPress={handleClear} style={styles.clearButton}&gt;
+            &lt;Ionicons name="close-circle" size={20} color="#9ca3af" /&gt;
+          &lt;/Pressable&gt;
+        )}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    padding: 12,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 10,
+    marginRight: 12,
+    paddingHorizontal: 12,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111',
+  },
+  clearButton: {
+    padding: 4,
+  },
+});</code></pre>
+            </section>
+
+            <!-- Transitions and Animations -->
+            <section id="transitions">
+                <h2>Transitions and Animations</h2>
+
+                <p>Expo Router (via React Navigation) provides several built-in transition animations. You can also create custom animations for unique effects.</p>
+
+                <h3>Built-in Animations</h3>
+
+                <pre><code class="language-tsx">// Available animation presets
+const animationOptions = {
+  // Standard animations
+  animation: 'default',              // Platform default
+  animation: 'fade',                 // Crossfade
+  animation: 'fade_from_bottom',     // Fade while sliding up
+  animation: 'slide_from_right',     // Slide in from right (iOS default)
+  animation: 'slide_from_left',      // Slide in from left
+  animation: 'slide_from_bottom',    // Slide up (modal-like)
+  animation: 'none',                 // No animation
+  
+  // iOS-specific
+  animation: 'ios',                  // Native iOS animation
+  
+  // Flip animations
+  animation: 'flip',                 // 3D flip
+};
+
+// Apply to specific screen
+&lt;Stack.Screen
+  name="modal-screen"
+  options={{
+    animation: 'slide_from_bottom',
+    presentation: 'modal',
+  }}
+/&gt;
+
+// Apply to all screens
+&lt;Stack
+  screenOptions={{
+    animation: 'slide_from_right',
+  }}
+&gt;</code></pre>
+
+                <h3>Presentation Modes</h3>
+
+                <p>The <code>presentation</code> option changes how screens are displayed:</p>
+
+                <pre><code class="language-tsx">// Presentation options
+const presentationOptions = {
+  presentation: 'card',              // Default stack card
+  presentation: 'modal',             // Modal presentation
+  presentation: 'transparentModal',  // Modal with transparent background
+  presentation: 'containedModal',    // Modal contained within parent
+  presentation: 'containedTransparentModal',
+  presentation: 'fullScreenModal',   // iOS full screen modal
+  presentation: 'formSheet',         // iOS form sheet style
+};
+
+// Example: Modal screen
+&lt;Stack.Screen
+  name="create-post"
+  options={{
+    presentation: 'modal',
+    animation: 'slide_from_bottom',
+    headerShown: true,
+    title: 'Create Post',
+  }}
+/&gt;
+
+// Example: Transparent overlay
+&lt;Stack.Screen
+  name="overlay"
+  options={{
+    presentation: 'transparentModal',
+    animation: 'fade',
+    headerShown: false,
+  }}
+/&gt;</code></pre>
+
+                <!-- SVG: Presentation Modes Visual -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 250" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="250" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Presentation Modes</text>
+                        
+                        <!-- Card (default) -->
+                        <text x="100" y="55" text-anchor="middle" font-size="11" fill="#666">card (default)</text>
+                        <rect x="50" y="65" width="100" height="170" fill="#e0e0e0" rx="8"/>
+                        <rect x="55" y="70" width="90" height="160" fill="#fff" rx="6" stroke="#4CAF50" stroke-width="2"/>
+                        <text x="100" y="150" text-anchor="middle" font-size="10" fill="#4CAF50">Full screen</text>
+                        
+                        <!-- Modal -->
+                        <text x="250" y="55" text-anchor="middle" font-size="11" fill="#666">modal</text>
+                        <rect x="200" y="65" width="100" height="170" fill="#e0e0e0" rx="8"/>
+                        <rect x="205" y="70" width="90" height="140" fill="rgba(0,0,0,0.3)" rx="6"/>
+                        <rect x="210" y="95" width="80" height="110" fill="#fff" rx="8" stroke="#2196F3" stroke-width="2"/>
+                        <text x="250" y="155" text-anchor="middle" font-size="9" fill="#2196F3">Card modal</text>
+                        
+                        <!-- Transparent Modal -->
+                        <text x="400" y="55" text-anchor="middle" font-size="11" fill="#666">transparentModal</text>
+                        <rect x="350" y="65" width="100" height="170" fill="#e0e0e0" rx="8"/>
+                        <rect x="355" y="70" width="90" height="160" fill="rgba(0,0,0,0.5)" rx="6"/>
+                        <rect x="370" y="110" width="60" height="80" fill="#fff" rx="8" stroke="#ff9800" stroke-width="2"/>
+                        <text x="400" y="155" text-anchor="middle" font-size="9" fill="#ff9800">Dialog</text>
+                        
+                        <!-- Form Sheet (iOS) -->
+                        <text x="550" y="55" text-anchor="middle" font-size="11" fill="#666">formSheet (iOS)</text>
+                        <rect x="500" y="65" width="100" height="170" fill="#e0e0e0" rx="8"/>
+                        <rect x="505" y="70" width="90" height="80" fill="rgba(0,0,0,0.1)" rx="6"/>
+                        <rect x="505" y="100" width="90" height="130" fill="#fff" rx="8" stroke="#9c27b0" stroke-width="2"/>
+                        <rect x="540" y="106" width="20" height="4" fill="#e0e0e0" rx="2"/>
+                        <text x="550" y="165" text-anchor="middle" font-size="9" fill="#9c27b0">Partial sheet</text>
+                    </svg>
+                </div>
+
+                <h3>Custom Transition Animation</h3>
+
+                <pre><code class="language-tsx">import { Stack } from 'expo-router';
+import { TransitionPresets } from '@react-navigation/stack';
+
+// Using preset transitions
+&lt;Stack
+  screenOptions={{
+    ...TransitionPresets.SlideFromRightIOS,
+  }}
+/&gt;
+
+// Custom animation config
+&lt;Stack.Screen
+  name="custom-transition"
+  options={{
+    animationTypeForReplace: 'push', // or 'pop'
+    gestureEnabled: true,
+    gestureDirection: 'horizontal',
+    transitionSpec: {
+      open: {
+        animation: 'spring',
+        config: {
+          stiffness: 1000,
+          damping: 500,
+          mass: 3,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+      },
+      close: {
+        animation: 'timing',
+        config: {
+          duration: 200,
+        },
+      },
+    },
+  }}
+/&gt;</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Animation Best Practices</h4>
+                    <ul>
+                        <li>Use platform defaults for consistency with OS conventions</li>
+                        <li>Use <code>slide_from_bottom</code> for modals and new creation flows</li>
+                        <li>Use <code>fade</code> for quick transitions or overlays</li>
+                        <li>Avoid <code>none</code> except for immediate transitions after login/logout</li>
+                        <li>Test on real devices—animations feel different than on simulators</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Gestures and Back Handling -->
+            <section id="gestures">
+                <h2>Gestures and Back Handling</h2>
+
+                <p>Mobile navigation is gesture-driven. Users expect to swipe to go back on iOS and use the system back button on Android.</p>
+
+                <h3>Gesture Configuration</h3>
+
+                <pre><code class="language-tsx">// Gesture options
+&lt;Stack.Screen
+  name="screen"
+  options={{
+    // Enable/disable swipe back gesture
+    gestureEnabled: true,             // Default: true on iOS
+    
+    // Gesture direction
+    gestureDirection: 'horizontal',   // 'horizontal' | 'vertical'
+    
+    // How far user must swipe to trigger navigation
+    gestureResponseDistance: 50,      // pixels from edge
+    
+    // Full screen gesture (iOS 13+)
+    fullScreenGestureEnabled: true,   // Swipe from anywhere, not just edge
+  }}
+/&gt;</code></pre>
+
+                <h3>Preventing Back Navigation</h3>
+
+                <p>Sometimes you need to prevent users from going back (e.g., during form submission or unsaved changes):</p>
+
+                <pre><code class="language-tsx">// Method 1: Disable gesture
+&lt;Stack.Screen
+  name="checkout"
+  options={{
+    gestureEnabled: false,
+    headerBackVisible: false, // Hide back button
+  }}
+/&gt;
+
+// Method 2: Using beforeRemove event (recommended)
+import { useNavigation } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
+
+export default function FormScreen() {
+  const navigation = useNavigation();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() =&gt; {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) =&gt; {
+      if (!hasUnsavedChanges) {
+        // No unsaved changes, allow navigation
+        return;
+      }
+
+      // Prevent default behavior (leaving the screen)
+      e.preventDefault();
+
+      // Show confirmation dialog
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. Are you sure you want to leave?',
+        [
+          { text: "Stay", style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: () =&gt; navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges]);
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput
+        onChangeText={(text) =&gt; setHasUnsavedChanges(text.length &gt; 0)}
+        placeholder="Type something..."
+      /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Android Back Button Handling</h3>
+
+                <pre><code class="language-tsx">import { useCallback, useEffect } from 'react';
+import { BackHandler, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+
+export default function CustomBackScreen() {
+  // Method 1: Using BackHandler directly
+  useEffect(() =&gt; {
+    if (Platform.OS !== 'android') return;
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () =&gt; {
+        // Return true to prevent default back behavior
+        // Return false to allow default behavior
+        console.log('Back button pressed!');
+        return false; // Allow default
+      }
+    );
+
+    return () =&gt; backHandler.remove();
+  }, []);
+
+  // Method 2: Only when screen is focused
+  useFocusEffect(
+    useCallback(() =&gt; {
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () =&gt; {
+          // Custom back behavior when this screen is focused
+          return false;
+        }
+      );
+
+      return () =&gt; backHandler.remove();
+    }, [])
+  );
+
+  return &lt;View&gt;{/* content */}&lt;/View&gt;;
+}</code></pre>
+
+                <pre class="mermaid">
+flowchart TD
+    A[User triggers back] --> B{Platform?}
+    B -->|iOS| C[Swipe gesture]
+    B -->|Android| D[System back button]
+    
+    C --> E{gestureEnabled?}
+    E -->|true| F[Animate back]
+    E -->|false| G[Block gesture]
+    
+    D --> H{BackHandler?}
+    H -->|Not handled| F
+    H -->|Handled + return true| I[Custom action]
+    H -->|Handled + return false| F
+    
+    F --> J{beforeRemove listener?}
+    J -->|No| K[Pop screen]
+    J -->|Yes + prevented| L[Stay on screen]
+    J -->|Yes + allowed| K
+    
+    style K fill:#e8f5e9
+    style L fill:#fff3cd
+    style I fill:#e3f2fd
+                </pre>
+            </section>
+            <!-- Passing Data Between Screens -->
+            <section id="passing-data">
+                <h2>Passing Data Between Screens</h2>
+
+                <p>There are several ways to pass data between screens in a stack. Choose the method that best fits your use case.</p>
+
+                <h3>Method 1: Route Parameters</h3>
+
+                <p>The simplest approach—pass data through the URL:</p>
+
+                <pre><code class="language-tsx">// Sending data
+import { Link, useRouter } from 'expo-router';
+
+// Using Link
+&lt;Link href="/product/123"&gt;View Product&lt;/Link&gt;
+&lt;Link href="/product/123?color=blue&size=large"&gt;View Blue Large&lt;/Link&gt;
+
+// Using router
+const router = useRouter();
+
+router.push('/product/123');
+router.push({
+  pathname: '/product/[id]',
+  params: { id: '123', color: 'blue', size: 'large' },
+});
+
+// Receiving data
+import { useLocalSearchParams } from 'expo-router';
+
+export default function ProductScreen() {
+  const { id, color, size } = useLocalSearchParams&lt;{
+    id: string;
+    color?: string;
+    size?: string;
+  }>&gt;();
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Product: {id}&lt;/Text&gt;
+      &lt;Text&gt;Color: {color ?? 'default'}&lt;/Text&gt;
+      &lt;Text&gt;Size: {size ?? 'medium'}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Route Params Are Strings</h4>
+                    <p>All route parameters are strings (or arrays of strings for catch-all routes). If you need to pass numbers, booleans, or objects, you'll need to serialize/deserialize them or use a different method.</p>
+                </div>
+
+                <h3>Method 2: Passing Objects via JSON</h3>
+
+                <pre><code class="language-tsx">// Sending complex data
+const item = {
+  id: 123,
+  name: 'Wireless Headphones',
+  price: 99.99,
+  inStock: true,
+};
+
+router.push({
+  pathname: '/checkout',
+  params: { item: JSON.stringify(item) },
+});
+
+// Receiving
+export default function CheckoutScreen() {
+  const { item: itemString } = useLocalSearchParams&lt;{ item: string }&gt;();
+  
+  const item = itemString ? JSON.parse(itemString) : null;
+
+  if (!item) return &lt;Text&gt;No item provided&lt;/Text&gt;;
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;Text&gt;${item.price}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Method 3: Global State (Context/Zustand)</h3>
+
+                <p>For complex data or data that multiple screens need:</p>
+
+                <pre><code class="language-tsx">// context/CartContext.tsx
+import { createContext, useContext, useState, ReactNode } from 'react';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface CartContextType {
+  items: CartItem[];
+  addItem: (item: CartItem) =&gt; void;
+  removeItem: (id: string) =&gt; void;
+  total: number;
+}
+
+const CartContext = createContext&lt;CartContextType | null&gt;(null);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState&lt;CartItem[]&gt;([]);
+
+  const addItem = (item: CartItem) =&gt; {
+    setItems(prev =&gt; [...prev, item]);
+  };
+
+  const removeItem = (id: string) =&gt; {
+    setItems(prev =&gt; prev.filter(item =&gt; item.id !== id));
+  };
+
+  const total = items.reduce((sum, item) =&gt; sum + item.price * item.quantity, 0);
+
+  return (
+    &lt;CartContext.Provider value={{ items, addItem, removeItem, total }}&gt;
+      {children}
+    &lt;/CartContext.Provider&gt;
+  );
+}
+
+export function useCart() {
+  const context = useContext(CartContext);
+  if (!context) throw new Error('useCart must be used within CartProvider');
+  return context;
+}
+
+// app/_layout.tsx - Wrap your app
+import { CartProvider } from '@/context/CartContext';
+
+export default function RootLayout() {
+  return (
+    &lt;CartProvider&gt;
+      &lt;Stack&gt;{/* screens */}&lt;/Stack&gt;
+    &lt;/CartProvider&gt;
+  );
+}
+
+// Any screen can now access cart data
+import { useCart } from '@/context/CartContext';
+
+export default function ProductScreen() {
+  const { addItem } = useCart();
+
+  return (
+    &lt;Pressable onPress={() =&gt; addItem({ id: '1', name: 'Item', price: 10, quantity: 1 })}&gt;
+      &lt;Text&gt;Add to Cart&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Method 4: Returning Data to Previous Screen</h3>
+
+                <p>Sometimes you need to return data from a screen (like a picker or form):</p>
+
+                <pre><code class="language-tsx">// Screen A: Opens picker
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export default function FormScreen() {
+  const [selectedColor, setSelectedColor] = useState('');
+  const router = useRouter();
+
+  // Check for returned data when screen focuses
+  useFocusEffect(
+    useCallback(() =&gt; {
+      async function checkSelection() {
+        const color = await AsyncStorage.getItem('selectedColor');
+        if (color) {
+          setSelectedColor(color);
+          await AsyncStorage.removeItem('selectedColor'); // Clean up
+        }
+      }
+      checkSelection();
+    }, [])
+  );
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Selected: {selectedColor || 'None'}&lt;/Text&gt;
+      &lt;Pressable onPress={() =&gt; router.push('/color-picker')}&gt;
+        &lt;Text&gt;Choose Color&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Screen B: Color picker that returns data
+export default function ColorPickerScreen() {
+  const router = useRouter();
+
+  const selectColor = async (color: string) =&gt; {
+    await AsyncStorage.setItem('selectedColor', color);
+    router.back();
+  };
+
+  return (
+    &lt;View&gt;
+      {['Red', 'Blue', 'Green'].map(color =&gt; (
+        &lt;Pressable key={color} onPress={() =&gt; selectColor(color)}&gt;
+          &lt;Text&gt;{color}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <div class="card">
+                    <h4>📋 Data Passing Methods Summary</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Method</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Best For</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Limitations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Route params</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">IDs, simple values, filters</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Strings only, visible in URL</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">JSON in params</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Small objects</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">URL length limits, ugly URLs</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Context/State</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Shared state, complex data</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">More setup required</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;">AsyncStorage</td>
+                                <td style="padding: 12px;">Returning data to prev screen</td>
+                                <td style="padding: 12px;">Async, requires cleanup</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Screen Lifecycle and Focus -->
+            <section id="screen-lifecycle">
+                <h2>Screen Lifecycle and Focus</h2>
+
+                <p>Unlike web pages, stack screens stay mounted when you navigate away. This means <code>useEffect</code> doesn't run again when returning to a screen. You need focus-aware patterns.</p>
+
+                <h3>Focus and Blur Events</h3>
+
+                <pre><code class="language-tsx">import { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+
+export default function ListScreen() {
+  // Runs every time screen comes into focus
+  useFocusEffect(
+    useCallback(() =&gt; {
+      console.log('Screen focused!');
+      fetchData(); // Refresh data when screen focuses
+
+      return () =&gt; {
+        console.log('Screen blurred!');
+        // Cleanup when leaving
+      };
+    }, [])
+  );
+
+  return &lt;View&gt;{/* content */}&lt;/View&gt;;
+}</code></pre>
+
+                <h3>useIsFocused Hook</h3>
+
+                <pre><code class="language-tsx">import { useIsFocused } from '@react-navigation/native';
+
+export default function CameraScreen() {
+  const isFocused = useIsFocused();
+
+  // Only render camera when screen is focused
+  // This prevents camera from running in background
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      {isFocused ? (
+        &lt;Camera style={{ flex: 1 }} /&gt;
+      ) : (
+        &lt;View style={{ flex: 1, backgroundColor: 'black' }} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Common Lifecycle Patterns</h3>
+
+                <pre><code class="language-tsx">// Pattern 1: Refresh data on focus
+function ProductListScreen() {
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProducts = async () =&gt; {
+    setIsLoading(true);
+    const data = await api.getProducts();
+    setProducts(data);
+    setIsLoading(false);
+  };
+
+  // Fetch on mount
+  useEffect(() =&gt; {
+    fetchProducts();
+  }, []);
+
+  // Refresh on focus (if needed)
+  useFocusEffect(
+    useCallback(() =&gt; {
+      // Only refresh if we have stale data indicator
+      // Or always refresh for real-time data
+      fetchProducts();
+    }, [])
+  );
+
+  return &lt;FlatList data={products} /* ... */ /&gt;;
+}
+
+// Pattern 2: Pause/resume subscriptions
+function NotificationsScreen() {
+  const isFocused = useIsFocused();
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() =&gt; {
+    if (!isFocused) return;
+
+    // Start subscription only when focused
+    const unsubscribe = subscribeToNotifications((notification) =&gt; {
+      setNotifications(prev =&gt; [notification, ...prev]);
+    });
+
+    return unsubscribe;
+  }, [isFocused]);
+
+  return &lt;FlatList data={notifications} /* ... */ /&gt;;
+}
+
+// Pattern 3: Analytics screen tracking
+function AnalyticsWrapper({ children, screenName }) {
+  useFocusEffect(
+    useCallback(() =&gt; {
+      analytics.trackScreenView(screenName);
+    }, [screenName])
+  );
+
+  return children;
+}</code></pre>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant User
+    participant ScreenA
+    participant ScreenB
+    
+    Note over ScreenA: useEffect runs (mount)
+    Note over ScreenA: useFocusEffect runs (focus)
+    
+    User->>ScreenB: Navigate to B
+    Note over ScreenA: useFocusEffect cleanup (blur)
+    Note over ScreenA: Screen stays MOUNTED
+    Note over ScreenB: useEffect runs (mount)
+    Note over ScreenB: useFocusEffect runs (focus)
+    
+    User->>ScreenA: Go back
+    Note over ScreenB: useFocusEffect cleanup (blur)
+    Note over ScreenB: useEffect cleanup (unmount)
+    Note over ScreenB: Screen UNMOUNTS
+    Note over ScreenA: useFocusEffect runs again (focus)
+    Note over ScreenA: useEffect does NOT run (still mounted)
+                </pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Lifecycle Best Practices</h4>
+                    <ul>
+                        <li>Use <code>useFocusEffect</code> for data that should refresh on return</li>
+                        <li>Use <code>useIsFocused</code> for components that should pause (camera, video)</li>
+                        <li>Clean up subscriptions in the return function</li>
+                        <li>Be mindful of memory—screens stay mounted in the stack</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Common Stack Patterns -->
+            <section id="common-patterns">
+                <h2>Common Stack Patterns</h2>
+
+                <h3>Master-Detail Pattern</h3>
+
+                <p>The most common stack pattern—a list that opens detail views:</p>
+
+                <pre><code class="language-tsx">// app/contacts/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function ContactsLayout() {
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Screen 
+        name="index" 
+        options={{ title: 'Contacts' }} 
+      /&gt;
+      &lt;Stack.Screen 
+        name="[id]" 
+        options={{ title: 'Contact Details' }} 
+      /&gt;
+      &lt;Stack.Screen 
+        name="edit/[id]" 
+        options={{ 
+          title: 'Edit Contact',
+          presentation: 'modal',
+        }} 
+      /&gt;
+    &lt;/Stack&gt;
+  );
+}
+
+// app/contacts/index.tsx (List)
+export default function ContactsList() {
+  const contacts = useContacts();
+  
+  return (
+    &lt;FlatList
+      data={contacts}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={({ item }) =&gt; (
+        &lt;Link href={`/contacts/${item.id}`} asChild&gt;
+          &lt;Pressable style={styles.row}&gt;
+            &lt;Text&gt;{item.name}&lt;/Text&gt;
+            &lt;Ionicons name="chevron-forward" size={20} color="#ccc" /&gt;
+          &lt;/Pressable&gt;
+        &lt;/Link&gt;
+      )}
+    /&gt;
+  );
+}
+
+// app/contacts/[id].tsx (Detail)
+export default function ContactDetail() {
+  const { id } = useLocalSearchParams&lt;{ id: string }&gt;();
+  const contact = useContact(id);
+  const router = useRouter();
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen 
+        options={{ 
+          title: contact?.name ?? 'Contact',
+          headerRight: () =&gt; (
+            &lt;Pressable onPress={() =&gt; router.push(`/contacts/edit/${id}`)}&gt;
+              &lt;Text style={{ color: '#007AFF' }}&gt;Edit&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          ),
+        }} 
+      /&gt;
+      &lt;View style={styles.container}&gt;
+        &lt;Text style={styles.name}&gt;{contact?.name}&lt;/Text&gt;
+        &lt;Text&gt;{contact?.phone}&lt;/Text&gt;
+        &lt;Text&gt;{contact?.email}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+
+                <h3>Wizard/Multi-Step Form Pattern</h3>
+
+                <pre><code class="language-tsx">// app/onboarding/_layout.tsx
+import { Stack } from 'expo-router';
+
+export default function OnboardingLayout() {
+  return (
+    &lt;Stack
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: false, // Prevent swipe back
+        animation: 'slide_from_right',
+      }}
+    /&gt;
+  );
+}
+
+// app/onboarding/index.tsx (redirects to step1)
+import { Redirect } from 'expo-router';
+export default () =&gt; &lt;Redirect href="/onboarding/step1" /&gt;;
+
+// app/onboarding/step1.tsx
+export default function Step1() {
+  const router = useRouter();
+  const [name, setName] = useState('');
+
+  const handleNext = () =&gt; {
+    if (name.trim()) {
+      router.push({
+        pathname: '/onboarding/step2',
+        params: { name },
+      });
+    }
+  };
+
+  return (
+    &lt;SafeAreaView style={styles.container}&gt;
+      &lt;ProgressBar step={1} total={3} /&gt;
+      &lt;Text style={styles.title}&gt;What's your name?&lt;/Text&gt;
+      &lt;TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="Enter your name"
+        style={styles.input}
+      /&gt;
+      &lt;Pressable 
+        style={[styles.button, !name.trim() &amp;&amp; styles.buttonDisabled]}
+        onPress={handleNext}
+        disabled={!name.trim()}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;Continue&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+// app/onboarding/step2.tsx, step3.tsx follow same pattern
+// Final step uses router.replace('/home') to clear onboarding stack</code></pre>
+
+                <h3>Confirmation Modal Pattern</h3>
+
+                <pre><code class="language-tsx">// app/delete-confirm.tsx
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+
+export default function DeleteConfirmModal() {
+  const router = useRouter();
+  const { itemId, itemName } = useLocalSearchParams&lt;{
+    itemId: string;
+    itemName: string;
+  }>&gt;();
+
+  const handleDelete = async () =&gt; {
+    await deleteItem(itemId);
+    router.back(); // Close modal
+    // Or router.replace('/items') to go to list
+  };
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen 
+        options={{ 
+          presentation: 'transparentModal',
+          animation: 'fade',
+          headerShown: false,
+        }} 
+      /&gt;
+      
+      &lt;View style={styles.overlay}&gt;
+        &lt;View style={styles.modal}&gt;
+          &lt;Text style={styles.title}&gt;Delete {itemName}?&lt;/Text&gt;
+          &lt;Text style={styles.message}&gt;
+            This action cannot be undone.
+          &lt;/Text&gt;
+          
+          &lt;View style={styles.buttons}&gt;
+            &lt;Pressable 
+              style={[styles.button, styles.cancelButton]}
+              onPress={() =&gt; router.back()}
+            &gt;
+              &lt;Text style={styles.cancelText}&gt;Cancel&lt;/Text&gt;
+            &lt;/Pressable&gt;
+            
+            &lt;Pressable 
+              style={[styles.button, styles.deleteButton]}
+              onPress={handleDelete}
+            &gt;
+              &lt;Text style={styles.deleteText}&gt;Delete&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          &lt;/View&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxWidth: 320,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  message: {
+    color: '#666',
+    marginBottom: 24,
+  },
+  buttons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+  },
+  cancelText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+  },
+  deleteText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+});
+
+// Usage from any screen:
+router.push({
+  pathname: '/delete-confirm',
+  params: { itemId: '123', itemName: 'My Document' },
+});</code></pre>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Custom Header with Actions</h4>
+                    <p>Create a notes app with:</p>
+                    <ul>
+                        <li>A list screen showing notes</li>
+                        <li>A detail screen with Edit and Delete buttons in the header</li>
+                        <li>Delete should show a confirmation alert</li>
+                        <li>Edit should navigate to an edit screen</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">// app/notes/[id].tsx
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { View, Text, Alert, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function NoteDetail() {
+  const { id } = useLocalSearchParams&lt;{ id: string }&gt;();
+  const router = useRouter();
+  const note = useNote(id); // Your data hook
+
+  const handleDelete = () =&gt; {
+    Alert.alert(
+      'Delete Note',
+      'Are you sure you want to delete this note?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () =&gt; {
+            await deleteNote(id);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen
+        options={{
+          title: note?.title ?? 'Note',
+          headerRight: () =&gt; (
+            &lt;View style={styles.headerButtons}&gt;
+              &lt;Pressable onPress={() =&gt; router.push(`/notes/edit/${id}`)}&gt;
+                &lt;Ionicons name="create-outline" size={22} color="#007AFF" /&gt;
+              &lt;/Pressable&gt;
+              &lt;Pressable onPress={handleDelete}&gt;
+                &lt;Ionicons name="trash-outline" size={22} color="#ef4444" /&gt;
+              &lt;/Pressable&gt;
+            &lt;/View&gt;
+          ),
+        }}
+      /&gt;
+      &lt;View style={styles.container}&gt;
+        &lt;Text style={styles.content}&gt;{note?.content}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16 },
+  headerButtons: { flexDirection: 'row', gap: 20 },
+  content: { fontSize: 16, lineHeight: 24 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Unsaved Changes Warning</h4>
+                    <p>Create a form screen that:</p>
+                    <ul>
+                        <li>Tracks if the user has made changes</li>
+                        <li>Shows a warning when trying to leave with unsaved changes</li>
+                        <li>Allows leaving if changes are saved or discarded</li>
+                    </ul>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import { useState, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, Alert, StyleSheet } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+
+export default function EditProfileScreen() {
+  const navigation = useNavigation();
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [originalName, setOriginalName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const hasChanges = name !== originalName;
+
+  useEffect(() =&gt; {
+    // Load initial data
+    const loadProfile = async () =&gt; {
+      const profile = await fetchProfile();
+      setName(profile.name);
+      setOriginalName(profile.name);
+    };
+    loadProfile();
+  }, []);
+
+  // Prevent leaving with unsaved changes
+  useEffect(() =&gt; {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) =&gt; {
+      if (!hasChanges || isSaving) return;
+
+      e.preventDefault();
+
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. Do you want to discard them?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () =&gt; navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasChanges, isSaving]);
+
+  const handleSave = async () =&gt; {
+    setIsSaving(true);
+    await saveProfile({ name });
+    setOriginalName(name);
+    setIsSaving(false);
+    router.back();
+  };
+
+  return (
+    &lt;&gt;
+      &lt;Stack.Screen
+        options={{
+          title: 'Edit Profile',
+          headerRight: () =&gt; (
+            &lt;Pressable onPress={handleSave} disabled={!hasChanges || isSaving}&gt;
+              &lt;Text style={{ 
+                color: hasChanges &amp;&amp; !isSaving ? '#007AFF' : '#ccc',
+                fontWeight: '600',
+              }}&gt;
+                {isSaving ? 'Saving...' : 'Save'}
+              &lt;/Text&gt;
+            &lt;/Pressable&gt;
+          ),
+        }}
+      /&gt;
+      &lt;View style={styles.container}&gt;
+        &lt;Text style={styles.label}&gt;Name&lt;/Text&gt;
+        &lt;TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="Your name"
+        /&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16 },
+  label: { fontSize: 14, color: '#666', marginBottom: 8 },
+  input: { 
+    borderWidth: 1, 
+    borderColor: '#ddd', 
+    borderRadius: 8, 
+    padding: 12, 
+    fontSize: 16 
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Multi-Step Wizard</h4>
+                    <p>Build a 3-step signup wizard with:</p>
+                    <ul>
+                        <li>Step 1: Email input</li>
+                        <li>Step 2: Password input</li>
+                        <li>Step 3: Profile details (name, bio)</li>
+                        <li>Progress indicator showing current step</li>
+                        <li>Data passed between steps</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Create a route group <code>(signup)/</code> with step1.tsx, step2.tsx, step3.tsx. Pass data via route params or a context provider. Use <code>router.replace</code> on the final step to clear the signup stack.</p>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've mastered stack navigation—the foundation of mobile app navigation. You can now build sophisticated navigation experiences with custom headers, transitions, and data flow.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>Screen options:</strong> Configure in layout, screen file, or dynamically</li>
+                        <li><strong>Headers:</strong> Customize with headerLeft, headerRight, headerTitle, or use custom headers</li>
+                        <li><strong>Animations:</strong> Use built-in presets (slide, fade, modal) or create custom transitions</li>
+                        <li><strong>Gestures:</strong> Control swipe-back with gestureEnabled, handle Android back with BackHandler</li>
+                        <li><strong>Data passing:</strong> Route params for simple data, context for complex shared state</li>
+                        <li><strong>Lifecycle:</strong> Use useFocusEffect for focus-aware effects, useIsFocused for conditional rendering</li>
+                        <li><strong>Patterns:</strong> Master-detail, wizards, and confirmation modals are your building blocks</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🚀 Stack Navigation Checklist</h4>
+                    <pre style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; color: white; margin: 0;"><code>✓ Layout defines Stack navigator
+✓ Screen options configured appropriately
+✓ Headers styled and functional
+✓ Transitions match user expectations
+✓ Back gestures work correctly
+✓ Data flows between screens
+✓ Focus effects handle refresh logic
+✓ Unsaved changes protected where needed</code></pre>
+                </div>
+
+                <h3>What's Next?</h3>
+
+                <p>In the next lesson, we'll add <strong>Tab Navigation</strong> to create parallel navigation structures. You'll learn how to combine tabs with stacks for the navigation architecture used by most production apps.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m06_l02_expo_router_setup.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">Expo Router Setup</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m06_l04_tab_navigation.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">Tab Navigation</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
