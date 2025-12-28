@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master FlatList performance optimization techniques for buttery-smooth 60 FPS scrolling in React Native">
+    <meta name="author" content="React Native & Expo Course">
+    <title>FlatList Performance Optimization | Module 5: Lists and Performance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m05_l01_why_scrollview_isnt_enough.html">Module 5</a> &gt;
+            <span>Lesson 5.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 5: Lists and Performance</p>
+                <h1>FlatList Performance Optimization</h1>
+                <p class="lesson-subtitle">Achieving buttery-smooth 60 FPS scrolling with large datasets</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand how FlatList's virtualization engine works internally</li>
+                    <li>Master the key performance props: getItemLayout, windowSize, and more</li>
+                    <li>Implement proper memoization strategies for list items</li>
+                    <li>Diagnose and fix common performance bottlenecks</li>
+                    <li>Use React Native's performance tools to measure improvements</li>
+                    <li>Know when to reach for advanced solutions like FlashList</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#performance-mental-model">The Performance Mental Model</a></li>
+                        <li><a href="#measuring-performance">Measuring Performance</a></li>
+                        <li><a href="#get-item-layout">getItemLayout: The Biggest Win</a></li>
+                        <li><a href="#window-size">windowSize and Render Batching</a></li>
+                        <li><a href="#memoization">Memoization Strategies</a></li>
+                        <li><a href="#avoiding-re-renders">Avoiding Unnecessary Re-renders</a></li>
+                        <li><a href="#image-optimization">Image Optimization in Lists</a></li>
+                        <li><a href="#remove-clipped-subviews">removeClippedSubviews</a></li>
+                        <li><a href="#advanced-props">Advanced Performance Props</a></li>
+                        <li><a href="#performance-checklist">Performance Optimization Checklist</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Performance Mental Model -->
+            <section id="performance-mental-model">
+                <h2>The Performance Mental Model</h2>
+
+                <p>Before diving into optimization techniques, let's understand what FlatList is doing under the hood. This mental model will help you make informed decisions about which optimizations to apply.</p>
+
+                <h3>The Virtualization Loop</h3>
+
+                <p>FlatList continuously runs a virtualization loop as the user scrolls:</p>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Loop["Virtualization Loop (runs on scroll)"]
+        A["1. User scrolls"] --> B["2. Calculate visible range"]
+        B --> C["3. Determine items to render"]
+        C --> D{"4. Items changed?"}
+        D -->|Yes| E["5. Mount new items"]
+        D -->|No| F["6. Skip render"]
+        E --> G["7. Unmount off-screen items"]
+        G --> H["8. Update spacers"]
+        F --> H
+        H --> I["9. Commit to screen"]
+    end
+    
+    style A fill:#e3f2fd
+    style E fill:#fff3cd
+    style G fill:#ffebee
+    style I fill:#e8f5e9
+                </pre>
+
+                <p>Each step in this loop has a cost. The goal of optimization is to make each step as fast as possible, and to skip steps when they're not needed.</p>
+
+                <h3>The Two Threads</h3>
+
+                <p>React Native runs on two main threads, and FlatList performance problems can occur on either:</p>
+
+                <!-- SVG: Two threads visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 280" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="280" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">React Native's Two Main Threads</text>
+                        
+                        <!-- JS Thread -->
+                        <rect x="30" y="50" width="250" height="200" fill="#fff3cd" stroke="#ffc107" stroke-width="2" rx="8"/>
+                        <text x="155" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#856404">JavaScript Thread</text>
+                        
+                        <text x="50" y="100" font-size="11" fill="#666">Responsibilities:</text>
+                        <text x="50" y="118" font-size="11" fill="#333">• React reconciliation</text>
+                        <text x="50" y="134" font-size="11" fill="#333">• renderItem execution</text>
+                        <text x="50" y="150" font-size="11" fill="#333">• State updates</text>
+                        <text x="50" y="166" font-size="11" fill="#333">• Event handlers</text>
+                        <text x="50" y="182" font-size="11" fill="#333">• Business logic</text>
+                        
+                        <text x="50" y="210" font-size="11" fill="#666">When blocked:</text>
+                        <text x="50" y="228" font-size="11" fill="#c62828">• Touch delays</text>
+                        <text x="50" y="244" font-size="11" fill="#c62828">• Scroll stuttering</text>
+                        
+                        <!-- UI Thread -->
+                        <rect x="320" y="50" width="250" height="200" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="8"/>
+                        <text x="445" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#1565c0">UI (Main) Thread</text>
+                        
+                        <text x="340" y="100" font-size="11" fill="#666">Responsibilities:</text>
+                        <text x="340" y="118" font-size="11" fill="#333">• Native view rendering</text>
+                        <text x="340" y="134" font-size="11" fill="#333">• Layout calculations</text>
+                        <text x="340" y="150" font-size="11" fill="#333">• Touch handling</text>
+                        <text x="340" y="166" font-size="11" fill="#333">• Scroll physics</text>
+                        <text x="340" y="182" font-size="11" fill="#333">• Animations (native)</text>
+                        
+                        <text x="340" y="210" font-size="11" fill="#666">When blocked:</text>
+                        <text x="340" y="228" font-size="11" fill="#c62828">• Frozen UI</text>
+                        <text x="340" y="244" font-size="11" fill="#c62828">• Dropped frames</text>
+                        
+                        <!-- Bridge arrow -->
+                        <path d="M280,150 L320,150" stroke="#9e9e9e" stroke-width="2" marker-end="url(#bridgeArrow)"/>
+                        <path d="M320,160 L280,160" stroke="#9e9e9e" stroke-width="2" marker-end="url(#bridgeArrow)"/>
+                        <text x="300" y="145" text-anchor="middle" font-size="9" fill="#666">Bridge</text>
+                        
+                        <defs>
+                            <marker id="bridgeArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#9e9e9e"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The 16ms Budget</h4>
+                    <p style="color: white;">For 60 FPS scrolling, each frame must complete in under <strong>16.67 milliseconds</strong>. If your renderItem function takes 20ms, you'll drop frames. If layout calculations take 30ms, the UI freezes. Every optimization is about staying under this budget.</p>
+                </div>
+
+                <h3>Where Performance Problems Hide</h3>
+
+                <p>FlatList performance issues typically fall into these categories:</p>
+
+                <ol>
+                    <li><strong>Expensive renderItem:</strong> Your render function does too much work</li>
+                    <li><strong>Unnecessary re-renders:</strong> Items re-render when they shouldn't</li>
+                    <li><strong>Layout thrashing:</strong> FlatList can't predict item sizes</li>
+                    <li><strong>Too many items in memory:</strong> Rendering window is too large</li>
+                    <li><strong>Heavy images:</strong> Large images without proper caching</li>
+                    <li><strong>Inline functions:</strong> New function references on every render</li>
+                </ol>
+
+                <p>We'll address each of these throughout this lesson.</p>
+            </section>
+
+            <!-- Measuring Performance -->
+            <section id="measuring-performance">
+                <h2>Measuring Performance</h2>
+
+                <p>Before optimizing, you need to measure. React Native provides several tools for performance analysis.</p>
+
+                <h3>The Performance Monitor</h3>
+
+                <p>The built-in Performance Monitor shows real-time FPS for both threads:</p>
+
+                <pre><code class="language-tsx">// Enable in development:
+// 1. Shake device (or Cmd+D in iOS Simulator, Cmd+M in Android)
+// 2. Select "Show Perf Monitor"
+
+// What to look for:
+// - JS FPS: Should stay near 60
+// - UI FPS: Should stay near 60
+// - RAM: Should stay stable (not continuously growing)</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Reading the Performance Monitor</h4>
+                    <ul>
+                        <li><strong>Both at 60:</strong> Your list is performing well</li>
+                        <li><strong>JS drops, UI stays 60:</strong> JavaScript is the bottleneck (renderItem, state updates)</li>
+                        <li><strong>UI drops, JS stays 60:</strong> Native rendering is the bottleneck (complex layouts, images)</li>
+                        <li><strong>Both drop:</strong> Severe problem—likely both threads are overwhelmed</li>
+                    </ul>
+                </div>
+
+                <h3>React DevTools Profiler</h3>
+
+                <p>The React DevTools Profiler shows exactly which components render and why:</p>
+
+                <pre><code class="language-tsx">// Install React DevTools
+// npm install -g react-devtools
+
+// Run in terminal
+// react-devtools
+
+// In your app, the Profiler tab shows:
+// - What components rendered
+// - How long each render took
+// - Why components rendered (props changed, state changed, etc.)
+
+// Pro tip: Look for list items that re-render when they shouldn't</code></pre>
+
+                <h3>Console Timing</h3>
+
+                <p>For quick measurements, use console timing:</p>
+
+                <pre><code class="language-tsx">// Measure renderItem performance
+const renderItem = useCallback(({ item }) => {
+  console.time(`render-${item.id}`);
+  
+  const result = (
+    &lt;ItemComponent item={item} /&gt;
+  );
+  
+  console.timeEnd(`render-${item.id}`);
+  return result;
+}, []);
+
+// Measure initial render
+useEffect(() => {
+  console.time('list-mount');
+  return () => console.timeEnd('list-mount');
+}, []);</code></pre>
+
+                <h3>Systrace (Advanced)</h3>
+
+                <p>For deep performance analysis, use Systrace:</p>
+
+                <pre><code class="language-bash"># Android only
+# Start trace
+adb shell "atrace --async_start -b 8192 -c view input sched freq"
+
+# Interact with your app (scroll the list)
+
+# Stop trace
+adb shell "atrace --async_stop -o /data/local/tmp/trace.txt"
+
+# Pull and analyze
+adb pull /data/local/tmp/trace.txt
+# Open in chrome://tracing</code></pre>
+            </section>
+
+            <!-- getItemLayout -->
+            <section id="get-item-layout">
+                <h2>getItemLayout: The Biggest Win</h2>
+
+                <p>If you implement only one optimization, make it <code>getItemLayout</code>. This prop tells FlatList the exact size and position of every item without measuring them.</p>
+
+                <h3>The Problem: Layout Measurement</h3>
+
+                <p>By default, FlatList doesn't know how tall your items are until they render. This causes:</p>
+
+                <ul>
+                    <li><strong>Scroll position jumps</strong> when items above the viewport resize</li>
+                    <li><strong>Incorrect scroll indicators</strong> because total height is estimated</li>
+                    <li><strong>scrollToIndex failures</strong> because positions are unknown</li>
+                    <li><strong>Extra layout passes</strong> as items are measured</li>
+                </ul>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Without["Without getItemLayout"]
+        W1["Render item"] --> W2["Measure height"]
+        W2 --> W3["Update positions"]
+        W3 --> W4["Re-layout list"]
+        W4 --> W5["Possible scroll jump"]
+    end
+    
+    subgraph With["With getItemLayout"]
+        G1["Calculate position"] --> G2["Render at position"]
+    end
+    
+    Without --> |"Slower, janky"| Result1["😟"]
+    With --> |"Instant, smooth"| Result2["😊"]
+    
+    style W5 fill:#ffcdd2
+    style G2 fill:#c8e6c9
+                </pre>
+
+                <h3>Implementing getItemLayout</h3>
+
+                <p>For items with consistent height, <code>getItemLayout</code> is straightforward:</p>
+
+                <pre><code class="language-tsx">const ITEM_HEIGHT = 80;
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  getItemLayout={(data, index) =&gt; ({
+    length: ITEM_HEIGHT,    // Height of the item
+    offset: ITEM_HEIGHT * index,  // Distance from top
+    index,                   // The index
+  })}
+/&gt;</code></pre>
+
+                <h3>With Separators</h3>
+
+                <p>If you have separators, include them in the calculation:</p>
+
+                <pre><code class="language-tsx">const ITEM_HEIGHT = 80;
+const SEPARATOR_HEIGHT = 1;
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  ItemSeparatorComponent={() =&gt; (
+    &lt;View style={{ height: SEPARATOR_HEIGHT, backgroundColor: '#eee' }} /&gt;
+  )}
+  getItemLayout={(data, index) =&gt; ({
+    length: ITEM_HEIGHT,
+    offset: (ITEM_HEIGHT + SEPARATOR_HEIGHT) * index,
+    index,
+  })}
+/&gt;</code></pre>
+
+                <h3>With Headers</h3>
+
+                <p>Headers add complexity—you need to account for their height:</p>
+
+                <pre><code class="language-tsx">const ITEM_HEIGHT = 80;
+const HEADER_HEIGHT = 120;
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  ListHeaderComponent={&lt;Header /&gt;}
+  getItemLayout={(data, index) =&gt; ({
+    length: ITEM_HEIGHT,
+    offset: HEADER_HEIGHT + (ITEM_HEIGHT * index),
+    index,
+  })}
+/&gt;</code></pre>
+
+                <h3>Full Example with All Elements</h3>
+
+                <pre><code class="language-tsx">const ITEM_HEIGHT = 72;
+const SEPARATOR_HEIGHT = 1;
+const HEADER_HEIGHT = 100;
+const FOOTER_HEIGHT = 50;
+
+function OptimizedList({ data }) {
+  const getItemLayout = useCallback(
+    (data: Item[] | null | undefined, index: number) =&gt; {
+      // Calculate offset: header + (item + separator) * index
+      const offset = HEADER_HEIGHT + (ITEM_HEIGHT + SEPARATOR_HEIGHT) * index;
+      
+      return {
+        length: ITEM_HEIGHT,
+        offset,
+        index,
+      };
+    },
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
+      ListHeaderComponent={&lt;View style={{ height: HEADER_HEIGHT }} /&gt;}
+      ListFooterComponent={&lt;View style={{ height: FOOTER_HEIGHT }} /&gt;}
+      ItemSeparatorComponent={() =&gt; (
+        &lt;View style={{ height: SEPARATOR_HEIGHT }} /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ When You Can't Use getItemLayout</h4>
+                    <p>If your items have variable heights (like a chat with different message lengths), you can't use <code>getItemLayout</code>. In these cases:</p>
+                    <ul>
+                        <li>Consider fixed-height item containers with scrollable content inside</li>
+                        <li>Use <code>estimatedItemSize</code> in FlashList (covered later)</li>
+                        <li>Accept the measurement cost and optimize other areas</li>
+                    </ul>
+                </div>
+
+                <h3>scrollToIndex with getItemLayout</h3>
+
+                <p>One major benefit: <code>scrollToIndex</code> works perfectly when you have <code>getItemLayout</code>:</p>
+
+                <pre><code class="language-tsx">const flatListRef = useRef&lt;FlatList&gt;(null);
+
+const scrollToItem = (index: number) =&gt; {
+  // Without getItemLayout, this might fail with:
+  // "scrollToIndex should be used in conjunction with getItemLayout"
+  
+  flatListRef.current?.scrollToIndex({
+    index,
+    animated: true,
+    viewPosition: 0.5,  // Center the item on screen
+  });
+};
+
+// Handle scrollToIndex failures (for lists without getItemLayout)
+&lt;FlatList
+  ref={flatListRef}
+  onScrollToIndexFailed={(info) =&gt; {
+    // Wait for items to render, then try again
+    setTimeout(() =&gt; {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: true,
+      });
+    }, 100);
+  }}
+/&gt;</code></pre>
+            </section>
+
+            <!-- windowSize and Render Batching -->
+            <section id="window-size">
+                <h2>windowSize and Render Batching</h2>
+
+                <p>FlatList renders more items than are visible to ensure smooth scrolling. These props control how much is rendered and when.</p>
+
+                <h3>Understanding windowSize</h3>
+
+                <p>The <code>windowSize</code> prop determines how many "screens" worth of content to render:</p>
+
+                <!-- SVG: windowSize visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 400" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="400" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">windowSize Visualization</text>
+                        
+                        <!-- Full list representation -->
+                        <rect x="50" y="50" width="120" height="320" fill="#e0e0e0" stroke="#bdbdbd" stroke-width="2" rx="4"/>
+                        <text x="110" y="380" text-anchor="middle" font-size="11" fill="#666">Full Data</text>
+                        <text x="110" y="393" text-anchor="middle" font-size="10" fill="#999">(1000 items)</text>
+                        
+                        <!-- windowSize = 21 (default) -->
+                        <rect x="200" y="50" width="120" height="320" fill="#fff" stroke="#333" stroke-width="2" rx="4"/>
+                        <text x="260" y="380" text-anchor="middle" font-size="11" fill="#666">windowSize = 21</text>
+                        <text x="260" y="393" text-anchor="middle" font-size="10" fill="#999">(default)</text>
+                        
+                        <!-- Render window for 21 -->
+                        <rect x="205" y="70" width="110" height="30" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" rx="2"/>
+                        <text x="260" y="89" text-anchor="middle" font-size="9" fill="#1565c0">10 screens above</text>
+                        
+                        <rect x="205" y="103" width="110" height="30" fill="#c8e6c9" stroke="#4CAF50" stroke-width="2" rx="2"/>
+                        <text x="260" y="122" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">Viewport</text>
+                        
+                        <rect x="205" y="136" width="110" height="30" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" rx="2"/>
+                        <text x="260" y="155" text-anchor="middle" font-size="9" fill="#1565c0">10 screens below</text>
+                        
+                        <rect x="205" y="170" width="110" height="190" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4" rx="2"/>
+                        <text x="260" y="270" text-anchor="middle" font-size="9" fill="#999">Not rendered</text>
+                        
+                        <!-- windowSize = 5 (optimized) -->
+                        <rect x="350" y="50" width="120" height="320" fill="#fff" stroke="#333" stroke-width="2" rx="4"/>
+                        <text x="410" y="380" text-anchor="middle" font-size="11" fill="#666">windowSize = 5</text>
+                        <text x="410" y="393" text-anchor="middle" font-size="10" fill="#4CAF50">(optimized)</text>
+                        
+                        <!-- Render window for 5 -->
+                        <rect x="355" y="85" width="110" height="15" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" rx="2"/>
+                        <text x="410" y="96" text-anchor="middle" font-size="8" fill="#1565c0">2 above</text>
+                        
+                        <rect x="355" y="103" width="110" height="30" fill="#c8e6c9" stroke="#4CAF50" stroke-width="2" rx="2"/>
+                        <text x="410" y="122" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">Viewport</text>
+                        
+                        <rect x="355" y="136" width="110" height="15" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" rx="2"/>
+                        <text x="410" y="147" text-anchor="middle" font-size="8" fill="#1565c0">2 below</text>
+                        
+                        <rect x="355" y="55" width="110" height="27" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4" rx="2"/>
+                        <rect x="355" y="155" width="110" height="210" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4" rx="2"/>
+                        <text x="410" y="265" text-anchor="middle" font-size="9" fill="#999">Not rendered</text>
+                        
+                        <!-- Memory comparison -->
+                        <rect x="500" y="100" width="80" height="80" fill="#ffcdd2" stroke="#f44336" stroke-width="1" rx="4"/>
+                        <text x="540" y="125" text-anchor="middle" font-size="9" fill="#c62828">~200 items</text>
+                        <text x="540" y="140" text-anchor="middle" font-size="9" fill="#c62828">in memory</text>
+                        <text x="540" y="160" text-anchor="middle" font-size="8" fill="#666">(windowSize=21)</text>
+                        
+                        <rect x="500" y="200" width="80" height="50" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="540" y="220" text-anchor="middle" font-size="9" fill="#2e7d32">~50 items</text>
+                        <text x="540" y="235" text-anchor="middle" font-size="9" fill="#2e7d32">in memory</text>
+                        <text x="540" y="255" text-anchor="middle" font-size="8" fill="#666">(windowSize=5)</text>
+                    </svg>
+                </div>
+
+                <pre><code class="language-tsx">// windowSize = number of viewport heights to render
+// Default is 21 (10 above + 1 visible + 10 below)
+
+// Lower value = less memory, but may show blank areas during fast scroll
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  windowSize={5}  // 2 above + 1 visible + 2 below
+/&gt;
+
+// Recommendation by use case:
+// - Complex items, slow renders: windowSize={21} (default)
+// - Simple items, fast renders: windowSize={5-11}
+// - Very simple items: windowSize={3-5}</code></pre>
+
+                <h3>Render Batching Props</h3>
+
+                <p>These props control how FlatList batches rendering work:</p>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  
+  // How many items to render in each batch
+  // Lower = faster initial render, slower scroll catch-up
+  maxToRenderPerBatch={10}  // Default: 10
+  
+  // How many items to render initially
+  // Higher = slower initial render, but less blank content
+  initialNumToRender={10}   // Default: 10
+  
+  // Minimum time between batch renders (ms)
+  // Higher = more responsive to touch, slower list population
+  updateCellsBatchingPeriod={50}  // Default: 50
+/&gt;</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Recommended Starting Values</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Scenario</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Settings</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Simple items</strong><br>(text only)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                <code>windowSize={5}</code><br>
+                                <code>maxToRenderPerBatch={20}</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Medium items</strong><br>(text + image)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                <code>windowSize={11}</code><br>
+                                <code>maxToRenderPerBatch={10}</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;"><strong>Complex items</strong><br>(heavy computation)</td>
+                            <td style="padding: 8px;">
+                                <code>windowSize={21}</code><br>
+                                <code>maxToRenderPerBatch={5}</code>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+            <!-- Memoization Strategies -->
+            <section id="memoization">
+                <h2>Memoization Strategies</h2>
+
+                <p>Memoization prevents unnecessary re-computation. In FlatList, proper memoization can make the difference between 30 FPS and 60 FPS scrolling.</p>
+
+                <h3>Memoizing Item Components</h3>
+
+                <p>Wrap your item components with <code>React.memo</code> to prevent re-renders when props haven't changed:</p>
+
+                <pre><code class="language-tsx">// ❌ Without memo: Re-renders on every parent render
+const ListItem = ({ item, onPress }) =&gt; {
+  console.log(`Rendering item ${item.id}`);  // Logs constantly!
+  
+  return (
+    &lt;Pressable onPress={() =&gt; onPress(item.id)}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+};
+
+// ✅ With memo: Only re-renders when props change
+const ListItem = memo(function ListItem({ item, onPress }) {
+  console.log(`Rendering item ${item.id}`);  // Logs only when needed
+  
+  return (
+    &lt;Pressable onPress={() =&gt; onPress(item.id)}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});</code></pre>
+
+                <h3>Custom Comparison Functions</h3>
+
+                <p>By default, <code>memo</code> does shallow comparison. For complex props, provide a custom comparison:</p>
+
+                <pre><code class="language-tsx">interface ItemProps {
+  item: {
+    id: string;
+    name: string;
+    metadata: {
+      views: number;
+      likes: number;
+    };
+  };
+  onPress: (id: string) =&gt; void;
+}
+
+// Custom comparison: only re-render if id or name changed
+// Ignore metadata changes and function reference changes
+const ListItem = memo(
+  function ListItem({ item, onPress }: ItemProps) {
+    return (
+      &lt;Pressable onPress={() =&gt; onPress(item.id)}&gt;
+        &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    );
+  },
+  (prevProps, nextProps) =&gt; {
+    // Return true if props are equal (skip re-render)
+    // Return false if props differ (trigger re-render)
+    return (
+      prevProps.item.id === nextProps.item.id &amp;&amp;
+      prevProps.item.name === nextProps.item.name
+    );
+  }
+);</code></pre>
+
+                <h3>Memoizing renderItem</h3>
+
+                <p>Always memoize your <code>renderItem</code> function to maintain stable references:</p>
+
+                <pre><code class="language-tsx">// ❌ New function on every render
+function BadList({ data }) {
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={({ item }) =&gt; &lt;ListItem item={item} /&gt;}  // New ref every render!
+    /&gt;
+  );
+}
+
+// ✅ Stable function reference
+function GoodList({ data }) {
+  const renderItem = useCallback(
+    ({ item }) =&gt; &lt;ListItem item={item} /&gt;,
+    []  // Empty deps = never changes
+  );
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+    /&gt;
+  );
+}
+
+// ✅ With dependencies
+function ListWithHandlers({ data, onItemPress }) {
+  const renderItem = useCallback(
+    ({ item }) =&gt; (
+      &lt;ListItem item={item} onPress={onItemPress} /&gt;
+    ),
+    [onItemPress]  // Re-create if handler changes
+  );
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Memoizing Other Props</h3>
+
+                <pre><code class="language-tsx">function OptimizedList({ data, filterActive }) {
+  // Memoize keyExtractor
+  const keyExtractor = useCallback(
+    (item: Item) =&gt; item.id,
+    []
+  );
+
+  // Memoize getItemLayout
+  const getItemLayout = useCallback(
+    (data: Item[] | null | undefined, index: number) =&gt; ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  // Memoize components
+  const ListHeader = useMemo(
+    () =&gt; &lt;Header filterActive={filterActive} /&gt;,
+    [filterActive]
+  );
+
+  const ItemSeparator = useCallback(
+    () =&gt; &lt;View style={styles.separator} /&gt;,
+    []
+  );
+
+  const ListEmpty = useMemo(
+    () =&gt; &lt;EmptyState /&gt;,
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
+      ListHeaderComponent={ListHeader}
+      ItemSeparatorComponent={ItemSeparator}
+      ListEmptyComponent={ListEmpty}
+    /&gt;
+  );
+}</code></pre>
+
+                <pre class="mermaid">
+flowchart TD
+    subgraph Without["Without Memoization"]
+        W1["Parent renders"] --> W2["New renderItem fn"]
+        W2 --> W3["New keyExtractor fn"]
+        W3 --> W4["FlatList sees 'new' props"]
+        W4 --> W5["Re-renders all visible items"]
+    end
+    
+    subgraph With["With Memoization"]
+        M1["Parent renders"] --> M2["Same renderItem ref"]
+        M2 --> M3["Same keyExtractor ref"]
+        M3 --> M4["FlatList sees same props"]
+        M4 --> M5["Skips unnecessary work"]
+    end
+    
+    style W5 fill:#ffcdd2
+    style M5 fill:#c8e6c9
+                </pre>
+            </section>
+
+            <!-- Avoiding Unnecessary Re-renders -->
+            <section id="avoiding-re-renders">
+                <h2>Avoiding Unnecessary Re-renders</h2>
+
+                <p>Even with memoization, certain patterns can cause items to re-render when they shouldn't. Let's identify and fix them.</p>
+
+                <h3>The Inline Function Trap</h3>
+
+                <pre><code class="language-tsx">// ❌ Inline function creates new reference every render
+&lt;FlatList
+  data={items}
+  renderItem={({ item }) =&gt; (
+    &lt;Pressable onPress={() =&gt; handlePress(item.id)}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  )}
+/&gt;
+
+// ❌ Even with memoized renderItem, inline handler breaks memo
+const renderItem = useCallback(({ item }) =&gt; (
+  &lt;MemoizedItem 
+    item={item} 
+    onPress={() =&gt; handlePress(item.id)}  // New function!
+  /&gt;
+), [handlePress]);
+
+// ✅ Move handler into the item component
+const ListItem = memo(function ListItem({ item, onPress }) {
+  const handleItemPress = useCallback(() =&gt; {
+    onPress(item.id);
+  }, [item.id, onPress]);
+
+  return (
+    &lt;Pressable onPress={handleItemPress}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+// Parent just passes the handler
+const handlePress = useCallback((id: string) =&gt; {
+  console.log('Pressed:', id);
+}, []);
+
+const renderItem = useCallback(
+  ({ item }) =&gt; &lt;ListItem item={item} onPress={handlePress} /&gt;,
+  [handlePress]
+);</code></pre>
+
+                <h3>The Style Object Trap</h3>
+
+                <pre><code class="language-tsx">// ❌ Inline style object creates new reference
+&lt;FlatList
+  data={items}
+  contentContainerStyle={{ padding: 16 }}  // New object every render!
+  renderItem={({ item }) =&gt; (
+    &lt;View style={{ padding: 12 }}&gt;  // New object every render!
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+/&gt;
+
+// ✅ Use StyleSheet or memoize
+const styles = StyleSheet.create({
+  container: { padding: 16 },
+  item: { padding: 12 },
+});
+
+&lt;FlatList
+  data={items}
+  contentContainerStyle={styles.container}
+  renderItem={({ item }) =&gt; (
+    &lt;View style={styles.item}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+/&gt;
+
+// For dynamic styles, memoize the combination
+const ListItem = memo(function ListItem({ item, isSelected }) {
+  const itemStyle = useMemo(
+    () =&gt; [styles.item, isSelected &amp;&amp; styles.selected],
+    [isSelected]
+  );
+
+  return (
+    &lt;View style={itemStyle}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});</code></pre>
+
+                <h3>The extraData Gotcha</h3>
+
+                <pre><code class="language-tsx">// ❌ Object literal creates new reference every render
+&lt;FlatList
+  data={items}
+  extraData={{ selectedId, isEditing }}  // New object = full re-render!
+  renderItem={renderItem}
+/&gt;
+
+// ✅ Use primitive value when possible
+&lt;FlatList
+  data={items}
+  extraData={selectedId}
+  renderItem={renderItem}
+/&gt;
+
+// ✅ Or memoize the object
+const extraData = useMemo(
+  () =&gt; ({ selectedId, isEditing }),
+  [selectedId, isEditing]
+);
+
+&lt;FlatList
+  data={items}
+  extraData={extraData}
+  renderItem={renderItem}
+/&gt;</code></pre>
+
+                <h3>Detecting Re-renders</h3>
+
+                <p>Add logging to find components that re-render too often:</p>
+
+                <pre><code class="language-tsx">// Development-only render counter
+const ListItem = memo(function ListItem({ item }) {
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+
+  if (__DEV__) {
+    console.log(`Item ${item.id} render #${renderCount.current}`);
+  }
+
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+      {__DEV__ &amp;&amp; (
+        &lt;Text style={{ color: 'red', fontSize: 10 }}&gt;
+          Renders: {renderCount.current}
+        &lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  );
+});
+
+// If you see high render counts during scrolling,
+// there's a memoization problem!</code></pre>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🚨 Common Re-render Causes</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Cause</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Fix</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Inline functions</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>useCallback</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Inline style objects</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>StyleSheet.create</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">New extraData object</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>useMemo</code> or primitives</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Un-memoized items</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>React.memo</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;">Context changes</td>
+                            <td style="padding: 8px;">Split contexts or use selectors</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Image Optimization -->
+            <section id="image-optimization">
+                <h2>Image Optimization in Lists</h2>
+
+                <p>Images are often the biggest performance bottleneck in lists. Unoptimized images can cause scroll stuttering, memory pressure, and slow initial renders.</p>
+
+                <h3>The Image Problem</h3>
+
+                <pre><code class="language-tsx">// ❌ Common mistakes with images in lists
+&lt;FlatList
+  data={posts}
+  renderItem={({ item }) =&gt; (
+    &lt;View&gt;
+      {/* No size specified - causes layout thrashing */}
+      &lt;Image source={{ uri: item.imageUrl }} /&gt;
+      
+      {/* Full-size image - wastes memory */}
+      &lt;Image 
+        source={{ uri: item.highResUrl }}
+        style={{ width: 100, height: 100 }}
+      /&gt;
+      
+      {/* No placeholder - shows blank while loading */}
+      &lt;Image source={{ uri: item.imageUrl }} /&gt;
+    &lt;/View&gt;
+  )}
+/&gt;</code></pre>
+
+                <h3>Always Specify Dimensions</h3>
+
+                <pre><code class="language-tsx">// ✅ Fixed dimensions prevent layout recalculation
+const IMAGE_SIZE = 80;
+
+const ListItem = memo(function ListItem({ item }) {
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Image
+        source={{ uri: item.thumbnailUrl }}
+        style={{
+          width: IMAGE_SIZE,
+          height: IMAGE_SIZE,
+          borderRadius: IMAGE_SIZE / 2,
+        }}
+      /&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});
+
+// ✅ For aspect-ratio images, use a fixed container
+const PostImage = memo(function PostImage({ uri }) {
+  return (
+    &lt;View style={styles.imageContainer}&gt;
+      &lt;Image
+        source={{ uri }}
+        style={styles.image}
+        resizeMode="cover"
+      /&gt;
+    &lt;/View&gt;
+  );
+});
+
+const styles = StyleSheet.create({
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,  // Container has fixed aspect ratio
+    backgroundColor: '#f0f0f0',  // Placeholder color
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+});</code></pre>
+
+                <h3>Use Thumbnails</h3>
+
+                <pre><code class="language-tsx">// ✅ Request appropriately sized images
+const getImageUrl = (baseUrl: string, size: 'thumb' | 'medium' | 'full') =&gt; {
+  const sizes = {
+    thumb: '100x100',
+    medium: '400x400',
+    full: '1200x1200',
+  };
+  return `${baseUrl}?size=${sizes[size]}`;
+};
+
+const ListItem = memo(function ListItem({ item }) {
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Image
+        // Request thumbnail for list view
+        source={{ uri: getImageUrl(item.imageUrl, 'thumb') }}
+        style={styles.thumbnail}
+      /&gt;
+    &lt;/View&gt;
+  );
+});
+
+// Full image only on detail screen
+const DetailScreen = ({ item }) =&gt; (
+  &lt;Image
+    source={{ uri: getImageUrl(item.imageUrl, 'full') }}
+    style={styles.fullImage}
+  /&gt;
+);</code></pre>
+
+                <h3>Image Caching with expo-image</h3>
+
+                <p>For production apps, use <code>expo-image</code> instead of the built-in Image component:</p>
+
+                <pre><code class="language-bash"># Install expo-image
+npx expo install expo-image</code></pre>
+
+                <pre><code class="language-tsx">import { Image } from 'expo-image';
+
+// expo-image provides:
+// - Automatic caching
+// - Blur hash placeholders
+// - Better memory management
+// - Smoother loading transitions
+
+const ListItem = memo(function ListItem({ item }) {
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Image
+        source={{ uri: item.thumbnailUrl }}
+        style={styles.thumbnail}
+        // Blur hash for instant placeholder
+        placeholder={item.blurHash}
+        // Smooth transition when image loads
+        transition={200}
+        // Memory-efficient caching
+        cachePolicy="memory-disk"
+        // Content fit mode
+        contentFit="cover"
+      /&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Image Best Practices for Lists</h4>
+                    <ul>
+                        <li><strong>Always specify dimensions:</strong> Prevents layout thrashing</li>
+                        <li><strong>Use thumbnails:</strong> Request size-appropriate images</li>
+                        <li><strong>Use expo-image:</strong> Better caching and performance</li>
+                        <li><strong>Add placeholders:</strong> Blur hash or solid color</li>
+                        <li><strong>Lazy load off-screen:</strong> FlatList handles this automatically</li>
+                        <li><strong>Consider recycling:</strong> expo-image handles this internally</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- removeClippedSubviews -->
+            <section id="remove-clipped-subviews">
+                <h2>removeClippedSubviews</h2>
+
+                <p>The <code>removeClippedSubviews</code> prop is a native-level optimization that detaches off-screen views from the view hierarchy.</p>
+
+                <pre><code class="language-tsx">// Detach views that are outside the viewport
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  removeClippedSubviews={true}
+/&gt;</code></pre>
+
+                <h3>How It Works</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Default["removeClippedSubviews={false}"]
+        D1["View 1"] --- D2["View 2"]
+        D2 --- D3["View 3 (visible)"]
+        D3 --- D4["View 4 (visible)"]
+        D4 --- D5["View 5"]
+        D5 --- D6["View 6"]
+    end
+    
+    subgraph Optimized["removeClippedSubviews={true}"]
+        O3["View 3 (visible)"]
+        O4["View 4 (visible)"]
+        X1["Views 1,2,5,6 detached"]
+    end
+    
+    style D1 fill:#ffcdd2
+    style D2 fill:#ffcdd2
+    style D3 fill:#c8e6c9
+    style D4 fill:#c8e6c9
+    style D5 fill:#ffcdd2
+    style D6 fill:#ffcdd2
+    style O3 fill:#c8e6c9
+    style O4 fill:#c8e6c9
+    style X1 fill:#f5f5f5,stroke-dasharray: 5
+                </pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ removeClippedSubviews Caveats</h4>
+                    <ul>
+                        <li><strong>Android mostly:</strong> More impactful on Android than iOS</li>
+                        <li><strong>Can cause bugs:</strong> Some views may not reappear correctly</li>
+                        <li><strong>Test thoroughly:</strong> Especially with complex item layouts</li>
+                        <li><strong>FlatList default:</strong> Already true on Android for FlatList</li>
+                    </ul>
+                    <p style="margin-top: 0.5rem;"><strong>Recommendation:</strong> Leave it at the default unless you have specific issues. Modern React Native and FlatList handle this well internally.</p>
+                </div>
+            </section>
+            <!-- Advanced Performance Props -->
+            <section id="advanced-props">
+                <h2>Advanced Performance Props</h2>
+
+                <p>Beyond the common optimizations, FlatList offers several advanced props for fine-tuning performance in specific scenarios.</p>
+
+                <h3>initialScrollIndex</h3>
+
+                <p>Start the list at a specific position without rendering items before it:</p>
+
+                <pre><code class="language-tsx">// Jump straight to item 50 without rendering 0-49
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  initialScrollIndex={50}
+  getItemLayout={getItemLayout}  // Required for initialScrollIndex!
+/&gt;
+
+// Use case: Opening a chat at the last message
+const MessageList = ({ messages, lastReadIndex }) =&gt; (
+  &lt;FlatList
+    data={messages}
+    renderItem={renderMessage}
+    initialScrollIndex={lastReadIndex}
+    getItemLayout={getItemLayout}
+    inverted  // Chat style
+  /&gt;
+);</code></pre>
+
+                <h3>maintainVisibleContentPosition</h3>
+
+                <p>Prevent scroll jumps when items are added at the top (useful for chat/feed):</p>
+
+                <pre><code class="language-tsx">// When new messages arrive at top, maintain scroll position
+&lt;FlatList
+  data={messages}
+  renderItem={renderMessage}
+  maintainVisibleContentPosition={{
+    minIndexForVisible: 0,
+    autoscrollToTopThreshold: 10,  // Auto-scroll if within 10px of top
+  }}
+/&gt;
+
+// Common use case: Pull-to-refresh that adds items
+function Feed() {
+  const [posts, setPosts] = useState(initialPosts);
+  
+  const onRefresh = async () =&gt; {
+    const newPosts = await fetchNewPosts();
+    setPosts([...newPosts, ...posts]);
+    // Without maintainVisibleContentPosition, the list would jump!
+  };
+
+  return (
+    &lt;FlatList
+      data={posts}
+      renderItem={renderPost}
+      onRefresh={onRefresh}
+      refreshing={isRefreshing}
+      maintainVisibleContentPosition={{
+        minIndexForVisible: 0,
+      }}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>legacyImplementation (deprecated)</h3>
+
+                <p>You might see this in older code—it's deprecated and should be removed:</p>
+
+                <pre><code class="language-tsx">// ❌ Don't use - deprecated
+&lt;FlatList
+  legacyImplementation={true}  // Remove this
+/&gt;
+
+// The modern FlatList implementation is superior</code></pre>
+
+                <h3>disableVirtualization</h3>
+
+                <p>Disables virtualization entirely—only use for debugging:</p>
+
+                <pre><code class="language-tsx">// ⚠️ Only for debugging! Renders ALL items like ScrollView
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  disableVirtualization={true}  // Don't ship with this!
+/&gt;</code></pre>
+
+                <h3>viewabilityConfig</h3>
+
+                <p>Fine-tune when items are considered "viewable" for tracking or lazy loading:</p>
+
+                <pre><code class="language-tsx">// Configure viewability thresholds
+const viewabilityConfig = {
+  // Item is "viewable" when 50% visible for 500ms
+  viewAreaCoveragePercentThreshold: 50,
+  minimumViewTime: 500,
+  
+  // OR use item coverage (how much of item is visible)
+  // itemVisiblePercentThreshold: 75,
+};
+
+const onViewableItemsChanged = useCallback(({ viewableItems, changed }) =&gt; {
+  // Track impressions
+  viewableItems.forEach(({ item }) =&gt; {
+    analytics.trackImpression(item.id);
+  });
+  
+  // Lazy load data for visible items
+  changed
+    .filter(({ isViewable }) =&gt; isViewable)
+    .forEach(({ item }) =&gt; {
+      prefetchData(item.id);
+    });
+}, []);
+
+// Keep config reference stable!
+const viewabilityConfigCallbackPairs = useRef([
+  { viewabilityConfig, onViewableItemsChanged },
+]);
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+/&gt;</code></pre>
+
+                <h3>All Performance Props Reference</h3>
+
+                <div class="card">
+                    <h4>📚 FlatList Performance Props</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Prop</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Default</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>getItemLayout</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">undefined</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Skip measurement for fixed-height items</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>windowSize</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">21</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Number of viewports to render</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>maxToRenderPerBatch</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">10</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Items rendered per batch</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>initialNumToRender</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">10</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Initial batch size</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>updateCellsBatchingPeriod</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">50</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Delay between batches (ms)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>removeClippedSubviews</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">varies</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Detach off-screen views</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>initialScrollIndex</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">undefined</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Start at specific index</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px;"><code>maintainVisibleContentPosition</code></td>
+                                <td style="padding: 8px;">undefined</td>
+                                <td style="padding: 8px;">Prevent scroll jumps on prepend</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Performance Optimization Checklist -->
+            <section id="performance-checklist">
+                <h2>Performance Optimization Checklist</h2>
+
+                <p>Use this checklist when optimizing FlatList performance. Work through it in order—early items have the biggest impact.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🚀 FlatList Performance Checklist</h4>
+                    
+                    <p><strong>High Impact (Do First)</strong></p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li>☐ <strong>getItemLayout</strong> — Implement if items have fixed height</li>
+                        <li>☐ <strong>keyExtractor</strong> — Use unique, stable keys (not index)</li>
+                        <li>☐ <strong>React.memo</strong> — Wrap item component</li>
+                        <li>☐ <strong>useCallback</strong> — Memoize renderItem and handlers</li>
+                        <li>☐ <strong>Image dimensions</strong> — Always specify width/height</li>
+                    </ul>
+                    
+                    <p><strong>Medium Impact</strong></p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li>☐ <strong>windowSize</strong> — Reduce from 21 if items are simple</li>
+                        <li>☐ <strong>Image caching</strong> — Use expo-image or similar</li>
+                        <li>☐ <strong>Inline styles</strong> — Move to StyleSheet</li>
+                        <li>☐ <strong>extraData</strong> — Memoize if using object/array</li>
+                        <li>☐ <strong>Thumbnail images</strong> — Request size-appropriate images</li>
+                    </ul>
+                    
+                    <p><strong>Fine-Tuning</strong></p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li>☐ <strong>maxToRenderPerBatch</strong> — Adjust based on item complexity</li>
+                        <li>☐ <strong>initialNumToRender</strong> — Match visible items on screen</li>
+                        <li>☐ <strong>Render tracking</strong> — Add dev-only render counters</li>
+                        <li>☐ <strong>Profile with DevTools</strong> — Find remaining bottlenecks</li>
+                    </ul>
+                    
+                    <p><strong>When All Else Fails</strong></p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li>☐ <strong>FlashList</strong> — Consider switching (covered in Lesson 5.7)</li>
+                        <li>☐ <strong>Simplify items</strong> — Reduce component tree depth</li>
+                        <li>☐ <strong>Defer heavy work</strong> — Load details after scroll stops</li>
+                    </ul>
+                </div>
+
+                <h3>Quick Diagnosis Guide</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    A["Scroll is janky"] --> B{"Which FPS drops?"}
+    
+    B -->|"JS FPS drops"| C["JavaScript bottleneck"]
+    B -->|"UI FPS drops"| D["Native bottleneck"]
+    B -->|"Both drop"| E["Severe issue"]
+    
+    C --> C1["Check renderItem complexity"]
+    C --> C2["Check for unnecessary re-renders"]
+    C --> C3["Profile with React DevTools"]
+    
+    D --> D1["Check image sizes"]
+    D --> D2["Check layout complexity"]
+    D --> D3["Check removeClippedSubviews"]
+    
+    E --> E1["Implement getItemLayout"]
+    E --> E2["Reduce windowSize"]
+    E --> E3["Consider FlashList"]
+    
+    style C fill:#fff3cd
+    style D fill:#e3f2fd
+    style E fill:#ffcdd2
+                </pre>
+
+                <h3>Before and After Example</h3>
+
+                <pre><code class="language-tsx">// ❌ BEFORE: Unoptimized FlatList
+function UnoptimizedList({ data, onItemPress }) {
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={{ padding: 16, borderBottomWidth: 1 }}&gt;
+          &lt;Image source={{ uri: item.image }} /&gt;
+          &lt;Text&gt;{item.title}&lt;/Text&gt;
+          &lt;Pressable onPress={() =&gt; onItemPress(item.id)}&gt;
+            &lt;Text&gt;View Details&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}
+
+// ✅ AFTER: Optimized FlatList
+const ITEM_HEIGHT = 100;
+
+const ListItem = memo(function ListItem({ item, onPress }) {
+  const handlePress = useCallback(() =&gt; {
+    onPress(item.id);
+  }, [item.id, onPress]);
+
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Image 
+        source={{ uri: item.thumbnailUrl }}
+        style={styles.image}
+      /&gt;
+      &lt;Text style={styles.title}&gt;{item.title}&lt;/Text&gt;
+      &lt;Pressable onPress={handlePress} style={styles.button}&gt;
+        &lt;Text&gt;View Details&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+});
+
+function OptimizedList({ data, onItemPress }) {
+  const renderItem = useCallback(
+    ({ item }) =&gt; &lt;ListItem item={item} onPress={onItemPress} /&gt;,
+    [onItemPress]
+  );
+
+  const keyExtractor = useCallback(
+    (item) =&gt; item.id,
+    []
+  );
+
+  const getItemLayout = useCallback(
+    (data, index) =&gt; ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
+      windowSize={11}
+      maxToRenderPerBatch={10}
+      initialNumToRender={10}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  item: {
+    height: ITEM_HEIGHT,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  image: {
+    width: 60,
+    height: 60,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  button: {
+    padding: 8,
+  },
+});</code></pre>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <p>Let's put these optimization techniques into practice.</p>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Implement getItemLayout</h4>
+                    <p>Add <code>getItemLayout</code> to a list with fixed-height items and separators.</p>
+                    
+                    <p><strong>Given this list structure:</strong></p>
+                    <ul>
+                        <li>Item height: 72px</li>
+                        <li>Separator height: 1px</li>
+                        <li>Header height: 60px</li>
+                        <li>No footer</li>
+                    </ul>
+                    
+                    <p><strong>Implement getItemLayout that correctly calculates positions.</strong></p>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Offset = Header + (ItemHeight + SeparatorHeight) × index. Remember that separators appear between items, so the last item doesn't have a separator after it.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">const ITEM_HEIGHT = 72;
+const SEPARATOR_HEIGHT = 1;
+const HEADER_HEIGHT = 60;
+
+const getItemLayout = useCallback(
+  (data: Item[] | null | undefined, index: number) =&gt; {
+    // Each item is followed by a separator (except possibly the last)
+    // But for offset calculation, we count separators before each item
+    const offset = HEADER_HEIGHT + (ITEM_HEIGHT + SEPARATOR_HEIGHT) * index;
+    
+    return {
+      length: ITEM_HEIGHT,
+      offset,
+      index,
+    };
+  },
+  []
+);
+
+// Full component
+function OptimizedList({ items }) {
+  const renderItem = useCallback(
+    ({ item }) =&gt; (
+      &lt;View style={{ height: ITEM_HEIGHT, justifyContent: 'center', paddingHorizontal: 16 }}&gt;
+        &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;/View&gt;
+    ),
+    []
+  );
+
+  const Separator = useCallback(
+    () =&gt; &lt;View style={{ height: SEPARATOR_HEIGHT, backgroundColor: '#e0e0e0' }} /&gt;,
+    []
+  );
+
+  const Header = useMemo(
+    () =&gt; (
+      &lt;View style={{ height: HEADER_HEIGHT, justifyContent: 'center', paddingHorizontal: 16 }}&gt;
+        &lt;Text style={{ fontSize: 24, fontWeight: 'bold' }}&gt;My List&lt;/Text&gt;
+      &lt;/View&gt;
+    ),
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={items}
+      renderItem={renderItem}
+      keyExtractor={(item) =&gt; item.id}
+      getItemLayout={getItemLayout}
+      ItemSeparatorComponent={Separator}
+      ListHeaderComponent={Header}
+    /&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Fix Re-render Issues</h4>
+                    <p>This list has performance problems. Find and fix them.</p>
+                    
+                    <pre><code class="language-tsx">// Buggy code - find the issues!
+function BuggyList({ items, onSelect, selectedId }) {
+  return (
+    &lt;FlatList
+      data={items}
+      extraData={{ selectedId }}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable
+          style={{
+            padding: 16,
+            backgroundColor: item.id === selectedId ? '#e3f2fd' : '#fff',
+          }}
+          onPress={() =&gt; onSelect(item.id)}
+        &gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+      keyExtractor={(item, index) =&gt; index.toString()}
+    /&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for: inline functions, inline styles, unstable extraData, index as key, and missing memoization.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">// Fixed version with all issues resolved
+
+// 1. Memoized item component
+const ListItem = memo(function ListItem({ 
+  item, 
+  isSelected, 
+  onSelect 
+}: {
+  item: Item;
+  isSelected: boolean;
+  onSelect: (id: string) =&gt; void;
+}) {
+  // 2. Memoized press handler
+  const handlePress = useCallback(() =&gt; {
+    onSelect(item.id);
+  }, [item.id, onSelect]);
+
+  // 3. Memoized style
+  const itemStyle = useMemo(
+    () =&gt; [styles.item, isSelected &amp;&amp; styles.itemSelected],
+    [isSelected]
+  );
+
+  return (
+    &lt;Pressable style={itemStyle} onPress={handlePress}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+function FixedList({ items, onSelect, selectedId }) {
+  // 4. Memoized renderItem
+  const renderItem = useCallback(
+    ({ item }) =&gt; (
+      &lt;ListItem
+        item={item}
+        isSelected={item.id === selectedId}
+        onSelect={onSelect}
+      /&gt;
+    ),
+    [selectedId, onSelect]
+  );
+
+  // 5. Memoized keyExtractor with proper unique key
+  const keyExtractor = useCallback(
+    (item: Item) =&gt; item.id,  // Use item.id, not index!
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={items}
+      // 6. Primitive extraData instead of object
+      extraData={selectedId}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+    /&gt;
+  );
+}
+
+// 7. Styles in StyleSheet, not inline
+const styles = StyleSheet.create({
+  item: {
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  itemSelected: {
+    backgroundColor: '#e3f2fd',
+  },
+});</code></pre>
+                        
+                        <p><strong>Issues fixed:</strong></p>
+                        <ol>
+                            <li>Added <code>React.memo</code> to item component</li>
+                            <li>Memoized press handler with <code>useCallback</code></li>
+                            <li>Memoized dynamic style with <code>useMemo</code></li>
+                            <li>Memoized <code>renderItem</code> with <code>useCallback</code></li>
+                            <li>Used <code>item.id</code> instead of index for key</li>
+                            <li>Used primitive <code>selectedId</code> for extraData</li>
+                            <li>Moved styles to <code>StyleSheet.create</code></li>
+                        </ol>
+                    </details>
+                </div>
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Build an Optimized Image Gallery</h4>
+                    <p>Create a performant image gallery list with all optimizations applied.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Display a grid of images (2 columns)</li>
+                        <li>Each image cell is a fixed 180px × 180px square</li>
+                        <li>Use expo-image (or regular Image with proper sizing)</li>
+                        <li>Implement getItemLayout for the grid</li>
+                        <li>Add all appropriate memoization</li>
+                        <li>Track viewable items for analytics</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>numColumns={2}</code> for the grid. With 2 columns, each "row" in getItemLayout represents 2 items. Calculate row index as <code>Math.floor(index / 2)</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useCallback, useMemo, useRef } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ViewabilityConfig,
+  ViewToken,
+} from 'react-native';
+import { Image } from 'expo-image';
+
+interface GalleryImage {
+  id: string;
+  uri: string;
+  blurHash?: string;
+}
+
+// Constants
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const NUM_COLUMNS = 2;
+const GAP = 4;
+const IMAGE_SIZE = (SCREEN_WIDTH - GAP * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+const ROW_HEIGHT = IMAGE_SIZE + GAP;
+
+// Generate mock data
+const generateImages = (count: number): GalleryImage[] =&gt;
+  Array.from({ length: count }, (_, i) =&gt; ({
+    id: `image-${i}`,
+    uri: `https://picsum.photos/seed/${i}/400/400`,
+    blurHash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.',
+  }));
+
+// Memoized image cell
+const ImageCell = memo(function ImageCell({ image }: { image: GalleryImage }) {
+  return (
+    &lt;View style={styles.imageContainer}&gt;
+      &lt;Image
+        source={{ uri: image.uri }}
+        style={styles.image}
+        placeholder={image.blurHash}
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+      /&gt;
+    &lt;/View&gt;
+  );
+});
+
+export default function OptimizedGallery() {
+  const images = useMemo(() =&gt; generateImages(100), []);
+  
+  // Track viewed images
+  const viewedImages = useRef&lt;Set&lt;string&gt;&gt;(new Set());
+
+  // Memoized renderItem
+  const renderItem = useCallback(
+    ({ item }: { item: GalleryImage }) =&gt; &lt;ImageCell image={item} /&gt;,
+    []
+  );
+
+  // Memoized keyExtractor
+  const keyExtractor = useCallback(
+    (item: GalleryImage) =&gt; item.id,
+    []
+  );
+
+  // getItemLayout for grid (2 columns)
+  const getItemLayout = useCallback(
+    (data: GalleryImage[] | null | undefined, index: number) =&gt; {
+      // Each row contains NUM_COLUMNS items
+      const rowIndex = Math.floor(index / NUM_COLUMNS);
+      
+      return {
+        length: ROW_HEIGHT,
+        offset: ROW_HEIGHT * rowIndex,
+        index,
+      };
+    },
+    []
+  );
+
+  // Viewability configuration
+  const viewabilityConfig: ViewabilityConfig = useMemo(() =&gt; ({
+    viewAreaCoveragePercentThreshold: 50,
+    minimumViewTime: 500,
+  }), []);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) =&gt; {
+      viewableItems.forEach(({ item, isViewable }) =&gt; {
+        if (isViewable &amp;&amp; !viewedImages.current.has(item.id)) {
+          viewedImages.current.add(item.id);
+          // Analytics tracking would go here
+          console.log(`Image viewed: ${item.id}`);
+        }
+      });
+    },
+    []
+  );
+
+  // Keep reference stable
+  const viewabilityConfigCallbackPairs = useRef([
+    { viewabilityConfig, onViewableItemsChanged },
+  ]);
+
+  // Column separator
+  const ItemSeparator = useCallback(
+    () =&gt; &lt;View style={{ height: GAP }} /&gt;,
+    []
+  );
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList&lt;GalleryImage&gt;
+        data={images}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
+        numColumns={NUM_COLUMNS}
+        columnWrapperStyle={styles.row}
+        ItemSeparatorComponent={ItemSeparator}
+        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+        // Performance props
+        windowSize={7}
+        maxToRenderPerBatch={8}
+        initialNumToRender={8}
+        removeClippedSubviews={true}
+        // Styling
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  listContent: {
+    padding: GAP,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+});</code></pre>
+                        
+                        <p><strong>Optimizations applied:</strong></p>
+                        <ul>
+                            <li><code>getItemLayout</code> with grid calculation</li>
+                            <li><code>React.memo</code> on ImageCell</li>
+                            <li><code>useCallback</code> on all function props</li>
+                            <li><code>expo-image</code> with blur hash placeholder and caching</li>
+                            <li>Fixed image dimensions</li>
+                            <li>Reduced <code>windowSize</code> for images</li>
+                            <li>Viewability tracking for analytics</li>
+                            <li><code>removeClippedSubviews</code> enabled</li>
+                        </ul>
+                    </details>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <h4>Exercise 4: Performance Audit</h4>
+                    <p>Practice diagnosing performance issues using the Performance Monitor.</p>
+                    
+                    <p><strong>Tasks:</strong></p>
+                    <ol>
+                        <li>Create a list with 500+ items that includes images</li>
+                        <li>Open the Performance Monitor (shake → "Perf Monitor")</li>
+                        <li>Scroll the list rapidly and note the FPS</li>
+                        <li>Apply optimizations one at a time, measuring after each</li>
+                        <li>Document which optimization had the biggest impact</li>
+                    </ol>
+                    
+                    <p><strong>Record your findings:</strong></p>
+                    <ul>
+                        <li>Baseline FPS: ___</li>
+                        <li>After getItemLayout: ___</li>
+                        <li>After memo: ___</li>
+                        <li>After image optimization: ___</li>
+                        <li>Final FPS: ___</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Expected Results</summary>
+                        <p>Typical improvements you might see:</p>
+                        <ul>
+                            <li><strong>Baseline:</strong> 25-40 FPS with visible jank</li>
+                            <li><strong>+ getItemLayout:</strong> +5-10 FPS improvement</li>
+                            <li><strong>+ memo:</strong> +5-15 FPS improvement</li>
+                            <li><strong>+ image optimization:</strong> +5-10 FPS improvement</li>
+                            <li><strong>Final:</strong> 55-60 FPS smooth scrolling</li>
+                        </ul>
+                        <p>The exact numbers depend on your device, item complexity, and starting implementation. The key insight is that optimizations are cumulative!</p>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've learned the techniques that separate laggy lists from buttery-smooth ones. Let's recap the key concepts.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>16ms budget:</strong> Each frame must complete in under 16.67ms for 60 FPS</li>
+                        <li><strong>getItemLayout:</strong> The single most impactful optimization for fixed-height items</li>
+                        <li><strong>Memoization:</strong> <code>React.memo</code> + <code>useCallback</code> prevent unnecessary re-renders</li>
+                        <li><strong>windowSize:</strong> Reduce from 21 to render fewer off-screen items</li>
+                        <li><strong>Images:</strong> Always specify dimensions, use thumbnails, consider expo-image</li>
+                        <li><strong>Measure first:</strong> Use Performance Monitor and React DevTools before optimizing</li>
+                        <li><strong>Cumulative gains:</strong> Small optimizations add up to smooth performance</li>
+                    </ul>
+                </div>
+
+                <h3>The Optimization Priority</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Priority["Optimization Priority (High to Low)"]
+        direction TB
+        P1["1. getItemLayout"]
+        P2["2. keyExtractor (unique keys)"]
+        P3["3. React.memo on items"]
+        P4["4. useCallback on renderItem"]
+        P5["5. Image optimization"]
+        P6["6. windowSize tuning"]
+        P7["7. Fine-tuning batch props"]
+        
+        P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
+    end
+    
+    style P1 fill:#c8e6c9,stroke:#4CAF50,stroke-width:2px
+    style P2 fill:#c8e6c9
+    style P3 fill:#dcedc8
+    style P4 fill:#dcedc8
+    style P5 fill:#f0f4c3
+    style P6 fill:#fff9c4
+    style P7 fill:#fff9c4
+                </pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🚀 What's Next?</h4>
+                    <p style="color: white;">Now that you can optimize basic lists, the next lesson covers <strong>FlatList Features</strong>—pull-to-refresh, infinite scroll, scroll-to-index, and other capabilities that make lists interactive and user-friendly. After that, we'll explore SectionList for grouped data, and finally FlashList as an alternative when you need maximum performance.</p>
+                </div>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Remember</h4>
+                    <p>Don't optimize prematurely! Start with a working list, then optimize only if you see performance issues. Many apps work fine with basic FlatList usage. Use the Performance Monitor to identify real problems before applying these techniques.</p>
+                </div>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m05_l02_flatlist_fundamentals.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">FlatList Fundamentals</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m05_l04_flatlist_features.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">FlatList Features</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

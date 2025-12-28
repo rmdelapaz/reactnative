@@ -1,0 +1,2729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master FlatList's interactive features including pull-to-refresh, infinite scroll, scroll methods, and more">
+    <meta name="author" content="React Native & Expo Course">
+    <title>FlatList Features | Module 5: Lists and Performance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m05_l01_why_scrollview_isnt_enough.html">Module 5</a> &gt;
+            <span>Lesson 5.4</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 5: Lists and Performance</p>
+                <h1>FlatList Features</h1>
+                <p class="lesson-subtitle">Interactive capabilities that bring your lists to life</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Implement pull-to-refresh for data refreshing</li>
+                    <li>Build infinite scroll with onEndReached</li>
+                    <li>Use scroll methods to navigate programmatically</li>
+                    <li>Handle scroll events for custom behaviors</li>
+                    <li>Create multi-column grid layouts</li>
+                    <li>Build inverted lists for chat interfaces</li>
+                    <li>Implement sticky headers and scroll indicators</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#pull-to-refresh">Pull-to-Refresh</a></li>
+                        <li><a href="#infinite-scroll">Infinite Scroll</a></li>
+                        <li><a href="#scroll-methods">Scroll Methods</a></li>
+                        <li><a href="#scroll-events">Scroll Events</a></li>
+                        <li><a href="#multi-column">Multi-Column Grids</a></li>
+                        <li><a href="#inverted-lists">Inverted Lists</a></li>
+                        <li><a href="#sticky-headers">Sticky Headers</a></li>
+                        <li><a href="#scroll-indicators">Scroll Indicators</a></li>
+                        <li><a href="#keyboard-handling">Keyboard Handling</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Pull-to-Refresh -->
+            <section id="pull-to-refresh">
+                <h2>Pull-to-Refresh</h2>
+
+                <p>Pull-to-refresh is a standard mobile pattern that lets users refresh content by pulling down on the list. FlatList has built-in support for this interaction.</p>
+
+                <h3>Basic Implementation</h3>
+
+                <pre><code class="language-tsx">import React, { useState, useCallback } from 'react';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
+
+function RefreshableList() {
+  const [data, setData] = useState(initialData);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    
+    try {
+      const newData = await fetchLatestData();
+      setData(newData);
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      // Pull-to-refresh props
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Two Required Props</h4>
+                    <p style="color: white;"><strong>refreshing:</strong> Boolean indicating if refresh is in progress. Controls the spinner visibility.</p>
+                    <p style="color: white;"><strong>onRefresh:</strong> Function called when user pulls to refresh. Set <code>refreshing=true</code> at start, <code>false</code> when done.</p>
+                </div>
+
+                <h3>Custom Refresh Control</h3>
+
+                <p>For more control over the refresh indicator, use the <code>RefreshControl</code> component:</p>
+
+                <pre><code class="language-tsx">import { FlatList, RefreshControl } from 'react-native';
+
+function CustomRefreshList() {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, []);
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      refreshControl={
+        &lt;RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          // Customization options
+          tintColor="#6200ee"           // iOS spinner color
+          colors={['#6200ee', '#03dac6']} // Android spinner colors
+          progressBackgroundColor="#fff" // Android background
+          title="Pull to refresh..."    // iOS title text
+          titleColor="#666"             // iOS title color
+          progressViewOffset={50}       // Android offset
+        /&gt;
+      }
+    /&gt;
+  );
+}</code></pre>
+
+                <!-- SVG: Pull-to-refresh states -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 200" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="200" fill="#f8f9fa"/>
+                        
+                        <!-- State 1: Idle -->
+                        <rect x="20" y="30" width="120" height="140" fill="#fff" stroke="#333" stroke-width="2" rx="12"/>
+                        <rect x="30" y="55" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="30" y="80" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="30" y="105" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="30" y="130" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <text x="80" y="180" text-anchor="middle" font-size="11" fill="#666">Idle</text>
+                        
+                        <!-- Arrow 1 -->
+                        <path d="M150,100 L175,100" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        <text x="162" y="90" text-anchor="middle" font-size="9" fill="#666">Pull ↓</text>
+                        
+                        <!-- State 2: Pulling -->
+                        <rect x="190" y="30" width="120" height="140" fill="#fff" stroke="#333" stroke-width="2" rx="12"/>
+                        <rect x="200" y="75" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="200" y="100" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="200" y="125" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <!-- Spinner appearing -->
+                        <circle cx="250" cy="55" r="8" fill="none" stroke="#6200ee" stroke-width="2" stroke-dasharray="20 30"/>
+                        <text x="250" y="180" text-anchor="middle" font-size="11" fill="#666">Pulling</text>
+                        
+                        <!-- Arrow 2 -->
+                        <path d="M320,100 L345,100" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        <text x="332" y="90" text-anchor="middle" font-size="9" fill="#666">Release</text>
+                        
+                        <!-- State 3: Refreshing -->
+                        <rect x="360" y="30" width="120" height="140" fill="#fff" stroke="#6200ee" stroke-width="2" rx="12"/>
+                        <rect x="370" y="75" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="370" y="100" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <rect x="370" y="125" width="100" height="20" fill="#e0e0e0" rx="4"/>
+                        <!-- Active spinner -->
+                        <circle cx="420" cy="55" r="10" fill="none" stroke="#6200ee" stroke-width="3" stroke-dasharray="25 20">
+                            <animateTransform attributeName="transform" type="rotate" from="0 420 55" to="360 420 55" dur="1s" repeatCount="indefinite"/>
+                        </circle>
+                        <text x="420" y="180" text-anchor="middle" font-size="11" fill="#6200ee" font-weight="bold">Refreshing</text>
+                        
+                        <!-- Arrow 3 -->
+                        <path d="M490,100 L515,100" stroke="#666" stroke-width="2" marker-end="url(#arrowGray)"/>
+                        <text x="502" y="90" text-anchor="middle" font-size="9" fill="#666">Done</text>
+                        
+                        <!-- State 4: Updated -->
+                        <rect x="530" y="30" width="50" height="140" fill="#fff" stroke="#4CAF50" stroke-width="2" rx="12"/>
+                        <rect x="535" y="55" width="40" height="15" fill="#c8e6c9" rx="3"/>
+                        <rect x="535" y="75" width="40" height="15" fill="#e0e0e0" rx="3"/>
+                        <rect x="535" y="95" width="40" height="15" fill="#e0e0e0" rx="3"/>
+                        <text x="555" y="180" text-anchor="middle" font-size="11" fill="#4CAF50" font-weight="bold">Updated</text>
+                        
+                        <defs>
+                            <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#666"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <h3>Handling Refresh with React Query / TanStack Query</h3>
+
+                <pre><code class="language-tsx">import { useQuery } from '@tanstack/react-query';
+
+function QueryRefreshList() {
+  const { data, isLoading, isRefetching, refetch } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPosts,
+  });
+
+  return (
+    &lt;FlatList
+      data={data ?? []}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      refreshing={isRefetching}
+      onRefresh={refetch}
+      ListEmptyComponent={isLoading ? &lt;LoadingSpinner /&gt; : &lt;EmptyState /&gt;}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Common Mistakes</h4>
+                    <ul>
+                        <li><strong>Forgetting to set refreshing=false:</strong> Spinner stays forever if you don't reset it</li>
+                        <li><strong>Not handling errors:</strong> Always wrap in try/catch with finally for the state reset</li>
+                        <li><strong>Mutating data:</strong> Replace the array, don't push to it</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Infinite Scroll -->
+            <section id="infinite-scroll">
+                <h2>Infinite Scroll</h2>
+
+                <p>Infinite scroll loads more data as the user approaches the end of the list. This is essential for feeds, search results, and any large dataset.</p>
+
+                <h3>Basic Implementation</h3>
+
+                <pre><code class="language-tsx">import React, { useState, useCallback } from 'react';
+import { FlatList, ActivityIndicator, View } from 'react-native';
+
+function InfiniteScrollList() {
+  const [data, setData] = useState&lt;Item[]&gt;(initialData);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+
+  const loadMore = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loading || !hasMore) return;
+    
+    setLoading(true);
+    
+    try {
+      const nextPage = page + 1;
+      const newItems = await fetchPage(nextPage);
+      
+      if (newItems.length === 0) {
+        setHasMore(false);
+      } else {
+        setData(prev => [...prev, ...newItems]);
+        setPage(nextPage);
+      }
+    } catch (error) {
+      console.error('Failed to load more:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, hasMore, page]);
+
+  const renderFooter = () => {
+    if (!loading) return null;
+    return (
+      &lt;View style={styles.footer}&gt;
+        &lt;ActivityIndicator size="small" /&gt;
+      &lt;/View&gt;
+    );
+  };
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Understanding onEndReachedThreshold</h3>
+
+                <p>The <code>onEndReachedThreshold</code> determines how close to the end the user must scroll before <code>onEndReached</code> fires:</p>
+
+                <!-- SVG: onEndReachedThreshold visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">onEndReachedThreshold Values</text>
+                        
+                        <!-- Threshold 0.1 -->
+                        <rect x="50" y="50" width="80" height="200" fill="#fff" stroke="#333" stroke-width="2" rx="8"/>
+                        <rect x="55" y="55" width="70" height="160" fill="#e3f2fd"/>
+                        <rect x="55" y="215" width="70" height="30" fill="#ffcdd2" stroke="#f44336" stroke-width="1"/>
+                        <text x="90" y="130" text-anchor="middle" font-size="10" fill="#1565c0">Content</text>
+                        <text x="90" y="233" text-anchor="middle" font-size="9" fill="#c62828">10%</text>
+                        <text x="90" y="265" text-anchor="middle" font-size="11" fill="#333">0.1</text>
+                        <text x="90" y="280" text-anchor="middle" font-size="9" fill="#666">(Late trigger)</text>
+                        
+                        <!-- Threshold 0.5 -->
+                        <rect x="180" y="50" width="80" height="200" fill="#fff" stroke="#333" stroke-width="2" rx="8"/>
+                        <rect x="185" y="55" width="70" height="95" fill="#e3f2fd"/>
+                        <rect x="185" y="150" width="70" height="95" fill="#fff3cd" stroke="#ff9800" stroke-width="1"/>
+                        <text x="220" y="100" text-anchor="middle" font-size="10" fill="#1565c0">Content</text>
+                        <text x="220" y="200" text-anchor="middle" font-size="9" fill="#e65100">50%</text>
+                        <text x="220" y="265" text-anchor="middle" font-size="11" fill="#333" font-weight="bold">0.5</text>
+                        <text x="220" y="280" text-anchor="middle" font-size="9" fill="#4CAF50">(Recommended)</text>
+                        
+                        <!-- Threshold 1.0 -->
+                        <rect x="310" y="50" width="80" height="200" fill="#fff" stroke="#333" stroke-width="2" rx="8"/>
+                        <rect x="315" y="55" width="70" height="95" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1"/>
+                        <rect x="315" y="150" width="70" height="95" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1"/>
+                        <text x="350" y="100" text-anchor="middle" font-size="9" fill="#2e7d32">Trigger</text>
+                        <text x="350" y="115" text-anchor="middle" font-size="9" fill="#2e7d32">zone</text>
+                        <text x="350" y="200" text-anchor="middle" font-size="9" fill="#2e7d32">100%</text>
+                        <text x="350" y="265" text-anchor="middle" font-size="11" fill="#333">1.0</text>
+                        <text x="350" y="280" text-anchor="middle" font-size="9" fill="#666">(Early trigger)</text>
+                        
+                        <!-- Threshold 2.0 -->
+                        <rect x="440" y="50" width="80" height="200" fill="#fff" stroke="#333" stroke-width="2" rx="8"/>
+                        <rect x="445" y="55" width="70" height="190" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1"/>
+                        <text x="480" y="100" text-anchor="middle" font-size="9" fill="#2e7d32">Trigger</text>
+                        <text x="480" y="115" text-anchor="middle" font-size="9" fill="#2e7d32">zone</text>
+                        <text x="480" y="150" text-anchor="middle" font-size="9" fill="#2e7d32">200%</text>
+                        <text x="480" y="265" text-anchor="middle" font-size="11" fill="#333">2.0</text>
+                        <text x="480" y="280" text-anchor="middle" font-size="9" fill="#666">(Very early)</text>
+                        
+                        <!-- Legend -->
+                        <rect x="540" y="100" width="12" height="12" fill="#e3f2fd"/>
+                        <text x="558" y="110" font-size="9" fill="#666">Visible</text>
+                        <rect x="540" y="120" width="12" height="12" fill="#c8e6c9"/>
+                        <text x="558" y="130" font-size="9" fill="#666">Trigger zone</text>
+                    </svg>
+                </div>
+
+                <pre><code class="language-tsx">// onEndReachedThreshold values:
+// 0.1 = Trigger when 10% of visible height from bottom (late)
+// 0.5 = Trigger when 50% of visible height from bottom (recommended)
+// 1.0 = Trigger when 1 screen away from bottom
+// 2.0 = Trigger when 2 screens away from bottom (very early)
+
+&lt;FlatList
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}  // Trigger at half-screen from bottom
+/&gt;</code></pre>
+
+                <h3>Preventing Double Loads</h3>
+
+                <p><code>onEndReached</code> can fire multiple times during a scroll. Prevent duplicate API calls:</p>
+
+                <pre><code class="language-tsx">function RobustInfiniteList() {
+  const [data, setData] = useState&lt;Item[]&gt;([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  
+  // Use ref to track loading state (avoids stale closure issues)
+  const isLoadingRef = useRef(false);
+
+  const loadMore = useCallback(async () => {
+    // Guard against multiple calls
+    if (isLoadingRef.current || !hasMore) {
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    
+    try {
+      const response = await api.fetchItems({ page: page + 1 });
+      
+      setData(prev => [...prev, ...response.items]);
+      setPage(prev => prev + 1);
+      setHasMore(response.hasNextPage);
+    } catch (error) {
+      // Handle error - maybe show a "tap to retry" in footer
+    } finally {
+      isLoadingRef.current = false;
+    }
+  }, [page, hasMore]);
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Complete Infinite Scroll Example</h3>
+
+                <pre><code class="language-tsx">import React, { useState, useCallback, useRef } from 'react';
+import { 
+  FlatList, 
+  View, 
+  Text, 
+  ActivityIndicator, 
+  Pressable,
+  StyleSheet 
+} from 'react-native';
+
+interface Post {
+  id: string;
+  title: string;
+  body: string;
+}
+
+interface ApiResponse {
+  posts: Post[];
+  nextPage: number | null;
+}
+
+export default function InfiniteFeed() {
+  const [posts, setPosts] = useState&lt;Post[]&gt;([]);
+  const [nextPage, setNextPage] = useState&lt;number | null&gt;(1);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  
+  const isLoading = useRef(false);
+
+  const fetchPosts = useCallback(async (page: number): Promise&lt;ApiResponse&gt; => {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const newPosts = Array.from({ length: 10 }, (_, i) => ({
+      id: `post-${page}-${i}`,
+      title: `Post ${(page - 1) * 10 + i + 1}`,
+      body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+    }));
+    
+    return {
+      posts: newPosts,
+      nextPage: page < 5 ? page + 1 : null, // Simulate 5 pages
+    };
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (isLoading.current || nextPage === null) return;
+    
+    isLoading.current = true;
+    setError(null);
+    
+    try {
+      const response = await fetchPosts(nextPage);
+      setPosts(prev => [...prev, ...response.posts]);
+      setNextPage(response.nextPage);
+    } catch (err) {
+      setError('Failed to load posts');
+    } finally {
+      isLoading.current = false;
+    }
+  }, [nextPage, fetchPosts]);
+
+  // Load initial data
+  React.useEffect(() => {
+    loadMore();
+  }, []);
+
+  const renderItem = useCallback(({ item }: { item: Post }) => (
+    &lt;View style={styles.postCard}&gt;
+      &lt;Text style={styles.postTitle}&gt;{item.title}&lt;/Text&gt;
+      &lt;Text style={styles.postBody}&gt;{item.body}&lt;/Text&gt;
+    &lt;/View&gt;
+  ), []);
+
+  const renderFooter = () => {
+    if (error) {
+      return (
+        &lt;Pressable style={styles.errorFooter} onPress={loadMore}&gt;
+          &lt;Text style={styles.errorText}&gt;{error}&lt;/Text&gt;
+          &lt;Text style={styles.retryText}&gt;Tap to retry&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      );
+    }
+    
+    if (nextPage === null) {
+      return (
+        &lt;View style={styles.endFooter}&gt;
+          &lt;Text style={styles.endText}&gt;You've reached the end!&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    return (
+      &lt;View style={styles.loadingFooter}&gt;
+        &lt;ActivityIndicator size="small" color="#6200ee" /&gt;
+      &lt;/View&gt;
+    );
+  };
+
+  return (
+    &lt;FlatList
+      data={posts}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
+      contentContainerStyle={styles.listContent}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  listContent: {
+    padding: 16,
+  },
+  postCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  postTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  postBody: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  errorFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#f44336',
+    marginBottom: 4,
+  },
+  retryText: {
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  endFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#999',
+  },
+});</code></pre>
+
+                <pre class="mermaid">
+flowchart TD
+    A["User scrolls"] --> B{"Near end?<br/>threshold check"}
+    B -->|"No"| A
+    B -->|"Yes"| C{"Already loading?"}
+    C -->|"Yes"| A
+    C -->|"No"| D{"Has more data?"}
+    D -->|"No"| E["Show 'End of list'"]
+    D -->|"Yes"| F["Set loading=true"]
+    F --> G["Fetch next page"]
+    G --> H{"Success?"}
+    H -->|"Yes"| I["Append data"]
+    H -->|"No"| J["Show error"]
+    I --> K["Set loading=false"]
+    J --> K
+    K --> A
+    
+    style F fill:#fff3cd
+    style I fill:#c8e6c9
+    style J fill:#ffcdd2
+                </pre>
+            </section>
+
+            <!-- Scroll Methods -->
+            <section id="scroll-methods">
+                <h2>Scroll Methods</h2>
+
+                <p>FlatList provides methods to programmatically scroll to specific positions. These require a ref to the FlatList component.</p>
+
+                <h3>Setting Up the Ref</h3>
+
+                <pre><code class="language-tsx">import { useRef } from 'react';
+import { FlatList } from 'react-native';
+
+function ScrollableList() {
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+
+  return (
+    &lt;FlatList
+      ref={flatListRef}
+      data={data}
+      renderItem={renderItem}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>scrollToIndex</h3>
+
+                <p>Scroll to a specific item by its index:</p>
+
+                <pre><code class="language-tsx">// Basic usage
+const scrollToItem = (index: number) => {
+  flatListRef.current?.scrollToIndex({
+    index,
+    animated: true,
+  });
+};
+
+// With positioning options
+flatListRef.current?.scrollToIndex({
+  index: 10,
+  animated: true,
+  viewPosition: 0,    // 0 = top, 0.5 = center, 1 = bottom
+  viewOffset: 0,      // Additional offset in pixels
+});
+
+// ⚠️ scrollToIndex requires getItemLayout for accuracy!
+// Without it, you may get errors or incorrect positions
+
+&lt;FlatList
+  ref={flatListRef}
+  data={data}
+  renderItem={renderItem}
+  getItemLayout={(data, index) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  })}
+  // Handle failures when getItemLayout isn't provided
+  onScrollToIndexFailed={(info) => {
+    // Wait and retry
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: true,
+      });
+    }, 100);
+  }}
+/&gt;</code></pre>
+
+                <h3>scrollToOffset</h3>
+
+                <p>Scroll to a specific pixel offset:</p>
+
+                <pre><code class="language-tsx">// Scroll to top
+const scrollToTop = () => {
+  flatListRef.current?.scrollToOffset({
+    offset: 0,
+    animated: true,
+  });
+};
+
+// Scroll to specific position
+const scrollToPosition = (offset: number) => {
+  flatListRef.current?.scrollToOffset({
+    offset,
+    animated: true,
+  });
+};
+
+// Common pattern: "Scroll to top" button
+function ListWithScrollToTop() {
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 500);
+  };
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;FlatList
+        ref={flatListRef}
+        data={data}
+        renderItem={renderItem}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      /&gt;
+      
+      {showScrollTop && (
+        &lt;Pressable
+          style={styles.scrollTopButton}
+          onPress={() => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          }}
+        &gt;
+          &lt;Text&gt;↑ Top&lt;/Text&gt;
+        &lt;/Pressable>
+      )}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>scrollToEnd</h3>
+
+                <p>Scroll to the end of the list:</p>
+
+                <pre><code class="language-tsx">// Scroll to bottom
+const scrollToEnd = () => {
+  flatListRef.current?.scrollToEnd({
+    animated: true,
+  });
+};
+
+// Use case: New message in chat
+const handleNewMessage = (message: Message) => {
+  setMessages(prev => [...prev, message]);
+  
+  // Wait for render, then scroll
+  setTimeout(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }, 100);
+};</code></pre>
+
+                <h3>scrollToItem</h3>
+
+                <p>Scroll to a specific item object:</p>
+
+                <pre><code class="language-tsx">// Scroll to a specific item (not by index)
+const scrollToItem = (item: Item) => {
+  flatListRef.current?.scrollToItem({
+    item,
+    animated: true,
+    viewPosition: 0.5,  // Center the item
+  });
+};
+
+// Useful when you have the item but not the index
+const highlightedItem = items.find(i => i.isHighlighted);
+if (highlightedItem) {
+  scrollToItem(highlightedItem);
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Scroll Methods Summary</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Method</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Use When</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Requires</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>scrollToIndex</code></td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">You know the index</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>getItemLayout</code> recommended</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>scrollToOffset</code></td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">You know the pixel position</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Nothing extra</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>scrollToEnd</code></td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Jump to bottom</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Nothing extra</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;"><code>scrollToItem</code></td>
+                            <td style="padding: 8px;">You have the item object</td>
+                            <td style="padding: 8px;"><code>getItemLayout</code> recommended</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+            <!-- Scroll Events -->
+            <section id="scroll-events">
+                <h2>Scroll Events</h2>
+
+                <p>FlatList inherits from ScrollView, giving you access to scroll events for custom behaviors like hiding headers, parallax effects, or scroll-based animations.</p>
+
+                <h3>onScroll</h3>
+
+                <pre><code class="language-tsx">import { NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+
+function ScrollTrackingList() {
+  const handleScroll = (event: NativeSyntheticEvent&lt;NativeScrollEvent&gt;) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    
+    // Current scroll position
+    const scrollY = contentOffset.y;
+    const scrollX = contentOffset.x;
+    
+    // Total scrollable content size
+    const contentHeight = contentSize.height;
+    const contentWidth = contentSize.width;
+    
+    // Visible area size
+    const visibleHeight = layoutMeasurement.height;
+    const visibleWidth = layoutMeasurement.width;
+    
+    // Calculate scroll percentage
+    const scrollPercentage = scrollY / (contentHeight - visibleHeight);
+    
+    console.log(`Scrolled: ${(scrollPercentage * 100).toFixed(1)}%`);
+  };
+
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}  // How often to fire (16 = 60fps)
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ scrollEventThrottle</h4>
+                    <p>On iOS, <code>onScroll</code> fires at 60fps by default, which can hurt performance. Use <code>scrollEventThrottle</code> to control the frequency:</p>
+                    <ul>
+                        <li><strong>16:</strong> Every frame (60fps) - for smooth animations</li>
+                        <li><strong>100:</strong> ~10 times per second - for most tracking</li>
+                        <li><strong>500:</strong> ~2 times per second - for infrequent updates</li>
+                    </ul>
+                </div>
+
+                <h3>Hiding Header on Scroll</h3>
+
+                <pre><code class="language-tsx">import { useRef } from 'react';
+import { Animated, FlatList } from 'react-native';
+
+function HidingHeaderList() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const headerVisible = useRef(new Animated.Value(1)).current;
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        
+        // Scrolling down - hide header
+        if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+          Animated.timing(headerVisible, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }).start();
+        }
+        // Scrolling up - show header
+        else if (currentScrollY < lastScrollY.current) {
+          Animated.timing(headerVisible, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }).start();
+        }
+        
+        lastScrollY.current = currentScrollY;
+      },
+    }
+  );
+
+  const headerTranslateY = headerVisible.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-60, 0],
+  });
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;Animated.View
+        style={[
+          styles.header,
+          { transform: [{ translateY: headerTranslateY }] },
+        ]}
+      &gt;
+        &lt;Text style={styles.headerText}&gt;My App&lt;/Text&gt;
+      &lt;/Animated.View&gt;
+      
+      &lt;FlatList
+        data={data}
+        renderItem={renderItem}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingTop: 60 }}
+      /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Other Scroll Events</h3>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={data}
+  renderItem={renderItem}
+  
+  // Fires when scrolling starts
+  onScrollBeginDrag={(event) => {
+    console.log('Started scrolling');
+  }}
+  
+  // Fires when user lifts finger
+  onScrollEndDrag={(event) => {
+    console.log('Stopped dragging');
+  }}
+  
+  // Fires when momentum scroll ends
+  onMomentumScrollBegin={(event) => {
+    console.log('Momentum scroll started');
+  }}
+  
+  onMomentumScrollEnd={(event) => {
+    console.log('Momentum scroll ended');
+    // Good place to load visible images, etc.
+  }}
+/&gt;</code></pre>
+
+                <h3>Using Animated for Smooth Effects</h3>
+
+                <pre><code class="language-tsx">import { Animated } from 'react-native';
+
+function ParallaxHeaderList() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Parallax effect: header moves slower than content
+  const headerTranslate = scrollY.interpolate({
+    inputRange: [0, 200],
+    outputRange: [0, -100],
+    extrapolate: 'clamp',
+  });
+
+  // Fade header as you scroll
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;Animated.View
+        style={[
+          styles.parallaxHeader,
+          {
+            transform: [{ translateY: headerTranslate }],
+            opacity: headerOpacity,
+          },
+        ]}
+      &gt;
+        &lt;Image source={headerImage} style={styles.headerImage} /&gt;
+      &lt;/Animated.View&gt;
+      
+      &lt;Animated.FlatList
+        data={data}
+        renderItem={renderItem}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingTop: 200 }}
+      /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Multi-Column Grids -->
+            <section id="multi-column">
+                <h2>Multi-Column Grids</h2>
+
+                <p>FlatList supports grid layouts with the <code>numColumns</code> prop. This is perfect for photo galleries, product grids, and tile-based interfaces.</p>
+
+                <h3>Basic Grid</h3>
+
+                <pre><code class="language-tsx">import { FlatList, Dimensions } from 'react-native';
+
+const NUM_COLUMNS = 3;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const ITEM_SIZE = SCREEN_WIDTH / NUM_COLUMNS;
+
+function BasicGrid() {
+  return (
+    &lt;FlatList
+      data={items}
+      numColumns={NUM_COLUMNS}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        &lt;View style={{
+          width: ITEM_SIZE,
+          height: ITEM_SIZE,
+          backgroundColor: item.color,
+        }} /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Grid with Gaps</h3>
+
+                <pre><code class="language-tsx">const NUM_COLUMNS = 2;
+const GAP = 12;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const ITEM_WIDTH = (SCREEN_WIDTH - GAP * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+
+function GappedGrid() {
+  return (
+    &lt;FlatList
+      data={products}
+      numColumns={NUM_COLUMNS}
+      keyExtractor={(item) => item.id}
+      columnWrapperStyle={{
+        justifyContent: 'space-between',
+        paddingHorizontal: GAP,
+        marginBottom: GAP,
+      }}
+      contentContainerStyle={{
+        paddingTop: GAP,
+      }}
+      renderItem={({ item }) => (
+        &lt;View style={{
+          width: ITEM_WIDTH,
+          backgroundColor: '#fff',
+          borderRadius: 8,
+          padding: 12,
+        }}&gt;
+          &lt;Image 
+            source={{ uri: item.image }} 
+            style={{ width: '100%', aspectRatio: 1 }}
+          /&gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+          &lt;Text&gt;${item.price}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <!-- SVG: Grid layout visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 500 280" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="500" height="280" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="250" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">numColumns Comparison</text>
+                        
+                        <!-- numColumns=1 (default) -->
+                        <text x="80" y="50" text-anchor="middle" font-size="11" fill="#666">numColumns=1</text>
+                        <rect x="30" y="60" width="100" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <rect x="30" y="105" width="100" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <rect x="30" y="150" width="100" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <rect x="30" y="195" width="100" height="40" fill="#e8f5e9" stroke="#81c784" stroke-width="1" stroke-dasharray="3" rx="4"/>
+                        
+                        <!-- numColumns=2 -->
+                        <text x="215" y="50" text-anchor="middle" font-size="11" fill="#666">numColumns=2</text>
+                        <rect x="155" y="60" width="55" height="55" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <rect x="215" y="60" width="55" height="55" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <rect x="155" y="120" width="55" height="55" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <rect x="215" y="120" width="55" height="55" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <rect x="155" y="180" width="55" height="55" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" stroke-dasharray="3" rx="4"/>
+                        <rect x="215" y="180" width="55" height="55" fill="#e3f2fd" stroke="#90caf9" stroke-width="1" stroke-dasharray="3" rx="4"/>
+                        
+                        <!-- numColumns=3 -->
+                        <text x="390" y="50" text-anchor="middle" font-size="11" fill="#666">numColumns=3</text>
+                        <rect x="295" y="60" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="360" y="60" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="425" y="60" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="295" y="125" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="360" y="125" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="425" y="125" width="60" height="60" fill="#e1bee7" stroke="#9c27b0" stroke-width="1" rx="4"/>
+                        <rect x="295" y="190" width="60" height="60" fill="#f3e5f5" stroke="#ba68c8" stroke-width="1" stroke-dasharray="3" rx="4"/>
+                        
+                        <!-- Item counts -->
+                        <text x="80" y="265" text-anchor="middle" font-size="10" fill="#999">Full width items</text>
+                        <text x="215" y="265" text-anchor="middle" font-size="10" fill="#999">2 per row</text>
+                        <text x="390" y="265" text-anchor="middle" font-size="10" fill="#999">3 per row</text>
+                    </svg>
+                </div>
+
+                <h3>Handling Incomplete Rows</h3>
+
+                <p>When your data doesn't divide evenly into columns, the last row may have fewer items:</p>
+
+                <pre><code class="language-tsx">const NUM_COLUMNS = 3;
+
+// Option 1: Pad with empty items
+const padData = (data: Item[], columns: number) => {
+  const remainder = data.length % columns;
+  if (remainder === 0) return data;
+  
+  const padding = columns - remainder;
+  return [...data, ...Array(padding).fill({ id: 'empty', isEmpty: true })];
+};
+
+function PaddedGrid({ items }) {
+  const paddedItems = padData(items, NUM_COLUMNS);
+
+  return (
+    &lt;FlatList
+      data={paddedItems}
+      numColumns={NUM_COLUMNS}
+      renderItem={({ item }) => {
+        if (item.isEmpty) {
+          return &lt;View style={{ flex: 1 }} /&gt;; // Empty spacer
+        }
+        return &lt;GridItem item={item} /&gt;;
+      }}
+    /&gt;
+  );
+}
+
+// Option 2: Use columnWrapperStyle for spacing
+function SpacedGrid({ items }) {
+  return (
+    &lt;FlatList
+      data={items}
+      numColumns={NUM_COLUMNS}
+      columnWrapperStyle={{
+        justifyContent: 'flex-start', // Left-align incomplete rows
+        gap: 8, // Consistent gap between items
+      }}
+      renderItem={({ item }) => (
+        &lt;View style={{ width: ITEM_WIDTH }}&gt;
+          &lt;GridItem item={item} /&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>getItemLayout for Grids</h3>
+
+                <pre><code class="language-tsx">const NUM_COLUMNS = 2;
+const ITEM_HEIGHT = 180;
+const GAP = 12;
+const ROW_HEIGHT = ITEM_HEIGHT + GAP;
+
+function OptimizedGrid({ items }) {
+  const getItemLayout = useCallback(
+    (data: Item[] | null | undefined, index: number) => {
+      // In a grid, items are arranged in rows
+      // Row index = floor(item index / num columns)
+      const rowIndex = Math.floor(index / NUM_COLUMNS);
+      
+      return {
+        length: ITEM_HEIGHT,
+        offset: ROW_HEIGHT * rowIndex,
+        index,
+      };
+    },
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={items}
+      numColumns={NUM_COLUMNS}
+      renderItem={renderItem}
+      getItemLayout={getItemLayout}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Grid Limitations</h4>
+                    <ul>
+                        <li><strong>numColumns is static:</strong> Changing it requires remounting the FlatList</li>
+                        <li><strong>No staggered grids:</strong> All items in a row must have the same height</li>
+                        <li><strong>Horizontal grids:</strong> Can't combine <code>numColumns</code> with <code>horizontal</code></li>
+                    </ul>
+                    <p>For staggered/masonry grids, consider libraries like <code>@shopify/flash-list</code> with <code>masonry</code> layout or <code>react-native-masonry-list</code>.</p>
+                </div>
+            </section>
+
+            <!-- Inverted Lists -->
+            <section id="inverted-lists">
+                <h2>Inverted Lists</h2>
+
+                <p>Inverted lists render from bottom to top—essential for chat interfaces where the newest messages appear at the bottom.</p>
+
+                <h3>Basic Inverted List</h3>
+
+                <pre><code class="language-tsx">// Chat messages - newest at bottom
+function ChatMessages({ messages }) {
+  return (
+    &lt;FlatList
+      data={messages}
+      renderItem={({ item }) => &lt;MessageBubble message={item} /&gt;}
+      keyExtractor={(item) => item.id}
+      inverted  // This single prop inverts the list
+    /&gt;
+  );
+}
+
+// ⚠️ Important: Your data should be newest-first!
+const messages = [
+  { id: '3', text: 'Latest message', time: '10:03' },   // Bottom
+  { id: '2', text: 'Earlier message', time: '10:02' },  // Middle
+  { id: '1', text: 'First message', time: '10:01' },    // Top
+];</code></pre>
+
+                <h3>Complete Chat Implementation</h3>
+
+                <pre><code class="language-tsx">import React, { useState, useCallback, useRef } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+
+interface Message {
+  id: string;
+  text: string;
+  sender: 'me' | 'them';
+  timestamp: Date;
+}
+
+export default function ChatScreen() {
+  const [messages, setMessages] = useState&lt;Message[]&gt;(INITIAL_MESSAGES);
+  const [inputText, setInputText] = useState('');
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+
+  const sendMessage = useCallback(() => {
+    if (!inputText.trim()) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: inputText.trim(),
+      sender: 'me',
+      timestamp: new Date(),
+    };
+
+    // Add to beginning (newest first for inverted list)
+    setMessages(prev => [newMessage, ...prev]);
+    setInputText('');
+    
+    // Auto-scroll to bottom (which is the top in inverted)
+    // Actually not needed - inverted list handles this automatically
+  }, [inputText]);
+
+  const renderMessage = useCallback(({ item }: { item: Message }) => (
+    &lt;View style={[
+      styles.messageBubble,
+      item.sender === 'me' ? styles.myMessage : styles.theirMessage,
+    ]}&gt;
+      &lt;Text style={[
+        styles.messageText,
+        item.sender === 'me' ? styles.myMessageText : styles.theirMessageText,
+      ]}&gt;
+        {item.text}
+      &lt;/Text&gt;
+      &lt;Text style={styles.timestamp}&gt;
+        {item.timestamp.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  ), []);
+
+  return (
+    &lt;KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
+    &gt;
+      &lt;FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        inverted
+        contentContainerStyle={styles.messageList}
+      /&gt;
+      
+      &lt;View style={styles.inputContainer}&gt;
+        &lt;TextInput
+          style={styles.input}
+          value={inputText}
+          onChangeText={setInputText}
+          placeholder="Type a message..."
+          multiline
+          maxLength={500}
+        /&gt;
+        &lt;Pressable
+          style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+          onPress={sendMessage}
+          disabled={!inputText.trim()}
+        &gt;
+          &lt;Text style={styles.sendButtonText}&gt;Send&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    &lt;/KeyboardAvoidingView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  messageList: {
+    padding: 16,
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 8,
+  },
+  myMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#6200ee',
+    borderBottomRightRadius: 4,
+  },
+  theirMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  myMessageText: {
+    color: '#fff',
+  },
+  theirMessageText: {
+    color: '#333',
+  },
+  timestamp: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    alignItems: 'flex-end',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    maxHeight: 100,
+    fontSize: 16,
+  },
+  sendButton: {
+    backgroundColor: '#6200ee',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+});</code></pre>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Normal["Normal List"]
+        direction TB
+        N1["Item 1 (oldest)"] --> N2["Item 2"]
+        N2 --> N3["Item 3 (newest)"]
+    end
+    
+    subgraph Inverted["Inverted List"]
+        direction TB
+        I3["Item 3 (newest)"] --> I2["Item 2"]
+        I2 --> I1["Item 1 (oldest)"]
+    end
+    
+    subgraph Data["Data Array"]
+        D["[newest, ..., oldest]"]
+    end
+    
+    Data --> Normal
+    Data --> Inverted
+    
+    style N3 fill:#c8e6c9
+    style I3 fill:#c8e6c9
+                </pre>
+            </section>
+            <!-- Sticky Headers -->
+            <section id="sticky-headers">
+                <h2>Sticky Headers</h2>
+
+                <p>Sticky headers remain visible at the top of the screen as you scroll. FlatList supports them through the <code>stickyHeaderIndices</code> prop.</p>
+
+                <h3>Basic Sticky Header</h3>
+
+                <pre><code class="language-tsx">// Make specific indices sticky
+function StickyHeaderList() {
+  const data = [
+    { type: 'header', title: 'Section A' },
+    { type: 'item', name: 'Item 1' },
+    { type: 'item', name: 'Item 2' },
+    { type: 'header', title: 'Section B' },
+    { type: 'item', name: 'Item 3' },
+    { type: 'item', name: 'Item 4' },
+  ];
+
+  // Find indices of headers
+  const stickyIndices = data
+    .map((item, index) => item.type === 'header' ? index : null)
+    .filter(index => index !== null) as number[];
+
+  return (
+    &lt;FlatList
+      data={data}
+      stickyHeaderIndices={stickyIndices}
+      renderItem={({ item }) => {
+        if (item.type === 'header') {
+          return (
+            &lt;View style={styles.stickyHeader}&gt;
+              &lt;Text style={styles.headerText}&gt;{item.title}&lt;/Text&gt;
+            &lt;/View&gt;
+          );
+        }
+        return (
+          &lt;View style={styles.item}&gt;
+            &lt;Text&gt;{item.name}&lt;/Text&gt;
+          &lt;/View&gt;
+        );
+      }}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  stickyHeader: {
+    backgroundColor: '#6200ee',
+    padding: 12,
+  },
+  headerText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  item: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+});</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Sticky Headers vs SectionList</h4>
+                    <p>If your data is naturally grouped with headers, consider using <code>SectionList</code> instead of FlatList with <code>stickyHeaderIndices</code>. SectionList has built-in support for section headers and makes the code cleaner. We'll cover SectionList in the next lesson.</p>
+                </div>
+
+                <h3>Sticky ListHeaderComponent</h3>
+
+                <pre><code class="language-tsx">// Make the list header sticky
+function StickyListHeader() {
+  return (
+    &lt;FlatList
+      data={items}
+      renderItem={renderItem}
+      ListHeaderComponent={
+        &lt;View style={styles.searchHeader}&gt;
+          &lt;TextInput
+            style={styles.searchInput}
+            placeholder="Search..."
+          /&gt;
+        &lt;/View&gt;
+      }
+      // Index 0 is the ListHeaderComponent
+      stickyHeaderIndices={[0]}
+      // Hide header shadow on iOS
+      stickyHeaderHiddenOnScroll={false}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Styling Sticky Headers</h3>
+
+                <pre><code class="language-tsx">// Add shadows for depth when stuck
+const styles = StyleSheet.create({
+  stickyHeader: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    // Android elevation
+    elevation: 4,
+    // Ensure header is above items
+    zIndex: 1,
+  },
+});</code></pre>
+            </section>
+
+            <!-- Scroll Indicators -->
+            <section id="scroll-indicators">
+                <h2>Scroll Indicators</h2>
+
+                <p>Control the visibility and style of scroll indicators (scrollbars) with these props.</p>
+
+                <h3>Visibility Control</h3>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  
+  // Hide indicators
+  showsVerticalScrollIndicator={false}
+  showsHorizontalScrollIndicator={false}
+  
+  // Or show them (default)
+  showsVerticalScrollIndicator={true}
+/&gt;</code></pre>
+
+                <h3>iOS-Specific Styling</h3>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  
+  // iOS scroll indicator style
+  indicatorStyle="black"  // 'default' | 'black' | 'white'
+  
+  // Inset the indicators from edges
+  scrollIndicatorInsets={{
+    top: 10,
+    right: 5,
+    bottom: 10,
+    left: 0,
+  }}
+/&gt;</code></pre>
+
+                <h3>When to Hide Scroll Indicators</h3>
+
+                <div class="card">
+                    <h4>🎨 Design Guidelines</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Show Indicators</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Hide Indicators</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Long content lists (feeds, search results)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Horizontal carousels</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Settings/forms</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Tab bars/category chips</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Document viewers</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Image galleries</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;">Any list where scroll position matters</td>
+                            <td style="padding: 8px;">Short lists that fit on screen</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Keyboard Handling -->
+            <section id="keyboard-handling">
+                <h2>Keyboard Handling</h2>
+
+                <p>When your list contains input fields or needs to work alongside an input, proper keyboard handling ensures a smooth user experience.</p>
+
+                <h3>Keyboard Dismiss Modes</h3>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  
+  // Dismiss keyboard behavior
+  keyboardDismissMode="none"        // Default - keyboard stays open
+  keyboardDismissMode="on-drag"     // Dismiss when user drags
+  keyboardDismissMode="interactive" // iOS: drag dismisses progressively
+  
+  // Should touches dismiss keyboard?
+  keyboardShouldPersistTaps="never"   // Default - dismiss on any tap
+  keyboardShouldPersistTaps="always"  // Never dismiss on tap
+  keyboardShouldPersistTaps="handled" // Dismiss unless tap is handled
+/&gt;</code></pre>
+
+                <h3>Common Patterns</h3>
+
+                <pre><code class="language-tsx">// Search list - dismiss keyboard when scrolling results
+function SearchList() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;TextInput
+        style={styles.searchInput}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search..."
+      /&gt;
+      
+      &lt;FlatList
+        data={results}
+        renderItem={renderItem}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Form list - keep keyboard open when tapping buttons
+function FormList() {
+  return (
+    &lt;FlatList
+      data={formFields}
+      renderItem={({ item }) => (
+        &lt;TextInput
+          style={styles.input}
+          placeholder={item.label}
+        /&gt;
+      )}
+      keyboardShouldPersistTaps="always"
+      ListFooterComponent={
+        &lt;Pressable style={styles.submitButton}&gt;
+          &lt;Text&gt;Submit&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      }
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Automatic Scroll to Input</h3>
+
+                <pre><code class="language-tsx">import { useRef } from 'react';
+import { FlatList, TextInput, Keyboard } from 'react-native';
+
+function AutoScrollForm() {
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+  const inputRefs = useRef&lt;Record&lt;string, TextInput&gt;&gt;({});
+
+  const handleFocus = (index: number) => {
+    // Scroll to bring the focused input into view
+    flatListRef.current?.scrollToIndex({
+      index,
+      viewPosition: 0.3, // Show input in upper third
+      animated: true,
+    });
+  };
+
+  return (
+    &lt;FlatList
+      ref={flatListRef}
+      data={formFields}
+      keyExtractor={(item) => item.id}
+      getItemLayout={getItemLayout}
+      keyboardShouldPersistTaps="handled"
+      renderItem={({ item, index }) => (
+        &lt;TextInput
+          ref={(ref) => { inputRefs.current[item.id] = ref!; }}
+          style={styles.input}
+          placeholder={item.label}
+          onFocus={() => handleFocus(index)}
+          returnKeyType={index === formFields.length - 1 ? 'done' : 'next'}
+          onSubmitEditing={() => {
+            if (index < formFields.length - 1) {
+              inputRefs.current[formFields[index + 1].id]?.focus();
+            } else {
+              Keyboard.dismiss();
+            }
+          }}
+        /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Keyboard Best Practices</h4>
+                    <ul>
+                        <li><strong>Search screens:</strong> Use <code>keyboardDismissMode="on-drag"</code></li>
+                        <li><strong>Forms:</strong> Use <code>keyboardShouldPersistTaps="handled"</code></li>
+                        <li><strong>Chat:</strong> Use <code>keyboardShouldPersistTaps="always"</code> with <code>inverted</code></li>
+                        <li><strong>Always test on real devices:</strong> Simulator keyboards behave differently</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <p>Practice implementing these FlatList features in real-world scenarios.</p>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Social Media Feed</h4>
+                    <p>Build a complete social media feed with pull-to-refresh and infinite scroll.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Pull-to-refresh that fetches new posts</li>
+                        <li>Infinite scroll that loads older posts</li>
+                        <li>Loading indicator in the footer</li>
+                        <li>"No more posts" message when all posts are loaded</li>
+                        <li>Error handling with retry option</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use separate state for <code>refreshing</code> and <code>loadingMore</code>. Track <code>hasMore</code> to know when to stop loading. Use <code>useRef</code> for the loading lock to prevent race conditions.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  Image,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
+
+interface Post {
+  id: string;
+  author: string;
+  avatar: string;
+  content: string;
+  likes: number;
+  timestamp: string;
+}
+
+// Simulate API
+const fetchPosts = async (page: number, refresh = false): Promise<{
+  posts: Post[];
+  hasMore: boolean;
+}> => {
+  await new Promise(r => setTimeout(r, 1000));
+  
+  // Simulate 5 pages of content
+  if (page > 5) return { posts: [], hasMore: false };
+  
+  const posts = Array.from({ length: 10 }, (_, i) => ({
+    id: `${refresh ? 'new-' : ''}${page}-${i}-${Date.now()}`,
+    author: `User ${Math.floor(Math.random() * 100)}`,
+    avatar: `https://i.pravatar.cc/100?img=${(page * 10 + i) % 70}`,
+    content: `This is post #${(page - 1) * 10 + i + 1}. Lorem ipsum dolor sit amet.`,
+    likes: Math.floor(Math.random() * 500),
+    timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+  }));
+  
+  return { posts, hasMore: page < 5 };
+};
+
+const PostCard = React.memo(function PostCard({ post }: { post: Post }) {
+  return (
+    &lt;View style={styles.postCard}&gt;
+      &lt;View style={styles.postHeader}&gt;
+        &lt;Image source={{ uri: post.avatar }} style={styles.avatar} /&gt;
+        &lt;View&gt;
+          &lt;Text style={styles.authorName}&gt;{post.author}&lt;/Text&gt;
+          &lt;Text style={styles.timestamp}&gt;
+            {new Date(post.timestamp).toLocaleString()}
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+      &lt;Text style={styles.content}&gt;{post.content}&lt;/Text&gt;
+      &lt;Text style={styles.likes}&gt;❤️ {post.likes} likes&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});
+
+export default function SocialFeed() {
+  const [posts, setPosts] = useState&lt;Post[]&gt;([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  
+  const page = useRef(1);
+  const isLoadingMore = useRef(false);
+
+  // Initial load
+  useEffect(() => {
+    loadInitial();
+  }, []);
+
+  const loadInitial = async () => {
+    try {
+      const result = await fetchPosts(1);
+      setPosts(result.posts);
+      setHasMore(result.hasMore);
+      page.current = 1;
+    } catch (err) {
+      setError('Failed to load posts');
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    
+    try {
+      const result = await fetchPosts(1, true);
+      setPosts(result.posts);
+      setHasMore(result.hasMore);
+      page.current = 1;
+    } catch (err) {
+      setError('Failed to refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore.current || !hasMore) return;
+    
+    isLoadingMore.current = true;
+    
+    try {
+      const nextPage = page.current + 1;
+      const result = await fetchPosts(nextPage);
+      
+      setPosts(prev => [...prev, ...result.posts]);
+      setHasMore(result.hasMore);
+      page.current = nextPage;
+    } catch (err) {
+      setError('Failed to load more');
+    } finally {
+      isLoadingMore.current = false;
+    }
+  }, [hasMore]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Post }) => &lt;PostCard post={item} /&gt;,
+    []
+  );
+
+  const renderFooter = () => {
+    if (error && posts.length > 0) {
+      return (
+        &lt;Pressable style={styles.errorFooter} onPress={loadMore}&gt;
+          &lt;Text style={styles.errorText}&gt;{error}&lt;/Text&gt;
+          &lt;Text style={styles.retryText}&gt;Tap to retry&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      );
+    }
+    
+    if (!hasMore) {
+      return (
+        &lt;View style={styles.endFooter}&gt;
+          &lt;Text style={styles.endText}&gt;🎉 You're all caught up!&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    return (
+      &lt;View style={styles.loadingFooter}&gt;
+        &lt;ActivityIndicator color="#6200ee" /&gt;
+      &lt;/View&gt;
+    );
+  };
+
+  return (
+    &lt;FlatList
+      data={posts}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      refreshControl={
+        &lt;RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#6200ee"
+          colors={['#6200ee']}
+        /&gt;
+      }
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
+      contentContainerStyle={styles.listContent}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  listContent: {
+    padding: 12,
+  },
+  postCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+  },
+  authorName: {
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  timestamp: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  content: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  likes: {
+    color: '#666',
+    fontSize: 13,
+  },
+  loadingFooter: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  errorFooter: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#f44336',
+  },
+  retryText: {
+    color: '#6200ee',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  endFooter: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#666',
+    fontSize: 15,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Photo Grid Gallery</h4>
+                    <p>Build a 3-column photo grid with a "scroll to top" button.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>3-column grid with proper spacing</li>
+                        <li>Square image cells</li>
+                        <li>Scroll to top button that appears after scrolling down</li>
+                        <li>Smooth animated scroll to top</li>
+                        <li>Hide scroll indicator</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>numColumns={3}</code> and calculate item size from screen width. Track scroll position with <code>onScroll</code> to show/hide the button. Use <code>scrollToOffset</code> for the smooth scroll.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useCallback, useRef } from 'react';
+import {
+  FlatList,
+  View,
+  Image,
+  Pressable,
+  Text,
+  Dimensions,
+  StyleSheet,
+  Animated,
+} from 'react-native';
+
+const NUM_COLUMNS = 3;
+const GAP = 2;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const ITEM_SIZE = (SCREEN_WIDTH - GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+
+interface Photo {
+  id: string;
+  uri: string;
+}
+
+// Generate mock photos
+const generatePhotos = (count: number): Photo[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `photo-${i}`,
+    uri: `https://picsum.photos/seed/${i}/400/400`,
+  }));
+
+const PhotoCell = React.memo(function PhotoCell({ photo }: { photo: Photo }) {
+  return (
+    &lt;Pressable style={styles.photoCell}&gt;
+      &lt;Image source={{ uri: photo.uri }} style={styles.photo} /&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+export default function PhotoGrid() {
+  const [photos] = useState(() => generatePhotos(100));
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleScroll = useCallback((event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const shouldShow = offsetY > 500;
+    
+    if (shouldShow !== showScrollTop) {
+      setShowScrollTop(shouldShow);
+      Animated.timing(buttonOpacity, {
+        toValue: shouldShow ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showScrollTop, buttonOpacity]);
+
+  const scrollToTop = useCallback(() => {
+    flatListRef.current?.scrollToOffset({
+      offset: 0,
+      animated: true,
+    });
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Photo }) => &lt;PhotoCell photo={item} /&gt;,
+    []
+  );
+
+  const getItemLayout = useCallback(
+    (data: Photo[] | null | undefined, index: number) => {
+      const rowIndex = Math.floor(index / NUM_COLUMNS);
+      return {
+        length: ITEM_SIZE,
+        offset: (ITEM_SIZE + GAP) * rowIndex,
+        index,
+      };
+    },
+    []
+  );
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList
+        ref={flatListRef}
+        data={photos}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={NUM_COLUMNS}
+        getItemLayout={getItemLayout}
+        onScroll={handleScroll}
+        scrollEventThrottle={100}
+        showsVerticalScrollIndicator={false}
+        columnWrapperStyle={styles.row}
+      /&gt;
+      
+      &lt;Animated.View style={[styles.scrollTopButton, { opacity: buttonOpacity }]}&gt;
+        &lt;Pressable onPress={scrollToTop} style={styles.buttonInner}&gt;
+          &lt;Text style={styles.buttonText}&gt;↑&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/Animated.View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  row: {
+    gap: GAP,
+    marginBottom: GAP,
+  },
+  photoCell: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+  },
+  buttonInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  buttonText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Simple Chat Interface</h4>
+                    <p>Build a basic chat interface with an inverted list and message input.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Inverted FlatList for messages</li>
+                        <li>Messages from "me" aligned right with a different color</li>
+                        <li>Messages from "them" aligned left</li>
+                        <li>Text input at bottom with send button</li>
+                        <li>New messages appear at bottom automatically</li>
+                        <li>Keyboard handling (dismiss on drag)</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>inverted</code> prop. Store messages newest-first in state. Wrap in <code>KeyboardAvoidingView</code> for proper keyboard handling. Use <code>alignSelf</code> for message alignment.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useCallback } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+
+interface Message {
+  id: string;
+  text: string;
+  sender: 'me' | 'them';
+  timestamp: Date;
+}
+
+const INITIAL_MESSAGES: Message[] = [
+  { id: '3', text: 'Looking forward to it!', sender: 'them', timestamp: new Date() },
+  { id: '2', text: 'Sure, how about tomorrow at 2pm?', sender: 'me', timestamp: new Date() },
+  { id: '1', text: 'Hey! Want to grab coffee sometime?', sender: 'them', timestamp: new Date() },
+];
+
+const MessageBubble = React.memo(function MessageBubble({ 
+  message 
+}: { 
+  message: Message 
+}) {
+  const isMe = message.sender === 'me';
+  
+  return (
+    &lt;View style={[
+      styles.bubble,
+      isMe ? styles.myBubble : styles.theirBubble,
+    ]}&gt;
+      &lt;Text style={[
+        styles.bubbleText,
+        isMe ? styles.myBubbleText : styles.theirBubbleText,
+      ]}&gt;
+        {message.text}
+      &lt;/Text&gt;
+      &lt;Text style={[
+        styles.time,
+        isMe ? styles.myTime : styles.theirTime,
+      ]}&gt;
+        {message.timestamp.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});
+
+export default function ChatInterface() {
+  const [messages, setMessages] = useState&lt;Message[]&gt;(INITIAL_MESSAGES);
+  const [inputText, setInputText] = useState('');
+
+  const sendMessage = useCallback(() => {
+    if (!inputText.trim()) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: inputText.trim(),
+      sender: 'me',
+      timestamp: new Date(),
+    };
+
+    // Add to beginning (newest first for inverted list)
+    setMessages(prev => [newMessage, ...prev]);
+    setInputText('');
+    
+    // Simulate reply after 1 second
+    setTimeout(() => {
+      const reply: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'Got it! 👍',
+        sender: 'them',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [reply, ...prev]);
+    }, 1000);
+  }, [inputText]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Message }) => &lt;MessageBubble message={item} /&gt;,
+    []
+  );
+
+  return (
+    &lt;KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    &gt;
+      &lt;FlatList
+        data={messages}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        inverted
+        contentContainerStyle={styles.messageList}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      /&gt;
+      
+      &lt;View style={styles.inputContainer}&gt;
+        &lt;TextInput
+          style={styles.input}
+          value={inputText}
+          onChangeText={setInputText}
+          placeholder="Type a message..."
+          multiline
+          maxLength={500}
+          returnKeyType="send"
+          onSubmitEditing={sendMessage}
+          blurOnSubmit={false}
+        /&gt;
+        &lt;Pressable
+          style={[
+            styles.sendButton,
+            !inputText.trim() && styles.sendButtonDisabled,
+          ]}
+          onPress={sendMessage}
+          disabled={!inputText.trim()}
+        &gt;
+          &lt;Text style={styles.sendText}&gt;➤&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    &lt;/KeyboardAvoidingView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#e5ddd5',
+  },
+  messageList: {
+    padding: 16,
+  },
+  bubble: {
+    maxWidth: '75%',
+    padding: 10,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    marginBottom: 8,
+  },
+  myBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#dcf8c6',
+    borderBottomRightRadius: 4,
+  },
+  theirBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+  },
+  bubbleText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  myBubbleText: {
+    color: '#000',
+  },
+  theirBubbleText: {
+    color: '#000',
+  },
+  time: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  myTime: {
+    color: '#7a8c6e',
+    alignSelf: 'flex-end',
+  },
+  theirTime: {
+    color: '#999',
+    alignSelf: 'flex-end',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'flex-end',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingRight: 16,
+    marginRight: 8,
+    maxHeight: 100,
+    fontSize: 16,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#25D366',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  sendText: {
+    fontSize: 20,
+    color: '#fff',
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <h4>Exercise 4: Alphabet Scroll Index</h4>
+                    <p>Build a contacts list with an alphabet index for quick navigation.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Contacts sorted alphabetically</li>
+                        <li>Right-side alphabet strip (A-Z)</li>
+                        <li>Tap a letter to scroll to that section</li>
+                        <li>Use <code>scrollToIndex</code> for navigation</li>
+                        <li>Implement <code>getItemLayout</code> for accurate scrolling</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Create an index map that stores the first occurrence index of each letter. When tapping a letter, look up its index and use <code>scrollToIndex</code>. Make sure to implement <code>getItemLayout</code> for accurate positioning.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useCallback, useMemo, useRef } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+
+interface Contact {
+  id: string;
+  name: string;
+}
+
+// Generate alphabetically sorted contacts
+const generateContacts = (): Contact[] => {
+  const names = [
+    'Alice', 'Amanda', 'Amy', 'Bob', 'Brian', 'Carol', 'Charlie', 
+    'David', 'Diana', 'Edward', 'Emily', 'Frank', 'George', 'Hannah',
+    'Ivan', 'Julia', 'Kevin', 'Laura', 'Michael', 'Nancy', 'Oliver',
+    'Patricia', 'Quinn', 'Rachel', 'Steven', 'Tina', 'Uma', 'Victor',
+    'William', 'Xavier', 'Yolanda', 'Zachary',
+  ];
+  
+  return names.map((name, i) => ({
+    id: `contact-${i}`,
+    name: `${name} ${['Smith', 'Johnson', 'Williams', 'Brown'][i % 4]}`,
+  })).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const ITEM_HEIGHT = 56;
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+export default function AlphabetScrollList() {
+  const contacts = useMemo(() => generateContacts(), []);
+  const flatListRef = useRef&lt;FlatList&gt;(null);
+
+  // Build index map: letter -> first contact index
+  const letterIndexMap = useMemo(() => {
+    const map: Record&lt;string, number&gt; = {};
+    contacts.forEach((contact, index) => {
+      const letter = contact.name[0].toUpperCase();
+      if (!(letter in map)) {
+        map[letter] = index;
+      }
+    });
+    return map;
+  }, [contacts]);
+
+  const scrollToLetter = useCallback((letter: string) => {
+    const index = letterIndexMap[letter];
+    if (index !== undefined) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0,
+      });
+    }
+  }, [letterIndexMap]);
+
+  const getItemLayout = useCallback(
+    (data: Contact[] | null | undefined, index: number) => ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  const renderItem = useCallback(({ item }: { item: Contact }) => (
+    &lt;View style={styles.contactItem}&gt;
+      &lt;View style={styles.avatar}&gt;
+        &lt;Text style={styles.avatarText}&gt;{item.name[0]}&lt;/Text&gt;
+      &lt;/View&gt;
+      &lt;Text style={styles.contactName}&gt;{item.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  ), []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList
+        ref={flatListRef}
+        data={contacts}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        getItemLayout={getItemLayout}
+        showsVerticalScrollIndicator={false}
+      /&gt;
+      
+      {/* Alphabet Index */}
+      &lt;View style={styles.alphabetContainer}&gt;
+        {ALPHABET.map((letter) => {
+          const hasContacts = letter in letterIndexMap;
+          return (
+            &lt;Pressable
+              key={letter}
+              onPress={() => scrollToLetter(letter)}
+              disabled={!hasContacts}
+              style={styles.letterButton}
+            &gt;
+              &lt;Text style={[
+                styles.letterText,
+                !hasContacts && styles.letterDisabled,
+              ]}&gt;
+                {letter}
+              &lt;/Text&gt;
+            &lt;/Pressable&gt;
+          );
+        })}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+  },
+  contactItem: {
+    height: ITEM_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  contactName: {
+    fontSize: 16,
+  },
+  alphabetContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  letterButton: {
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+  },
+  letterText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6200ee',
+  },
+  letterDisabled: {
+    color: '#ccc',
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've now mastered the interactive features that make FlatList a powerful tool for building production-ready mobile apps.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>Pull-to-refresh:</strong> Use <code>refreshing</code> and <code>onRefresh</code> props, or <code>RefreshControl</code> for customization</li>
+                        <li><strong>Infinite scroll:</strong> Use <code>onEndReached</code> with <code>onEndReachedThreshold</code>, guard against duplicate calls</li>
+                        <li><strong>Scroll methods:</strong> <code>scrollToIndex</code>, <code>scrollToOffset</code>, <code>scrollToEnd</code> for programmatic navigation</li>
+                        <li><strong>Scroll events:</strong> Use <code>onScroll</code> with <code>scrollEventThrottle</code> for custom behaviors</li>
+                        <li><strong>Multi-column:</strong> <code>numColumns</code> for grid layouts, calculate item sizes from screen width</li>
+                        <li><strong>Inverted:</strong> <code>inverted</code> prop for chat interfaces, data should be newest-first</li>
+                        <li><strong>Sticky headers:</strong> <code>stickyHeaderIndices</code> for headers that stay visible</li>
+                        <li><strong>Keyboard:</strong> <code>keyboardDismissMode</code> and <code>keyboardShouldPersistTaps</code> for input handling</li>
+                    </ul>
+                </div>
+
+                <h3>Feature Quick Reference</h3>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Refresh["Data Loading"]
+        R1["Pull-to-refresh"]
+        R2["Infinite scroll"]
+    end
+    
+    subgraph Navigation["Navigation"]
+        N1["scrollToIndex"]
+        N2["scrollToOffset"]
+        N3["scrollToEnd"]
+    end
+    
+    subgraph Layout["Layout"]
+        L1["numColumns"]
+        L2["inverted"]
+        L3["stickyHeaderIndices"]
+    end
+    
+    subgraph Events["Events"]
+        E1["onScroll"]
+        E2["onEndReached"]
+        E3["keyboard modes"]
+    end
+    
+    style R1 fill:#c8e6c9
+    style R2 fill:#c8e6c9
+    style N1 fill:#bbdefb
+    style N2 fill:#bbdefb
+    style N3 fill:#bbdefb
+    style L1 fill:#fff3cd
+    style L2 fill:#fff3cd
+    style L3 fill:#fff3cd
+                </pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🚀 What's Next?</h4>
+                    <p style="color: white;">Now that you're a FlatList expert, the next lesson covers <strong>SectionList</strong>—FlatList's sibling for grouped data with section headers. You'll learn when to choose SectionList over FlatList, how to structure sectioned data, and how to create sticky section headers for contacts, settings, and grouped content screens.</p>
+                </div>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m05_l03_flatlist_performance_optimization.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">FlatList Performance Optimization</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m05_l05_sectionlist_for_grouped_data.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">SectionList for Grouped Data</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

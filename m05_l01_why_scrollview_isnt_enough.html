@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn why ScrollView isn't suitable for large lists and discover the virtualization pattern that makes mobile lists performant">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Why ScrollView Isn't Enough | Module 5: Lists and Performance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m05_l01_why_scrollview_isnt_enough.html">Module 5</a> &gt;
+            <span>Lesson 5.1</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 5: Lists and Performance</p>
+                <h1>Why ScrollView Isn't Enough</h1>
+                <p class="lesson-subtitle">Understanding the performance cliff that every React Native developer hits</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand why ScrollView works fine for small lists but fails at scale</li>
+                    <li>Identify the specific performance problems that occur with large datasets</li>
+                    <li>Learn what virtualization means and why it's essential for mobile</li>
+                    <li>Recognize the symptoms of ScrollView performance issues in your own apps</li>
+                    <li>Preview how FlatList solves these problems through smart rendering</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#the-scrollview-trap">The ScrollView Trap</a></li>
+                        <li><a href="#scrollview-under-the-hood">ScrollView Under the Hood</a></li>
+                        <li><a href="#the-performance-cliff">The Performance Cliff</a></li>
+                        <li><a href="#memory-the-silent-killer">Memory: The Silent Killer</a></li>
+                        <li><a href="#real-world-symptoms">Real-World Symptoms</a></li>
+                        <li><a href="#virtualization-the-solution">Virtualization: The Solution</a></li>
+                        <li><a href="#the-rendering-window">The Rendering Window Concept</a></li>
+                        <li><a href="#flatlist-preview">Preview: Enter FlatList</a></li>
+                        <li><a href="#when-scrollview-is-fine">When ScrollView Is Actually Fine</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- The ScrollView Trap -->
+            <section id="the-scrollview-trap">
+                <h2>The ScrollView Trap</h2>
+
+                <p>Every React Native developer falls into the same trap. You're building your app, everything works beautifully, and then you need to display a list of items. "Easy," you think, "I'll just use ScrollView like I did for my profile page." You wrap your items in a ScrollView, map over your data, and... it works! Twenty items render perfectly. You move on.</p>
+
+                <p>Then your app goes to production. Users have real data now. Hundreds of items. Thousands, maybe. And suddenly, your app crawls. It stutters. It freezes. Users complain. You've hit the ScrollView wall.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Core Problem</h4>
+                    <p style="color: white;"><strong>ScrollView renders ALL of its children at once, regardless of whether they're visible on screen.</strong> This approach simply doesn't scale. A list of 1,000 items means 1,000 components created, mounted, and held in memory—even though users can only see maybe 10 at a time.</p>
+                </div>
+
+                <p>This isn't a React Native bug or limitation you can work around with clever code. It's a fundamental architectural decision that makes ScrollView perfect for some use cases and completely wrong for others. Understanding this distinction is crucial for building performant mobile apps.</p>
+            </section>
+
+            <!-- ScrollView Under the Hood -->
+            <section id="scrollview-under-the-hood">
+                <h2>ScrollView Under the Hood</h2>
+
+                <p>To understand why ScrollView fails at scale, let's look at what actually happens when you render a list with it:</p>
+
+                <pre><code class="language-tsx">// This innocent-looking code hides a performance bomb
+import { ScrollView, View, Text } from 'react-native';
+
+function ContactList({ contacts }) {
+  return (
+    &lt;ScrollView&gt;
+      {contacts.map(contact =&gt; (
+        &lt;View key={contact.id} style={styles.contactCard}&gt;
+          &lt;Text style={styles.name}&gt;{contact.name}&lt;/Text&gt;
+          &lt;Text style={styles.email}&gt;{contact.email}&lt;/Text&gt;
+          &lt;Text style={styles.phone}&gt;{contact.phone}&lt;/Text&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}</code></pre>
+
+                <p>When React Native encounters this code, here's the sequence of events:</p>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant App
+    participant React
+    participant Bridge
+    participant Native
+    
+    App->>React: Render ContactList
+    React->>React: Create VDOM for ALL contacts
+    loop For each contact (1000x)
+        React->>Bridge: Create native View
+        React->>Bridge: Create native Text (name)
+        React->>Bridge: Create native Text (email)
+        React->>Bridge: Create native Text (phone)
+        Bridge->>Native: Instantiate components
+        Native->>Native: Layout calculation
+        Native->>Native: Allocate memory
+    end
+    Native->>Native: Display first 10 items
+    Note over Native: 990 items invisible but fully rendered
+                </pre>
+
+                <p>Notice the problem? The native side creates and lays out every single item before displaying anything. For a list of 1,000 contacts with 3 text elements each, that's 4,000 native components created, positioned, and held in memory.</p>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 The Web Comparison</h4>
+                    <p>On the web, browsers are incredibly optimized for rendering large DOM trees. They use techniques like lazy painting, layer compositing, and incremental layout. Mobile native views don't have these same optimizations—each view is a real, heavyweight object with its own memory allocation and rendering overhead.</p>
+                </div>
+            </section>
+
+            <!-- The Performance Cliff -->
+            <section id="the-performance-cliff">
+                <h2>The Performance Cliff</h2>
+
+                <p>ScrollView performance doesn't degrade gracefully. It works fine, works fine, works fine... then suddenly doesn't. This is the "performance cliff" that catches developers off guard.</p>
+
+                <!-- SVG: Performance Cliff Visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 350" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="350" fill="#f8f9fa"/>
+                        
+                        <!-- Grid lines -->
+                        <g stroke="#e0e0e0" stroke-width="1">
+                            <line x1="80" y1="50" x2="80" y2="280"/>
+                            <line x1="80" y1="280" x2="550" y2="280"/>
+                            <!-- Horizontal grid -->
+                            <line x1="80" y1="220" x2="550" y2="220" stroke-dasharray="4"/>
+                            <line x1="80" y1="160" x2="550" y2="160" stroke-dasharray="4"/>
+                            <line x1="80" y1="100" x2="550" y2="100" stroke-dasharray="4"/>
+                        </g>
+                        
+                        <!-- Y-axis labels -->
+                        <text x="70" y="285" text-anchor="end" font-size="12" fill="#666">0</text>
+                        <text x="70" y="225" text-anchor="end" font-size="12" fill="#666">20</text>
+                        <text x="70" y="165" text-anchor="end" font-size="12" fill="#666">40</text>
+                        <text x="70" y="105" text-anchor="end" font-size="12" fill="#666">60</text>
+                        <text x="70" y="55" text-anchor="end" font-size="12" fill="#666">FPS</text>
+                        
+                        <!-- X-axis labels -->
+                        <text x="120" y="300" text-anchor="middle" font-size="11" fill="#666">10</text>
+                        <text x="200" y="300" text-anchor="middle" font-size="11" fill="#666">50</text>
+                        <text x="280" y="300" text-anchor="middle" font-size="11" fill="#666">100</text>
+                        <text x="360" y="300" text-anchor="middle" font-size="11" fill="#666">500</text>
+                        <text x="440" y="300" text-anchor="middle" font-size="11" fill="#666">1000</text>
+                        <text x="520" y="300" text-anchor="middle" font-size="11" fill="#666">5000</text>
+                        <text x="315" y="325" text-anchor="middle" font-size="12" fill="#666">Number of Items</text>
+                        
+                        <!-- ScrollView line (red) - shows cliff -->
+                        <path d="M120,70 L200,72 L240,75 L280,85 L320,120 L360,200 L400,260 L440,275 L520,278" 
+                              fill="none" stroke="#f44336" stroke-width="3"/>
+                        
+                        <!-- FlatList line (green) - stays consistent -->
+                        <path d="M120,70 L200,72 L280,73 L360,74 L440,75 L520,76" 
+                              fill="none" stroke="#4CAF50" stroke-width="3"/>
+                        
+                        <!-- 60 FPS target line -->
+                        <line x1="80" y1="70" x2="550" y2="70" stroke="#2196F3" stroke-width="2" stroke-dasharray="8,4"/>
+                        <text x="555" y="74" font-size="11" fill="#2196F3">60 FPS target</text>
+                        
+                        <!-- The cliff annotation -->
+                        <path d="M330,120 Q350,90 380,95" fill="none" stroke="#f44336" stroke-width="1.5"/>
+                        <text x="385" y="90" font-size="11" fill="#f44336" font-weight="bold">The Cliff!</text>
+                        
+                        <!-- Legend -->
+                        <rect x="150" y="335" width="16" height="3" fill="#f44336"/>
+                        <text x="172" y="340" font-size="11" fill="#666">ScrollView</text>
+                        <rect x="280" y="335" width="16" height="3" fill="#4CAF50"/>
+                        <text x="302" y="340" font-size="11" fill="#666">FlatList (preview)</text>
+                    </svg>
+                </div>
+
+                <p>The cliff typically appears somewhere between 50-200 items, depending on the complexity of each item, the device's hardware, and what else is happening in your app. But make no mistake—it <em>will</em> appear.</p>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ The Deceptive Development Experience</h4>
+                    <p>During development, you're often testing with small datasets on powerful devices (your development machine or a recent phone). The cliff might not appear until real users with older phones and real data start using your app. Always test with realistic data volumes!</p>
+                </div>
+            </section>
+
+            <!-- Memory: The Silent Killer -->
+            <section id="memory-the-silent-killer">
+                <h2>Memory: The Silent Killer</h2>
+
+                <p>Frame rate drops are visible—your app stutters and users notice immediately. But there's an even more dangerous problem lurking: memory consumption. ScrollView holds all rendered items in memory, and mobile devices have strict limits.</p>
+
+                <pre><code class="language-tsx">// Let's calculate the memory impact
+// A typical contact card might include:
+
+const ContactCard = ({ contact }) => (
+  &lt;View style={styles.card}&gt;           {/* ~0.5KB base View */}
+    &lt;Image                              {/* ~2-5KB for cached image */}
+      source={{ uri: contact.avatar }}
+      style={styles.avatar}
+    /&gt;
+    &lt;View style={styles.info}&gt;          {/* ~0.5KB */}
+      &lt;Text style={styles.name}&gt;        {/* ~0.3KB */}
+        {contact.name}
+      &lt;/Text&gt;
+      &lt;Text style={styles.email}&gt;       {/* ~0.3KB */}
+        {contact.email}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+// Conservative estimate: ~4KB per contact card
+// 1,000 contacts = ~4MB just for the list
+// 10,000 contacts = ~40MB
+// Plus JavaScript objects, layout cache, etc.</code></pre>
+
+                <p>Mobile devices typically have 2-6GB of RAM total, shared across all running apps. iOS and Android will terminate apps that use too much memory, often without warning. Users experience this as random crashes.</p>
+
+                <!-- Memory comparison visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Memory Usage: ScrollView vs Virtualized List</text>
+                        
+                        <!-- ScrollView memory bar -->
+                        <rect x="80" y="70" width="200" height="50" fill="#ffcdd2" stroke="#f44336" stroke-width="2" rx="4"/>
+                        <text x="180" y="100" text-anchor="middle" font-size="14" font-weight="bold" fill="#c62828">ScrollView</text>
+                        <text x="180" y="135" text-anchor="middle" font-size="12" fill="#666">1000 items = ~40MB</text>
+                        
+                        <!-- Memory blocks inside ScrollView -->
+                        <g fill="#f44336" opacity="0.6">
+                            <rect x="85" y="75" width="8" height="40"/>
+                            <rect x="95" y="75" width="8" height="40"/>
+                            <rect x="105" y="75" width="8" height="40"/>
+                            <rect x="115" y="75" width="8" height="40"/>
+                            <rect x="125" y="75" width="8" height="40"/>
+                            <rect x="135" y="75" width="8" height="40"/>
+                            <rect x="145" y="75" width="8" height="40"/>
+                            <rect x="155" y="75" width="8" height="40"/>
+                            <rect x="165" y="75" width="8" height="40"/>
+                            <rect x="175" y="75" width="8" height="40"/>
+                            <rect x="185" y="75" width="8" height="40"/>
+                            <rect x="195" y="75" width="8" height="40"/>
+                            <rect x="205" y="75" width="8" height="40"/>
+                            <rect x="215" y="75" width="8" height="40"/>
+                            <rect x="225" y="75" width="8" height="40"/>
+                            <rect x="235" y="75" width="8" height="40"/>
+                            <rect x="245" y="75" width="8" height="40"/>
+                            <rect x="255" y="75" width="8" height="40"/>
+                            <rect x="265" y="75" width="8" height="40"/>
+                        </g>
+                        <text x="180" y="95" text-anchor="middle" font-size="10" fill="white" font-weight="bold">ALL ITEMS IN MEMORY</text>
+                        
+                        <!-- Virtualized list memory bar -->
+                        <rect x="320" y="70" width="200" height="50" fill="#c8e6c9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        <text x="420" y="100" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">Virtualized List</text>
+                        <text x="420" y="135" text-anchor="middle" font-size="12" fill="#666">1000 items = ~0.5MB</text>
+                        
+                        <!-- Only visible items in memory -->
+                        <g fill="#4CAF50" opacity="0.6">
+                            <rect x="395" y="75" width="8" height="40"/>
+                            <rect x="405" y="75" width="8" height="40"/>
+                            <rect x="415" y="75" width="8" height="40"/>
+                            <rect x="425" y="75" width="8" height="40"/>
+                            <rect x="435" y="75" width="8" height="40"/>
+                        </g>
+                        <!-- Empty space indicators -->
+                        <g fill="none" stroke="#4CAF50" stroke-width="1" stroke-dasharray="2" opacity="0.4">
+                            <rect x="325" y="77" width="8" height="36"/>
+                            <rect x="335" y="77" width="8" height="36"/>
+                            <rect x="345" y="77" width="8" height="36"/>
+                            <rect x="355" y="77" width="8" height="36"/>
+                            <rect x="365" y="77" width="8" height="36"/>
+                            <rect x="375" y="77" width="8" height="36"/>
+                            <rect x="385" y="77" width="8" height="36"/>
+                            <rect x="445" y="77" width="8" height="36"/>
+                            <rect x="455" y="77" width="8" height="36"/>
+                            <rect x="465" y="77" width="8" height="36"/>
+                            <rect x="475" y="77" width="8" height="36"/>
+                            <rect x="485" y="77" width="8" height="36"/>
+                            <rect x="495" y="77" width="8" height="36"/>
+                            <rect x="505" y="77" width="8" height="36"/>
+                        </g>
+                        <text x="420" y="95" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">VISIBLE ONLY</text>
+                        
+                        <!-- Comparison arrow -->
+                        <text x="300" y="95" text-anchor="middle" font-size="20" fill="#666">→</text>
+                        
+                        <!-- Impact boxes -->
+                        <rect x="80" y="170" width="200" height="100" fill="#ffebee" stroke="#ffcdd2" stroke-width="1" rx="4"/>
+                        <text x="180" y="195" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828">❌ ScrollView Impact</text>
+                        <text x="180" y="215" text-anchor="middle" font-size="11" fill="#666">• High memory pressure</text>
+                        <text x="180" y="232" text-anchor="middle" font-size="11" fill="#666">• Risk of OS termination</text>
+                        <text x="180" y="249" text-anchor="middle" font-size="11" fill="#666">• Slow initial render</text>
+                        <text x="180" y="266" text-anchor="middle" font-size="11" fill="#666">• Battery drain</text>
+                        
+                        <rect x="320" y="170" width="200" height="100" fill="#e8f5e9" stroke="#c8e6c9" stroke-width="1" rx="4"/>
+                        <text x="420" y="195" text-anchor="middle" font-size="13" font-weight="bold" fill="#2e7d32">✅ Virtualized Benefits</text>
+                        <text x="420" y="215" text-anchor="middle" font-size="11" fill="#666">• Constant memory usage</text>
+                        <text x="420" y="232" text-anchor="middle" font-size="11" fill="#666">• Stable performance</text>
+                        <text x="420" y="249" text-anchor="middle" font-size="11" fill="#666">• Fast initial render</text>
+                        <text x="420" y="266" text-anchor="middle" font-size="11" fill="#666">• Scales infinitely</text>
+                    </svg>
+                </div>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🚨 Real Crash Scenario</h4>
+                    <p>A social media app rendering a feed with ScrollView: 500 posts × (post content + images + interaction buttons) = memory spike. User scrolls through feed, memory grows, iOS sends memory warning, app doesn't respond fast enough, <strong>terminated</strong>. User sees their phone's home screen with no explanation.</p>
+                </div>
+            </section>
+</code></pre>
+            <!-- Real-World Symptoms -->
+            <section id="real-world-symptoms">
+                <h2>Real-World Symptoms</h2>
+
+                <p>How do you know if your app is suffering from ScrollView performance issues? Here are the telltale signs:</p>
+
+                <div class="card">
+                    <h4>🔍 Symptom Checklist</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Symptom</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">What's Happening</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Slow initial load</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">All items rendering before display</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">⚠️ Medium</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Scroll jank/stutter</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">JS thread blocked during scroll</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔴 High</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Touch delay</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Main thread overwhelmed</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔴 High</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Random crashes</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Memory limit exceeded</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🚨 Critical</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Hot device / battery drain</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Excessive rendering work</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">⚠️ Medium</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>App feels "heavy"</strong></td>
+                                <td style="padding: 12px;">General resource exhaustion</td>
+                                <td style="padding: 12px;">⚠️ Medium</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>Let's create a simple test to see the problem in action:</p>
+
+                <pre><code class="language-tsx">// Performance test component - try this with different list sizes
+import React, { useEffect, useState } from 'react';
+import { ScrollView, View, Text, StyleSheet } from 'react-native';
+
+// Generate fake data
+const generateItems = (count: number) =&gt; 
+  Array.from({ length: count }, (_, i) =&gt; ({
+    id: i,
+    title: `Item ${i + 1}`,
+    description: `This is the description for item number ${i + 1}`,
+    timestamp: new Date().toISOString(),
+  }));
+
+export function ScrollViewPerformanceTest() {
+  const [items, setItems] = useState&lt;any[]&gt;([]);
+  const [renderTime, setRenderTime] = useState&lt;number | null&gt;(null);
+
+  useEffect(() =&gt; {
+    const start = performance.now();
+    
+    // Try changing this number: 50, 100, 500, 1000
+    setItems(generateItems(500));
+    
+    // Measure time after render completes
+    requestAnimationFrame(() =&gt; {
+      requestAnimationFrame(() =&gt; {
+        setRenderTime(performance.now() - start);
+      });
+    });
+  }, []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      {renderTime &amp;&amp; (
+        &lt;View style={styles.metrics}&gt;
+          &lt;Text style={styles.metricsText}&gt;
+            Rendered {items.length} items in {renderTime.toFixed(0)}ms
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+      
+      &lt;ScrollView&gt;
+        {items.map(item =&gt; (
+          &lt;View key={item.id} style={styles.item}&gt;
+            &lt;Text style={styles.title}&gt;{item.title}&lt;/Text&gt;
+            &lt;Text style={styles.description}&gt;{item.description}&lt;/Text&gt;
+            &lt;Text style={styles.timestamp}&gt;{item.timestamp}&lt;/Text&gt;
+          &lt;/View&gt;
+        ))}
+      &lt;/ScrollView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  metrics: {
+    padding: 16,
+    backgroundColor: '#ffeb3b',
+  },
+  metricsText: {
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  item: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
+});</code></pre>
+
+                <p>Run this with different item counts and observe how render time scales. On a mid-range device, you might see results like:</p>
+
+                <div class="card" style="background: #f5f5f5; font-family: monospace;">
+                    <p style="margin: 0.25rem 0;">50 items: ~50ms ✅</p>
+                    <p style="margin: 0.25rem 0;">100 items: ~120ms ⚠️</p>
+                    <p style="margin: 0.25rem 0;">500 items: ~800ms 🔴</p>
+                    <p style="margin: 0.25rem 0;">1000 items: ~2000ms 🚨</p>
+                    <p style="margin: 0.25rem 0;">5000 items: App may freeze or crash 💀</p>
+                </div>
+            </section>
+
+            <!-- Virtualization: The Solution -->
+            <section id="virtualization-the-solution">
+                <h2>Virtualization: The Solution</h2>
+
+                <p>The solution to this problem has a name: <strong>virtualization</strong> (also called "windowing"). It's not a React Native invention—this pattern has been solving list performance problems for decades, from desktop applications to web frameworks.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 Virtualization Defined</h4>
+                    <p style="color: white;"><strong>Virtualization</strong> is a rendering technique where only the items currently visible on screen (plus a small buffer) are actually rendered. As the user scrolls, items leaving the viewport are destroyed and recycled to create items entering the viewport.</p>
+                </div>
+
+                <p>Think of it like a theater production. A traditional approach (ScrollView) would build the entire set for every scene before the play starts—expensive and space-consuming. Virtualization is like having stagehands quickly swap set pieces as scenes change—only what's currently on stage exists.</p>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph ScrollView["ScrollView Approach"]
+        SV1[Item 1] --- SV2[Item 2] --- SV3[Item 3] --- SV4[Item 4]
+        SV4 --- SV5[Item 5] --- SV6[Item 6] --- SV7[Item 7]
+        SV7 --- SV8[Item 8] --- SV9[Item 9] --- SV10[Item 10]
+        SV10 --- SVN[... Item 1000]
+        style SV1 fill:#ffcdd2
+        style SV2 fill:#ffcdd2
+        style SV3 fill:#ffcdd2
+        style SV4 fill:#ffcdd2
+        style SV5 fill:#ffcdd2
+        style SV6 fill:#ffcdd2
+        style SV7 fill:#ffcdd2
+        style SV8 fill:#ffcdd2
+        style SV9 fill:#ffcdd2
+        style SV10 fill:#ffcdd2
+        style SVN fill:#ffcdd2
+    end
+    
+    subgraph VList["Virtualized List Approach"]
+        direction TB
+        Empty1[" "] ~~~ V3[Item 3]
+        V3 --- V4[Item 4]
+        V4 --- V5[Item 5]
+        V5 --- V6[Item 6]
+        V6 --- V7[Item 7]
+        V7 ~~~ Empty2[" "]
+        style V3 fill:#c8e6c9
+        style V4 fill:#c8e6c9
+        style V5 fill:#c8e6c9
+        style V6 fill:#c8e6c9
+        style V7 fill:#c8e6c9
+        style Empty1 fill:none,stroke:none
+        style Empty2 fill:none,stroke:none
+    end
+    
+    Note1["All 1000 items<br/>in memory"] --> ScrollView
+    Note2["Only ~5-10 items<br/>in memory"] --> VList
+                </pre>
+
+                <p>The key insight is that users can only see a small portion of any list at a time. A phone screen might display 8-12 items. Why render the other 988?</p>
+
+                <h3>The Virtualization Tradeoff</h3>
+
+                <p>Virtualization isn't free—there's overhead in calculating what's visible and managing the recycling process. But this overhead is <em>constant</em>, regardless of list size. Whether your list has 100 items or 100,000, the rendering work is the same.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ The Performance Guarantee</h4>
+                    <p>With virtualization, list performance becomes O(1) instead of O(n). Doubling your data doesn't double your render time. This is why apps like Twitter, Instagram, and every email client you've ever used rely on virtualized lists.</p>
+                </div>
+            </section>
+
+            <!-- The Rendering Window Concept -->
+            <section id="the-rendering-window">
+                <h2>The Rendering Window Concept</h2>
+
+                <p>To understand how virtualization works in practice, let's visualize the "rendering window"—the portion of your list that actually exists as rendered components at any given moment.</p>
+
+                <!-- Interactive-style SVG showing the window concept -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 500" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="500" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">The Rendering Window</text>
+                        
+                        <!-- Full data representation (left side) -->
+                        <text x="120" y="60" text-anchor="middle" font-size="13" fill="#666">Your Data</text>
+                        <text x="120" y="75" text-anchor="middle" font-size="11" fill="#999">(1000 items)</text>
+                        
+                        <rect x="70" y="90" width="100" height="380" fill="#e0e0e0" stroke="#bdbdbd" stroke-width="2" rx="4"/>
+                        
+                        <!-- Data items indicators -->
+                        <g fill="#9e9e9e" font-size="9">
+                            <text x="120" y="105" text-anchor="middle">Item 1</text>
+                            <text x="120" y="118" text-anchor="middle">Item 2</text>
+                            <text x="120" y="131" text-anchor="middle">Item 3</text>
+                            <text x="120" y="144" text-anchor="middle">Item 4</text>
+                            <text x="120" y="157" text-anchor="middle">Item 5</text>
+                            <text x="120" y="170" text-anchor="middle">Item 6</text>
+                            <text x="120" y="183" text-anchor="middle">...</text>
+                            <text x="120" y="270" text-anchor="middle">Item 247</text>
+                            <text x="120" y="283" text-anchor="middle">Item 248</text>
+                            <text x="120" y="296" text-anchor="middle">Item 249</text>
+                            <text x="120" y="309" text-anchor="middle">Item 250</text>
+                            <text x="120" y="322" text-anchor="middle">Item 251</text>
+                            <text x="120" y="335" text-anchor="middle">Item 252</text>
+                            <text x="120" y="348" text-anchor="middle">Item 253</text>
+                            <text x="120" y="361" text-anchor="middle">...</text>
+                            <text x="120" y="420" text-anchor="middle">Item 998</text>
+                            <text x="120" y="433" text-anchor="middle">Item 999</text>
+                            <text x="120" y="446" text-anchor="middle">Item 1000</text>
+                        </g>
+                        
+                        <!-- Highlight current scroll position -->
+                        <rect x="72" y="260" width="96" height="100" fill="#4CAF50" fill-opacity="0.3" stroke="#4CAF50" stroke-width="2" rx="2"/>
+                        
+                        <!-- Arrow pointing to phone -->
+                        <path d="M175,310 L220,310" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                        </defs>
+                        
+                        <!-- Phone mockup (center) -->
+                        <text x="300" y="60" text-anchor="middle" font-size="13" fill="#666">Device Screen</text>
+                        <text x="300" y="75" text-anchor="middle" font-size="11" fill="#999">(visible area)</text>
+                        
+                        <!-- Phone outline -->
+                        <rect x="230" y="90" width="140" height="280" fill="#fff" stroke="#333" stroke-width="3" rx="20"/>
+                        <!-- Screen area -->
+                        <rect x="240" y="115" width="120" height="230" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+                        <!-- Notch -->
+                        <rect x="275" y="95" width="50" height="15" fill="#333" rx="4"/>
+                        <!-- Home indicator -->
+                        <rect x="270" y="355" width="60" height="5" fill="#333" rx="2"/>
+                        
+                        <!-- Rendered items on screen -->
+                        <g>
+                            <rect x="245" y="120" width="110" height="25" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="3"/>
+                            <text x="300" y="137" text-anchor="middle" font-size="10" fill="#333">Item 247</text>
+                            
+                            <rect x="245" y="150" width="110" height="25" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="3"/>
+                            <text x="300" y="167" text-anchor="middle" font-size="10" fill="#333">Item 248</text>
+                            
+                            <rect x="245" y="180" width="110" height="25" fill="#a5d6a7" stroke="#4CAF50" stroke-width="2" rx="3"/>
+                            <text x="300" y="197" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Item 249</text>
+                            
+                            <rect x="245" y="210" width="110" height="25" fill="#a5d6a7" stroke="#4CAF50" stroke-width="2" rx="3"/>
+                            <text x="300" y="227" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Item 250</text>
+                            
+                            <rect x="245" y="240" width="110" height="25" fill="#a5d6a7" stroke="#4CAF50" stroke-width="2" rx="3"/>
+                            <text x="300" y="257" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Item 251</text>
+                            
+                            <rect x="245" y="270" width="110" height="25" fill="#a5d6a7" stroke="#4CAF50" stroke-width="2" rx="3"/>
+                            <text x="300" y="287" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Item 252</text>
+                            
+                            <rect x="245" y="300" width="110" height="25" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="3"/>
+                            <text x="300" y="317" text-anchor="middle" font-size="10" fill="#333">Item 253</text>
+                        </g>
+                        
+                        <!-- Scroll indicator -->
+                        <rect x="350" y="200" width="4" height="60" fill="#4CAF50" rx="2"/>
+                        <rect x="350" y="120" width="4" height="220" fill="#e0e0e0" rx="2"/>
+                        
+                        <!-- Memory representation (right side) -->
+                        <text x="480" y="60" text-anchor="middle" font-size="13" fill="#666">Memory</text>
+                        <text x="480" y="75" text-anchor="middle" font-size="11" fill="#999">(what's actually rendered)</text>
+                        
+                        <rect x="430" y="90" width="100" height="200" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        
+                        <!-- Buffer zone indicators -->
+                        <rect x="435" y="100" width="90" height="22" fill="#c8e6c9" rx="2"/>
+                        <text x="480" y="115" text-anchor="middle" font-size="9" fill="#666">Buffer: Item 247</text>
+                        
+                        <rect x="435" y="125" width="90" height="22" fill="#c8e6c9" rx="2"/>
+                        <text x="480" y="140" text-anchor="middle" font-size="9" fill="#666">Buffer: Item 248</text>
+                        
+                        <rect x="435" y="150" width="90" height="22" fill="#81c784" rx="2"/>
+                        <text x="480" y="165" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Visible: 249</text>
+                        
+                        <rect x="435" y="175" width="90" height="22" fill="#81c784" rx="2"/>
+                        <text x="480" y="190" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Visible: 250</text>
+                        
+                        <rect x="435" y="200" width="90" height="22" fill="#81c784" rx="2"/>
+                        <text x="480" y="215" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Visible: 251</text>
+                        
+                        <rect x="435" y="225" width="90" height="22" fill="#81c784" rx="2"/>
+                        <text x="480" y="240" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Visible: 252</text>
+                        
+                        <rect x="435" y="250" width="90" height="22" fill="#c8e6c9" rx="2"/>
+                        <text x="480" y="265" text-anchor="middle" font-size="9" fill="#666">Buffer: Item 253</text>
+                        
+                        <!-- Legend -->
+                        <rect x="430" y="300" width="100" height="85" fill="white" stroke="#e0e0e0" stroke-width="1" rx="4"/>
+                        <text x="480" y="318" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Legend</text>
+                        <rect x="440" y="328" width="12" height="12" fill="#81c784"/>
+                        <text x="458" y="338" font-size="9" fill="#666">Visible items</text>
+                        <rect x="440" y="348" width="12" height="12" fill="#c8e6c9"/>
+                        <text x="458" y="358" font-size="9" fill="#666">Buffer zone</text>
+                        <rect x="440" y="368" width="12" height="12" fill="#e0e0e0"/>
+                        <text x="458" y="378" font-size="9" fill="#666">Not rendered</text>
+                        
+                        <!-- Stats box -->
+                        <rect x="70" y="420" width="460" height="65" fill="white" stroke="#e0e0e0" stroke-width="1" rx="4"/>
+                        <text x="300" y="442" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Performance Impact</text>
+                        <text x="180" y="462" text-anchor="middle" font-size="11" fill="#f44336">ScrollView: 1000 items rendered</text>
+                        <text x="420" y="462" text-anchor="middle" font-size="11" fill="#4CAF50">Virtualized: 7 items rendered</text>
+                        <text x="300" y="478" text-anchor="middle" font-size="10" fill="#666">99.3% reduction in render work!</text>
+                    </svg>
+                </div>
+
+                <p>The rendering window consists of three zones:</p>
+
+                <ol>
+                    <li><strong>Visible Zone:</strong> Items currently on screen. These must be rendered.</li>
+                    <li><strong>Buffer Zone:</strong> A few items above and below the visible area, pre-rendered for smooth scrolling.</li>
+                    <li><strong>Virtual Zone:</strong> Everything else—these items exist only as data, not as rendered components.</li>
+                </ol>
+
+                <p>As the user scrolls, items move between zones. Items entering the buffer zone are created; items leaving are destroyed (or more precisely, recycled). This constant recycling is what keeps memory usage stable.</p>
+
+                <pre><code class="language-tsx">// Conceptual pseudocode of virtualization
+function VirtualizedList({ data, renderItem }) {
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [windowHeight, setWindowHeight] = useState(0);
+  
+  // Calculate which items should be rendered
+  const visibleRange = useMemo(() =&gt; {
+    const itemHeight = 50; // Assume fixed height
+    const bufferSize = 5;  // Extra items above/below
+    
+    const firstVisible = Math.floor(scrollPosition / itemHeight);
+    const lastVisible = Math.ceil((scrollPosition + windowHeight) / itemHeight);
+    
+    return {
+      start: Math.max(0, firstVisible - bufferSize),
+      end: Math.min(data.length - 1, lastVisible + bufferSize),
+    };
+  }, [scrollPosition, windowHeight, data.length]);
+  
+  // Only render items in the visible range
+  const itemsToRender = data.slice(visibleRange.start, visibleRange.end + 1);
+  
+  return (
+    &lt;ScrollContainer onScroll={setScrollPosition}&gt;
+      {/* Spacer for items above the window */}
+      &lt;Spacer height={visibleRange.start * itemHeight} /&gt;
+      
+      {/* Actually rendered items */}
+      {itemsToRender.map((item, index) =&gt; 
+        renderItem(item, visibleRange.start + index)
+      )}
+      
+      {/* Spacer for items below the window */}
+      &lt;Spacer height={(data.length - visibleRange.end - 1) * itemHeight} /&gt;
+    &lt;/ScrollContainer&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 The Spacer Trick</h4>
+                    <p>Notice the spacers in the pseudocode. Virtualized lists maintain the correct scroll position and scrollbar size by adding empty space where unrendered items would be. This creates the illusion that all items exist, while only rendering what's needed.</p>
+                </div>
+            </section>
+            <!-- FlatList Preview -->
+            <section id="flatlist-preview">
+                <h2>Preview: Enter FlatList</h2>
+
+                <p>React Native's answer to the ScrollView performance problem is <code>FlatList</code>. It implements the virtualization pattern we just discussed, with a thoughtfully designed API that handles the complexity for you.</p>
+
+                <p>Here's how our problematic contact list transforms with FlatList:</p>
+
+                <pre><code class="language-tsx">// Before: ScrollView (problematic)
+import { ScrollView, View, Text } from 'react-native';
+
+function ContactListOld({ contacts }) {
+  return (
+    &lt;ScrollView&gt;
+      {contacts.map(contact =&gt; (
+        &lt;View key={contact.id} style={styles.contactCard}&gt;
+          &lt;Text&gt;{contact.name}&lt;/Text&gt;
+          &lt;Text&gt;{contact.email}&lt;/Text&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}
+
+// After: FlatList (performant)
+import { FlatList, View, Text } from 'react-native';
+
+function ContactListNew({ contacts }) {
+  return (
+    &lt;FlatList
+      data={contacts}
+      keyExtractor={item =&gt; item.id}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.contactCard}&gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+          &lt;Text&gt;{item.email}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <p>The transformation is minimal—you're essentially moving from a "render everything" pattern to a "render on demand" pattern—but the performance impact is dramatic:</p>
+
+                <pre class="mermaid">
+graph LR
+    subgraph Before["ScrollView: 1000 contacts"]
+        B1["Initial render: ~2000ms"]
+        B2["Memory: ~40MB"]
+        B3["Scroll: Janky"]
+    end
+    
+    subgraph After["FlatList: 1000 contacts"]
+        A1["Initial render: ~50ms"]
+        A2["Memory: ~0.5MB"]
+        A3["Scroll: 60 FPS"]
+    end
+    
+    Before -->|"Same data<br/>Different approach"| After
+    
+    style B1 fill:#ffcdd2
+    style B2 fill:#ffcdd2
+    style B3 fill:#ffcdd2
+    style A1 fill:#c8e6c9
+    style A2 fill:#c8e6c9
+    style A3 fill:#c8e6c9
+                </pre>
+
+                <p>We'll dive deep into FlatList in the next lesson. For now, understand that it solves the fundamental problem we've identified: rendering only what's necessary.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Key API Differences</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">ScrollView</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">FlatList</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>children</code> (JSX)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>data</code> prop (array)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>.map()</code> in render</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>renderItem</code> prop (function)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>key</code> on each item</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>keyExtractor</code> function</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;">You manage everything</td>
+                            <td style="padding: 8px;">FlatList manages virtualization</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h3>Beyond FlatList</h3>
+
+                <p>React Native provides several virtualized list components for different use cases:</p>
+
+                <ul>
+                    <li><strong>FlatList:</strong> The workhorse. Handles most list scenarios.</li>
+                    <li><strong>SectionList:</strong> For grouped data with section headers (like a contacts app with alphabetical sections).</li>
+                    <li><strong>VirtualizedList:</strong> The base component that FlatList and SectionList are built on. Use when you need custom behavior.</li>
+                </ul>
+
+                <p>We'll cover all of these throughout this module, but FlatList is where 90% of your list needs will be met.</p>
+            </section>
+
+            <!-- When ScrollView Is Fine -->
+            <section id="when-scrollview-is-fine">
+                <h2>When ScrollView Is Actually Fine</h2>
+
+                <p>After all this doom and gloom about ScrollView, let's be clear: <strong>ScrollView is a great component</strong>. It's just not the right tool for long, dynamic lists. There are many legitimate use cases where ScrollView is the correct choice.</p>
+
+                <div class="card">
+                    <h4>✅ Good Use Cases for ScrollView</h4>
+                    <ul>
+                        <li><strong>Forms:</strong> A signup form with 10-15 input fields</li>
+                        <li><strong>Settings screens:</strong> A page of toggles and options (typically under 30 items)</li>
+                        <li><strong>Product detail pages:</strong> Images, descriptions, specs, reviews preview</li>
+                        <li><strong>Article content:</strong> Long-form text with embedded images</li>
+                        <li><strong>Dashboard layouts:</strong> Multiple cards/widgets on one screen</li>
+                        <li><strong>Modal content:</strong> Scrollable content in a popup</li>
+                        <li><strong>Fixed, known content:</strong> Help pages, about screens, onboarding</li>
+                    </ul>
+                </div>
+
+                <p>The key question to ask yourself:</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🤔 The Decision Question</h4>
+                    <p style="color: white; font-size: 1.1rem; text-align: center; margin: 0;"><strong>"Is the number of items fixed and small, or dynamic and potentially large?"</strong></p>
+                </div>
+
+                <pre class="mermaid">
+flowchart TD
+    A["Need scrollable content?"] --> B{"How many items?"}
+    B -->|"< 20-30 items<br/>OR<br/>Fixed content"| C["Use ScrollView ✅"]
+    B -->|"30+ items<br/>OR<br/>Dynamic data from API"| D{"Grouped with headers?"}
+    D -->|"No"| E["Use FlatList ✅"]
+    D -->|"Yes"| F["Use SectionList ✅"]
+    
+    C --> G["Examples:<br/>• Settings page<br/>• Form<br/>• Product details"]
+    E --> H["Examples:<br/>• Message list<br/>• Feed<br/>• Search results"]
+    F --> I["Examples:<br/>• Contacts A-Z<br/>• Grouped settings<br/>• Category listing"]
+    
+    style C fill:#c8e6c9
+    style E fill:#c8e6c9
+    style F fill:#c8e6c9
+                </pre>
+
+                <h3>The Gray Zone</h3>
+
+                <p>What about lists with 20-50 items? This is the "gray zone" where either approach might work. Here's how to decide:</p>
+
+                <ul>
+                    <li><strong>Items are simple (text only):</strong> ScrollView might be fine up to 50 items</li>
+                    <li><strong>Items have images:</strong> Use FlatList at 20+ items</li>
+                    <li><strong>Items have complex layouts:</strong> Use FlatList at 15+ items</li>
+                    <li><strong>List can grow:</strong> Always use FlatList (future-proof)</li>
+                    <li><strong>Targeting older devices:</strong> Use FlatList at lower thresholds</li>
+                </ul>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ When in Doubt, Use FlatList</h4>
+                    <p>FlatList works perfectly fine for small lists too—it just renders all items since they fit in the viewport. There's minimal overhead for using FlatList with 10 items, but significant pain if your ScrollView grows to 100. Default to FlatList for any list of data from an external source.</p>
+                </div>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <p>Let's solidify your understanding of ScrollView limitations and the virtualization concept.</p>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Profile the Performance Cliff</h4>
+                    <p>Create a test app that demonstrates the ScrollView performance cliff.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Create a component that renders N items in a ScrollView</li>
+                        <li>Each item should have: an image placeholder (colored View), title, description, and timestamp</li>
+                        <li>Add buttons to test with 10, 50, 100, 500, and 1000 items</li>
+                        <li>Display the render time for each test</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>performance.now()</code> before setting state and <code>requestAnimationFrame</code> after render to measure time. Generate items with <code>Array.from()</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useCallback } from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+
+interface Item {
+  id: number;
+  title: string;
+  description: string;
+  timestamp: string;
+  color: string;
+}
+
+const generateItems = (count: number): Item[] =&gt; {
+  const colors = ['#e91e63', '#9c27b0', '#3f51b5', '#009688', '#ff9800'];
+  return Array.from({ length: count }, (_, i) =&gt; ({
+    id: i,
+    title: `Item ${i + 1}`,
+    description: `This is a detailed description for item number ${i + 1}. It contains enough text to simulate real content.`,
+    timestamp: new Date(Date.now() - i * 60000).toLocaleString(),
+    color: colors[i % colors.length],
+  }));
+};
+
+export default function PerformanceTest() {
+  const [items, setItems] = useState&lt;Item[]&gt;([]);
+  const [renderTime, setRenderTime] = useState&lt;number | null&gt;(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const runTest = useCallback((count: number) =&gt; {
+    setIsLoading(true);
+    setRenderTime(null);
+    
+    const start = performance.now();
+    
+    // Clear first, then set new items
+    setItems([]);
+    
+    setTimeout(() =&gt; {
+      setItems(generateItems(count));
+      
+      // Measure after render completes
+      requestAnimationFrame(() =&gt; {
+        requestAnimationFrame(() =&gt; {
+          const end = performance.now();
+          setRenderTime(end - start);
+          setIsLoading(false);
+        });
+      });
+    }, 50);
+  }, []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      {/* Test Controls */}
+      &lt;View style={styles.controls}&gt;
+        &lt;Text style={styles.title}&gt;ScrollView Performance Test&lt;/Text&gt;
+        
+        &lt;View style={styles.buttonRow}&gt;
+          {[10, 50, 100, 500, 1000].map(count =&gt; (
+            &lt;Pressable
+              key={count}
+              style={[styles.button, isLoading &amp;&amp; styles.buttonDisabled]}
+              onPress={() =&gt; runTest(count)}
+              disabled={isLoading}
+            &gt;
+              &lt;Text style={styles.buttonText}&gt;{count}&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          ))}
+        &lt;/View&gt;
+        
+        {renderTime !== null &amp;&amp; (
+          &lt;View style={[
+            styles.result,
+            renderTime &lt; 100 ? styles.resultGood :
+            renderTime &lt; 500 ? styles.resultWarn :
+            styles.resultBad
+          ]}&gt;
+            &lt;Text style={styles.resultText}&gt;
+              Rendered {items.length} items in {renderTime.toFixed(0)}ms
+            &lt;/Text&gt;
+          &lt;/View&gt;
+        )}
+      &lt;/View&gt;
+      
+      {/* The ScrollView being tested */}
+      &lt;ScrollView style={styles.list}&gt;
+        {items.map(item =&gt; (
+          &lt;View key={item.id} style={styles.item}&gt;
+            &lt;View style={[styles.avatar, { backgroundColor: item.color }]} /&gt;
+            &lt;View style={styles.content}&gt;
+              &lt;Text style={styles.itemTitle}&gt;{item.title}&lt;/Text&gt;
+              &lt;Text style={styles.itemDesc}&gt;{item.description}&lt;/Text&gt;
+              &lt;Text style={styles.itemTime}&gt;{item.timestamp}&lt;/Text&gt;
+            &lt;/View&gt;
+          &lt;/View&gt;
+        ))}
+      &lt;/ScrollView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  controls: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  button: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  buttonDisabled: {
+    backgroundColor: '#bdbdbd',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  result: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  resultGood: {
+    backgroundColor: '#c8e6c9',
+  },
+  resultWarn: {
+    backgroundColor: '#fff3cd',
+  },
+  resultBad: {
+    backgroundColor: '#ffcdd2',
+  },
+  resultText: {
+    fontWeight: 'bold',
+  },
+  list: {
+    flex: 1,
+  },
+  item: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  content: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  itemDesc: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  itemTime: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
+});</code></pre>
+                    </details>
+                </div>
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Memory Impact Analysis</h4>
+                    <p>Analyze how different item complexities affect memory usage.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Create three different item components: Simple (text only), Medium (text + styled container), Complex (text + image + multiple styled views)</li>
+                        <li>Render 200 items of each type in separate ScrollViews</li>
+                        <li>Use React Native's performance monitor to observe memory differences</li>
+                        <li>Document your findings</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Enable the Performance Monitor from the React Native dev menu (shake device or Cmd+D in simulator). Compare memory usage between the three item types. Note how images dramatically increase memory.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState } from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  Image,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+
+type ItemType = 'simple' | 'medium' | 'complex';
+
+// Simple: Just text
+const SimpleItem = ({ index }: { index: number }) =&gt; (
+  &lt;Text style={styles.simpleText}&gt;Item {index + 1}&lt;/Text&gt;
+);
+
+// Medium: Text with styled container
+const MediumItem = ({ index }: { index: number }) =&gt; (
+  &lt;View style={styles.mediumContainer}&gt;
+    &lt;Text style={styles.mediumTitle}&gt;Item {index + 1}&lt;/Text&gt;
+    &lt;Text style={styles.mediumSubtitle}&gt;
+      This is a medium complexity item with some description text
+    &lt;/Text&gt;
+  &lt;/View&gt;
+);
+
+// Complex: Full card with image, multiple text elements, buttons
+const ComplexItem = ({ index }: { index: number }) =&gt; (
+  &lt;View style={styles.complexContainer}&gt;
+    &lt;Image
+      source={{ 
+        uri: `https://picsum.photos/seed/${index}/100/100` 
+      }}
+      style={styles.complexImage}
+    /&gt;
+    &lt;View style={styles.complexContent}&gt;
+      &lt;Text style={styles.complexTitle}&gt;Item {index + 1}&lt;/Text&gt;
+      &lt;Text style={styles.complexSubtitle}&gt;
+        Complex item with image and multiple text elements
+      &lt;/Text&gt;
+      &lt;View style={styles.complexMeta}&gt;
+        &lt;Text style={styles.complexMetaText}&gt;12 likes&lt;/Text&gt;
+        &lt;Text style={styles.complexMetaText}&gt;3 comments&lt;/Text&gt;
+        &lt;Text style={styles.complexMetaText}&gt;Share&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+export default function MemoryAnalysis() {
+  const [itemType, setItemType] = useState&lt;ItemType&gt;('simple');
+  const items = Array.from({ length: 200 }, (_, i) =&gt; i);
+
+  const renderItem = (index: number) =&gt; {
+    switch (itemType) {
+      case 'simple':
+        return &lt;SimpleItem key={index} index={index} /&gt;;
+      case 'medium':
+        return &lt;MediumItem key={index} index={index} /&gt;;
+      case 'complex':
+        return &lt;ComplexItem key={index} index={index} /&gt;;
+    }
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={styles.controls}&gt;
+        &lt;Text style={styles.title}&gt;Memory Impact Analysis&lt;/Text&gt;
+        &lt;Text style={styles.subtitle}&gt;
+          Open Performance Monitor to compare memory usage
+        &lt;/Text&gt;
+        
+        &lt;View style={styles.buttonRow}&gt;
+          {(['simple', 'medium', 'complex'] as ItemType[]).map(type =&gt; (
+            &lt;Pressable
+              key={type}
+              style={[
+                styles.button,
+                itemType === type &amp;&amp; styles.buttonActive,
+              ]}
+              onPress={() =&gt; setItemType(type)}
+            &gt;
+              &lt;Text style={[
+                styles.buttonText,
+                itemType === type &amp;&amp; styles.buttonTextActive,
+              ]}&gt;
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              &lt;/Text&gt;
+            &lt;/Pressable&gt;
+          ))}
+        &lt;/View&gt;
+        
+        &lt;Text style={styles.info}&gt;
+          Rendering 200 {itemType} items
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;ScrollView style={styles.list}&gt;
+        {items.map(renderItem)}
+      &lt;/ScrollView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  controls: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+  },
+  button: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
+  },
+  buttonActive: {
+    backgroundColor: '#2196F3',
+  },
+  buttonText: {
+    fontWeight: '500',
+    color: '#666',
+  },
+  buttonTextActive: {
+    color: 'white',
+  },
+  info: {
+    textAlign: 'center',
+    marginTop: 12,
+    color: '#666',
+  },
+  list: {
+    flex: 1,
+  },
+  // Simple item styles
+  simpleText: {
+    padding: 12,
+    fontSize: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: 'white',
+  },
+  // Medium item styles
+  mediumContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  mediumTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  mediumSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  // Complex item styles
+  complexContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  complexImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#e0e0e0',
+  },
+  complexContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  complexTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  complexSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  complexMeta: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 16,
+  },
+  complexMetaText: {
+    fontSize: 12,
+    color: '#2196F3',
+  },
+});
+
+/*
+Expected findings:
+- Simple: ~10-15 MB
+- Medium: ~20-30 MB  
+- Complex: ~80-150 MB (images are expensive!)
+
+Note: Actual values vary by device and RN version.
+The key insight is how dramatically images increase memory.
+*/</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Decision Practice</h4>
+                    <p>For each scenario, decide whether to use ScrollView or FlatList (or SectionList) and explain why.</p>
+                    
+                    <p><strong>Scenarios:</strong></p>
+                    <ol>
+                        <li>A settings page with 15 toggle options grouped into 3 categories</li>
+                        <li>A social media feed that loads posts from an API, with infinite scroll</li>
+                        <li>A checkout flow with shipping address, payment info, and order summary</li>
+                        <li>A contacts list that could have 5 contacts or 500 contacts</li>
+                        <li>A product details page with images, description, specs table, and reviews preview (showing 3 reviews with a "see all" button)</li>
+                        <li>A chat message history that could grow to thousands of messages</li>
+                        <li>A music app's "Now Playing" queue showing the next 20 songs</li>
+                        <li>An email inbox with categories (Primary, Social, Promotions)</li>
+                    </ol>
+
+                    <details>
+                        <summary>✅ Answers</summary>
+                        <div style="margin-top: 1rem;">
+                            <p><strong>1. Settings page (15 toggles, 3 categories):</strong><br>
+                            <span style="color: #4CAF50;">→ ScrollView</span> - Small, fixed number of items. Categories are static.</p>
+                            
+                            <p><strong>2. Social media feed:</strong><br>
+                            <span style="color: #4CAF50;">→ FlatList</span> - Dynamic data from API, infinite scroll, potentially thousands of posts.</p>
+                            
+                            <p><strong>3. Checkout flow:</strong><br>
+                            <span style="color: #4CAF50;">→ ScrollView</span> - Fixed form content, known sections, not a list of data.</p>
+                            
+                            <p><strong>4. Contacts list (5-500):</strong><br>
+                            <span style="color: #4CAF50;">→ FlatList</span> - Could grow large, and even 500 contacts is beyond ScrollView's comfort zone. FlatList handles small lists fine anyway.</p>
+                            
+                            <p><strong>5. Product details:</strong><br>
+                            <span style="color: #4CAF50;">→ ScrollView</span> - Fixed structure, not rendering a list of dynamic data. The 3 preview reviews are fixed, not the full review list.</p>
+                            
+                            <p><strong>6. Chat messages:</strong><br>
+                            <span style="color: #4CAF50;">→ FlatList (inverted)</span> - Definitely needs virtualization for thousands of messages. Use <code>inverted</code> prop for chat UI.</p>
+                            
+                            <p><strong>7. Now Playing queue (20 songs):</strong><br>
+                            <span style="color: #4CAF50;">→ FlatList or ScrollView</span> - Gray zone. If it's always exactly 20, ScrollView is fine. If the queue can grow, use FlatList. When in doubt, FlatList.</p>
+                            
+                            <p><strong>8. Email inbox with categories:</strong><br>
+                            <span style="color: #4CAF50;">→ SectionList</span> - Grouped data (Primary, Social, Promotions), potentially large lists within each section.</p>
+                        </div>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>In this lesson, you've learned one of the most important performance concepts in React Native development: why ScrollView doesn't scale for long lists and how virtualization solves this problem.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>ScrollView renders everything</strong> — All children are rendered immediately, regardless of visibility</li>
+                        <li><strong>The performance cliff is real</strong> — Apps work fine with small lists, then suddenly fail with larger ones</li>
+                        <li><strong>Memory is the silent killer</strong> — High memory usage causes crashes without warning</li>
+                        <li><strong>Virtualization renders only what's visible</strong> — Plus a small buffer for smooth scrolling</li>
+                        <li><strong>FlatList implements virtualization</strong> — It's the go-to solution for dynamic lists in React Native</li>
+                        <li><strong>ScrollView is still useful</strong> — For forms, settings pages, and fixed content with under ~30 items</li>
+                        <li><strong>When in doubt, use FlatList</strong> — It handles small lists fine and scales to any size</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🔑 The Golden Rule</h4>
+                    <p style="color: white; font-size: 1.1rem; text-align: center; margin: 0;">
+                        <strong>If your list data comes from an API or could grow beyond ~30 items, use FlatList.</strong><br>
+                        <span style="font-size: 0.9rem; opacity: 0.9;">Reserve ScrollView for fixed, known content like forms and settings.</span>
+                    </p>
+                </div>
+
+                <h3>What's Next?</h3>
+
+                <p>Now that you understand <em>why</em> virtualization matters, it's time to learn <em>how</em> to use it effectively. In the next lesson, we'll dive deep into <strong>FlatList fundamentals</strong>—the API, required props, common patterns, and how to avoid the pitfalls that trip up many developers.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m04_l07_organizing_styles_at_scale.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">Organizing Styles at Scale</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m05_l02_flatlist_fundamentals.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">FlatList Fundamentals</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

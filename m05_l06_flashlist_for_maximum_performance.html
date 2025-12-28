@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master FlashList - Shopify's high-performance list component that's up to 10x faster than FlatList">
+    <meta name="author" content="React Native & Expo Course">
+    <title>FlashList for Maximum Performance | Module 5: Lists and Performance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m05_l01_why_scrollview_isnt_enough.html">Module 5</a> &gt;
+            <span>Lesson 5.6</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 5: Lists and Performance</p>
+                <h1>FlashList for Maximum Performance</h1>
+                <p class="lesson-subtitle">Shopify's blazing-fast list component that's up to 10x faster than FlatList</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand why FlashList outperforms FlatList</li>
+                    <li>Install and configure FlashList in your project</li>
+                    <li>Master the key props: estimatedItemSize and overrideItemLayout</li>
+                    <li>Migrate existing FlatLists to FlashList</li>
+                    <li>Use FlashList's performance warnings effectively</li>
+                    <li>Implement masonry layouts for Pinterest-style grids</li>
+                    <li>Know when to use FlashList vs FlatList</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#why-flashlist">Why FlashList?</a></li>
+                        <li><a href="#installation">Installation</a></li>
+                        <li><a href="#basic-usage">Basic Usage</a></li>
+                        <li><a href="#estimated-item-size">The estimatedItemSize Prop</a></li>
+                        <li><a href="#override-item-layout">overrideItemLayout for Variable Heights</a></li>
+                        <li><a href="#recycling">Understanding View Recycling</a></li>
+                        <li><a href="#performance-warnings">Performance Warnings</a></li>
+                        <li><a href="#migration">Migrating from FlatList</a></li>
+                        <li><a href="#masonry">Masonry Layouts</a></li>
+                        <li><a href="#when-to-use">When to Use FlashList</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Why FlashList -->
+            <section id="why-flashlist">
+                <h2>Why FlashList?</h2>
+
+                <p>FlashList is Shopify's drop-in replacement for FlatList, built to solve the fundamental performance limitations of React Native's built-in list components. It uses a technique called <strong>cell recycling</strong> that makes scrolling dramatically smoother.</p>
+
+                <h3>The Problem with FlatList</h3>
+
+                <p>FlatList virtualizes content by mounting and unmounting components as they scroll in and out of view. This approach has limitations:</p>
+
+                <ul>
+                    <li><strong>Mount/unmount overhead:</strong> Creating new React components is expensive</li>
+                    <li><strong>Memory pressure:</strong> Garbage collection spikes cause frame drops</li>
+                    <li><strong>Slow fast-scrolling:</strong> Can't keep up with rapid scroll gestures</li>
+                    <li><strong>Blank content:</strong> White space appears during fast scrolling</li>
+                </ul>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph FlatList["FlatList Approach"]
+        F1["Item scrolls out"] --> F2["Unmount component"]
+        F2 --> F3["Garbage collect"]
+        F4["Item scrolls in"] --> F5["Create new component"]
+        F5 --> F6["Mount & render"]
+    end
+    
+    subgraph FlashList["FlashList Approach"]
+        FL1["Item scrolls out"] --> FL2["Detach from position"]
+        FL2 --> FL3["Recycle cell"]
+        FL4["Item scrolls in"] --> FL3
+        FL3 --> FL5["Update content"]
+        FL5 --> FL6["Attach to new position"]
+    end
+    
+    style F2 fill:#ffcdd2
+    style F3 fill:#ffcdd2
+    style F5 fill:#ffcdd2
+    style FL3 fill:#c8e6c9
+    style FL5 fill:#c8e6c9
+                </pre>
+
+                <h3>FlashList's Solution: Cell Recycling</h3>
+
+                <p>FlashList reuses (recycles) cells instead of creating new ones. When an item scrolls out of view, its cell is updated with new data and moved to a new position—no mounting or unmounting required.</p>
+
+                <!-- SVG: Cell recycling visualization -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 300" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Cell Recycling in Action</text>
+                        
+                        <!-- Phone frame 1 -->
+                        <rect x="50" y="45" width="140" height="220" fill="#fff" stroke="#333" stroke-width="2" rx="12"/>
+                        <text x="120" y="70" text-anchor="middle" font-size="11" fill="#666">Before Scroll</text>
+                        
+                        <!-- Cells 1-5 visible -->
+                        <rect x="60" y="80" width="120" height="30" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="120" y="100" text-anchor="middle" font-size="10" fill="#2e7d32">Cell A → Item 1</text>
+                        
+                        <rect x="60" y="115" width="120" height="30" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <text x="120" y="135" text-anchor="middle" font-size="10" fill="#1565c0">Cell B → Item 2</text>
+                        
+                        <rect x="60" y="150" width="120" height="30" fill="#fff3cd" stroke="#FF9800" stroke-width="1" rx="4"/>
+                        <text x="120" y="170" text-anchor="middle" font-size="10" fill="#e65100">Cell C → Item 3</text>
+                        
+                        <rect x="60" y="185" width="120" height="30" fill="#e1bee7" stroke="#9C27B0" stroke-width="1" rx="4"/>
+                        <text x="120" y="205" text-anchor="middle" font-size="10" fill="#7b1fa2">Cell D → Item 4</text>
+                        
+                        <rect x="60" y="220" width="120" height="30" fill="#ffcdd2" stroke="#f44336" stroke-width="1" rx="4"/>
+                        <text x="120" y="240" text-anchor="middle" font-size="10" fill="#c62828">Cell E → Item 5</text>
+                        
+                        <!-- Arrow -->
+                        <path d="M210,165 L250,165" stroke="#333" stroke-width="3" marker-end="url(#arrowBlack)"/>
+                        <text x="230" y="155" text-anchor="middle" font-size="11" fill="#666">Scroll ↓</text>
+                        
+                        <!-- Phone frame 2 -->
+                        <rect x="270" y="45" width="140" height="220" fill="#fff" stroke="#333" stroke-width="2" rx="12"/>
+                        <text x="340" y="70" text-anchor="middle" font-size="11" fill="#666">After Scroll</text>
+                        
+                        <!-- Cell A recycled to bottom! -->
+                        <rect x="280" y="80" width="120" height="30" fill="#bbdefb" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <text x="340" y="100" text-anchor="middle" font-size="10" fill="#1565c0">Cell B → Item 2</text>
+                        
+                        <rect x="280" y="115" width="120" height="30" fill="#fff3cd" stroke="#FF9800" stroke-width="1" rx="4"/>
+                        <text x="340" y="135" text-anchor="middle" font-size="10" fill="#e65100">Cell C → Item 3</text>
+                        
+                        <rect x="280" y="150" width="120" height="30" fill="#e1bee7" stroke="#9C27B0" stroke-width="1" rx="4"/>
+                        <text x="340" y="170" text-anchor="middle" font-size="10" fill="#7b1fa2">Cell D → Item 4</text>
+                        
+                        <rect x="280" y="185" width="120" height="30" fill="#ffcdd2" stroke="#f44336" stroke-width="1" rx="4"/>
+                        <text x="340" y="205" text-anchor="middle" font-size="10" fill="#c62828">Cell E → Item 5</text>
+                        
+                        <rect x="280" y="220" width="120" height="30" fill="#c8e6c9" stroke="#4CAF50" stroke-width="2" rx="4"/>
+                        <text x="340" y="240" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="bold">Cell A → Item 6</text>
+                        
+                        <!-- Recycling arrow -->
+                        <path d="M120,260 Q120,290 230,290 Q340,290 340,260" stroke="#4CAF50" stroke-width="2" fill="none" stroke-dasharray="5" marker-end="url(#arrowGreen)"/>
+                        <text x="230" y="285" text-anchor="middle" font-size="10" fill="#4CAF50" font-weight="bold">Cell A recycled!</text>
+                        
+                        <!-- Legend -->
+                        <rect x="440" y="80" width="140" height="120" fill="#fff" stroke="#ddd" stroke-width="1" rx="8"/>
+                        <text x="510" y="100" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Key Insight</text>
+                        <text x="450" y="125" font-size="10" fill="#666">Same 5 cells</text>
+                        <text x="450" y="140" font-size="10" fill="#666">render all items.</text>
+                        <text x="450" y="165" font-size="10" fill="#666">No mounting,</text>
+                        <text x="450" y="180" font-size="10" fill="#666">no unmounting!</text>
+                        
+                        <defs>
+                            <marker id="arrowBlack" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+                            </marker>
+                            <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <h3>Performance Comparison</h3>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">⚡ Real-World Benchmarks</h4>
+                    <p style="color: white;">According to Shopify's benchmarks with production apps:</p>
+                    <ul style="color: white;">
+                        <li><strong>5-10x faster</strong> average scroll performance</li>
+                        <li><strong>~50% less memory</strong> usage during scrolling</li>
+                        <li><strong>Near-zero blank areas</strong> during fast scrolling</li>
+                        <li><strong>Consistent 60 FPS</strong> even with complex items</li>
+                    </ul>
+                </div>
+
+                <h3>FlashList is from Shopify</h3>
+
+                <p>FlashList was developed by Shopify's mobile team, who needed better list performance for their production apps with thousands of products. It's now open source and widely adopted in the React Native community.</p>
+
+                <pre><code class="language-bash"># GitHub: https://github.com/Shopify/flash-list
+# Used in production by Shopify, Discord, Coinbase, and many others</code></pre>
+            </section>
+
+            <!-- Installation -->
+            <section id="installation">
+                <h2>Installation</h2>
+
+                <p>FlashList works seamlessly with Expo and bare React Native projects.</p>
+
+                <h3>With Expo</h3>
+
+                <pre><code class="language-bash"># Install with npx expo install (handles version compatibility)
+npx expo install @shopify/flash-list</code></pre>
+
+                <h3>With npm/yarn (Bare React Native)</h3>
+
+                <pre><code class="language-bash"># npm
+npm install @shopify/flash-list
+
+# yarn
+yarn add @shopify/flash-list
+
+# For bare React Native, also run:
+cd ios && pod install</code></pre>
+
+                <h3>Verify Installation</h3>
+
+                <pre><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+
+// If this imports without errors, you're ready to go!
+export default function App() {
+  return (
+    &lt;FlashList
+      data={[{ id: '1', title: 'Hello' }]}
+      renderItem={({ item }) => &lt;Text&gt;{item.title}&lt;/Text&gt;}
+      estimatedItemSize={50}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Requirements</h4>
+                    <ul>
+                        <li><strong>React Native 0.63+</strong> (older versions not supported)</li>
+                        <li><strong>Expo SDK 43+</strong> (if using Expo)</li>
+                        <li><strong>recyclerlistview</strong> is a peer dependency (installed automatically)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Basic Usage -->
+            <section id="basic-usage">
+                <h2>Basic Usage</h2>
+
+                <p>FlashList's API is nearly identical to FlatList, making migration straightforward. The key difference is the required <code>estimatedItemSize</code> prop.</p>
+
+                <h3>Minimal Example</h3>
+
+                <pre><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import { View, Text, StyleSheet } from 'react-native';
+
+interface Item {
+  id: string;
+  title: string;
+}
+
+const DATA: Item[] = Array.from({ length: 1000 }, (_, i) => ({
+  id: String(i),
+  title: `Item ${i + 1}`,
+}));
+
+export default function BasicFlashList() {
+  return (
+    &lt;FlashList
+      data={DATA}
+      renderItem={({ item }) => (
+        &lt;View style={styles.item}&gt;
+          &lt;Text&gt;{item.title}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+      estimatedItemSize={50}  // Required! Approximate height of items
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  item: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+});</code></pre>
+
+                <h3>FlatList vs FlashList Comparison</h3>
+
+                <pre><code class="language-tsx">// FlatList version
+import { FlatList } from 'react-native';
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={(item) => item.id}
+  // getItemLayout is optional but recommended
+  getItemLayout={(data, index) => ({
+    length: 50,
+    offset: 50 * index,
+    index,
+  })}
+/&gt;
+
+// FlashList version
+import { FlashList } from '@shopify/flash-list';
+
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={(item) => item.id}
+  estimatedItemSize={50}  // Required, replaces getItemLayout for most cases
+/&gt;</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Key Differences from FlatList</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">FlatList</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">FlashList</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>getItemLayout</code> (optional)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>estimatedItemSize</code> (required)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Creates/destroys components</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Recycles components</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">No performance warnings</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Built-in performance warnings</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;">No masonry support</td>
+                            <td style="padding: 8px;">Masonry layout built-in</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h3>Common Props</h3>
+
+                <p>FlashList supports most FlatList props plus some unique ones:</p>
+
+                <pre><code class="language-tsx">&lt;FlashList
+  // Standard FlatList props
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={keyExtractor}
+  ListHeaderComponent={Header}
+  ListFooterComponent={Footer}
+  ListEmptyComponent={Empty}
+  ItemSeparatorComponent={Separator}
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}
+  refreshing={isRefreshing}
+  onRefresh={handleRefresh}
+  horizontal={false}
+  numColumns={1}
+  inverted={false}
+  
+  // FlashList-specific props
+  estimatedItemSize={50}              // Required
+  overrideItemLayout={overrideLayout} // For variable heights
+  drawDistance={250}                  // Pixels to render ahead
+/&gt;</code></pre>
+            </section>
+
+            <!-- estimatedItemSize -->
+            <section id="estimated-item-size">
+                <h2>The estimatedItemSize Prop</h2>
+
+                <p>This is FlashList's most important prop. It tells FlashList approximately how tall (or wide, for horizontal lists) your items are. This enables efficient recycling and scroll position calculations.</p>
+
+                <h3>Why It's Required</h3>
+
+                <pre><code class="language-tsx">// FlashList needs to know approximate item sizes to:
+// 1. Calculate how many cells to create
+// 2. Estimate scroll positions
+// 3. Pre-position items before they're measured
+
+// Too small: Creates too many cells, wastes memory
+// Too large: Creates too few cells, shows blank areas
+// Just right: Optimal performance
+
+// The value should be your average item height in pixels
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  estimatedItemSize={72}  // Average item height
+/&gt;</code></pre>
+
+                <h3>How to Calculate estimatedItemSize</h3>
+
+                <pre><code class="language-tsx">// Method 1: Measure your items
+// Use React DevTools or console.log the onLayout event
+const measureItem = (event) => {
+  console.log('Item height:', event.nativeEvent.layout.height);
+};
+
+// Method 2: Calculate from styles
+const styles = StyleSheet.create({
+  item: {
+    paddingVertical: 16,  // 16 * 2 = 32
+    borderBottomWidth: 1,  // 1
+    // Text line height: ~20
+    // Avatar: ~40
+  },
+});
+// Estimated: 32 + 1 + 20 + 40 = ~93, round to 90-100
+
+// Method 3: FlashList tells you!
+// In development, FlashList logs a warning if your estimate is off:
+// "%.1fx%.1f" actual vs "%.1fx%.1f" estimated</code></pre>
+
+                <h3>For Variable Height Items</h3>
+
+                <pre><code class="language-tsx">// If items have different heights, use the AVERAGE height
+// FlashList will measure actual heights as items render
+
+// Example: Chat messages (variable length)
+// Short messages: ~50px
+// Medium messages: ~80px
+// Long messages: ~120px
+// Average: ~75px
+
+&lt;FlashList
+  data={messages}
+  renderItem={renderMessage}
+  estimatedItemSize={75}  // Average, not minimum or maximum
+/&gt;
+
+// FlashList will still handle the variation correctly!</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ estimatedItemSize Best Practices</h4>
+                    <ul>
+                        <li><strong>Measure real items:</strong> Don't guess—measure actual rendered heights</li>
+                        <li><strong>Use the average:</strong> For variable heights, use the average, not min or max</li>
+                        <li><strong>Include separators:</strong> If using ItemSeparatorComponent, include that height</li>
+                        <li><strong>Check warnings:</strong> FlashList will warn you if your estimate is too far off</li>
+                        <li><strong>For grids:</strong> Use item height (including gaps) for numColumns > 1</li>
+                    </ul>
+                </div>
+
+                <h3>Horizontal Lists</h3>
+
+                <pre><code class="language-tsx">// For horizontal lists, estimatedItemSize is the WIDTH
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  horizontal
+  estimatedItemSize={120}  // Width of each item
+/&gt;</code></pre>
+            </section>
+
+            <!-- overrideItemLayout -->
+            <section id="override-item-layout">
+                <h2>overrideItemLayout for Variable Heights</h2>
+
+                <p>When you know item sizes ahead of time (like in a chat with message type metadata), <code>overrideItemLayout</code> gives you even better performance than <code>estimatedItemSize</code> alone.</p>
+
+                <h3>Basic Usage</h3>
+
+                <pre><code class="language-tsx">interface ChatMessage {
+  id: string;
+  type: 'text' | 'image' | 'system';
+  content: string;
+}
+
+// Different message types have different heights
+const MESSAGE_HEIGHTS = {
+  text: 80,
+  image: 200,
+  system: 40,
+};
+
+&lt;FlashList&lt;ChatMessage&gt;
+  data={messages}
+  renderItem={renderMessage}
+  estimatedItemSize={80}  // Still needed as fallback
+  overrideItemLayout={(layout, item) => {
+    // Set the exact size for this item
+    layout.size = MESSAGE_HEIGHTS[item.type];
+  }}
+/&gt;</code></pre>
+
+                <h3>The Layout Object</h3>
+
+                <pre><code class="language-tsx">// overrideItemLayout receives a mutable layout object
+overrideItemLayout={(layout, item, index, maxColumns, extraData) => {
+  // layout.size: Height (or width for horizontal lists)
+  layout.size = calculateHeight(item);
+  
+  // layout.span: How many columns this item spans (for grids)
+  // Default is 1, max is numColumns
+  layout.span = item.isFullWidth ? 2 : 1;
+}}
+
+// Full signature
+type OverrideItemLayout = (
+  layout: {
+    size?: number;
+    span?: number;
+  },
+  item: T,
+  index: number,
+  maxColumns: number,
+  extraData?: any
+) => void;</code></pre>
+
+                <h3>Complete Example with Variable Heights</h3>
+
+                <pre><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import { View, Text, Image, StyleSheet } from 'react-native';
+
+interface FeedItem {
+  id: string;
+  type: 'post' | 'photo' | 'ad' | 'story';
+  content: string;
+  imageUrl?: string;
+}
+
+// Pre-calculated heights for each type
+const HEIGHTS = {
+  post: 120,    // Text post
+  photo: 350,   // Photo post with image
+  ad: 180,      // Advertisement
+  story: 280,   // Story preview
+};
+
+function SocialFeed({ items }: { items: FeedItem[] }) {
+  const renderItem = ({ item }: { item: FeedItem }) => {
+    switch (item.type) {
+      case 'photo':
+        return (
+          &lt;View style={[styles.card, { height: HEIGHTS.photo }]}&gt;
+            &lt;Image source={{ uri: item.imageUrl }} style={styles.image} /&gt;
+            &lt;Text&gt;{item.content}&lt;/Text&gt;
+          &lt;/View&gt;
+        );
+      case 'ad':
+        return (
+          &lt;View style={[styles.card, styles.ad, { height: HEIGHTS.ad }]}&gt;
+            &lt;Text style={styles.adLabel}&gt;Sponsored&lt;/Text&gt;
+            &lt;Text&gt;{item.content}&lt;/Text&gt;
+          &lt;/View&gt;
+        );
+      default:
+        return (
+          &lt;View style={[styles.card, { height: HEIGHTS[item.type] }]}&gt;
+            &lt;Text&gt;{item.content}&lt;/Text&gt;
+          &lt;/View&gt;
+        );
+    }
+  };
+
+  return (
+    &lt;FlashList&lt;FeedItem&gt;
+      data={items}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={180}  // Average of all types
+      overrideItemLayout={(layout, item) => {
+        layout.size = HEIGHTS[item.type];
+      }}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    margin: 8,
+    padding: 12,
+    borderRadius: 8,
+  },
+  image: {
+    width: '100%',
+    height: 250,
+    borderRadius: 8,
+  },
+  ad: {
+    backgroundColor: '#fffde7',
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  adLabel: {
+    fontSize: 12,
+    color: '#f57c00',
+    marginBottom: 8,
+  },
+});</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ When to Use overrideItemLayout</h4>
+                    <p>Use <code>overrideItemLayout</code> when:</p>
+                    <ul>
+                        <li>You know item sizes ahead of time (from metadata)</li>
+                        <li>Items have distinct size categories (text vs image)</li>
+                        <li>You want to avoid layout shifts</li>
+                    </ul>
+                    <p>Don't use it when:</p>
+                    <ul>
+                        <li>Item sizes depend on measured content (text wrapping)</li>
+                        <li>Sizes are truly unpredictable</li>
+                        <li>The calculation would be expensive</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Understanding View Recycling -->
+            <section id="recycling">
+                <h2>Understanding View Recycling</h2>
+
+                <p>Cell recycling is the core innovation that makes FlashList fast. Understanding how it works helps you write better code and avoid common pitfalls.</p>
+
+                <h3>How Recycling Works</h3>
+
+                <pre class="mermaid">
+sequenceDiagram
+    participant User
+    participant FlashList
+    participant CellPool
+    participant UI
+
+    User->>FlashList: Scroll down
+    FlashList->>CellPool: Item 1 scrolled out, return cell
+    CellPool->>CellPool: Store cell for reuse
+    FlashList->>CellPool: Need cell for Item 6
+    CellPool->>FlashList: Return recycled cell (was Item 1)
+    FlashList->>FlashList: Update cell with Item 6 data
+    FlashList->>UI: Position cell at Item 6 location
+    UI->>User: See Item 6 (same cell!)
+                </pre>
+
+                <h3>Recycling Pool</h3>
+
+                <p>FlashList maintains a pool of cells that it reuses. The pool size is determined by <code>estimatedItemSize</code> and the viewport height:</p>
+
+                <pre><code class="language-tsx">// Simplified pool size calculation:
+// poolSize ≈ (viewportHeight / estimatedItemSize) + buffer
+
+// For a 800px viewport with 50px items:
+// poolSize ≈ (800 / 50) + 5 = ~21 cells
+
+// These 21 cells render ALL your items, even if you have 10,000!</code></pre>
+
+                <h3>Implications for Your Code</h3>
+
+                <p>Because cells are recycled, you must be careful about state and effects:</p>
+
+                <pre><code class="language-tsx">// ❌ BAD: Component state persists across items!
+function BadListItem({ item }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Problem: When this cell is recycled for a new item,
+  // isExpanded stays true even though the new item wasn't expanded!
+  
+  return (
+    &lt;Pressable onPress={() => setIsExpanded(!isExpanded)}&gt;
+      &lt;Text&gt;{item.title}&lt;/Text&gt;
+      {isExpanded && &lt;Text&gt;{item.details}&lt;/Text&gt;}
+    &lt;/Pressable&gt;
+  );
+}
+
+// ✅ GOOD: Lift state up or derive from item data
+function GoodListItem({ item, expandedIds, onToggle }) {
+  const isExpanded = expandedIds.has(item.id);
+  
+  return (
+    &lt;Pressable onPress={() => onToggle(item.id)}&gt;
+      &lt;Text&gt;{item.title}&lt;/Text&gt;
+      {isExpanded && &lt;Text&gt;{item.details}&lt;/Text&gt;}
+    &lt;/Pressable&gt;
+  );
+}
+
+// Parent manages the state
+function List() {
+  const [expandedIds, setExpandedIds] = useState(new Set());
+  
+  const toggleExpand = useCallback((id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  return (
+    &lt;FlashList
+      data={items}
+      extraData={expandedIds}  // Important!
+      renderItem={({ item }) => (
+        &lt;GoodListItem
+          item={item}
+          expandedIds={expandedIds}
+          onToggle={toggleExpand}
+        /&gt;
+      )}
+      estimatedItemSize={50}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Cleaning Up on Recycle</h3>
+
+                <pre><code class="language-tsx">// ❌ BAD: Animation state carries over
+function AnimatedItem({ item }) {
+  const animation = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.timing(animation, { toValue: 1, duration: 300 }).start();
+    // When recycled, animation stays at 1 from previous item!
+  }, []); // Empty deps = runs only on mount, not on recycle
+  
+  return &lt;Animated.View style={{ opacity: animation }}&gt;...&lt;/Animated.View&gt;;
+}
+
+// ✅ GOOD: Reset when item changes
+function FixedAnimatedItem({ item }) {
+  const animation = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    // Reset to 0 when item changes (including recycling)
+    animation.setValue(0);
+    Animated.timing(animation, { toValue: 1, duration: 300 }).start();
+  }, [item.id]); // Re-run when item changes
+  
+  return &lt;Animated.View style={{ opacity: animation }}&gt;...&lt;/Animated.View&gt;;
+}</code></pre>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🚨 Recycling Gotchas</h4>
+                    <ul>
+                        <li><strong>Local state persists:</strong> <code>useState</code> values carry over to new items</li>
+                        <li><strong>Refs persist:</strong> <code>useRef</code> values aren't reset</li>
+                        <li><strong>Effects may not re-run:</strong> Empty dependency arrays only run on mount</li>
+                        <li><strong>Animations continue:</strong> Animated values keep their state</li>
+                    </ul>
+                    <p style="margin-top: 0.5rem;"><strong>Solution:</strong> Use <code>item.id</code> in dependency arrays, or lift state to parent components.</p>
+                </div>
+
+                <h3>Using extraData</h3>
+
+                <p>Just like FlatList, <code>extraData</code> tells FlashList to re-render when external state changes:</p>
+
+                <pre><code class="language-tsx">// When selection changes, FlashList needs to know
+const [selectedId, setSelectedId] = useState(null);
+
+&lt;FlashList
+  data={items}
+  extraData={selectedId}  // Triggers re-render when selection changes
+  renderItem={({ item }) => (
+    &lt;Item 
+      item={item} 
+      isSelected={item.id === selectedId}
+      onSelect={setSelectedId}
+    /&gt;
+  )}
+  estimatedItemSize={50}
+/&gt;</code></pre>
+            </section>
+
+            <!-- Performance Warnings -->
+            <section id="performance-warnings">
+                <h2>Performance Warnings</h2>
+
+                <p>FlashList includes built-in performance analysis that warns you about common issues. These warnings only appear in development mode.</p>
+
+                <h3>Types of Warnings</h3>
+
+                <pre><code class="language-tsx">// Warning 1: estimatedItemSize is too different from actual size
+// "%.1fx%.1f" measured vs "%.1fx%.1f" estimated
+// Solution: Adjust estimatedItemSize to match reality
+
+// Warning 2: Too many blanks visible
+// "%.1f%% blank areas visible during scroll"
+// Solution: Increase drawDistance or reduce item complexity
+
+// Warning 3: renderItem is slow
+// "renderItem took %.1fms (target: &lt;16ms)"
+// Solution: Optimize renderItem, use memo()
+
+// Warning 4: Layout changes detected
+// "Item layout changed, this hurts performance"
+// Solution: Use fixed sizes or overrideItemLayout</code></pre>
+
+                <h3>Reading the Performance Overlay</h3>
+
+                <p>FlashList can show a visual overlay with performance metrics:</p>
+
+                <pre><code class="language-tsx">// Enable the performance overlay in development
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  estimatedItemSize={50}
+  // Shows performance stats overlay
+  // Only works in development mode
+  {...(__DEV__ ? { debug: true } : {})}
+/&gt;</code></pre>
+
+                <h3>Common Warnings and Fixes</h3>
+
+                <div class="card">
+                    <h4>📊 Warning Reference</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Warning</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Cause</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Fix</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">"Estimated size differs"</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>estimatedItemSize</code> is wrong</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Measure and update</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">"Blank areas visible"</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Items render too slowly</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Increase <code>drawDistance</code>, simplify items</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">"renderItem slow"</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Complex render logic</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Use <code>memo()</code>, reduce component tree</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">"Layout changed"</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Item size changes after render</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Use <code>overrideItemLayout</code> or fixed sizes</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px;">"Type mismatch"</td>
+                                <td style="padding: 8px;">Different item types not handled</td>
+                                <td style="padding: 8px;">Implement <code>getItemType</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>getItemType for Mixed Content</h3>
+
+                <p>When your list has different types of items, use <code>getItemType</code> to help FlashList recycle efficiently:</p>
+
+                <pre><code class="language-tsx">interface FeedItem {
+  id: string;
+  type: 'post' | 'ad' | 'story';
+  // ...
+}
+
+&lt;FlashList&lt;FeedItem&gt;
+  data={feedItems}
+  renderItem={renderItem}
+  estimatedItemSize={100}
+  // Tell FlashList about different item types
+  getItemType={(item) => item.type}
+/&gt;
+
+// FlashList will now:
+// - Only recycle 'post' cells for other 'post' items
+// - Only recycle 'ad' cells for other 'ad' items
+// - Avoid layout issues from recycling different types</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Why getItemType Matters</h4>
+                    <p>Without <code>getItemType</code>, FlashList might recycle a tall "image post" cell for a short "text post", causing layout jumps. With <code>getItemType</code>, cells are only recycled within their type, ensuring smoother scrolling.</p>
+                </div>
+            </section>
+
+            <!-- Migrating from FlatList -->
+            <section id="migration">
+                <h2>Migrating from FlatList</h2>
+
+                <p>Migrating from FlatList to FlashList is usually straightforward. Here's a step-by-step guide.</p>
+
+                <h3>Step 1: Change the Import</h3>
+
+                <pre><code class="language-tsx">// Before
+import { FlatList } from 'react-native';
+
+// After
+import { FlashList } from '@shopify/flash-list';</code></pre>
+
+                <h3>Step 2: Add estimatedItemSize</h3>
+
+                <pre><code class="language-tsx">// Before
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+/&gt;
+
+// After
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  estimatedItemSize={50}  // Add this!
+/&gt;</code></pre>
+
+                <h3>Step 3: Replace getItemLayout (Optional)</h3>
+
+                <pre><code class="language-tsx">// Before: FlatList with getItemLayout
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  getItemLayout={(data, index) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  })}
+/&gt;
+
+// After: FlashList with overrideItemLayout (if needed)
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  estimatedItemSize={ITEM_HEIGHT}
+  // Only if items have DIFFERENT sizes:
+  overrideItemLayout={(layout, item) => {
+    layout.size = ITEM_HEIGHT;
+  }}
+/&gt;
+
+// OR simply: (for fixed-height items)
+&lt;FlashList
+  data={items}
+  renderItem={renderItem}
+  estimatedItemSize={ITEM_HEIGHT}
+  // estimatedItemSize is enough for fixed heights!
+/&gt;</code></pre>
+
+                <h3>Step 4: Handle Recycling Issues</h3>
+
+                <pre><code class="language-tsx">// Check for local state in list items
+// If you have useState in renderItem, refactor:
+
+// Before
+function ListItem({ item }) {
+  const [liked, setLiked] = useState(item.isLiked);
+  // ❌ State won't update when cell is recycled
+}
+
+// After
+function ListItem({ item, likedIds, onToggleLike }) {
+  const isLiked = likedIds.has(item.id);
+  // ✅ Derived from parent state
+}</code></pre>
+
+                <h3>Step 5: Add getItemType (If Needed)</h3>
+
+                <pre><code class="language-tsx">// If you have different item types, add getItemType
+&lt;FlashList
+  data={mixedItems}
+  renderItem={renderItem}
+  estimatedItemSize={80}
+  getItemType={(item) => {
+    // Return a string identifying the type
+    return item.type; // 'post' | 'ad' | 'header'
+  }}
+/&gt;</code></pre>
+
+                <h3>Migration Checklist</h3>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>📋 FlashList Migration Checklist</h4>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li>☐ Install <code>@shopify/flash-list</code></li>
+                        <li>☐ Change import from FlatList to FlashList</li>
+                        <li>☐ Add <code>estimatedItemSize</code> prop</li>
+                        <li>☐ Remove <code>getItemLayout</code> (use <code>overrideItemLayout</code> if variable heights)</li>
+                        <li>☐ Check for local state in list items (refactor if found)</li>
+                        <li>☐ Add <code>getItemType</code> if list has different item types</li>
+                        <li>☐ Ensure effects/animations reset on item change</li>
+                        <li>☐ Test scrolling performance</li>
+                        <li>☐ Check development warnings</li>
+                    </ul>
+                </div>
+
+                <h3>Props That Work the Same</h3>
+
+                <pre><code class="language-tsx">// These props work identically in FlashList:
+const compatibleProps = {
+  data: items,
+  renderItem: renderItem,
+  keyExtractor: keyExtractor,
+  ListHeaderComponent: Header,
+  ListFooterComponent: Footer,
+  ListEmptyComponent: Empty,
+  ItemSeparatorComponent: Separator,
+  numColumns: 2,
+  horizontal: false,
+  inverted: false,
+  onEndReached: loadMore,
+  onEndReachedThreshold: 0.5,
+  refreshing: isRefreshing,
+  onRefresh: handleRefresh,
+  onScroll: handleScroll,
+  scrollEventThrottle: 16,
+  showsVerticalScrollIndicator: true,
+  contentContainerStyle: styles.container,
+  extraData: selectedId,
+};</code></pre>
+
+                <h3>Props That Don't Exist in FlashList</h3>
+
+                <pre><code class="language-tsx">// These FlatList props are NOT supported in FlashList:
+// - getItemLayout (use overrideItemLayout instead)
+// - windowSize (FlashList manages this automatically)
+// - maxToRenderPerBatch (FlashList manages this)
+// - updateCellsBatchingPeriod (FlashList manages this)
+// - initialNumToRender (use drawDistance instead)
+// - removeClippedSubviews (always on in FlashList)</code></pre>
+            </section>
+
+            <!-- Masonry Layouts -->
+            <section id="masonry">
+                <h2>Masonry Layouts</h2>
+
+                <p>FlashList includes built-in masonry layout support—something FlatList can't do. Masonry layouts are perfect for Pinterest-style grids with variable-height items.</p>
+
+                <h3>Enabling Masonry</h3>
+
+                <pre><code class="language-tsx">import { MasonryFlashList } from '@shopify/flash-list';
+
+// Use MasonryFlashList instead of FlashList
+&lt;MasonryFlashList
+  data={images}
+  numColumns={2}
+  renderItem={renderImage}
+  estimatedItemSize={200}
+/&gt;</code></pre>
+
+                <!-- SVG: Masonry vs Grid comparison -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 320" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="320" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">Regular Grid vs Masonry Layout</text>
+                        
+                        <!-- Regular Grid -->
+                        <text x="150" y="55" text-anchor="middle" font-size="12" fill="#666">FlashList (numColumns=2)</text>
+                        <rect x="50" y="65" width="200" height="230" fill="#fff" stroke="#ddd" stroke-width="1" rx="8"/>
+                        
+                        <!-- Grid items - same height rows -->
+                        <rect x="60" y="75" width="90" height="50" fill="#c8e6c9" rx="4"/>
+                        <rect x="155" y="75" width="90" height="50" fill="#bbdefb" rx="4"/>
+                        
+                        <rect x="60" y="130" width="90" height="50" fill="#fff3cd" rx="4"/>
+                        <rect x="155" y="130" width="90" height="50" fill="#e1bee7" rx="4"/>
+                        
+                        <rect x="60" y="185" width="90" height="50" fill="#ffcdd2" rx="4"/>
+                        <rect x="155" y="185" width="90" height="50" fill="#b2dfdb" rx="4"/>
+                        
+                        <rect x="60" y="240" width="90" height="50" fill="#d1c4e9" rx="4"/>
+                        <rect x="155" y="240" width="90" height="50" fill="#ffe0b2" rx="4"/>
+                        
+                        <!-- Wasted space indicators -->
+                        <text x="105" y="105" text-anchor="middle" font-size="9" fill="#666">Gap</text>
+                        <text x="200" y="160" text-anchor="middle" font-size="9" fill="#666">Gap</text>
+                        
+                        <!-- Masonry Layout -->
+                        <text x="450" y="55" text-anchor="middle" font-size="12" fill="#6200ee" font-weight="bold">MasonryFlashList</text>
+                        <rect x="350" y="65" width="200" height="230" fill="#fff" stroke="#6200ee" stroke-width="2" rx="8"/>
+                        
+                        <!-- Masonry items - packed tightly -->
+                        <rect x="360" y="75" width="90" height="70" fill="#c8e6c9" rx="4"/>
+                        <rect x="455" y="75" width="90" height="45" fill="#bbdefb" rx="4"/>
+                        
+                        <rect x="455" y="125" width="90" height="80" fill="#fff3cd" rx="4"/>
+                        <rect x="360" y="150" width="90" height="55" fill="#e1bee7" rx="4"/>
+                        
+                        <rect x="360" y="210" width="90" height="40" fill="#ffcdd2" rx="4"/>
+                        <rect x="455" y="210" width="90" height="75" fill="#b2dfdb" rx="4"/>
+                        
+                        <rect x="360" y="255" width="90" height="35" fill="#d1c4e9" rx="4"/>
+                        
+                        <!-- Benefit callout -->
+                        <text x="450" y="305" text-anchor="middle" font-size="10" fill="#4CAF50" font-weight="bold">✓ No wasted space!</text>
+                    </svg>
+                </div>
+
+                <h3>Complete Masonry Example</h3>
+
+                <pre><code class="language-tsx">import { MasonryFlashList } from '@shopify/flash-list';
+import { View, Image, Text, Dimensions, StyleSheet } from 'react-native';
+
+interface PinImage {
+  id: string;
+  uri: string;
+  width: number;
+  height: number;
+  title: string;
+}
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const NUM_COLUMNS = 2;
+const GAP = 8;
+const COLUMN_WIDTH = (SCREEN_WIDTH - GAP * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+
+// Generate random heights for demo
+const generatePins = (count: number): PinImage[] =>
+  Array.from({ length: count }, (_, i) => {
+    const aspectRatio = 0.5 + Math.random() * 1; // Random aspect ratio
+    return {
+      id: String(i),
+      uri: `https://picsum.photos/seed/${i}/400/${Math.floor(400 * aspectRatio)}`,
+      width: 400,
+      height: Math.floor(400 * aspectRatio),
+      title: `Pin ${i + 1}`,
+    };
+  });
+
+const PinCard = ({ item }: { item: PinImage }) => {
+  // Calculate height based on aspect ratio
+  const aspectRatio = item.height / item.width;
+  const imageHeight = COLUMN_WIDTH * aspectRatio;
+
+  return (
+    &lt;View style={styles.pinCard}&gt;
+      &lt;Image
+        source={{ uri: item.uri }}
+        style={[styles.pinImage, { height: imageHeight }]}
+        resizeMode="cover"
+      /&gt;
+      &lt;Text style={styles.pinTitle} numberOfLines={2}&gt;
+        {item.title}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+};
+
+export default function PinterestGrid() {
+  const pins = generatePins(50);
+
+  return (
+    &lt;MasonryFlashList
+      data={pins}
+      numColumns={NUM_COLUMNS}
+      renderItem={({ item }) => &lt;PinCard item={item} /&gt;}
+      estimatedItemSize={200}
+      contentContainerStyle={styles.container}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: GAP,
+  },
+  pinCard: {
+    margin: GAP / 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  pinImage: {
+    width: '100%',
+  },
+  pinTitle: {
+    padding: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});</code></pre>
+
+                <h3>MasonryFlashList Props</h3>
+
+                <pre><code class="language-tsx">&lt;MasonryFlashList
+  // All FlashList props work, plus:
+  
+  numColumns={2}                    // Required for masonry
+  
+  // Optional: Customize item placement
+  getColumnFlex={(items, index, maxColumns) => {
+    // Return flex value for each column
+    // Higher value = wider column
+    return 1; // Equal width columns
+  }}
+  
+  // Optional: Override individual item layout
+  overrideItemLayout={(layout, item, index, maxColumns, extraData) => {
+    // You can still override sizes if needed
+    layout.size = calculateHeight(item);
+  }}
+  
+  // Optimize for images
+  optimizeItemArrangement={true}    // Default: true
+  // Arranges items to minimize height differences between columns
+/&gt;</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Masonry Limitations</h4>
+                    <ul>
+                        <li><strong>Horizontal not supported:</strong> Masonry only works vertically</li>
+                        <li><strong>No spans:</strong> Items can't span multiple columns</li>
+                        <li><strong>Different recycling:</strong> Cells recycle within columns, not globally</li>
+                        <li><strong>Height calculation:</strong> You should know item heights beforehand for best results</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- When to Use FlashList -->
+            <section id="when-to-use">
+                <h2>When to Use FlashList</h2>
+
+                <p>FlashList isn't always the right choice. Here's a decision framework to help you choose between FlatList, SectionList, and FlashList.</p>
+
+                <h3>Decision Framework</h3>
+
+                <pre class="mermaid">
+flowchart TD
+    A["Need a scrollable list?"] -->|"Yes"| B{"How many items?"}
+    A -->|"No"| ScrollView["Use ScrollView"]
+    
+    B -->|"< 50 items"| C{"Performance issues?"}
+    B -->|"50-500 items"| D{"Need max performance?"}
+    B -->|"500+ items"| FlashList1["Use FlashList"]
+    
+    C -->|"No"| FlatList1["FlatList is fine"]
+    C -->|"Yes"| D
+    
+    D -->|"No"| E{"Need sections?"}
+    D -->|"Yes"| FlashList2["Use FlashList"]
+    
+    E -->|"No"| FlatList2["Use FlatList"]
+    E -->|"Yes"| F{"Simple sections?"}
+    
+    F -->|"Yes"| SectionList["Use SectionList"]
+    F -->|"No, need performance"| FlashList3["Use FlashList<br/>with getItemType"]
+    
+    style FlashList1 fill:#c8e6c9
+    style FlashList2 fill:#c8e6c9
+    style FlashList3 fill:#c8e6c9
+    style FlatList1 fill:#bbdefb
+    style FlatList2 fill:#bbdefb
+    style SectionList fill:#fff3cd
+                </pre>
+
+                <h3>Use FlashList When...</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ FlashList is the Best Choice</h4>
+                    <ul>
+                        <li><strong>Large datasets:</strong> 500+ items or infinitely scrolling feeds</li>
+                        <li><strong>Complex items:</strong> Each item has images, multiple text views, nested components</li>
+                        <li><strong>Fast scrolling:</strong> Users scroll rapidly through content</li>
+                        <li><strong>Slow devices:</strong> Need to support older/cheaper phones</li>
+                        <li><strong>Masonry layouts:</strong> Pinterest-style variable-height grids</li>
+                        <li><strong>Mixed content:</strong> Different item types in the same list</li>
+                        <li><strong>Memory pressure:</strong> App is memory-constrained</li>
+                    </ul>
+                </div>
+
+                <h3>Stick with FlatList When...</h3>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 FlatList is Sufficient</h4>
+                    <ul>
+                        <li><strong>Small lists:</strong> Under 100 simple items</li>
+                        <li><strong>Local state in items:</strong> Each item manages its own state</li>
+                        <li><strong>Animations on items:</strong> Complex per-item animations that depend on mount/unmount</li>
+                        <li><strong>Legacy code:</strong> Migration effort outweighs benefits</li>
+                        <li><strong>No performance issues:</strong> If it ain't broke, don't fix it</li>
+                        <li><strong>Specific FlatList features:</strong> Need windowSize tuning, etc.</li>
+                    </ul>
+                </div>
+
+                <h3>Use SectionList When...</h3>
+
+                <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>📑 SectionList is Best</h4>
+                    <ul>
+                        <li><strong>Grouped data:</strong> Natural sections with headers (contacts A-Z)</li>
+                        <li><strong>Sticky section headers:</strong> Native sticky header behavior needed</li>
+                        <li><strong>Section footers:</strong> Need to render content after each section</li>
+                        <li><strong>Performance isn't critical:</strong> List is reasonably sized</li>
+                    </ul>
+                    <p style="margin-top: 0.5rem;">Note: FlashList can handle sections with <code>getItemType</code>, but SectionList's API is cleaner for truly sectioned data.</p>
+                </div>
+
+                <h3>Performance Comparison</h3>
+
+                <div class="card">
+                    <h4>📊 Approximate Performance by List Type</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Metric</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">FlatList</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">SectionList</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">FlashList</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Initial render</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Scroll (simple items)</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐⭐</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Scroll (complex items)</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐⭐</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Memory usage</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐⭐</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Fast scroll (blank areas)</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐</td>
+                                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #eee;">⭐⭐⭐⭐⭐</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px;">Ease of use</td>
+                                <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐</td>
+                                <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>FlashList + Sections</h3>
+
+                <p>FlashList doesn't have a built-in SectionList equivalent, but you can implement sections:</p>
+
+                <pre><code class="language-tsx">interface ListItem {
+  type: 'header' | 'item';
+  id: string;
+  title?: string;
+  data?: ItemData;
+}
+
+// Flatten sections into a single array with type markers
+const flattenSections = (sections: Section[]): ListItem[] => {
+  return sections.flatMap(section => [
+    { type: 'header', id: `header-${section.title}`, title: section.title },
+    ...section.data.map(item => ({ 
+      type: 'item', 
+      id: item.id, 
+      data: item 
+    })),
+  ]);
+};
+
+function SectionedFlashList({ sections }) {
+  const flatData = useMemo(() => flattenSections(sections), [sections]);
+
+  return (
+    &lt;FlashList
+      data={flatData}
+      renderItem={({ item }) => {
+        if (item.type === 'header') {
+          return &lt;SectionHeader title={item.title} /&gt;;
+        }
+        return &lt;ListItem data={item.data} /&gt;;
+      }}
+      getItemType={(item) => item.type}
+      estimatedItemSize={60}
+      stickyHeaderIndices={
+        flatData
+          .map((item, index) => item.type === 'header' ? index : null)
+          .filter(index => index !== null) as number[]
+      }
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Hybrid Approach</h3>
+
+                <pre><code class="language-tsx">// Use different components based on list size
+function SmartList({ items, ...props }) {
+  // For small lists, FlatList is fine
+  if (items.length < 100) {
+    return &lt;FlatList data={items} {...props} /&gt;;
+  }
+  
+  // For large lists, use FlashList
+  return (
+    &lt;FlashList 
+      data={items} 
+      estimatedItemSize={50}
+      {...props} 
+    /&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <p>Practice using FlashList with these real-world scenarios.</p>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Migrate a FlatList to FlashList</h4>
+                    <p>Migrate this FlatList to FlashList and fix any issues.</p>
+                    
+                    <pre><code class="language-tsx">// Current FlatList implementation - migrate this!
+function ContactList() {
+  const [contacts, setContacts] = useState(generateContacts(500));
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  return (
+    &lt;FlatList
+      data={contacts}
+      keyExtractor={(item) => item.id}
+      getItemLayout={(data, index) => ({
+        length: 72,
+        offset: 72 * index,
+        index,
+      })}
+      renderItem={({ item }) => (
+        &lt;ContactItem
+          contact={item}
+          isSelected={selectedIds.has(item.id)}
+          onToggleSelect={(id) => {
+            setSelectedIds(prev => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            });
+          }}
+        /&gt;
+      )}
+    /&gt;
+  );
+}
+
+function ContactItem({ contact, isSelected, onToggleSelect }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    &lt;Pressable onPress={() => onToggleSelect(contact.id)}&gt;
+      &lt;View style={[styles.item, isSelected && styles.selected]}&gt;
+        &lt;Text&gt;{contact.name}&lt;/Text&gt;
+        &lt;Pressable onPress={() => setIsExpanded(!isExpanded)}&gt;
+          &lt;Text&gt;{isExpanded ? '▲' : '▼'}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+      {isExpanded && &lt;Text&gt;{contact.details}&lt;/Text&gt;}
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Watch out for: the local <code>isExpanded</code> state in ContactItem will cause bugs with recycling. Lift it up to the parent component like <code>selectedIds</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import React, { useState, useCallback, memo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+
+interface Contact {
+  id: string;
+  name: string;
+  details: string;
+}
+
+// Memoized item component - no local state!
+const ContactItem = memo(function ContactItem({ 
+  contact, 
+  isSelected, 
+  isExpanded,
+  onToggleSelect,
+  onToggleExpand,
+}: { 
+  contact: Contact;
+  isSelected: boolean;
+  isExpanded: boolean;
+  onToggleSelect: (id: string) => void;
+  onToggleExpand: (id: string) => void;
+}) {
+  return (
+    &lt;Pressable onPress={() => onToggleSelect(contact.id)}&gt;
+      &lt;View style={[styles.item, isSelected && styles.selected]}&gt;
+        &lt;Text style={styles.name}&gt;{contact.name}&lt;/Text&gt;
+        &lt;Pressable 
+          onPress={() => onToggleExpand(contact.id)}
+          hitSlop={8}
+        &gt;
+          &lt;Text style={styles.expandIcon}&gt;{isExpanded ? '▲' : '▼'}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+      {isExpanded && (
+        &lt;View style={styles.details}&gt;
+          &lt;Text&gt;{contact.details}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/Pressable&gt;
+  );
+});
+
+const generateContacts = (count: number): Contact[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: String(i),
+    name: `Contact ${i + 1}`,
+    details: `Email: contact${i + 1}@example.com\nPhone: 555-${String(i).padStart(4, '0')}`,
+  }));
+
+export default function ContactList() {
+  const [contacts] = useState(() => generateContacts(500));
+  const [selectedIds, setSelectedIds] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+  const [expandedIds, setExpandedIds] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Lifted expand state to parent!
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const renderItem = useCallback(({ item }: { item: Contact }) => (
+    &lt;ContactItem
+      contact={item}
+      isSelected={selectedIds.has(item.id)}
+      isExpanded={expandedIds.has(item.id)}
+      onToggleSelect={toggleSelect}
+      onToggleExpand={toggleExpand}
+    /&gt;
+  ), [selectedIds, expandedIds, toggleSelect, toggleExpand]);
+
+  return (
+    &lt;FlashList
+      data={contacts}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={72}
+      extraData={{ selectedIds, expandedIds }}
+      renderItem={renderItem}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    height: 72,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  selected: {
+    backgroundColor: '#e3f2fd',
+  },
+  name: {
+    fontSize: 16,
+    flex: 1,
+  },
+  expandIcon: {
+    fontSize: 12,
+    color: '#666',
+    padding: 8,
+  },
+  details: {
+    padding: 16,
+    paddingTop: 0,
+    backgroundColor: '#fafafa',
+  },
+});</code></pre>
+                        
+                        <p><strong>Key changes:</strong></p>
+                        <ol>
+                            <li>Changed FlatList to FlashList</li>
+                            <li>Replaced <code>getItemLayout</code> with <code>estimatedItemSize</code></li>
+                            <li>Lifted <code>isExpanded</code> state from ContactItem to parent</li>
+                            <li>Added <code>expandedIds</code> Set to track expanded items</li>
+                            <li>Updated <code>extraData</code> to include both state Sets</li>
+                            <li>Memoized ContactItem with <code>memo()</code></li>
+                            <li>Memoized callbacks with <code>useCallback</code></li>
+                        </ol>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Product Catalog with Mixed Types</h4>
+                    <p>Build a product catalog with regular products and featured products (larger cards).</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Regular products: 100px height</li>
+                        <li>Featured products: 200px height with larger image</li>
+                        <li>Use <code>getItemType</code> for efficient recycling</li>
+                        <li>Use <code>overrideItemLayout</code> to specify heights</li>
+                        <li>Mixed data with ~20% featured products</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Create a <code>Product</code> interface with a <code>featured</code> boolean. Use <code>getItemType</code> to return "featured" or "regular". Use <code>overrideItemLayout</code> to set the correct height.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import React, { memo, useCallback } from 'react';
+import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  featured: boolean;
+}
+
+const REGULAR_HEIGHT = 100;
+const FEATURED_HEIGHT = 200;
+
+// Generate mixed product data
+const generateProducts = (count: number): Product[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: String(i),
+    name: `Product ${i + 1}`,
+    price: 9.99 + Math.random() * 90,
+    image: `https://picsum.photos/seed/${i}/200`,
+    featured: Math.random() < 0.2, // 20% featured
+  }));
+
+const RegularProduct = memo(({ product }: { product: Product }) => (
+  &lt;View style={styles.regularCard}&gt;
+    &lt;Image source={{ uri: product.image }} style={styles.regularImage} /&gt;
+    &lt;View style={styles.productInfo}&gt;
+      &lt;Text style={styles.productName} numberOfLines={2}&gt;{product.name}&lt;/Text&gt;
+      &lt;Text style={styles.productPrice}&gt;${product.price.toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+));
+
+const FeaturedProduct = memo(({ product }: { product: Product }) => (
+  &lt;View style={styles.featuredCard}&gt;
+    &lt;View style={styles.featuredBadge}&gt;
+      &lt;Text style={styles.badgeText}&gt;⭐ Featured&lt;/Text&gt;
+    &lt;/View&gt;
+    &lt;Image source={{ uri: product.image }} style={styles.featuredImage} /&gt;
+    &lt;View style={styles.featuredInfo}&gt;
+      &lt;Text style={styles.featuredName}&gt;{product.name}&lt;/Text&gt;
+      &lt;Text style={styles.featuredPrice}&gt;${product.price.toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+));
+
+export default function ProductCatalog() {
+  const products = React.useMemo(() => generateProducts(100), []);
+
+  const renderItem = useCallback(({ item }: { item: Product }) => {
+    if (item.featured) {
+      return &lt;FeaturedProduct product={item} /&gt;;
+    }
+    return &lt;RegularProduct product={item} /&gt;;
+  }, []);
+
+  // Calculate average for estimatedItemSize
+  const featuredCount = products.filter(p => p.featured).length;
+  const avgHeight = (
+    (featuredCount * FEATURED_HEIGHT) + 
+    ((products.length - featuredCount) * REGULAR_HEIGHT)
+  ) / products.length;
+
+  return (
+    &lt;FlashList&lt;Product&gt;
+      data={products}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={avgHeight}
+      getItemType={(item) => (item.featured ? 'featured' : 'regular')}
+      overrideItemLayout={(layout, item) => {
+        layout.size = item.featured ? FEATURED_HEIGHT : REGULAR_HEIGHT;
+      }}
+      contentContainerStyle={styles.container}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 12,
+  },
+  regularCard: {
+    height: REGULAR_HEIGHT - 12, // Account for margin
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  regularImage: {
+    width: 88,
+    height: '100%',
+  },
+  productInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6200ee',
+    marginTop: 4,
+  },
+  featuredCard: {
+    height: FEATURED_HEIGHT - 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#ffc107',
+  },
+  featuredBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ffc107',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    zIndex: 1,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  featuredImage: {
+    width: '100%',
+    height: 120,
+  },
+  featuredInfo: {
+    padding: 12,
+  },
+  featuredName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  featuredPrice: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#6200ee',
+    marginTop: 4,
+  },
+});</code></pre>
+                    </details>
+                </div>
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Pinterest-Style Masonry Gallery</h4>
+                    <p>Build an image gallery with variable-height images using MasonryFlashList.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>2-column masonry layout</li>
+                        <li>Images with varying aspect ratios</li>
+                        <li>Image title overlay at the bottom</li>
+                        <li>Tap to "like" with heart indicator</li>
+                        <li>Pull-to-refresh to load new images</li>
+                        <li>Infinite scroll to load more</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>MasonryFlashList</code> with <code>numColumns={2}</code>. Calculate image height from aspect ratio. Track liked images in parent state using a Set.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import { MasonryFlashList } from '@shopify/flash-list';
+import React, { useState, useCallback, memo } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  Pressable,
+  Dimensions,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+
+interface Pin {
+  id: string;
+  imageUrl: string;
+  title: string;
+  aspectRatio: number; // height / width
+}
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const NUM_COLUMNS = 2;
+const GAP = 8;
+const COLUMN_WIDTH = (SCREEN_WIDTH - GAP * 3) / NUM_COLUMNS;
+
+// Generate random pins
+const generatePins = (startId: number, count: number): Pin[] =>
+  Array.from({ length: count }, (_, i) => {
+    const id = startId + i;
+    const aspectRatio = 0.6 + Math.random() * 0.8; // 0.6 to 1.4
+    return {
+      id: String(id),
+      imageUrl: `https://picsum.photos/seed/${id}/400/${Math.floor(400 * aspectRatio)}`,
+      title: `Beautiful Photo ${id + 1}`,
+      aspectRatio,
+    };
+  });
+
+const PinCard = memo(function PinCard({
+  pin,
+  isLiked,
+  onToggleLike,
+}: {
+  pin: Pin;
+  isLiked: boolean;
+  onToggleLike: (id: string) => void;
+}) {
+  const imageHeight = COLUMN_WIDTH * pin.aspectRatio;
+
+  return (
+    &lt;Pressable 
+      style={styles.pinCard}
+      onPress={() => onToggleLike(pin.id)}
+    &gt;
+      &lt;Image
+        source={{ uri: pin.imageUrl }}
+        style={[styles.pinImage, { height: imageHeight }]}
+        resizeMode="cover"
+      /&gt;
+      &lt;View style={styles.overlay}&gt;
+        &lt;Text style={styles.pinTitle} numberOfLines={2}&gt;
+          {pin.title}
+        &lt;/Text&gt;
+        &lt;Text style={styles.heartIcon}&gt;
+          {isLiked ? '❤️' : '🤍'}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+export default function MasonryGallery() {
+  const [pins, setPins] = useState&lt;Pin[]&gt;(() => generatePins(0, 20));
+  const [likedIds, setLikedIds] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const toggleLike = useCallback((id: string) => {
+    setLikedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Simulate API call
+    await new Promise(r => setTimeout(r, 1000));
+    setPins(generatePins(Math.floor(Math.random() * 1000), 20));
+    setRefreshing(false);
+  }, []);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore) return;
+    
+    setLoadingMore(true);
+    // Simulate API call
+    await new Promise(r => setTimeout(r, 800));
+    setPins(prev => [...prev, ...generatePins(prev.length, 10)]);
+    setLoadingMore(false);
+  }, [loadingMore]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Pin }) => (
+      &lt;PinCard
+        pin={item}
+        isLiked={likedIds.has(item.id)}
+        onToggleLike={toggleLike}
+      /&gt;
+    ),
+    [likedIds, toggleLike]
+  );
+
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      &lt;View style={styles.footer}&gt;
+        &lt;ActivityIndicator color="#6200ee" /&gt;
+      &lt;/View&gt;
+    );
+  }, [loadingMore]);
+
+  return (
+    &lt;MasonryFlashList&lt;Pin&gt;
+      data={pins}
+      numColumns={NUM_COLUMNS}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={200}
+      extraData={likedIds}
+      contentContainerStyle={styles.container}
+      refreshControl={
+        &lt;RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#6200ee"
+          colors={['#6200ee']}
+        /&gt;
+      }
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: GAP,
+  },
+  pinCard: {
+    margin: GAP / 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  pinImage: {
+    width: '100%',
+  },
+  overlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    padding: 8,
+    paddingTop: 24,
+    background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  pinTitle: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  heartIcon: {
+    fontSize: 18,
+  },
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <h4>Exercise 4: Performance Comparison</h4>
+                    <p>Create identical lists with FlatList and FlashList, then compare performance.</p>
+                    
+                    <p><strong>Tasks:</strong></p>
+                    <ol>
+                        <li>Create a list with 1000 complex items (image + multiple text views)</li>
+                        <li>Build the same list with both FlatList and FlashList</li>
+                        <li>Enable the performance monitor</li>
+                        <li>Scroll rapidly through both lists</li>
+                        <li>Note the FPS differences and blank areas</li>
+                    </ol>
+                    
+                    <p><strong>Record your findings:</strong></p>
+                    <ul>
+                        <li>FlatList JS FPS during scroll: ___</li>
+                        <li>FlashList JS FPS during scroll: ___</li>
+                        <li>FlatList blank areas visible: Yes / No</li>
+                        <li>FlashList blank areas visible: Yes / No</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Expected Results</summary>
+                        <p>On most devices, you should see:</p>
+                        <ul>
+                            <li><strong>FlatList:</strong> 30-50 FPS during fast scroll, visible blank areas</li>
+                            <li><strong>FlashList:</strong> 55-60 FPS during fast scroll, minimal/no blank areas</li>
+                        </ul>
+                        <p>The difference is most noticeable on:</p>
+                        <ul>
+                            <li>Older/lower-end devices</li>
+                            <li>Complex items with images</li>
+                            <li>Very fast scrolling</li>
+                        </ul>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've learned FlashList—the high-performance alternative to FlatList that can transform your app's scrolling experience.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>Cell recycling:</strong> FlashList reuses cells instead of mount/unmount, dramatically reducing overhead</li>
+                        <li><strong>estimatedItemSize:</strong> Required prop—use average item height for best results</li>
+                        <li><strong>overrideItemLayout:</strong> For known variable heights, specify exact sizes</li>
+                        <li><strong>getItemType:</strong> Essential for mixed content lists to recycle efficiently</li>
+                        <li><strong>No local state:</strong> Avoid useState in list items—lift state up instead</li>
+                        <li><strong>MasonryFlashList:</strong> Built-in Pinterest-style layouts</li>
+                        <li><strong>Performance warnings:</strong> FlashList tells you when something's wrong</li>
+                        <li><strong>Easy migration:</strong> API is nearly identical to FlatList</li>
+                    </ul>
+                </div>
+
+                <h3>FlashList Quick Reference</h3>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Required["Required Props"]
+        R1["data"]
+        R2["renderItem"]
+        R3["estimatedItemSize"]
+    end
+    
+    subgraph Recommended["Recommended Props"]
+        O1["keyExtractor"]
+        O2["getItemType<br/>(for mixed types)"]
+        O3["overrideItemLayout<br/>(for known heights)"]
+    end
+    
+    subgraph Gotchas["Avoid"]
+        G1["❌ Local state in items"]
+        G2["❌ Animations without reset"]
+        G3["❌ Wrong estimatedItemSize"]
+    end
+    
+    style R1 fill:#c8e6c9
+    style R2 fill:#c8e6c9
+    style R3 fill:#c8e6c9
+    style O1 fill:#bbdefb
+    style O2 fill:#bbdefb
+    style O3 fill:#bbdefb
+    style G1 fill:#ffcdd2
+    style G2 fill:#ffcdd2
+    style G3 fill:#ffcdd2
+                </pre>
+
+                <h3>Props Comparison</h3>
+
+                <div class="card">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">FlatList Prop</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">FlashList Equivalent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>getItemLayout</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>estimatedItemSize</code> + <code>overrideItemLayout</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>windowSize</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Automatic (use <code>drawDistance</code>)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>maxToRenderPerBatch</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">Automatic</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>initialNumToRender</code></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><code>drawDistance</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px;">(none)</td>
+                                <td style="padding: 8px;"><code>getItemType</code> (new feature)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🚀 What's Next?</h4>
+                    <p style="color: white;">Congratulations! You've completed Module 5: Lists and Performance! You now have a complete toolkit for building high-performance lists in React Native—from basic FlatList to optimized FlashList and everything in between.</p>
+                    <p style="color: white; margin-top: 1rem;">Next up is <strong>Module 6: Navigation</strong>, where you'll learn to build multi-screen apps with React Navigation, including stack navigation, tabs, drawers, and deep linking.</p>
+                </div>
+
+                <h3>Module 5 Recap</h3>
+
+                <div class="card">
+                    <h4>📚 What You Learned in Module 5</h4>
+                    <ol>
+                        <li><strong>Lesson 5.1:</strong> Why ScrollView Isn't Enough — The problem with rendering all items</li>
+                        <li><strong>Lesson 5.2:</strong> FlatList Fundamentals — Core props, renderItem, keyExtractor</li>
+                        <li><strong>Lesson 5.3:</strong> FlatList Performance — getItemLayout, memoization, optimization</li>
+                        <li><strong>Lesson 5.4:</strong> FlatList Features — Refresh, infinite scroll, scroll methods</li>
+                        <li><strong>Lesson 5.5:</strong> SectionList — Grouped data with section headers</li>
+                        <li><strong>Lesson 5.6:</strong> FlashList — Maximum performance with cell recycling</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m05_l05_sectionlist_for_grouped_data.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">SectionList for Grouped Data</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m06_l01_introduction_to_react_navigation.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next Module</span>
+                        <span class="nav-title">Introduction to React Navigation</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

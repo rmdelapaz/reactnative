@@ -1,0 +1,2388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master FlatList fundamentals - the essential virtualized list component for performant React Native apps">
+    <meta name="author" content="React Native & Expo Course">
+    <title>FlatList Fundamentals | Module 5: Lists and Performance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m05_l01_why_scrollview_isnt_enough.html">Module 5</a> &gt;
+            <span>Lesson 5.2</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 5: Lists and Performance</p>
+                <h1>FlatList Fundamentals</h1>
+                <p class="lesson-subtitle">Your go-to component for performant lists of any size</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand the FlatList API and its required props</li>
+                    <li>Implement proper key extraction for optimal performance</li>
+                    <li>Master the renderItem pattern and its parameters</li>
+                    <li>Add headers, footers, separators, and empty states</li>
+                    <li>Handle common FlatList gotchas that trip up developers</li>
+                    <li>Build real-world list patterns from scratch</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#flatlist-anatomy">FlatList Anatomy</a></li>
+                        <li><a href="#required-props">The Required Props</a></li>
+                        <li><a href="#key-extraction">Key Extraction Deep Dive</a></li>
+                        <li><a href="#render-item">The renderItem Function</a></li>
+                        <li><a href="#list-chrome">List Chrome: Headers, Footers, and More</a></li>
+                        <li><a href="#empty-states">Handling Empty States</a></li>
+                        <li><a href="#item-separators">Item Separators</a></li>
+                        <li><a href="#horizontal-lists">Horizontal Lists</a></li>
+                        <li><a href="#common-gotchas">Common Gotchas</a></li>
+                        <li><a href="#typescript-patterns">TypeScript Patterns</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- FlatList Anatomy -->
+            <section id="flatlist-anatomy">
+                <h2>FlatList Anatomy</h2>
+
+                <p>FlatList might look simple at first glance, but it's a sophisticated component with many moving parts. Before diving into the API, let's understand its overall structure and how the pieces fit together.</p>
+
+                <!-- SVG: FlatList anatomy diagram -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 520" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="520" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="300" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#333">FlatList Anatomy</text>
+                        
+                        <!-- Main FlatList container -->
+                        <rect x="100" y="50" width="400" height="440" fill="white" stroke="#333" stroke-width="2" rx="8"/>
+                        <text x="120" y="75" font-size="12" fill="#666">&lt;FlatList&gt;</text>
+                        
+                        <!-- ListHeaderComponent -->
+                        <rect x="120" y="90" width="360" height="50" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="4"/>
+                        <text x="300" y="120" text-anchor="middle" font-size="14" font-weight="bold" fill="#1565c0">ListHeaderComponent</text>
+                        <text x="490" y="120" font-size="20" fill="#2196F3">→</text>
+                        <text x="510" y="120" font-size="10" fill="#666">Optional header</text>
+                        
+                        <!-- Rendered items area -->
+                        <rect x="120" y="150" width="360" height="220" fill="#fafafa" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4" rx="4"/>
+                        <text x="130" y="170" font-size="10" fill="#999">Virtualized render window</text>
+                        
+                        <!-- Item 1 -->
+                        <rect x="130" y="180" width="340" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="150" y="205" font-size="12" fill="#333">renderItem({ item, index: 0 })</text>
+                        
+                        <!-- Separator -->
+                        <rect x="130" y="222" width="340" height="2" fill="#ffecb3"/>
+                        <text x="490" y="227" font-size="10" fill="#ff8f00">← ItemSeparator</text>
+                        
+                        <!-- Item 2 -->
+                        <rect x="130" y="226" width="340" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="150" y="251" font-size="12" fill="#333">renderItem({ item, index: 1 })</text>
+                        
+                        <!-- Separator -->
+                        <rect x="130" y="268" width="340" height="2" fill="#ffecb3"/>
+                        
+                        <!-- Item 3 -->
+                        <rect x="130" y="272" width="340" height="40" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="150" y="297" font-size="12" fill="#333">renderItem({ item, index: 2 })</text>
+                        
+                        <!-- Separator -->
+                        <rect x="130" y="314" width="340" height="2" fill="#ffecb3"/>
+                        
+                        <!-- Item 4 (partial/buffer) -->
+                        <rect x="130" y="318" width="340" height="40" fill="#e8f5e9" stroke="#81c784" stroke-width="1" stroke-dasharray="3" rx="4"/>
+                        <text x="150" y="343" font-size="12" fill="#666">renderItem({ item, index: 3 }) - buffer</text>
+                        
+                        <!-- ListFooterComponent -->
+                        <rect x="120" y="380" width="360" height="50" fill="#fce4ec" stroke="#e91e63" stroke-width="2" rx="4"/>
+                        <text x="300" y="410" text-anchor="middle" font-size="14" font-weight="bold" fill="#c2185b">ListFooterComponent</text>
+                        <text x="490" y="410" font-size="20" fill="#e91e63">→</text>
+                        <text x="510" y="410" font-size="10" fill="#666">Optional footer</text>
+                        
+                        <!-- ListEmptyComponent note -->
+                        <rect x="120" y="440" width="360" height="35" fill="#fff3e0" stroke="#ff9800" stroke-width="1" stroke-dasharray="4" rx="4"/>
+                        <text x="300" y="462" text-anchor="middle" font-size="11" fill="#e65100">ListEmptyComponent (shown when data=[])</text>
+                        
+                        <!-- Data flow annotation -->
+                        <path d="M80,200 L100,200" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                        <text x="20" y="190" font-size="10" fill="#4CAF50" font-weight="bold">data</text>
+                        <text x="20" y="202" font-size="10" fill="#4CAF50">array</text>
+                        <text x="20" y="214" font-size="9" fill="#666">↓</text>
+                        <text x="10" y="226" font-size="9" fill="#666">keyExtractor</text>
+                        
+                        <defs>
+                            <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                        </defs>
+                        
+                        <!-- Scroll indicator -->
+                        <rect x="485" y="180" width="6" height="180" fill="#e0e0e0" rx="3"/>
+                        <rect x="485" y="180" width="6" height="60" fill="#bdbdbd" rx="3"/>
+                        <text x="500" y="270" font-size="9" fill="#666" transform="rotate(90, 500, 270)">scrollable</text>
+                    </svg>
+                </div>
+
+                <p>Every FlatList consists of these conceptual parts:</p>
+
+                <ul>
+                    <li><strong>Data source:</strong> The array of items to render</li>
+                    <li><strong>Key extractor:</strong> How to uniquely identify each item</li>
+                    <li><strong>Render function:</strong> How to turn each data item into UI</li>
+                    <li><strong>List chrome:</strong> Optional headers, footers, separators</li>
+                    <li><strong>Empty state:</strong> What to show when there's no data</li>
+                    <li><strong>Virtualization engine:</strong> The magic that makes it all performant (handled internally)</li>
+                </ul>
+
+                <p>Let's explore each of these in detail.</p>
+            </section>
+
+            <!-- Required Props -->
+            <section id="required-props">
+                <h2>The Required Props</h2>
+
+                <p>FlatList has only two truly required props, but understanding them deeply is essential for building performant lists.</p>
+
+                <pre><code class="language-tsx">import { FlatList } from 'react-native';
+
+// Minimal FlatList - just data and renderItem
+&lt;FlatList
+  data={myArray}
+  renderItem={({ item }) =&gt; &lt;ItemComponent item={item} /&gt;}
+/&gt;</code></pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Two Required Props</h4>
+                    <p style="color: white;"><strong>data:</strong> An array of items to render. Can be any shape—FlatList doesn't care what's inside.</p>
+                    <p style="color: white;"><strong>renderItem:</strong> A function that receives each item and returns a React element to display.</p>
+                </div>
+
+                <h3>The data Prop</h3>
+
+                <p>The <code>data</code> prop accepts any array. FlatList iterates through it, passing each element to your <code>renderItem</code> function:</p>
+
+                <pre><code class="language-tsx">// Simple array of strings
+const names = ['Alice', 'Bob', 'Charlie'];
+
+&lt;FlatList
+  data={names}
+  renderItem={({ item }) =&gt; &lt;Text&gt;{item}&lt;/Text&gt;}
+/&gt;
+
+// Array of objects (most common)
+const users = [
+  { id: '1', name: 'Alice', email: 'alice@example.com' },
+  { id: '2', name: 'Bob', email: 'bob@example.com' },
+  { id: '3', name: 'Charlie', email: 'charlie@example.com' },
+];
+
+&lt;FlatList
+  data={users}
+  renderItem={({ item }) =&gt; (
+    &lt;View&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;Text&gt;{item.email}&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+/&gt;
+
+// Array from API response
+const [posts, setPosts] = useState&lt;Post[]&gt;([]);
+
+useEffect(() =&gt; {
+  fetchPosts().then(setPosts);
+}, []);
+
+&lt;FlatList
+  data={posts}
+  renderItem={({ item }) =&gt; &lt;PostCard post={item} /&gt;}
+/&gt;</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Don't Mutate Data</h4>
+                    <p>FlatList uses reference equality to detect changes. If you mutate the array directly (like <code>data.push(newItem)</code>), FlatList won't re-render. Always create new arrays:</p>
+                    <pre><code class="language-tsx">// ❌ Wrong - mutation
+data.push(newItem);
+setData(data);
+
+// ✅ Correct - new array
+setData([...data, newItem]);</code></pre>
+                </div>
+
+                <h3>The renderItem Prop</h3>
+
+                <p>The <code>renderItem</code> function is called for each visible item (plus buffer items). It receives an object with several useful properties:</p>
+
+                <pre><code class="language-tsx">// renderItem receives an object, not just the item
+&lt;FlatList
+  data={users}
+  renderItem={(info) =&gt; {
+    // info contains:
+    // - item: The data item from your array
+    // - index: The position in the array
+    // - separators: Functions to update separators (advanced)
+    
+    const { item, index } = info;
+    
+    return (
+      &lt;View style={[
+        styles.item,
+        index === 0 &amp;&amp; styles.firstItem,
+      ]}&gt;
+        &lt;Text&gt;{index + 1}. {item.name}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }}
+/&gt;
+
+// Most common pattern: destructure in the parameter
+&lt;FlatList
+  data={users}
+  renderItem={({ item, index }) =&gt; (
+    &lt;UserCard user={item} position={index} /&gt;
+  )}
+/&gt;</code></pre>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Data["data array"]
+        D1["{ id: 1, name: 'Alice' }"]
+        D2["{ id: 2, name: 'Bob' }"]
+        D3["{ id: 3, name: 'Charlie' }"]
+    end
+    
+    subgraph RenderItem["renderItem calls"]
+        R1["({ item, index: 0 })"]
+        R2["({ item, index: 1 })"]
+        R3["({ item, index: 2 })"]
+    end
+    
+    subgraph Output["Rendered UI"]
+        U1["&lt;UserCard /&gt;"]
+        U2["&lt;UserCard /&gt;"]
+        U3["&lt;UserCard /&gt;"]
+    end
+    
+    D1 --> R1 --> U1
+    D2 --> R2 --> U2
+    D3 --> R3 --> U3
+                </pre>
+            </section>
+
+            <!-- Key Extraction -->
+            <section id="key-extraction">
+                <h2>Key Extraction Deep Dive</h2>
+
+                <p>While technically not required (FlatList will warn but still work), proper key extraction is critical for performance and correctness. Keys help React identify which items have changed, been added, or been removed.</p>
+
+                <pre><code class="language-tsx">// Default behavior - uses index (not recommended)
+&lt;FlatList
+  data={users}
+  renderItem={({ item }) =&gt; &lt;UserCard user={item} /&gt;}
+/&gt;
+// Warning: VirtualizedList: missing keys for items...
+
+// Explicit keyExtractor (recommended)
+&lt;FlatList
+  data={users}
+  keyExtractor={(item) =&gt; item.id}
+  renderItem={({ item }) =&gt; &lt;UserCard user={item} /&gt;}
+/&gt;
+
+// keyExtractor with index (for arrays without unique IDs)
+&lt;FlatList
+  data={names}
+  keyExtractor={(item, index) =&gt; `name-${index}`}
+  renderItem={({ item }) =&gt; &lt;Text&gt;{item}&lt;/Text&gt;}
+/&gt;</code></pre>
+
+                <div class="card" style="background: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>🚨 Why Index Keys Are Dangerous</h4>
+                    <p>Using array indices as keys causes problems when items are reordered, inserted, or deleted:</p>
+                    <pre><code class="language-tsx">// Initial render with index keys:
+// Index 0 → "Alice" → &lt;UserCard key="0" /&gt;
+// Index 1 → "Bob"   → &lt;UserCard key="1" /&gt;
+// Index 2 → "Charlie" → &lt;UserCard key="2" /&gt;
+
+// After deleting "Alice":
+// Index 0 → "Bob"     → &lt;UserCard key="0" /&gt; ← React thinks this is Alice!
+// Index 1 → "Charlie" → &lt;UserCard key="1" /&gt; ← React thinks this is Bob!
+
+// Result: Wrong data in components, broken animations, lost state</code></pre>
+                </div>
+
+                <h3>Key Extraction Patterns</h3>
+
+                <p>Different data shapes require different key extraction strategies:</p>
+
+                <pre><code class="language-tsx">// Pattern 1: Objects with ID field (most common)
+interface User {
+  id: string;
+  name: string;
+}
+keyExtractor={(item) =&gt; item.id}
+
+// Pattern 2: Objects with different ID field name
+interface Product {
+  productId: number;
+  title: string;
+}
+keyExtractor={(item) =&gt; item.productId.toString()}
+
+// Pattern 3: Composite keys
+interface Message {
+visiblechatId: string;
+  messageId: string;
+  content: string;
+}
+keyExtractor={(item) =&gt; `${item.chatId}-${item.messageId}`}
+
+// Pattern 4: Objects without natural IDs
+// Option A: Add IDs when fetching
+const fetchItems = async () =&gt; {
+  const response = await api.getItems();
+  return response.map((item, index) =&gt; ({
+    ...item,
+    _id: `item-${Date.now()}-${index}`,
+  }));
+};
+
+// Option B: Use index only if list is static and never reorders
+// This is acceptable for truly static lists like menu items
+const menuItems = ['Home', 'Profile', 'Settings'];
+keyExtractor={(item, index) =&gt; `menu-${index}`} // OK if never changes
+
+// Pattern 5: Using a key property directly
+interface Item {
+  key: string; // FlatList auto-detects this!
+  title: string;
+}
+// No keyExtractor needed - FlatList uses item.key automatically</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Key Best Practices</h4>
+                    <ul>
+                        <li><strong>Keys must be unique</strong> within the list (duplicates cause rendering bugs)</li>
+                        <li><strong>Keys must be stable</strong> — the same item should always have the same key</li>
+                        <li><strong>Keys should be strings</strong> — convert numbers with <code>.toString()</code></li>
+                        <li><strong>Prefer natural IDs</strong> over generated ones when available</li>
+                        <li><strong>Use <code>item.key</code></strong> property for automatic extraction</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- The renderItem Function -->
+            <section id="render-item">
+                <h2>The renderItem Function</h2>
+
+                <p>Your <code>renderItem</code> function is called frequently—every time an item enters the visible area. Understanding how to write efficient render functions is crucial.</p>
+
+                <h3>The renderItem Signature</h3>
+
+                <pre><code class="language-tsx">// Full type signature
+type ListRenderItem&lt;T&gt; = (info: ListRenderItemInfo&lt;T&gt;) =&gt; React.ReactElement;
+
+interface ListRenderItemInfo&lt;T&gt; {
+  item: T;                    // The data item
+  index: number;              // Position in the array
+  separators: {
+    highlight: () =&gt; void;   // Highlight adjacent separators
+    unhighlight: () =&gt; void; // Remove highlight
+    updateProps: (
+      select: 'leading' | 'trailing',
+      newProps: any
+    ) =&gt; void;
+  };
+}
+
+// Practical usage
+const renderItem: ListRenderItem&lt;User&gt; = ({ item, index }) =&gt; (
+  &lt;UserCard user={item} isFirst={index === 0} /&gt;
+);</code></pre>
+
+                <h3>Inline vs Extracted Functions</h3>
+
+                <p>You'll see two patterns for defining renderItem—both have tradeoffs:</p>
+
+                <pre><code class="language-tsx">// Pattern 1: Inline function (simple, but recreated each render)
+function UserList({ users }) {
+  return (
+    &lt;FlatList
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={({ item }) =&gt; (
+        &lt;View style={styles.item}&gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Pattern 2: Extracted function (stable reference)
+function UserList({ users }) {
+  const renderItem = useCallback&lt;ListRenderItem&lt;User&gt;&gt;(
+    ({ item }) =&gt; (
+      &lt;View style={styles.item}&gt;
+        &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;/View&gt;
+    ),
+    [] // No dependencies - function never changes
+  );
+
+  return (
+    &lt;FlatList
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={renderItem}
+    /&gt;
+  );
+}
+
+// Pattern 3: Separate component (cleanest for complex items)
+const UserItem = memo(function UserItem({ user }: { user: User }) {
+  return (
+    &lt;View style={styles.item}&gt;
+      &lt;Text&gt;{user.name}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+});
+
+function UserList({ users }) {
+  const renderItem = useCallback&lt;ListRenderItem&lt;User&gt;&gt;(
+    ({ item }) =&gt; &lt;UserItem user={item} /&gt;,
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={renderItem}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 When to Use Each Pattern</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Pattern</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Use When</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Inline</strong></td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Simple items, small lists, prototyping</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>useCallback</strong></td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Parent re-renders often, need stable reference</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;"><strong>Separate + memo</strong></td>
+                            <td style="padding: 8px;">Complex items, performance critical lists</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h3>Passing Extra Data to renderItem</h3>
+
+                <p>Sometimes your renderItem needs access to data beyond just the item itself:</p>
+
+                <pre><code class="language-tsx">// Problem: How to pass onPress to renderItem?
+function UserList({ users, onUserSelect }) {
+  // ❌ This works but creates new function every render
+  return (
+    &lt;FlatList
+      data={users}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable onPress={() =&gt; onUserSelect(item.id)}&gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+
+// ✅ Better: Extract item component that receives handler
+const UserItem = memo(function UserItem({ 
+  user, 
+  onSelect 
+}: { 
+  user: User; 
+  onSelect: (id: string) =&gt; void;
+}) {
+  const handlePress = useCallback(() =&gt; {
+    onSelect(user.id);
+  }, [user.id, onSelect]);
+
+  return (
+    &lt;Pressable onPress={handlePress}&gt;
+      &lt;Text&gt;{user.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+function UserList({ users, onUserSelect }) {
+  const renderItem = useCallback&lt;ListRenderItem&lt;User&gt;&gt;(
+    ({ item }) =&gt; &lt;UserItem user={item} onSelect={onUserSelect} /&gt;,
+    [onUserSelect]
+  );
+
+  return (
+    &lt;FlatList
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={renderItem}
+    /&gt;
+  );
+}</code></pre>
+            </section>
+            <!-- List Chrome -->
+            <section id="list-chrome">
+                <h2>List Chrome: Headers, Footers, and More</h2>
+
+                <p>FlatList provides several props for adding "chrome" around your list items—headers, footers, and other decorative or functional elements that appear once in the list.</p>
+
+                <h3>ListHeaderComponent</h3>
+
+                <p>Renders once at the top of the list, before any items. Scrolls with the content.</p>
+
+                <pre><code class="language-tsx">// Simple header
+&lt;FlatList
+  data={products}
+  ListHeaderComponent={
+    &lt;View style={styles.header}&gt;
+      &lt;Text style={styles.headerTitle}&gt;Featured Products&lt;/Text&gt;
+      &lt;Text style={styles.headerSubtitle}&gt;{products.length} items&lt;/Text&gt;
+    &lt;/View&gt;
+  }
+  renderItem={({ item }) =&gt; &lt;ProductCard product={item} /&gt;}
+/&gt;
+
+// Header as a component (for complex headers)
+const ListHeader = () =&gt; (
+  &lt;View style={styles.header}&gt;
+    &lt;Image source={require('./banner.png')} style={styles.banner} /&gt;
+    &lt;SearchBar /&gt;
+    &lt;CategoryFilter /&gt;
+  &lt;/View&gt;
+);
+
+&lt;FlatList
+  data={products}
+  ListHeaderComponent={ListHeader}
+  renderItem={({ item }) =&gt; &lt;ProductCard product={item} /&gt;}
+/&gt;
+
+// Header with dynamic content
+function ProductList({ products, category }) {
+  // Memoize if header depends on props
+  const ListHeader = useMemo(() =&gt; (
+    &lt;View style={styles.header}&gt;
+      &lt;Text&gt;{category.name}&lt;/Text&gt;
+      &lt;Text&gt;{products.length} products&lt;/Text&gt;
+    &lt;/View&gt;
+  ), [category.name, products.length]);
+
+  return (
+    &lt;FlatList
+      data={products}
+      ListHeaderComponent={ListHeader}
+      renderItem={({ item }) =&gt; &lt;ProductCard product={item} /&gt;}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>ListFooterComponent</h3>
+
+                <p>Renders once at the bottom of the list, after all items. Perfect for loading indicators or "end of list" messages.</p>
+
+                <pre><code class="language-tsx">// Loading indicator in footer
+function PostFeed({ posts, isLoading, hasMore }) {
+  const ListFooter = () =&gt; {
+    if (isLoading) {
+      return (
+        &lt;View style={styles.footer}&gt;
+          &lt;ActivityIndicator size="large" color="#0000ff" /&gt;
+          &lt;Text&gt;Loading more posts...&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    if (!hasMore) {
+      return (
+        &lt;View style={styles.footer}&gt;
+          &lt;Text style={styles.endMessage}&gt;You've seen all posts!&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    return null;
+  };
+
+  return (
+    &lt;FlatList
+      data={posts}
+      renderItem={({ item }) =&gt; &lt;PostCard post={item} /&gt;}
+      ListFooterComponent={ListFooter}
+    /&gt;
+  );
+}
+
+// Styled footer with spacing
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  ListFooterComponent={&lt;View style={{ height: 100 }} /&gt;}
+  ListFooterComponentStyle={styles.footerContainer}
+/&gt;</code></pre>
+
+                <h3>Header and Footer Styling</h3>
+
+                <p>Use the style props to add consistent spacing or backgrounds:</p>
+
+                <pre><code class="language-tsx">&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  
+  ListHeaderComponent={&lt;Header /&gt;}
+  ListHeaderComponentStyle={{
+    backgroundColor: '#f5f5f5',
+    paddingBottom: 16,
+  }}
+  
+  ListFooterComponent={&lt;Footer /&gt;}
+  ListFooterComponentStyle={{
+    paddingVertical: 20,
+    alignItems: 'center',
+  }}
+/&gt;</code></pre>
+
+                <!-- SVG showing header/footer positioning -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 500 350" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="500" height="350" fill="#f8f9fa"/>
+                        
+                        <!-- Phone outline -->
+                        <rect x="150" y="20" width="200" height="310" fill="#fff" stroke="#333" stroke-width="2" rx="20"/>
+                        <rect x="160" y="45" width="180" height="260" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+                        
+                        <!-- Notch -->
+                        <rect x="220" y="25" width="60" height="15" fill="#333" rx="4"/>
+                        
+                        <!-- Header -->
+                        <rect x="165" y="50" width="170" height="50" fill="#e3f2fd" stroke="#2196F3" stroke-width="1" rx="4"/>
+                        <text x="250" y="80" text-anchor="middle" font-size="12" fill="#1565c0" font-weight="bold">Header</text>
+                        
+                        <!-- Items -->
+                        <rect x="165" y="105" width="170" height="35" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="250" y="127" text-anchor="middle" font-size="11" fill="#333">Item 1</text>
+                        
+                        <rect x="165" y="145" width="170" height="35" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="250" y="167" text-anchor="middle" font-size="11" fill="#333">Item 2</text>
+                        
+                        <rect x="165" y="185" width="170" height="35" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="250" y="207" text-anchor="middle" font-size="11" fill="#333">Item 3</text>
+                        
+                        <rect x="165" y="225" width="170" height="35" fill="#c8e6c9" stroke="#4CAF50" stroke-width="1" rx="4"/>
+                        <text x="250" y="247" text-anchor="middle" font-size="11" fill="#333">Item 4</text>
+                        
+                        <!-- Footer -->
+                        <rect x="165" y="265" width="170" height="35" fill="#fce4ec" stroke="#e91e63" stroke-width="1" rx="4"/>
+                        <text x="250" y="287" text-anchor="middle" font-size="12" fill="#c2185b" font-weight="bold">Footer</text>
+                        
+                        <!-- Home indicator -->
+                        <rect x="210" y="315" width="80" height="5" fill="#333" rx="2"/>
+                        
+                        <!-- Annotations -->
+                        <path d="M370,75 L340,75" stroke="#2196F3" stroke-width="1.5" marker-end="url(#blueArrow)"/>
+                        <text x="375" y="72" font-size="10" fill="#2196F3">ListHeaderComponent</text>
+                        <text x="375" y="84" font-size="9" fill="#666">Scrolls with content</text>
+                        
+                        <path d="M370,175 L340,175" stroke="#4CAF50" stroke-width="1.5" marker-end="url(#greenArrow)"/>
+                        <text x="375" y="172" font-size="10" fill="#4CAF50">renderItem × N</text>
+                        <text x="375" y="184" font-size="9" fill="#666">Your list items</text>
+                        
+                        <path d="M370,282 L340,282" stroke="#e91e63" stroke-width="1.5" marker-end="url(#pinkArrow)"/>
+                        <text x="375" y="279" font-size="10" fill="#e91e63">ListFooterComponent</text>
+                        <text x="375" y="291" font-size="9" fill="#666">Loading, end message</text>
+                        
+                        <defs>
+                            <marker id="blueArrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#2196F3"/>
+                            </marker>
+                            <marker id="greenArrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                            <marker id="pinkArrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#e91e63"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Empty States -->
+            <section id="empty-states">
+                <h2>Handling Empty States</h2>
+
+                <p>When <code>data</code> is an empty array, FlatList renders nothing by default. The <code>ListEmptyComponent</code> prop lets you show a meaningful empty state instead.</p>
+
+                <pre><code class="language-tsx">// Basic empty state
+&lt;FlatList
+  data={searchResults}
+  renderItem={({ item }) =&gt; &lt;ResultCard result={item} /&gt;}
+  ListEmptyComponent={
+    &lt;View style={styles.empty}&gt;
+      &lt;Text&gt;No results found&lt;/Text&gt;
+    &lt;/View&gt;
+  }
+/&gt;
+
+// Empty state with illustration
+const EmptyState = () =&gt; (
+  &lt;View style={styles.emptyContainer}&gt;
+    &lt;Image 
+      source={require('./empty-inbox.png')} 
+      style={styles.emptyImage}
+    /&gt;
+    &lt;Text style={styles.emptyTitle}&gt;Your inbox is empty&lt;/Text&gt;
+    &lt;Text style={styles.emptySubtitle}&gt;
+      Messages you receive will appear here
+    &lt;/Text&gt;
+  &lt;/View&gt;
+);
+
+&lt;FlatList
+  data={messages}
+  renderItem={renderMessage}
+  ListEmptyComponent={EmptyState}
+/&gt;
+
+// Context-aware empty state
+function TaskList({ tasks, filter }) {
+  const EmptyState = () =&gt; {
+    if (filter === 'completed') {
+      return (
+        &lt;View style={styles.empty}&gt;
+          &lt;Text&gt;No completed tasks yet&lt;/Text&gt;
+          &lt;Text&gt;Complete a task to see it here!&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    if (filter === 'today') {
+      return (
+        &lt;View style={styles.empty}&gt;
+          &lt;Text&gt;No tasks for today 🎉&lt;/Text&gt;
+          &lt;Pressable onPress={addTask}&gt;
+            &lt;Text&gt;Add a task&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    return (
+      &lt;View style={styles.empty}&gt;
+        &lt;Text&gt;No tasks&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  };
+
+  return (
+    &lt;FlatList
+      data={tasks}
+      renderItem={renderTask}
+      ListEmptyComponent={EmptyState}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Empty State Best Practices</h4>
+                    <ul>
+                        <li><strong>Be specific:</strong> "No search results for 'xyz'" is better than "No results"</li>
+                        <li><strong>Provide next steps:</strong> Include a call-to-action when appropriate</li>
+                        <li><strong>Use illustrations:</strong> Visual empty states feel more polished</li>
+                        <li><strong>Consider loading state:</strong> Don't show empty state while data is loading</li>
+                        <li><strong>Match context:</strong> Different empty messages for different filters/states</li>
+                    </ul>
+                </div>
+
+                <h3>Empty vs Loading States</h3>
+
+                <p>A common mistake is showing the empty state while data is still loading:</p>
+
+                <pre><code class="language-tsx">// ❌ Wrong: Shows "No data" while loading
+function BadExample() {
+  const [data, setData] = useState([]);
+  
+  useEffect(() =&gt; {
+    fetchData().then(setData);
+  }, []);
+  
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      ListEmptyComponent={&lt;Text&gt;No data&lt;/Text&gt;} // Shows immediately!
+    /&gt;
+  );
+}
+
+// ✅ Correct: Track loading state separately
+function GoodExample() {
+  const [data, setData] = useState&lt;Item[]&gt;([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() =&gt; {
+    fetchData()
+      .then(setData)
+      .finally(() =&gt; setIsLoading(false));
+  }, []);
+  
+  const EmptyComponent = () =&gt; {
+    if (isLoading) {
+      return (
+        &lt;View style={styles.centered}&gt;
+          &lt;ActivityIndicator size="large" /&gt;
+          &lt;Text&gt;Loading...&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+    
+    return (
+      &lt;View style={styles.centered}&gt;
+        &lt;Text&gt;No data available&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  };
+  
+  return (
+    &lt;FlatList
+      data={data}
+      renderItem={renderItem}
+      ListEmptyComponent={EmptyComponent}
+    /&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Item Separators -->
+            <section id="item-separators">
+                <h2>Item Separators</h2>
+
+                <p>FlatList provides <code>ItemSeparatorComponent</code> for rendering separators between items. This is cleaner than adding borders to each item and gives you more control.</p>
+
+                <pre><code class="language-tsx">// Simple line separator
+const Separator = () =&gt; (
+  &lt;View style={{ 
+    height: 1, 
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 16,
+  }} /&gt;
+);
+
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  ItemSeparatorComponent={Separator}
+/&gt;
+
+// Separator with spacing
+const SpacedSeparator = () =&gt; (
+  &lt;View style={{ height: 12 }} /&gt;
+);
+
+// No separator needed between last item and footer
+// ItemSeparatorComponent automatically handles this!
+
+// Contextual separator (different after highlighted item)
+function ContactList({ contacts, selectedId }) {
+  const Separator = ({ highlighted }) =&gt; (
+    &lt;View 
+      style={[
+        styles.separator,
+        highlighted &amp;&amp; styles.separatorHighlighted,
+      ]} 
+    /&gt;
+  );
+
+  return (
+    &lt;FlatList
+      data={contacts}
+      renderItem={({ item, separators }) =&gt; (
+        &lt;Pressable
+          onPressIn={() =&gt; separators.highlight()}
+          onPressOut={() =&gt; separators.unhighlight()}
+        &gt;
+          &lt;ContactRow contact={item} /&gt;
+        &lt;/Pressable&gt;
+      )}
+      ItemSeparatorComponent={Separator}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Separator vs Border</h4>
+                    <p><strong>Use ItemSeparatorComponent when:</strong></p>
+                    <ul>
+                        <li>You want separators between items but not after the last item</li>
+                        <li>Separators need to respond to item state (highlighted, selected)</li>
+                        <li>You want consistent spacing without item knowledge</li>
+                    </ul>
+                    <p><strong>Use item borders when:</strong></p>
+                    <ul>
+                        <li>Every item needs a border (including last item)</li>
+                        <li>Borders are part of the item's visual design</li>
+                        <li>Simple cases where separator complexity isn't needed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Horizontal Lists -->
+            <section id="horizontal-lists">
+                <h2>Horizontal Lists</h2>
+
+                <p>FlatList easily converts to a horizontal scrolling list with a single prop. This is perfect for carousels, category selectors, and media galleries.</p>
+
+                <pre><code class="language-tsx">// Basic horizontal list
+&lt;FlatList
+  data={categories}
+  horizontal={true}
+  renderItem={({ item }) =&gt; (
+    &lt;Pressable style={styles.categoryChip}&gt;
+      &lt;Text&gt;{item.name}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  )}
+/&gt;
+
+// Horizontal with configuration
+&lt;FlatList
+  data={movies}
+  horizontal
+  showsHorizontalScrollIndicator={false}  // Hide scrollbar
+  contentContainerStyle={styles.horizontalList}
+  ItemSeparatorComponent={() =&gt; &lt;View style={{ width: 12 }} /&gt;}
+  renderItem={({ item }) =&gt; &lt;MoviePoster movie={item} /&gt;}
+/&gt;
+
+// Horizontal carousel with snap
+&lt;FlatList
+  data={featuredItems}
+  horizontal
+  pagingEnabled                    // Snap to item width
+  showsHorizontalScrollIndicator={false}
+  snapToInterval={CARD_WIDTH + 16} // Custom snap points
+  decelerationRate="fast"
+  renderItem={({ item }) =&gt; (
+    &lt;View style={{ width: CARD_WIDTH }}&gt;
+      &lt;FeaturedCard item={item} /&gt;
+    &lt;/View&gt;
+  )}
+/&gt;</code></pre>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Vertical["horizontal={false} (default)"]
+        direction TB
+        V1["Item 1"]
+        V2["Item 2"]
+        V3["Item 3"]
+        V4["..."]
+        V1 --> V2 --> V3 --> V4
+    end
+    
+    subgraph Horizontal["horizontal={true}"]
+        direction LR
+        H1["Item 1"]
+        H2["Item 2"]
+        H3["Item 3"]
+        H4["..."]
+        H1 --> H2 --> H3 --> H4
+    end
+    
+    style V1 fill:#c8e6c9
+    style V2 fill:#c8e6c9
+    style V3 fill:#c8e6c9
+    style V4 fill:#e8f5e9
+    style H1 fill:#bbdefb
+    style H2 fill:#bbdefb
+    style H3 fill:#bbdefb
+    style H4 fill:#e3f2fd
+                </pre>
+
+                <h3>Common Horizontal Patterns</h3>
+
+                <pre><code class="language-tsx">// Pattern 1: Category filter chips
+function CategoryFilter({ categories, selected, onSelect }) {
+  return (
+    &lt;FlatList
+      data={categories}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16 }}
+      ItemSeparatorComponent={() =&gt; &lt;View style={{ width: 8 }} /&gt;}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable
+          style={[
+            styles.chip,
+            selected === item.id &amp;&amp; styles.chipSelected,
+          ]}
+          onPress={() =&gt; onSelect(item.id)}
+        &gt;
+          &lt;Text style={[
+            styles.chipText,
+            selected === item.id &amp;&amp; styles.chipTextSelected,
+          ]}&gt;
+            {item.name}
+          &lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Pattern 2: Image gallery with aspect ratio
+function ImageGallery({ images }) {
+  return (
+    &lt;FlatList
+      data={images}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={SCREEN_WIDTH * 0.8 + 16}
+      decelerationRate="fast"
+      contentContainerStyle={{ paddingHorizontal: 16 }}
+      ItemSeparatorComponent={() =&gt; &lt;View style={{ width: 16 }} /&gt;}
+      renderItem={({ item }) =&gt; (
+        &lt;Image
+          source={{ uri: item.url }}
+          style={{
+            width: SCREEN_WIDTH * 0.8,
+            aspectRatio: 16 / 9,
+            borderRadius: 12,
+          }}
+        /&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Pattern 3: Story-style avatars
+function StoryAvatars({ users }) {
+  return (
+    &lt;FlatList
+      data={users}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 8 }}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable style={styles.storyContainer}&gt;
+          &lt;View style={[
+            styles.storyRing,
+            item.hasNewStory &amp;&amp; styles.storyRingActive,
+          ]}&gt;
+            &lt;Image 
+              source={{ uri: item.avatar }} 
+              style={styles.storyAvatar}
+            /&gt;
+          &lt;/View&gt;
+          &lt;Text style={styles.storyName} numberOfLines={1}&gt;
+            {item.name}
+          &lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Horizontal List Gotchas</h4>
+                    <ul>
+                        <li><strong>Width matters:</strong> Items need explicit widths (no flex: 1)</li>
+                        <li><strong>Separator direction:</strong> Use <code>width</code> not <code>height</code> for separators</li>
+                        <li><strong>Content padding:</strong> Use <code>contentContainerStyle</code> for horizontal padding</li>
+                        <li><strong>Nested scrolls:</strong> Horizontal FlatList inside vertical ScrollView can cause gesture conflicts</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Common Gotchas -->
+            <section id="common-gotchas">
+                <h2>Common Gotchas</h2>
+
+                <p>FlatList has some behaviors that trip up developers, especially those coming from web development. Let's address the most common issues.</p>
+
+                <h3>Gotcha #1: FlatList Doesn't Fill the Screen</h3>
+
+                <p>FlatList needs its parent to have a defined height. Without it, FlatList collapses.</p>
+
+                <pre><code class="language-tsx">// ❌ Problem: FlatList has no height
+function BrokenScreen() {
+  return (
+    &lt;View&gt;  {/* This View has no flex: 1 */}
+      &lt;FlatList
+        data={items}
+        renderItem={renderItem}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// ✅ Solution 1: flex: 1 on parent
+function FixedScreen() {
+  return (
+    &lt;View style={{ flex: 1 }}&gt;
+      &lt;FlatList
+        data={items}
+        renderItem={renderItem}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// ✅ Solution 2: flex: 1 on FlatList itself
+function AlsoFixed() {
+  return (
+    &lt;View&gt;
+      &lt;FlatList
+        style={{ flex: 1 }}
+        data={items}
+        renderItem={renderItem}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// ✅ Best practice: Both have flex: 1
+function BestPractice() {
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList
+        style={styles.list}
+        data={items}
+        renderItem={renderItem}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
+});</code></pre>
+
+                <h3>Gotcha #2: Content Doesn't Scroll</h3>
+
+                <p>If your list content doesn't scroll, the content is shorter than the container.</p>
+
+                <pre><code class="language-tsx">// ❌ Problem: Only 3 items, don't fill the screen
+&lt;FlatList
+  data={[1, 2, 3]}
+  renderItem={({ item }) =&gt; &lt;SmallItem item={item} /&gt;}
+/&gt;
+// Result: No scrolling (content fits)
+
+// ✅ This is actually correct behavior!
+// FlatList only scrolls when content exceeds container
+
+// If you need it to always scroll (rare):
+&lt;FlatList
+  data={[1, 2, 3]}
+  renderItem={({ item }) =&gt; &lt;SmallItem item={item} /&gt;}
+  alwaysBounceVertical={true}  // iOS: allows pull even when content fits
+/&gt;</code></pre>
+
+                <h3>Gotcha #3: Function Props Cause Re-renders</h3>
+
+                <p>Creating new functions on every render can trigger unnecessary re-renders of list items.</p>
+
+                <pre><code class="language-tsx">// ❌ Problem: New function created every render
+function BadList({ items, onItemPress }) {
+  return (
+    &lt;FlatList
+      data={items}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable onPress={() =&gt; onItemPress(item.id)}&gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+// Every parent re-render creates new renderItem function
+// FlatList thinks it needs to re-render everything
+
+// ✅ Solution: useCallback for stable reference
+function GoodList({ items, onItemPress }) {
+  const renderItem = useCallback(
+    ({ item }) =&gt; (
+      &lt;Pressable onPress={() =&gt; onItemPress(item.id)}&gt;
+        &lt;Text&gt;{item.name}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    ),
+    [onItemPress]
+  );
+
+  const keyExtractor = useCallback(
+    (item) =&gt; item.id,
+    []
+  );
+
+  return (
+    &lt;FlatList
+      data={items}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Gotcha #4: Extra Data Not Causing Updates</h3>
+
+                <p>FlatList uses shallow comparison on <code>data</code> to decide when to re-render. If you change something outside of <code>data</code> that affects rendering, use <code>extraData</code>.</p>
+
+                <pre><code class="language-tsx">// ❌ Problem: Selected state doesn't trigger re-render
+function SelectableList({ items }) {
+  const [selectedId, setSelectedId] = useState(null);
+
+  return (
+    &lt;FlatList
+      data={items}
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable
+          style={[
+            styles.item,
+            item.id === selectedId &amp;&amp; styles.selected, // Won't update!
+          ]}
+          onPress={() =&gt; setSelectedId(item.id)}
+        &gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+// items didn't change, so FlatList doesn't re-render
+// selectedId change is invisible to FlatList
+
+// ✅ Solution: Use extraData
+function SelectableListFixed({ items }) {
+  const [selectedId, setSelectedId] = useState(null);
+
+  return (
+    &lt;FlatList
+      data={items}
+      extraData={selectedId}  // Tell FlatList to watch this too
+      renderItem={({ item }) =&gt; (
+        &lt;Pressable
+          style={[
+            styles.item,
+            item.id === selectedId &amp;&amp; styles.selected,
+          ]}
+          onPress={() =&gt; setSelectedId(item.id)}
+        &gt;
+          &lt;Text&gt;{item.name}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Multiple extra values? Use an object or array
+&lt;FlatList
+  data={items}
+  extraData={{ selectedId, isEditing, theme }}
+  // or
+  extraData={[selectedId, isEditing, theme]}
+/&gt;</code></pre>
+
+                <h3>Gotcha #5: VirtualizedList Warning with ScrollView</h3>
+
+                <p>Nesting FlatList inside ScrollView triggers a warning because both are scroll containers.</p>
+
+                <pre><code class="language-tsx">// ❌ Warning: VirtualizedLists should never be nested
+&lt;ScrollView&gt;
+  &lt;Text&gt;Some header content&lt;/Text&gt;
+  &lt;FlatList data={items} renderItem={renderItem} /&gt;
+  &lt;Text&gt;Some footer content&lt;/Text&gt;
+&lt;/ScrollView&gt;
+
+// ✅ Solution 1: Use ListHeaderComponent and ListFooterComponent
+&lt;FlatList
+  data={items}
+  renderItem={renderItem}
+  ListHeaderComponent={&lt;Text&gt;Some header content&lt;/Text&gt;}
+  ListFooterComponent={&lt;Text&gt;Some footer content&lt;/Text&gt;}
+/&gt;
+
+// ✅ Solution 2: Use scrollEnabled={false} for non-scrolling inner list
+&lt;ScrollView&gt;
+  &lt;Text&gt;Header&lt;/Text&gt;
+  &lt;FlatList
+    data={items}
+    renderItem={renderItem}
+    scrollEnabled={false}  // Disables FlatList scroll
+  /&gt;
+  &lt;Text&gt;Footer&lt;/Text&gt;
+&lt;/ScrollView&gt;
+// ⚠️ Warning: This defeats virtualization! Only for small lists.
+
+// ✅ Solution 3: Use FlatList with mixed content types
+const listData = [
+  { type: 'header', content: 'Header text' },
+  ...items.map(item =&gt; ({ type: 'item', data: item })),
+  { type: 'footer', content: 'Footer text' },
+];
+
+&lt;FlatList
+  data={listData}
+  renderItem={({ item }) =&gt; {
+    if (item.type === 'header') return &lt;Header content={item.content} /&gt;;
+    if (item.type === 'footer') return &lt;Footer content={item.content} /&gt;;
+    return &lt;ItemComponent data={item.data} /&gt;;
+  }}
+/&gt;</code></pre>
+
+                <h3>Gotcha #6: Inverted Lists Start at Bottom</h3>
+
+                <p>For chat-style interfaces where newest content is at the bottom, use the <code>inverted</code> prop.</p>
+
+                <pre><code class="language-tsx">// Chat messages - newest at bottom
+&lt;FlatList
+  data={messages}
+  inverted  // Flips the list upside down
+  renderItem={({ item }) =&gt; &lt;MessageBubble message={item} /&gt;}
+  keyExtractor={(item) =&gt; item.id}
+/&gt;
+
+// ⚠️ Note: Your data should still be newest-first
+// inverted just renders from bottom to top
+const messages = [
+  { id: '3', text: 'Newest message' },  // Shows at bottom
+  { id: '2', text: 'Middle message' },
+  { id: '1', text: 'Oldest message' },  // Shows at top
+];</code></pre>
+
+                <!-- Summary table of gotchas -->
+                <div class="card">
+                    <h4>🔧 Quick Reference: Common Issues</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Symptom</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">List doesn't appear</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Add <code>flex: 1</code> to parent View</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Items don't update</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Check <code>extraData</code>, verify keys are stable</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Performance is slow</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Use <code>useCallback</code> for renderItem, memoize item components</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Nested scroll warning</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Use ListHeaderComponent/ListFooterComponent</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Missing key warning</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">Add <code>keyExtractor</code> prop</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px;">Wrong items after update</td>
+                                <td style="padding: 10px;">Keys aren't unique or stable</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TypeScript Patterns -->
+            <section id="typescript-patterns">
+                <h2>TypeScript Patterns</h2>
+
+                <p>TypeScript makes FlatList development safer and more productive. Here are the patterns you'll use most often.</p>
+
+                <h3>Basic Typing</h3>
+
+                <pre><code class="language-tsx">import { FlatList, ListRenderItem } from 'react-native';
+
+// Define your data type
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+}
+
+// Type the FlatList with generic parameter
+function UserList() {
+  const [users, setUsers] = useState&lt;User[]&gt;([]);
+
+  // Option 1: Type renderItem inline
+  return (
+    &lt;FlatList&lt;User&gt;
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={({ item }) =&gt; (
+        // item is typed as User
+        &lt;Text&gt;{item.name}&lt;/Text&gt;
+      )}
+    /&gt;
+  );
+}
+
+// Option 2: Extract renderItem with proper typing
+function UserListExtracted() {
+  const [users, setUsers] = useState&lt;User[]&gt;([]);
+
+  const renderItem: ListRenderItem&lt;User&gt; = useCallback(
+    ({ item, index }) =&gt; (
+      &lt;View&gt;
+        &lt;Text&gt;{index + 1}. {item.name}&lt;/Text&gt;
+        &lt;Text&gt;{item.email}&lt;/Text&gt;
+      &lt;/View&gt;
+    ),
+    []
+  );
+
+  return (
+    &lt;FlatList&lt;User&gt;
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={renderItem}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Typing keyExtractor</h3>
+
+                <pre><code class="language-tsx">// keyExtractor must return a string
+interface Product {
+  productId: number;  // number, not string!
+  title: string;
+}
+
+// ❌ Type error: number is not assignable to string
+const badKeyExtractor = (item: Product) =&gt; item.productId;
+
+// ✅ Convert to string
+const goodKeyExtractor = (item: Product) =&gt; item.productId.toString();
+
+// Or with template literal
+const alsoGood = (item: Product) =&gt; `product-${item.productId}`;</code></pre>
+
+                <h3>Typing Item Components</h3>
+
+                <pre><code class="language-tsx">// Separate item component with proper props
+interface UserCardProps {
+  user: User;
+  onPress: (userId: string) =&gt; void;
+  isSelected: boolean;
+}
+
+const UserCard = memo(function UserCard({ 
+  user, 
+  onPress, 
+  isSelected 
+}: UserCardProps) {
+  const handlePress = useCallback(() =&gt; {
+    onPress(user.id);
+  }, [user.id, onPress]);
+
+  return (
+    &lt;Pressable 
+      onPress={handlePress}
+      style={[styles.card, isSelected &amp;&amp; styles.cardSelected]}
+    &gt;
+      &lt;Image source={{ uri: user.avatar }} style={styles.avatar} /&gt;
+      &lt;View style={styles.info}&gt;
+        &lt;Text style={styles.name}&gt;{user.name}&lt;/Text&gt;
+        &lt;Text style={styles.email}&gt;{user.email}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/Pressable&gt;
+  );
+});
+
+// Usage in FlatList
+function SelectableUserList() {
+  const [users, setUsers] = useState&lt;User[]&gt;([]);
+  const [selectedId, setSelectedId] = useState&lt;string | null&gt;(null);
+
+  const handleUserPress = useCallback((userId: string) =&gt; {
+    setSelectedId(userId);
+  }, []);
+
+  const renderItem: ListRenderItem&lt;User&gt; = useCallback(
+    ({ item }) =&gt; (
+      &lt;UserCard
+        user={item}
+        onPress={handleUserPress}
+        isSelected={item.id === selectedId}
+      /&gt;
+    ),
+    [handleUserPress, selectedId]
+  );
+
+  return (
+    &lt;FlatList&lt;User&gt;
+      data={users}
+      keyExtractor={(item) =&gt; item.id}
+      renderItem={renderItem}
+      extraData={selectedId}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Ref Typing</h3>
+
+                <pre><code class="language-tsx">import { FlatList } from 'react-native';
+import { useRef } from 'react';
+
+function ScrollableUserList() {
+  // Type the ref with the item type
+  const flatListRef = useRef&lt;FlatList&lt;User&gt;&gt;(null);
+
+  const scrollToTop = () =&gt; {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const scrollToItem = (userId: string) =&gt; {
+    const index = users.findIndex(u =&gt; u.id === userId);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({ index, animated: true });
+    }
+  };
+
+  return (
+    &lt;&gt;
+      &lt;Button title="Scroll to Top" onPress={scrollToTop} /&gt;
+      &lt;FlatList&lt;User&gt;
+        ref={flatListRef}
+        data={users}
+        keyExtractor={(item) =&gt; item.id}
+        renderItem={renderItem}
+      /&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ TypeScript Best Practices</h4>
+                    <ul>
+                        <li><strong>Always type your data:</strong> Define interfaces for list items</li>
+                        <li><strong>Use generic parameter:</strong> <code>&lt;FlatList&lt;YourType&gt;</code> for full type safety</li>
+                        <li><strong>Type your callbacks:</strong> <code>ListRenderItem&lt;T&gt;</code> for renderItem</li>
+                        <li><strong>Type refs correctly:</strong> <code>useRef&lt;FlatList&lt;T&gt;&gt;(null)</code></li>
+                        <li><strong>Avoid <code>any</code>:</strong> If item shape is unknown, use <code>unknown</code> and narrow</li>
+                    </ul>
+                </div>
+            </section>
+            <!-- Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <p>Let's build some real-world list patterns to solidify your FlatList skills.</p>
+
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <h4>Exercise 1: Basic Contact List</h4>
+                    <p>Build a scrollable contact list with avatars, names, and phone numbers.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Display 20+ contacts from mock data</li>
+                        <li>Each contact shows: avatar (colored circle with initials), name, phone number</li>
+                        <li>Use proper key extraction</li>
+                        <li>Add a separator line between items</li>
+                        <li>Include a list header showing total count</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Create a <code>getInitials</code> helper function. Use <code>ItemSeparatorComponent</code> for lines. Generate colors deterministically from names using a hash function.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useCallback, useMemo } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  ListRenderItem,
+} from 'react-native';
+
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+// Generate mock contacts
+const generateContacts = (): Contact[] =&gt; {
+  const firstNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Edward', 'Fiona', 
+    'George', 'Hannah', 'Ivan', 'Julia', 'Kevin', 'Laura', 'Michael', 'Nina',
+    'Oscar', 'Patricia', 'Quinn', 'Rachel', 'Steven', 'Tina', 'Uma', 'Victor'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia',
+    'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Wilson', 'Anderson'];
+  
+  return Array.from({ length: 25 }, (_, i) =&gt; ({
+    id: `contact-${i}`,
+    name: `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`,
+    phone: `(${Math.floor(Math.random() * 900) + 100}) ${
+      Math.floor(Math.random() * 900) + 100}-${
+      Math.floor(Math.random() * 9000) + 1000}`,
+  }));
+};
+
+// Get initials from name
+const getInitials = (name: string): string =&gt; {
+  return name
+    .split(' ')
+    .map(part =&gt; part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+// Generate consistent color from string
+const stringToColor = (str: string): string =&gt; {
+  let hash = 0;
+  for (let i = 0; i &lt; str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash &lt;&lt; 5) - hash);
+  }
+  const colors = ['#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3',
+    '#009688', '#4caf50', '#ff9800', '#ff5722', '#795548'];
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// Contact item component
+const ContactItem = ({ contact }: { contact: Contact }) =&gt; {
+  const initials = getInitials(contact.name);
+  const avatarColor = stringToColor(contact.name);
+
+  return (
+    &lt;View style={styles.contactItem}&gt;
+      &lt;View style={[styles.avatar, { backgroundColor: avatarColor }]}&gt;
+        &lt;Text style={styles.avatarText}&gt;{initials}&lt;/Text&gt;
+      &lt;/View&gt;
+      &lt;View style={styles.contactInfo}&gt;
+        &lt;Text style={styles.contactName}&gt;{contact.name}&lt;/Text&gt;
+        &lt;Text style={styles.contactPhone}&gt;{contact.phone}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+};
+
+// Separator component
+const Separator = () =&gt; &lt;View style={styles.separator} /&gt;;
+
+// Main component
+export default function ContactList() {
+  const contacts = useMemo(() =&gt; generateContacts(), []);
+
+  const renderItem: ListRenderItem&lt;Contact&gt; = useCallback(
+    ({ item }) =&gt; &lt;ContactItem contact={item} /&gt;,
+    []
+  );
+
+  const keyExtractor = useCallback(
+    (item: Contact) =&gt; item.id,
+    []
+  );
+
+  const ListHeader = useMemo(() =&gt; (
+    &lt;View style={styles.header}&gt;
+      &lt;Text style={styles.headerTitle}&gt;Contacts&lt;/Text&gt;
+      &lt;Text style={styles.headerCount}&gt;{contacts.length} contacts&lt;/Text&gt;
+    &lt;/View&gt;
+  ), [contacts.length]);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList&lt;Contact&gt;
+        data={contacts}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        ItemSeparatorComponent={Separator}
+        ListHeaderComponent={ListHeader}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerCount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  contactInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginLeft: 74, // Avatar width + padding
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <h4>Exercise 2: Horizontal Category Selector</h4>
+                    <p>Build a horizontal scrolling category filter with selectable chips.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Horizontal FlatList of category chips</li>
+                        <li>Tap to select a category (single selection)</li>
+                        <li>Selected chip has different styling (background color, text color)</li>
+                        <li>Hide the scroll indicator</li>
+                        <li>Add padding on the sides of the list</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Use <code>horizontal</code>, <code>showsHorizontalScrollIndicator={false}</code>, and <code>contentContainerStyle</code> for padding. Don't forget <code>extraData</code> for the selected state!</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useCallback, useMemo } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ListRenderItem,
+} from 'react-native';
+
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+const CATEGORIES: Category[] = [
+  { id: '1', name: 'All', icon: '🏠' },
+  { id: '2', name: 'Food', icon: '🍔' },
+  { id: '3', name: 'Fashion', icon: '👗' },
+  { id: '4', name: 'Electronics', icon: '📱' },
+  { id: '5', name: 'Sports', icon: '⚽' },
+  { id: '6', name: 'Books', icon: '📚' },
+  { id: '7', name: 'Music', icon: '🎵' },
+  { id: '8', name: 'Travel', icon: '✈️' },
+  { id: '9', name: 'Art', icon: '🎨' },
+];
+
+interface CategoryChipProps {
+  category: Category;
+  isSelected: boolean;
+  onPress: (id: string) =&gt; void;
+}
+
+const CategoryChip = ({ category, isSelected, onPress }: CategoryChipProps) =&gt; {
+  const handlePress = useCallback(() =&gt; {
+    onPress(category.id);
+  }, [category.id, onPress]);
+
+  return (
+    &lt;Pressable
+      onPress={handlePress}
+      style={[
+        styles.chip,
+        isSelected &amp;&amp; styles.chipSelected,
+      ]}
+    &gt;
+      &lt;Text style={styles.chipIcon}&gt;{category.icon}&lt;/Text&gt;
+      &lt;Text style={[
+        styles.chipText,
+        isSelected &amp;&amp; styles.chipTextSelected,
+      ]}&gt;
+        {category.name}
+      &lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+};
+
+export default function CategorySelector() {
+  const [selectedId, setSelectedId] = useState&lt;string&gt;('1');
+
+  const handleCategoryPress = useCallback((id: string) =&gt; {
+    setSelectedId(id);
+  }, []);
+
+  const renderItem: ListRenderItem&lt;Category&gt; = useCallback(
+    ({ item }) =&gt; (
+      &lt;CategoryChip
+        category={item}
+        isSelected={item.id === selectedId}
+        onPress={handleCategoryPress}
+      /&gt;
+    ),
+    [selectedId, handleCategoryPress]
+  );
+
+  const keyExtractor = useCallback(
+    (item: Category) =&gt; item.id,
+    []
+  );
+
+  const ItemSeparator = useCallback(
+    () =&gt; &lt;View style={{ width: 10 }} /&gt;,
+    []
+  );
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Categories&lt;/Text&gt;
+      
+      &lt;FlatList&lt;Category&gt;
+        data={CATEGORIES}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={ItemSeparator}
+        extraData={selectedId}
+      /&gt;
+      
+      &lt;View style={styles.selectedInfo}&gt;
+        &lt;Text style={styles.selectedText}&gt;
+          Selected: {CATEGORIES.find(c =&gt; c.id === selectedId)?.name}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  chipSelected: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  chipIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  chipTextSelected: {
+    color: '#fff',
+  },
+  selectedInfo: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  selectedText: {
+    fontSize: 14,
+    color: '#666',
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <h4>Exercise 3: Product List with Empty State</h4>
+                    <p>Build a product list that gracefully handles empty and loading states.</p>
+                    
+                    <p><strong>Requirements:</strong></p>
+                    <ul>
+                        <li>Show a loading state while "fetching" (simulate with setTimeout)</li>
+                        <li>Show products in a card layout after loading</li>
+                        <li>Include a search filter that filters products</li>
+                        <li>Show a meaningful empty state when no products match the search</li>
+                        <li>Show different empty state when there are no products at all</li>
+                    </ul>
+
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Track both <code>isLoading</code> and <code>searchQuery</code> states. Your <code>ListEmptyComponent</code> should check these to show the appropriate message.</p>
+                    </details>
+
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre><code class="language-tsx">import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  FlatList,
+  View,
+  Text,
+  TextInput,
+  Image,
+  ActivityIndicator,
+  StyleSheet,
+  ListRenderItem,
+} from 'react-native';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category: string;
+}
+
+// Mock products
+const MOCK_PRODUCTS: Product[] = [
+  { id: '1', name: 'Wireless Headphones', price: 79.99, image: 'https://picsum.photos/seed/1/200', category: 'Electronics' },
+  { id: '2', name: 'Running Shoes', price: 129.99, image: 'https://picsum.photos/seed/2/200', category: 'Sports' },
+  { id: '3', name: 'Coffee Maker', price: 49.99, image: 'https://picsum.photos/seed/3/200', category: 'Home' },
+  { id: '4', name: 'Backpack', price: 59.99, image: 'https://picsum.photos/seed/4/200', category: 'Fashion' },
+  { id: '5', name: 'Smart Watch', price: 199.99, image: 'https://picsum.photos/seed/5/200', category: 'Electronics' },
+  { id: '6', name: 'Yoga Mat', price: 29.99, image: 'https://picsum.photos/seed/6/200', category: 'Sports' },
+];
+
+// Product card component
+const ProductCard = ({ product }: { product: Product }) =&gt; (
+  &lt;View style={styles.card}&gt;
+    &lt;Image source={{ uri: product.image }} style={styles.productImage} /&gt;
+    &lt;View style={styles.productInfo}&gt;
+      &lt;Text style={styles.productName}&gt;{product.name}&lt;/Text&gt;
+      &lt;Text style={styles.productCategory}&gt;{product.category}&lt;/Text&gt;
+      &lt;Text style={styles.productPrice}&gt;${product.price.toFixed(2)}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+export default function ProductList() {
+  const [products, setProducts] = useState&lt;Product[]&gt;([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Simulate API fetch
+  useEffect(() =&gt; {
+    const timer = setTimeout(() =&gt; {
+      setProducts(MOCK_PRODUCTS);
+      setIsLoading(false);
+    }, 1500);
+    
+    return () =&gt; clearTimeout(timer);
+  }, []);
+
+  // Filter products based on search
+  const filteredProducts = useMemo(() =&gt; {
+    if (!searchQuery.trim()) return products;
+    
+    const query = searchQuery.toLowerCase();
+    return products.filter(
+      p =&gt; p.name.toLowerCase().includes(query) ||
+           p.category.toLowerCase().includes(query)
+    );
+  }, [products, searchQuery]);
+
+  const renderItem: ListRenderItem&lt;Product&gt; = useCallback(
+    ({ item }) =&gt; &lt;ProductCard product={item} /&gt;,
+    []
+  );
+
+  const keyExtractor = useCallback(
+    (item: Product) =&gt; item.id,
+    []
+  );
+
+  // Empty state component
+  const EmptyComponent = useCallback(() =&gt; {
+    if (isLoading) {
+      return (
+        &lt;View style={styles.emptyContainer}&gt;
+          &lt;ActivityIndicator size="large" color="#2196F3" /&gt;
+          &lt;Text style={styles.emptyText}&gt;Loading products...&lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+
+    if (searchQuery &amp;&amp; products.length &gt; 0) {
+      return (
+        &lt;View style={styles.emptyContainer}&gt;
+          &lt;Text style={styles.emptyIcon}&gt;🔍&lt;/Text&gt;
+          &lt;Text style={styles.emptyTitle}&gt;No results found&lt;/Text&gt;
+          &lt;Text style={styles.emptyText}&gt;
+            No products match "{searchQuery}"
+          &lt;/Text&gt;
+          &lt;Text style={styles.emptyHint}&gt;
+            Try a different search term
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      );
+    }
+
+    return (
+      &lt;View style={styles.emptyContainer}&gt;
+        &lt;Text style={styles.emptyIcon}&gt;📦&lt;/Text&gt;
+        &lt;Text style={styles.emptyTitle}&gt;No products available&lt;/Text&gt;
+        &lt;Text style={styles.emptyText}&gt;
+          Check back later for new arrivals!
+        &lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }, [isLoading, searchQuery, products.length]);
+
+  // Header with search
+  const ListHeader = useMemo(() =&gt; (
+    &lt;View style={styles.header}&gt;
+      &lt;Text style={styles.headerTitle}&gt;Products&lt;/Text&gt;
+      &lt;TextInput
+        style={styles.searchInput}
+        placeholder="Search products..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholderTextColor="#999"
+      /&gt;
+      {!isLoading &amp;&amp; (
+        &lt;Text style={styles.resultCount}&gt;
+          {filteredProducts.length} of {products.length} products
+        &lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  ), [searchQuery, filteredProducts.length, products.length, isLoading]);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;FlatList&lt;Product&gt;
+        data={filteredProducts}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={EmptyComponent}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() =&gt; &lt;View style={{ height: 12 }} /&gt;}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  listContent: {
+    padding: 16,
+    flexGrow: 1,
+  },
+  header: {
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  searchInput: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  resultCount: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  productImage: {
+    width: 100,
+    height: 100,
+  },
+  productInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  productCategory: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  productPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    marginTop: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You've now mastered the fundamentals of FlatList—React Native's primary tool for rendering performant lists. Let's recap the essential concepts.</p>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul>
+                        <li><strong>Two required props:</strong> <code>data</code> (your array) and <code>renderItem</code> (how to render each item)</li>
+                        <li><strong>Always use keyExtractor:</strong> Unique, stable string keys prevent rendering bugs</li>
+                        <li><strong>List chrome:</strong> <code>ListHeaderComponent</code>, <code>ListFooterComponent</code>, <code>ItemSeparatorComponent</code></li>
+                        <li><strong>Handle empty states:</strong> <code>ListEmptyComponent</code> with loading/empty differentiation</li>
+                        <li><strong>Horizontal lists:</strong> Just add <code>horizontal={true}</code></li>
+                        <li><strong>extraData:</strong> Tell FlatList about state changes outside of <code>data</code></li>
+                        <li><strong>Performance:</strong> Use <code>useCallback</code> for stable renderItem references</li>
+                        <li><strong>TypeScript:</strong> Use <code>&lt;FlatList&lt;YourType&gt;</code> for full type safety</li>
+                    </ul>
+                </div>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph Required["Required Props"]
+        data["data: YourType[]"]
+        renderItem["renderItem: ({ item }) => JSX"]
+    end
+    
+    subgraph Recommended["Highly Recommended"]
+        keyExtractor["keyExtractor: (item) => string"]
+    end
+    
+    subgraph Chrome["List Chrome"]
+        header["ListHeaderComponent"]
+        footer["ListFooterComponent"]
+        separator["ItemSeparatorComponent"]
+        empty["ListEmptyComponent"]
+    end
+    
+    subgraph Config["Configuration"]
+        horizontal["horizontal"]
+        extraData["extraData"]
+        inverted["inverted"]
+    end
+    
+    Required --> FlatList
+    Recommended --> FlatList
+    Chrome --> FlatList
+    Config --> FlatList
+    
+    style data fill:#c8e6c9
+    style renderItem fill:#c8e6c9
+    style keyExtractor fill:#fff3cd
+                </pre>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🚀 What's Next?</h4>
+                    <p style="color: white;">Now that you understand FlatList basics, the next lesson dives into <strong>performance optimization</strong>. You'll learn about <code>getItemLayout</code>, <code>windowSize</code>, <code>maxToRenderPerBatch</code>, and other props that turn a good list into a great one. We'll also cover memoization strategies and how to measure list performance.</p>
+                </div>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m05_l01_why_scrollview_isnt_enough.html" class="prev-link">
+                    <span class="arrow">←</span>
+                    <div class="nav-content">
+                        <span class="nav-label">Previous</span>
+                        <span class="nav-title">Why ScrollView Isn't Enough</span>
+                    </div>
+                </a>
+                
+                <a href="index.html" class="home-link" title="Back to Course Home">
+                    🏠
+                </a>
+                
+                <a href="m05_l03_flatlist_performance_optimization.html" class="next-link">
+                    <div class="nav-content">
+                        <span class="nav-label">Next</span>
+                        <span class="nav-title">FlatList Performance Optimization</span>
+                    </div>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+            <p>
+                <a href="index.html">Home</a> |
+                <a href="index.html#modules">Modules</a> |
+                <a href="index.html#appendices">Appendices</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
