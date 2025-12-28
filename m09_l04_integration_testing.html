@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn integration testing for React Native applications">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Integration Testing | Module 9: Testing and Quality Assurance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m09_l01_testing_fundamentals.html">Module 9</a> &gt;
+            <span>Lesson 9.4</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 9: Testing and Quality Assurance</p>
+                <h1>Integration Testing</h1>
+                <p class="lesson-subtitle">Testing component interactions, API flows, and complete features</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand the difference between unit and integration tests</li>
+                    <li>Test component hierarchies and data flow</li>
+                    <li>Mock API calls with MSW (Mock Service Worker)</li>
+                    <li>Test complete user flows across screens</li>
+                    <li>Test state management integration</li>
+                    <li>Handle async operations in integration tests</li>
+                    <li>Write maintainable integration test suites</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#integration-overview">Integration Testing Overview</a></li>
+                        <li><a href="#component-integration">Component Integration</a></li>
+                        <li><a href="#api-testing">API Integration Testing</a></li>
+                        <li><a href="#msw">Mock Service Worker</a></li>
+                        <li><a href="#state-management">State Management Testing</a></li>
+                        <li><a href="#user-flows">Testing User Flows</a></li>
+                        <li><a href="#best-practices">Best Practices</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Integration Testing Overview -->
+            <section id="integration-overview">
+                <h2>Integration Testing Overview</h2>
+
+                <p>Integration tests verify that multiple components work together correctly. They sit between unit tests (testing individual pieces) and end-to-end tests (testing the entire application).</p>
+
+                <h3>Unit vs Integration Tests</h3>
+
+                <!-- SVG: Test Comparison -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 300" style="max-width: 700px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Unit Tests -->
+                        <g transform="translate(50, 40)">
+                            <rect width="180" height="220" fill="#4CAF50" rx="12"/>
+                            <text x="90" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="white">Unit Tests</text>
+                            
+                            <rect x="20" y="50" width="50" height="50" fill="white" rx="6"/>
+                            <text x="45" y="80" text-anchor="middle" font-size="10" fill="#4CAF50">A</text>
+                            
+                            <rect x="110" y="50" width="50" height="50" fill="white" rx="6"/>
+                            <text x="135" y="80" text-anchor="middle" font-size="10" fill="#4CAF50">B</text>
+                            
+                            <rect x="65" y="120" width="50" height="50" fill="white" rx="6"/>
+                            <text x="90" y="150" text-anchor="middle" font-size="10" fill="#4CAF50">C</text>
+                            
+                            <text x="90" y="195" text-anchor="middle" font-size="11" fill="white">Test each piece</text>
+                            <text x="90" y="210" text-anchor="middle" font-size="11" fill="white">in isolation</text>
+                        </g>
+                        
+                        <!-- Arrow -->
+                        <path d="M 250 150 L 290 150" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+                            </marker>
+                        </defs>
+                        
+                        <!-- Integration Tests -->
+                        <g transform="translate(310, 40)">
+                            <rect width="180" height="220" fill="#2196F3" rx="12"/>
+                            <text x="90" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="white">Integration Tests</text>
+                            
+                            <rect x="30" y="50" width="120" height="120" fill="rgba(255,255,255,0.2)" rx="8" stroke="white" stroke-dasharray="4"/>
+                            
+                            <rect x="40" y="60" width="40" height="40" fill="white" rx="4"/>
+                            <text x="60" y="85" text-anchor="middle" font-size="10" fill="#2196F3">A</text>
+                            
+                            <rect x="100" y="60" width="40" height="40" fill="white" rx="4"/>
+                            <text x="120" y="85" text-anchor="middle" font-size="10" fill="#2196F3">B</text>
+                            
+                            <rect x="70" y="115" width="40" height="40" fill="white" rx="4"/>
+                            <text x="90" y="140" text-anchor="middle" font-size="10" fill="#2196F3">C</text>
+                            
+                            <!-- Connection lines -->
+                            <line x1="60" y1="100" x2="90" y2="115" stroke="white" stroke-width="2"/>
+                            <line x1="120" y1="100" x2="90" y2="115" stroke="white" stroke-width="2"/>
+                            
+                            <text x="90" y="195" text-anchor="middle" font-size="11" fill="white">Test pieces</text>
+                            <text x="90" y="210" text-anchor="middle" font-size="11" fill="white">working together</text>
+                        </g>
+                        
+                        <!-- E2E Tests -->
+                        <g transform="translate(510, 40)">
+                            <rect width="180" height="220" fill="#FF9800" rx="12"/>
+                            <text x="90" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="white">E2E Tests</text>
+                            
+                            <rect x="20" y="50" width="140" height="120" fill="rgba(255,255,255,0.3)" rx="8"/>
+                            <text x="90" y="80" text-anchor="middle" font-size="11" fill="white">Full App</text>
+                            
+                            <rect x="35" y="95" width="30" height="30" fill="white" rx="3"/>
+                            <rect x="75" y="95" width="30" height="30" fill="white" rx="3"/>
+                            <rect x="115" y="95" width="30" height="30" fill="white" rx="3"/>
+                            <line x1="65" y1="110" x2="75" y2="110" stroke="#FF9800" stroke-width="2"/>
+                            <line x1="105" y1="110" x2="115" y2="110" stroke="#FF9800" stroke-width="2"/>
+                            
+                            <text x="90" y="195" text-anchor="middle" font-size="11" fill="white">Test entire app</text>
+                            <text x="90" y="210" text-anchor="middle" font-size="11" fill="white">like a real user</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <h3>What to Integration Test</h3>
+
+                <div class="card">
+                    <h4>✅ Good Candidates for Integration Tests</h4>
+                    <ul>
+                        <li><strong>Parent-child component communication</strong> - Props, callbacks, shared state</li>
+                        <li><strong>Form flows</strong> - Multi-step forms, validation across fields</li>
+                        <li><strong>Data fetching and display</strong> - Loading, error, success states</li>
+                        <li><strong>Navigation flows</strong> - Screen transitions with data</li>
+                        <li><strong>State management</strong> - Actions affecting multiple components</li>
+                        <li><strong>Feature modules</strong> - Complete feature with all its parts</li>
+                    </ul>
+                </div>
+
+                <h3>Integration Test Structure</h3>
+
+                <pre><code>// Feature: Shopping Cart
+describe('Shopping Cart Feature', () => {
+  // Setup shared across tests
+  beforeEach(() => {
+    // Reset state, clear mocks
+  });
+
+  describe('adding items', () => {
+    it('adds item from product list', async () => {
+      // Render multiple components together
+      // Simulate user flow
+      // Assert on final state
+    });
+
+    it('updates quantity when same item added', async () => {
+      // ...
+    });
+  });
+
+  describe('checkout flow', () => {
+    it('navigates through checkout steps', async () => {
+      // Test complete user journey
+    });
+  });
+});</code></pre>
+            </section>
+
+            <!-- Component Integration -->
+            <section id="component-integration">
+                <h2>Component Integration</h2>
+
+                <p>Test how parent and child components work together, including data flow and event handling.</p>
+
+                <h3>Testing Parent-Child Communication</h3>
+
+                <pre><code>// components/TodoList.tsx
+export function TodoList() {
+  const [todos, setTodos] = useState&lt;Todo[]&gt;([]);
+
+  const addTodo = (text: string) => {
+    const newTodo: Todo = {
+      id: Date.now().toString(),
+      text,
+      completed: false,
+    };
+    setTodos([...todos, newTodo]);
+  };
+
+  const toggleTodo = (id: string) => {
+    setTodos(todos.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos(todos.filter(todo => todo.id !== id));
+  };
+
+  const completedCount = todos.filter(t => t.completed).length;
+
+  return (
+    &lt;View&gt;
+      &lt;TodoInput onAdd={addTodo} /&gt;
+      &lt;TodoStats total={todos.length} completed={completedCount} /&gt;
+      {todos.map(todo => (
+        &lt;TodoItem
+          key={todo.id}
+          todo={todo}
+          onToggle={toggleTodo}
+          onDelete={deleteTodo}
+        /&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+// Integration test
+describe('TodoList Integration', () => {
+  it('adds and displays new todo', async () => {
+    render(&lt;TodoList /&gt;);
+
+    // Type in input
+    const input = screen.getByPlaceholderText('Add a todo...');
+    fireEvent.changeText(input, 'Buy groceries');
+
+    // Submit
+    fireEvent.press(screen.getByText('Add'));
+
+    // Verify todo appears in list
+    expect(screen.getByText('Buy groceries')).toBeTruthy();
+
+    // Verify stats updated
+    expect(screen.getByTestId('total-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('completed-count')).toHaveTextContent('0');
+  });
+
+  it('toggles todo completion and updates stats', async () => {
+    render(&lt;TodoList /&gt;);
+
+    // Add a todo
+    fireEvent.changeText(screen.getByPlaceholderText('Add a todo...'), 'Test todo');
+    fireEvent.press(screen.getByText('Add'));
+
+    // Toggle it
+    fireEvent.press(screen.getByText('Test todo'));
+
+    // Verify completion state
+    expect(screen.getByTestId('completed-count')).toHaveTextContent('1');
+  });
+
+  it('deletes todo and updates list', async () => {
+    render(&lt;TodoList /&gt;);
+
+    // Add two todos
+    const input = screen.getByPlaceholderText('Add a todo...');
+    
+    fireEvent.changeText(input, 'First todo');
+    fireEvent.press(screen.getByText('Add'));
+    
+    fireEvent.changeText(input, 'Second todo');
+    fireEvent.press(screen.getByText('Add'));
+
+    expect(screen.getByTestId('total-count')).toHaveTextContent('2');
+
+    // Delete first todo
+    const deleteButtons = screen.getAllByTestId(/delete-/);
+    fireEvent.press(deleteButtons[0]);
+
+    // Verify deletion
+    expect(screen.queryByText('First todo')).toBeNull();
+    expect(screen.getByText('Second todo')).toBeTruthy();
+    expect(screen.getByTestId('total-count')).toHaveTextContent('1');
+  });
+
+  it('clears input after adding todo', async () => {
+    render(&lt;TodoList /&gt;);
+
+    const input = screen.getByPlaceholderText('Add a todo...');
+    fireEvent.changeText(input, 'New todo');
+    fireEvent.press(screen.getByText('Add'));
+
+    // Input should be cleared
+    expect(input.props.value).toBe('');
+  });
+});</code></pre>
+
+                <h3>Testing Compound Components</h3>
+
+                <pre><code>// components/Accordion.tsx
+const AccordionContext = createContext&lt;{
+  openItems: string[];
+  toggle: (id: string) => void;
+} | null&gt;(null);
+
+export function Accordion({ children }: { children: React.ReactNode }) {
+  const [openItems, setOpenItems] = useState&lt;string[]&gt;([]);
+
+  const toggle = (id: string) => {
+    setOpenItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    &lt;AccordionContext.Provider value={{ openItems, toggle }}&gt;
+      &lt;View testID="accordion"&gt;{children}&lt;/View&gt;
+    &lt;/AccordionContext.Provider&gt;
+  );
+}
+
+export function AccordionItem({ id, title, children }: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const context = useContext(AccordionContext);
+  if (!context) throw new Error('AccordionItem must be inside Accordion');
+
+  const isOpen = context.openItems.includes(id);
+
+  return (
+    &lt;View testID={`accordion-item-${id}`}&gt;
+      &lt;Pressable testID={`accordion-header-${id}`} onPress={() => context.toggle(id)}&gt;
+        &lt;Text&gt;{title}&lt;/Text&gt;
+        &lt;Text&gt;{isOpen ? '▼' : '▶'}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      {isOpen && (
+        &lt;View testID={`accordion-content-${id}`}&gt;
+          {children}
+        &lt;/View&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+// Integration test
+describe('Accordion Integration', () => {
+  it('expands and collapses items', () => {
+    render(
+      &lt;Accordion&gt;
+        &lt;AccordionItem id="1" title="Section 1"&gt;
+          &lt;Text&gt;Content 1&lt;/Text&gt;
+        &lt;/AccordionItem&gt;
+        &lt;AccordionItem id="2" title="Section 2"&gt;
+          &lt;Text&gt;Content 2&lt;/Text&gt;
+        &lt;/AccordionItem&gt;
+      &lt;/Accordion&gt;
+    );
+
+    // Initially all collapsed
+    expect(screen.queryByTestId('accordion-content-1')).toBeNull();
+    expect(screen.queryByTestId('accordion-content-2')).toBeNull();
+
+    // Open first section
+    fireEvent.press(screen.getByTestId('accordion-header-1'));
+    expect(screen.getByTestId('accordion-content-1')).toBeTruthy();
+    expect(screen.getByText('Content 1')).toBeTruthy();
+
+    // Open second section (first stays open)
+    fireEvent.press(screen.getByTestId('accordion-header-2'));
+    expect(screen.getByTestId('accordion-content-1')).toBeTruthy();
+    expect(screen.getByTestId('accordion-content-2')).toBeTruthy();
+
+    // Close first section
+    fireEvent.press(screen.getByTestId('accordion-header-1'));
+    expect(screen.queryByTestId('accordion-content-1')).toBeNull();
+    expect(screen.getByTestId('accordion-content-2')).toBeTruthy();
+  });
+});</code></pre>
+            </section>
+
+            <!-- API Integration Testing -->
+            <section id="api-testing">
+                <h2>API Integration Testing</h2>
+
+                <p>Test components that interact with APIs, including loading states, error handling, and data display.</p>
+
+                <h3>Testing Data Fetching Flow</h3>
+
+                <pre><code>// features/users/UserDirectory.tsx
+export function UserDirectory() {
+  const [users, setUsers] = useState&lt;User[]&gt;([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.getUsers();
+      setUsers(data);
+    } catch (err) {
+      setError('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return &lt;ActivityIndicator testID="loading" /&gt;;
+  }
+
+  if (error) {
+    return (
+      &lt;View testID="error-container"&gt;
+        &lt;Text testID="error-message"&gt;{error}&lt;/Text&gt;
+        &lt;Pressable testID="retry-button" onPress={loadUsers}&gt;
+          &lt;Text&gt;Retry&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput
+        testID="search-input"
+        placeholder="Search users..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      /&gt;
+      &lt;FlatList
+        testID="user-list"
+        data={filteredUsers}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => &lt;UserCard user={item} /&gt;}
+        ListEmptyComponent={&lt;Text testID="empty-message"&gt;No users found&lt;/Text&gt;}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Integration test
+import { render, screen, fireEvent, waitFor, waitForElementToBeRemoved } from '@testing-library/react-native';
+import { UserDirectory } from './UserDirectory';
+import * as api from '../../api';
+
+jest.mock('../../api');
+const mockApi = api as jest.Mocked&lt;typeof api&gt;;
+
+describe('UserDirectory Integration', () => {
+  const mockUsers = [
+    { id: '1', name: 'Alice Johnson', email: 'alice@example.com' },
+    { id: '2', name: 'Bob Smith', email: 'bob@example.com' },
+    { id: '3', name: 'Carol Williams', email: 'carol@example.com' },
+  ];
+
+  beforeEach(() => {
+    mockApi.getUsers.mockClear();
+  });
+
+  it('shows loading then displays users', async () => {
+    mockApi.getUsers.mockResolvedValue(mockUsers);
+
+    render(&lt;UserDirectory /&gt;);
+
+    // Shows loading initially
+    expect(screen.getByTestId('loading')).toBeTruthy();
+
+    // Then shows user list
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    expect(screen.getByTestId('user-list')).toBeTruthy();
+    expect(screen.getByText('Alice Johnson')).toBeTruthy();
+    expect(screen.getByText('Bob Smith')).toBeTruthy();
+    expect(screen.getByText('Carol Williams')).toBeTruthy();
+  });
+
+  it('filters users by search query', async () => {
+    mockApi.getUsers.mockResolvedValue(mockUsers);
+
+    render(&lt;UserDirectory /&gt;);
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    // Search for "alice"
+    fireEvent.changeText(screen.getByTestId('search-input'), 'alice');
+
+    // Only Alice should be visible
+    expect(screen.getByText('Alice Johnson')).toBeTruthy();
+    expect(screen.queryByText('Bob Smith')).toBeNull();
+    expect(screen.queryByText('Carol Williams')).toBeNull();
+  });
+
+  it('shows empty message when no results', async () => {
+    mockApi.getUsers.mockResolvedValue(mockUsers);
+
+    render(&lt;UserDirectory /&gt;);
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    // Search for non-existent user
+    fireEvent.changeText(screen.getByTestId('search-input'), 'xyz');
+
+    expect(screen.getByTestId('empty-message')).toHaveTextContent('No users found');
+  });
+
+  it('handles API error with retry', async () => {
+    mockApi.getUsers
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(mockUsers);
+
+    render(&lt;UserDirectory /&gt;);
+
+    // Shows error state
+    await waitFor(() => {
+      expect(screen.getByTestId('error-message')).toHaveTextContent('Failed to load users');
+    });
+
+    // Retry
+    fireEvent.press(screen.getByTestId('retry-button'));
+
+    // Shows loading then users
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    expect(screen.getByText('Alice Johnson')).toBeTruthy();
+    expect(mockApi.getUsers).toHaveBeenCalledTimes(2);
+  });
+});</code></pre>
+
+                <h3>Testing CRUD Operations</h3>
+
+                <pre><code>// features/posts/PostManager.tsx
+export function PostManager() {
+  const [posts, setPosts] = useState&lt;Post[]&gt;([]);
+  const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    const data = await api.getPosts();
+    setPosts(data);
+  };
+
+  const createPost = async (title: string, content: string) => {
+    const newPost = await api.createPost({ title, content });
+    setPosts([newPost, ...posts]);
+  };
+
+  const deletePost = async (id: string) => {
+    await api.deletePost(id);
+    setPosts(posts.filter(p => p.id !== id));
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;Pressable testID="create-button" onPress={() => setIsCreating(true)}&gt;
+        &lt;Text&gt;Create Post&lt;/Text&gt;
+      &lt;/Pressable&gt;
+
+      {isCreating && (
+        &lt;PostForm
+          onSubmit={async (title, content) => {
+            await createPost(title, content);
+            setIsCreating(false);
+          }}
+          onCancel={() => setIsCreating(false)}
+        /&gt;
+      )}
+
+      {posts.map(post => (
+        &lt;PostCard
+          key={post.id}
+          post={post}
+          onDelete={() => deletePost(post.id)}
+        /&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+// Integration test
+describe('PostManager CRUD Integration', () => {
+  const initialPosts = [
+    { id: '1', title: 'First Post', content: 'Content 1' },
+    { id: '2', title: 'Second Post', content: 'Content 2' },
+  ];
+
+  beforeEach(() => {
+    mockApi.getPosts.mockResolvedValue(initialPosts);
+    mockApi.createPost.mockImplementation(async (data) => ({
+      id: '3',
+      ...data,
+    }));
+    mockApi.deletePost.mockResolvedValue(undefined);
+  });
+
+  it('creates a new post', async () => {
+    render(&lt;PostManager /&gt;);
+    await screen.findByText('First Post');
+
+    // Open create form
+    fireEvent.press(screen.getByTestId('create-button'));
+
+    // Fill form
+    fireEvent.changeText(screen.getByTestId('title-input'), 'New Post');
+    fireEvent.changeText(screen.getByTestId('content-input'), 'New content');
+
+    // Submit
+    fireEvent.press(screen.getByTestId('submit-button'));
+
+    // Verify new post appears
+    await waitFor(() => {
+      expect(screen.getByText('New Post')).toBeTruthy();
+    });
+
+    // Form should be closed
+    expect(screen.queryByTestId('title-input')).toBeNull();
+
+    // API called correctly
+    expect(mockApi.createPost).toHaveBeenCalledWith({
+      title: 'New Post',
+      content: 'New content',
+    });
+  });
+
+  it('deletes a post', async () => {
+    render(&lt;PostManager /&gt;);
+    await screen.findByText('First Post');
+
+    // Delete first post
+    const deleteButtons = screen.getAllByTestId(/delete-button/);
+    fireEvent.press(deleteButtons[0]);
+
+    // Verify post removed
+    await waitFor(() => {
+      expect(screen.queryByText('First Post')).toBeNull();
+    });
+
+    expect(screen.getByText('Second Post')).toBeTruthy();
+    expect(mockApi.deletePost).toHaveBeenCalledWith('1');
+  });
+
+  it('cancels post creation', async () => {
+    render(&lt;PostManager /&gt;);
+    await screen.findByText('First Post');
+
+    // Open form
+    fireEvent.press(screen.getByTestId('create-button'));
+    expect(screen.getByTestId('title-input')).toBeTruthy();
+
+    // Cancel
+    fireEvent.press(screen.getByTestId('cancel-button'));
+
+    // Form closed, no API call
+    expect(screen.queryByTestId('title-input')).toBeNull();
+    expect(mockApi.createPost).not.toHaveBeenCalled();
+  });
+});</code></pre>
+            </section>
+
+            <!-- Mock Service Worker -->
+            <section id="msw">
+                <h2>Mock Service Worker</h2>
+
+                <p>MSW intercepts network requests at the network level, providing more realistic API mocking than jest.mock().</p>
+
+                <h3>Setup MSW</h3>
+
+                <pre><code># Install MSW
+npm install --save-dev msw</code></pre>
+
+                <pre><code>// mocks/handlers.ts
+import { http, HttpResponse } from 'msw';
+
+export const handlers = [
+  // GET users
+  http.get('https://api.example.com/users', () => {
+    return HttpResponse.json([
+      { id: '1', name: 'Alice', email: 'alice@example.com' },
+      { id: '2', name: 'Bob', email: 'bob@example.com' },
+    ]);
+  }),
+
+  // GET single user
+  http.get('https://api.example.com/users/:id', ({ params }) => {
+    const { id } = params;
+    return HttpResponse.json({
+      id,
+      name: `User ${id}`,
+      email: `user${id}@example.com`,
+    });
+  }),
+
+  // POST create user
+  http.post('https://api.example.com/users', async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json(
+      { id: '3', ...body },
+      { status: 201 }
+    );
+  }),
+
+  // DELETE user
+  http.delete('https://api.example.com/users/:id', () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
+// mocks/server.ts
+import { setupServer } from 'msw/node';
+import { handlers } from './handlers';
+
+export const server = setupServer(...handlers);
+
+// jest.setup.js
+import { server } from './mocks/server';
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());</code></pre>
+
+                <h3>Using MSW in Tests</h3>
+
+                <pre><code>import { render, screen, waitFor } from '@testing-library/react-native';
+import { server } from '../mocks/server';
+import { http, HttpResponse } from 'msw';
+import { UserProfile } from './UserProfile';
+
+describe('UserProfile with MSW', () => {
+  it('displays user data', async () => {
+    render(&lt;UserProfile userId="1" /&gt;);
+
+    // MSW handles the request automatically
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeTruthy();
+    });
+  });
+
+  it('handles not found error', async () => {
+    // Override handler for this test
+    server.use(
+      http.get('https://api.example.com/users/:id', () => {
+        return new HttpResponse(null, { status: 404 });
+      })
+    );
+
+    render(&lt;UserProfile userId="999" /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByText('User not found')).toBeTruthy();
+    });
+  });
+
+  it('handles server error', async () => {
+    server.use(
+      http.get('https://api.example.com/users/:id', () => {
+        return HttpResponse.json(
+          { message: 'Internal server error' },
+          { status: 500 }
+        );
+      })
+    );
+
+    render(&lt;UserProfile userId="1" /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByText('Something went wrong')).toBeTruthy();
+    });
+  });
+
+  it('handles network error', async () => {
+    server.use(
+      http.get('https://api.example.com/users/:id', () => {
+        return HttpResponse.error();
+      })
+    );
+
+    render(&lt;UserProfile userId="1" /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeTruthy();
+    });
+  });
+});</code></pre>
+
+                <h3>Dynamic Response Handlers</h3>
+
+                <pre><code>// Handlers with dynamic behavior
+export const handlers = [
+  http.get('https://api.example.com/products', ({ request }) => {
+    const url = new URL(request.url);
+    const category = url.searchParams.get('category');
+    const page = parseInt(url.searchParams.get('page') || '1');
+
+    let products = allProducts;
+
+    if (category) {
+      products = products.filter(p => p.category === category);
+    }
+
+    const pageSize = 10;
+    const start = (page - 1) * pageSize;
+    const paginatedProducts = products.slice(start, start + pageSize);
+
+    return HttpResponse.json({
+      data: paginatedProducts,
+      total: products.length,
+      page,
+      pageSize,
+    });
+  }),
+
+  http.post('https://api.example.com/login', async ({ request }) => {
+    const { email, password } = await request.json();
+
+    if (email === 'test@example.com' && password === 'password') {
+      return HttpResponse.json({
+        token: 'mock-jwt-token',
+        user: { id: '1', email, name: 'Test User' },
+      });
+    }
+
+    return HttpResponse.json(
+      { message: 'Invalid credentials' },
+      { status: 401 }
+    );
+  }),
+];</code></pre>
+            </section>
+            <!-- State Management Testing -->
+            <section id="state-management">
+                <h2>State Management Testing</h2>
+
+                <p>Test how components interact with global state management solutions like Zustand, Redux, or React Context.</p>
+
+                <h3>Testing with Zustand</h3>
+
+                <pre><code>// stores/cartStore.ts
+import { create } from 'zustand';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface CartStore {
+  items: CartItem[];
+  addItem: (product: Omit&lt;CartItem, 'quantity'&gt;) => void;
+  removeItem: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  clearCart: () => void;
+  totalItems: () => number;
+  totalPrice: () => number;
+}
+
+export const useCartStore = create&lt;CartStore&gt;((set, get) => ({
+  items: [],
+  
+  addItem: (product) => set((state) => {
+    const existing = state.items.find(item => item.id === product.id);
+    if (existing) {
+      return {
+        items: state.items.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        ),
+      };
+    }
+    return { items: [...state.items, { ...product, quantity: 1 }] };
+  }),
+  
+  removeItem: (id) => set((state) => ({
+    items: state.items.filter(item => item.id !== id),
+  })),
+  
+  updateQuantity: (id, quantity) => set((state) => ({
+    items: quantity > 0
+      ? state.items.map(item =>
+          item.id === id ? { ...item, quantity } : item
+        )
+      : state.items.filter(item => item.id !== id),
+  })),
+  
+  clearCart: () => set({ items: [] }),
+  
+  totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
+  
+  totalPrice: () => get().items.reduce(
+    (sum, item) => sum + item.price * item.quantity, 0
+  ),
+}));
+
+// Reset store between tests
+export const resetCartStore = () => useCartStore.setState({ items: [] });</code></pre>
+
+                <pre><code>// features/cart/CartScreen.tsx
+export function CartScreen() {
+  const { items, removeItem, updateQuantity, clearCart, totalPrice } = useCartStore();
+
+  if (items.length === 0) {
+    return &lt;Text testID="empty-cart"&gt;Your cart is empty&lt;/Text&gt;;
+  }
+
+  return (
+    &lt;View&gt;
+      {items.map(item => (
+        &lt;View key={item.id} testID={`cart-item-${item.id}`}&gt;
+          &lt;Text testID={`item-name-${item.id}`}&gt;{item.name}&lt;/Text&gt;
+          &lt;Text testID={`item-price-${item.id}`}&gt;${item.price}&lt;/Text&gt;
+          
+          &lt;View&gt;
+            &lt;Pressable
+              testID={`decrease-${item.id}`}
+              onPress={() => updateQuantity(item.id, item.quantity - 1)}
+            &gt;
+              &lt;Text&gt;-&lt;/Text&gt;
+            &lt;/Pressable&gt;
+            &lt;Text testID={`quantity-${item.id}`}&gt;{item.quantity}&lt;/Text&gt;
+            &lt;Pressable
+              testID={`increase-${item.id}`}
+              onPress={() => updateQuantity(item.id, item.quantity + 1)}
+            &gt;
+              &lt;Text&gt;+&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          &lt;/View&gt;
+          
+          &lt;Pressable testID={`remove-${item.id}`} onPress={() => removeItem(item.id)}&gt;
+            &lt;Text&gt;Remove&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      ))}
+      
+      &lt;Text testID="total-price"&gt;Total: ${totalPrice().toFixed(2)}&lt;/Text&gt;
+      
+      &lt;Pressable testID="clear-cart" onPress={clearCart}&gt;
+        &lt;Text&gt;Clear Cart&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Integration test
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { CartScreen } from './CartScreen';
+import { useCartStore, resetCartStore } from '../../stores/cartStore';
+
+describe('CartScreen Integration', () => {
+  beforeEach(() => {
+    resetCartStore();
+  });
+
+  it('shows empty cart message when no items', () => {
+    render(&lt;CartScreen /&gt;);
+
+    expect(screen.getByTestId('empty-cart')).toHaveTextContent('Your cart is empty');
+  });
+
+  it('displays cart items from store', () => {
+    // Pre-populate store
+    useCartStore.setState({
+      items: [
+        { id: '1', name: 'Widget', price: 10, quantity: 2 },
+        { id: '2', name: 'Gadget', price: 25, quantity: 1 },
+      ],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    expect(screen.getByTestId('item-name-1')).toHaveTextContent('Widget');
+    expect(screen.getByTestId('quantity-1')).toHaveTextContent('2');
+    expect(screen.getByTestId('item-name-2')).toHaveTextContent('Gadget');
+    expect(screen.getByTestId('total-price')).toHaveTextContent('$45.00');
+  });
+
+  it('increases item quantity', () => {
+    useCartStore.setState({
+      items: [{ id: '1', name: 'Widget', price: 10, quantity: 1 }],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    fireEvent.press(screen.getByTestId('increase-1'));
+
+    expect(screen.getByTestId('quantity-1')).toHaveTextContent('2');
+    expect(screen.getByTestId('total-price')).toHaveTextContent('$20.00');
+  });
+
+  it('decreases item quantity', () => {
+    useCartStore.setState({
+      items: [{ id: '1', name: 'Widget', price: 10, quantity: 3 }],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    fireEvent.press(screen.getByTestId('decrease-1'));
+
+    expect(screen.getByTestId('quantity-1')).toHaveTextContent('2');
+  });
+
+  it('removes item when quantity reaches zero', () => {
+    useCartStore.setState({
+      items: [{ id: '1', name: 'Widget', price: 10, quantity: 1 }],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    fireEvent.press(screen.getByTestId('decrease-1'));
+
+    expect(screen.getByTestId('empty-cart')).toBeTruthy();
+  });
+
+  it('removes item directly', () => {
+    useCartStore.setState({
+      items: [
+        { id: '1', name: 'Widget', price: 10, quantity: 2 },
+        { id: '2', name: 'Gadget', price: 25, quantity: 1 },
+      ],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    fireEvent.press(screen.getByTestId('remove-1'));
+
+    expect(screen.queryByTestId('cart-item-1')).toBeNull();
+    expect(screen.getByTestId('cart-item-2')).toBeTruthy();
+    expect(screen.getByTestId('total-price')).toHaveTextContent('$25.00');
+  });
+
+  it('clears entire cart', () => {
+    useCartStore.setState({
+      items: [
+        { id: '1', name: 'Widget', price: 10, quantity: 2 },
+        { id: '2', name: 'Gadget', price: 25, quantity: 1 },
+      ],
+    });
+
+    render(&lt;CartScreen /&gt;);
+
+    fireEvent.press(screen.getByTestId('clear-cart'));
+
+    expect(screen.getByTestId('empty-cart')).toBeTruthy();
+  });
+});</code></pre>
+
+                <h3>Testing Store Actions Across Components</h3>
+
+                <pre><code>// Testing that ProductList and CartBadge stay in sync
+describe('Cart Integration Across Components', () => {
+  beforeEach(() => {
+    resetCartStore();
+  });
+
+  it('updates cart badge when item added from product list', () => {
+    // Render both components
+    render(
+      &lt;View&gt;
+        &lt;CartBadge /&gt;
+        &lt;ProductList /&gt;
+      &lt;/View&gt;
+    );
+
+    // Initially empty
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+
+    // Add item
+    fireEvent.press(screen.getByTestId('add-product-1'));
+
+    // Badge updates
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+
+    // Add same item again
+    fireEvent.press(screen.getByTestId('add-product-1'));
+
+    // Shows total quantity
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('2');
+  });
+});</code></pre>
+            </section>
+
+            <!-- Testing User Flows -->
+            <section id="user-flows">
+                <h2>Testing User Flows</h2>
+
+                <p>Test complete user journeys that span multiple screens and actions.</p>
+
+                <h3>Complete Checkout Flow</h3>
+
+                <pre><code>// __tests__/CheckoutFlow.integration.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ProductsScreen } from '../screens/ProductsScreen';
+import { CartScreen } from '../screens/CartScreen';
+import { CheckoutScreen } from '../screens/CheckoutScreen';
+import { ConfirmationScreen } from '../screens/ConfirmationScreen';
+import { useCartStore, resetCartStore } from '../stores/cartStore';
+import * as api from '../api';
+
+jest.mock('../api');
+const mockApi = api as jest.Mocked&lt;typeof api&gt;;
+
+const Stack = createNativeStackNavigator();
+
+function TestNavigator() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen name="Products" component={ProductsScreen} /&gt;
+        &lt;Stack.Screen name="Cart" component={CartScreen} /&gt;
+        &lt;Stack.Screen name="Checkout" component={CheckoutScreen} /&gt;
+        &lt;Stack.Screen name="Confirmation" component={ConfirmationScreen} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+
+describe('Checkout Flow Integration', () => {
+  beforeEach(() => {
+    resetCartStore();
+    jest.clearAllMocks();
+    
+    mockApi.getProducts.mockResolvedValue([
+      { id: '1', name: 'Widget', price: 10 },
+      { id: '2', name: 'Gadget', price: 25 },
+    ]);
+    
+    mockApi.createOrder.mockResolvedValue({
+      orderId: 'ORD-123',
+      status: 'confirmed',
+    });
+  });
+
+  it('completes full checkout journey', async () => {
+    render(&lt;TestNavigator /&gt;);
+
+    // Wait for products to load
+    await screen.findByText('Widget');
+
+    // Step 1: Add items to cart
+    fireEvent.press(screen.getByTestId('add-product-1'));
+    fireEvent.press(screen.getByTestId('add-product-2'));
+    fireEvent.press(screen.getByTestId('add-product-1')); // Add another Widget
+
+    // Verify cart badge
+    expect(screen.getByTestId('cart-badge')).toHaveTextContent('3');
+
+    // Step 2: Go to cart
+    fireEvent.press(screen.getByTestId('cart-button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Your Cart')).toBeTruthy();
+    });
+
+    // Verify cart contents
+    expect(screen.getByTestId('quantity-1')).toHaveTextContent('2');
+    expect(screen.getByTestId('quantity-2')).toHaveTextContent('1');
+    expect(screen.getByTestId('total-price')).toHaveTextContent('$45.00');
+
+    // Step 3: Proceed to checkout
+    fireEvent.press(screen.getByTestId('checkout-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Checkout')).toBeTruthy();
+    });
+
+    // Step 4: Fill shipping info
+    fireEvent.changeText(screen.getByTestId('name-input'), 'John Doe');
+    fireEvent.changeText(screen.getByTestId('email-input'), 'john@example.com');
+    fireEvent.changeText(screen.getByTestId('address-input'), '123 Main St');
+
+    // Step 5: Fill payment info
+    fireEvent.changeText(screen.getByTestId('card-number'), '4111111111111111');
+    fireEvent.changeText(screen.getByTestId('expiry'), '12/25');
+    fireEvent.changeText(screen.getByTestId('cvv'), '123');
+
+    // Step 6: Place order
+    fireEvent.press(screen.getByTestId('place-order-button'));
+
+    // Step 7: Verify confirmation
+    await waitFor(() => {
+      expect(screen.getByText('Order Confirmed!')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('order-id')).toHaveTextContent('ORD-123');
+
+    // Verify API was called correctly
+    expect(mockApi.createOrder).toHaveBeenCalledWith({
+      items: [
+        { id: '1', name: 'Widget', price: 10, quantity: 2 },
+        { id: '2', name: 'Gadget', price: 25, quantity: 1 },
+      ],
+      shipping: {
+        name: 'John Doe',
+        email: 'john@example.com',
+        address: '123 Main St',
+      },
+      total: 45,
+    });
+
+    // Cart should be cleared
+    expect(useCartStore.getState().items).toHaveLength(0);
+  });
+
+  it('handles checkout error gracefully', async () => {
+    mockApi.createOrder.mockRejectedValue(new Error('Payment failed'));
+
+    // Setup cart with items
+    useCartStore.setState({
+      items: [{ id: '1', name: 'Widget', price: 10, quantity: 1 }],
+    });
+
+    render(&lt;TestNavigator /&gt;);
+
+    // Navigate directly to checkout
+    fireEvent.press(screen.getByTestId('cart-button'));
+    await screen.findByText('Your Cart');
+
+    fireEvent.press(screen.getByTestId('checkout-button'));
+    await screen.findByText('Checkout');
+
+    // Fill and submit
+    fireEvent.changeText(screen.getByTestId('name-input'), 'John Doe');
+    fireEvent.changeText(screen.getByTestId('email-input'), 'john@example.com');
+    fireEvent.changeText(screen.getByTestId('address-input'), '123 Main St');
+    fireEvent.changeText(screen.getByTestId('card-number'), '4111111111111111');
+    fireEvent.changeText(screen.getByTestId('expiry'), '12/25');
+    fireEvent.changeText(screen.getByTestId('cvv'), '123');
+
+    fireEvent.press(screen.getByTestId('place-order-button'));
+
+    // Error shown
+    await waitFor(() => {
+      expect(screen.getByTestId('error-message')).toHaveTextContent('Payment failed');
+    });
+
+    // Still on checkout, can retry
+    expect(screen.getByText('Checkout')).toBeTruthy();
+
+    // Cart NOT cleared
+    expect(useCartStore.getState().items).toHaveLength(1);
+  });
+});</code></pre>
+
+                <h3>Authentication Flow</h3>
+
+                <pre><code>// __tests__/AuthFlow.integration.test.tsx
+describe('Authentication Flow', () => {
+  beforeEach(() => {
+    resetAuthStore();
+    jest.clearAllMocks();
+  });
+
+  it('logs in and redirects to home', async () => {
+    mockApi.login.mockResolvedValue({
+      token: 'mock-token',
+      user: { id: '1', name: 'Alice', email: 'alice@example.com' },
+    });
+
+    render(&lt;AppNavigator /&gt;);
+
+    // Should start on login screen
+    expect(screen.getByText('Sign In')).toBeTruthy();
+
+    // Fill credentials
+    fireEvent.changeText(screen.getByTestId('email-input'), 'alice@example.com');
+    fireEvent.changeText(screen.getByTestId('password-input'), 'password123');
+
+    // Submit
+    fireEvent.press(screen.getByTestId('login-button'));
+
+    // Should redirect to home
+    await waitFor(() => {
+      expect(screen.getByText('Welcome, Alice!')).toBeTruthy();
+    });
+
+    // Auth state updated
+    expect(useAuthStore.getState().user).toEqual({
+      id: '1',
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+  });
+
+  it('shows error for invalid credentials', async () => {
+    mockApi.login.mockRejectedValue(new Error('Invalid credentials'));
+
+    render(&lt;AppNavigator /&gt;);
+
+    fireEvent.changeText(screen.getByTestId('email-input'), 'wrong@example.com');
+    fireEvent.changeText(screen.getByTestId('password-input'), 'wrongpassword');
+    fireEvent.press(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error-message')).toHaveTextContent('Invalid credentials');
+    });
+
+    // Still on login screen
+    expect(screen.getByText('Sign In')).toBeTruthy();
+  });
+
+  it('logs out and returns to login', async () => {
+    // Start logged in
+    useAuthStore.setState({
+      user: { id: '1', name: 'Alice', email: 'alice@example.com' },
+      token: 'mock-token',
+    });
+
+    render(&lt;AppNavigator /&gt;);
+
+    // Should be on home
+    expect(screen.getByText('Welcome, Alice!')).toBeTruthy();
+
+    // Logout
+    fireEvent.press(screen.getByTestId('logout-button'));
+
+    // Back to login
+    await waitFor(() => {
+      expect(screen.getByText('Sign In')).toBeTruthy();
+    });
+
+    // Auth cleared
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+});</code></pre>
+            </section>
+
+            <!-- Best Practices -->
+            <section id="best-practices">
+                <h2>Best Practices</h2>
+
+                <h3>Test Organization</h3>
+
+                <pre><code>// Group integration tests in __tests__/integration or *.integration.test.tsx
+src/
+├── features/
+│   ├── cart/
+│   │   ├── CartScreen.tsx
+│   │   ├── CartScreen.test.tsx       // Unit/component tests
+│   │   └── CartScreen.integration.test.tsx
+│   └── checkout/
+│       ├── CheckoutFlow.tsx
+│       └── __tests__/
+│           ├── CheckoutFlow.test.tsx
+│           └── CheckoutFlow.integration.test.tsx
+├── __tests__/
+│   └── integration/
+│       ├── AuthFlow.test.tsx
+│       ├── ShoppingFlow.test.tsx
+│       └── OnboardingFlow.test.tsx</code></pre>
+
+                <h3>Test Utilities</h3>
+
+                <pre><code>// test-utils/integration.tsx
+import { render, RenderOptions } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create fresh query client for each test
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+interface IntegrationRenderOptions extends RenderOptions {
+  queryClient?: QueryClient;
+  initialRoute?: string;
+}
+
+export function renderIntegration(
+  ui: React.ReactElement,
+  {
+    queryClient = createTestQueryClient(),
+    initialRoute,
+    ...options
+  }: IntegrationRenderOptions = {}
+) {
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      &lt;QueryClientProvider client={queryClient}&gt;
+        &lt;NavigationContainer&gt;
+          {children}
+        &lt;/NavigationContainer&gt;
+      &lt;/QueryClientProvider&gt;
+    );
+  }
+
+  return {
+    ...render(ui, { wrapper: Wrapper, ...options }),
+    queryClient,
+  };
+}
+
+// Factory functions for test data
+export function createTestUser(overrides = {}) {
+  return {
+    id: '1',
+    name: 'Test User',
+    email: 'test@example.com',
+    ...overrides,
+  };
+}
+
+export function createTestProduct(overrides = {}) {
+  return {
+    id: '1',
+    name: 'Test Product',
+    price: 10,
+    description: 'A test product',
+    ...overrides,
+  };
+}</code></pre>
+
+                <h3>Avoiding Common Pitfalls</h3>
+
+                <div class="card">
+                    <h4>⚠️ Common Integration Test Pitfalls</h4>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Problem</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Solution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Tests depend on each other</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Reset all state in beforeEach</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Flaky async tests</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Use waitFor with proper assertions</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Tests too slow</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Mock API calls, use fake timers</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Hard to debug failures</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Use screen.debug(), clear test names</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Testing implementation details</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Focus on user-visible behavior</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Too many mocks</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Only mock external boundaries</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Integration Test Checklist</h3>
+
+                <pre><code>/**
+ * Integration Test Checklist:
+ * 
+ * ✓ Tests complete user flows, not isolated actions
+ * ✓ Uses real components, not mocked children
+ * ✓ Mocks only external dependencies (API, storage)
+ * ✓ Resets all state between tests
+ * ✓ Tests both success and error paths
+ * ✓ Uses accessible queries (getByText, getByRole)
+ * ✓ Waits for async operations properly
+ * ✓ Has clear, descriptive test names
+ * ✓ Keeps test data factories centralized
+ * ✓ Runs fast enough to be part of CI
+ */</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Test a Search Feature</h3>
+                    <p>Test a search feature with debounced input, API calls, and results display.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test that typing triggers search after debounce</li>
+                        <li>Test search results are displayed</li>
+                        <li>Test loading state during search</li>
+                        <li>Test empty results message</li>
+                        <li>Test clearing search shows all items</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// __tests__/SearchFeature.integration.test.tsx
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { SearchScreen } from '../screens/SearchScreen';
+import * as api from '../api';
+
+jest.mock('../api');
+const mockApi = api as jest.Mocked&lt;typeof api&gt;;
+
+describe('Search Feature Integration', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('searches after debounce delay', async () => {
+    mockApi.search.mockResolvedValue([
+      { id: '1', title: 'React Native Guide' },
+      { id: '2', title: 'React Patterns' },
+    ]);
+
+    render(&lt;SearchScreen /&gt;);
+
+    // Type search query
+    fireEvent.changeText(screen.getByTestId('search-input'), 'React');
+
+    // Search not called immediately
+    expect(mockApi.search).not.toHaveBeenCalled();
+
+    // Advance timers past debounce
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    // Now search is called
+    expect(mockApi.search).toHaveBeenCalledWith('React');
+
+    // Wait for results
+    await waitFor(() => {
+      expect(screen.getByText('React Native Guide')).toBeTruthy();
+      expect(screen.getByText('React Patterns')).toBeTruthy();
+    });
+  });
+
+  it('shows loading during search', async () => {
+    mockApi.search.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve([]), 200))
+    );
+
+    render(&lt;SearchScreen /&gt;);
+
+    fireEvent.changeText(screen.getByTestId('search-input'), 'test');
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    // Loading should show
+    expect(screen.getByTestId('loading')).toBeTruthy();
+
+    // Advance to complete request
+    await act(async () => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(screen.queryByTestId('loading')).toBeNull();
+  });
+
+  it('shows empty message when no results', async () => {
+    mockApi.search.mockResolvedValue([]);
+
+    render(&lt;SearchScreen /&gt;);
+
+    fireEvent.changeText(screen.getByTestId('search-input'), 'xyz');
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('no-results')).toHaveTextContent('No results found');
+    });
+  });
+
+  it('clears results when search cleared', async () => {
+    mockApi.search.mockResolvedValue([{ id: '1', title: 'Result' }]);
+
+    render(&lt;SearchScreen /&gt;);
+
+    // Search
+    fireEvent.changeText(screen.getByTestId('search-input'), 'test');
+    act(() => jest.advanceTimersByTime(500));
+    await screen.findByText('Result');
+
+    // Clear search
+    fireEvent.changeText(screen.getByTestId('search-input'), '');
+    act(() => jest.advanceTimersByTime(500));
+
+    // Results cleared
+    await waitFor(() => {
+      expect(screen.queryByText('Result')).toBeNull();
+    });
+  });
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Test Form with Multiple Steps</h3>
+                    <p>Test a multi-step registration form with validation and submission.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test progression through all steps</li>
+                        <li>Test going back to previous steps</li>
+                        <li>Test validation prevents progression</li>
+                        <li>Test final submission with all data</li>
+                        <li>Test success confirmation</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// __tests__/RegistrationFlow.integration.test.tsx
+describe('Registration Flow Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApi.register.mockResolvedValue({ success: true });
+  });
+
+  it('completes all registration steps', async () => {
+    render(&lt;RegistrationScreen /&gt;);
+
+    // Step 1: Personal Info
+    expect(screen.getByText('Personal Information')).toBeTruthy();
+
+    fireEvent.changeText(screen.getByTestId('first-name'), 'John');
+    fireEvent.changeText(screen.getByTestId('last-name'), 'Doe');
+    fireEvent.changeText(screen.getByTestId('email'), 'john@example.com');
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    // Step 2: Password
+    await waitFor(() => {
+      expect(screen.getByText('Create Password')).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByTestId('password'), 'SecurePass123!');
+    fireEvent.changeText(screen.getByTestId('confirm-password'), 'SecurePass123!');
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    // Step 3: Preferences
+    await waitFor(() => {
+      expect(screen.getByText('Preferences')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('newsletter-toggle'));
+    fireEvent.press(screen.getByTestId('submit-button'));
+
+    // Success
+    await waitFor(() => {
+      expect(screen.getByText('Registration Complete!')).toBeTruthy();
+    });
+
+    expect(mockApi.register).toHaveBeenCalledWith({
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      password: 'SecurePass123!',
+      newsletter: true,
+    });
+  });
+
+  it('can go back to previous step', async () => {
+    render(&lt;RegistrationScreen /&gt;);
+
+    // Complete step 1
+    fireEvent.changeText(screen.getByTestId('first-name'), 'John');
+    fireEvent.changeText(screen.getByTestId('last-name'), 'Doe');
+    fireEvent.changeText(screen.getByTestId('email'), 'john@example.com');
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    await screen.findByText('Create Password');
+
+    // Go back
+    fireEvent.press(screen.getByTestId('back-button'));
+
+    // Data preserved
+    await waitFor(() => {
+      expect(screen.getByTestId('first-name').props.value).toBe('John');
+    });
+  });
+
+  it('validates before allowing progression', async () => {
+    render(&lt;RegistrationScreen /&gt;);
+
+    // Try to proceed without filling
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    // Errors shown
+    expect(screen.getByText('First name is required')).toBeTruthy();
+    expect(screen.getByText('Email is required')).toBeTruthy();
+
+    // Still on step 1
+    expect(screen.getByText('Personal Information')).toBeTruthy();
+  });
+
+  it('validates password match', async () => {
+    render(&lt;RegistrationScreen /&gt;);
+
+    // Complete step 1
+    fireEvent.changeText(screen.getByTestId('first-name'), 'John');
+    fireEvent.changeText(screen.getByTestId('last-name'), 'Doe');
+    fireEvent.changeText(screen.getByTestId('email'), 'john@example.com');
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    await screen.findByText('Create Password');
+
+    // Enter mismatched passwords
+    fireEvent.changeText(screen.getByTestId('password'), 'Password123!');
+    fireEvent.changeText(screen.getByTestId('confirm-password'), 'Different123!');
+    fireEvent.press(screen.getByTestId('next-button'));
+
+    // Error shown
+    expect(screen.getByText('Passwords do not match')).toBeTruthy();
+  });
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Integration tests verify that components and systems work correctly together, providing confidence in complete features without the overhead of full E2E tests.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Integration scope:</strong> Test features, not isolated components</li>
+                        <li><strong>Mock boundaries:</strong> Mock APIs and external services, use real components</li>
+                        <li><strong>Component integration:</strong> Test parent-child communication and state flow</li>
+                        <li><strong>MSW:</strong> Use Mock Service Worker for realistic API mocking</li>
+                        <li><strong>State management:</strong> Test store actions affecting multiple components</li>
+                        <li><strong>User flows:</strong> Test complete journeys across multiple screens</li>
+                        <li><strong>Reset state:</strong> Always reset stores and mocks between tests</li>
+                        <li><strong>Test utilities:</strong> Create reusable render wrappers and data factories</li>
+                        <li><strong>Balance:</strong> Integration tests should be fewer but cover critical flows</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll explore end-to-end testing with Maestro, testing your app on real devices with automated user interactions.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l03_component_testing.html" class="prev-link">← Previous: Component Testing</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l05_e2e_testing.html" class="next-link">Next: E2E Testing with Maestro →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

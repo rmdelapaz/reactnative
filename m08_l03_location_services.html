@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn to get user location, track movement, and work with maps in React Native with Expo">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Location Services | Module 8: Native Features and Device APIs | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m08_l01_permissions.html">Module 8</a> &gt;
+            <span>Lesson 8.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 8: Native Features and Device APIs</p>
+                <h1>Location Services</h1>
+                <p class="lesson-subtitle">Getting position, tracking movement, and displaying maps</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Request and handle location permissions properly</li>
+                    <li>Get the user's current location with different accuracy levels</li>
+                    <li>Track location changes in real-time</li>
+                    <li>Understand foreground vs background location tracking</li>
+                    <li>Work with geocoding (addresses to coordinates)</li>
+                    <li>Display interactive maps with markers and regions</li>
+                    <li>Calculate distances between coordinates</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#location-basics">Location Basics</a></li>
+                        <li><a href="#permissions">Location Permissions</a></li>
+                        <li><a href="#current-location">Getting Current Location</a></li>
+                        <li><a href="#tracking">Location Tracking</a></li>
+                        <li><a href="#geocoding">Geocoding</a></li>
+                        <li><a href="#maps">Displaying Maps</a></li>
+                        <li><a href="#distance">Distance Calculations</a></li>
+                        <li><a href="#background">Background Location</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Location Basics -->
+            <section id="location-basics">
+                <h2>Location Basics</h2>
+
+                <p>Location services allow your app to determine where the user is in the world. This enables features like finding nearby places, navigation, fitness tracking, and location-based reminders.</p>
+
+                <h3>Installation</h3>
+
+                <pre><code># Install expo-location
+npx expo install expo-location
+
+# For maps (optional)
+npx expo install react-native-maps</code></pre>
+
+                <h3>How Location Works</h3>
+
+                <p>Mobile devices determine location using multiple sources:</p>
+
+                <!-- SVG: Location Sources -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 300" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="300" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Location Data Sources</text>
+                        
+                        <!-- GPS -->
+                        <rect x="50" y="60" width="140" height="100" fill="#4CAF50" stroke="#388E3C" stroke-width="2" rx="8"/>
+                        <text x="120" y="90" text-anchor="middle" font-size="24">🛰️</text>
+                        <text x="120" y="115" text-anchor="middle" font-size="12" font-weight="bold" fill="white">GPS</text>
+                        <text x="120" y="135" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Most accurate</text>
+                        <text x="120" y="150" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">~3-5m accuracy</text>
+                        
+                        <!-- Wi-Fi -->
+                        <rect x="220" y="60" width="140" height="100" fill="#2196F3" stroke="#1976D2" stroke-width="2" rx="8"/>
+                        <text x="290" y="90" text-anchor="middle" font-size="24">📶</text>
+                        <text x="290" y="115" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Wi-Fi</text>
+                        <text x="290" y="135" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Good indoors</text>
+                        <text x="290" y="150" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">~15-40m accuracy</text>
+                        
+                        <!-- Cell Tower -->
+                        <rect x="390" y="60" width="140" height="100" fill="#FF9800" stroke="#F57C00" stroke-width="2" rx="8"/>
+                        <text x="460" y="90" text-anchor="middle" font-size="24">📡</text>
+                        <text x="460" y="115" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Cell Tower</text>
+                        <text x="460" y="135" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Fast, low battery</text>
+                        <text x="460" y="150" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">~100-300m accuracy</text>
+                        
+                        <!-- IP Address -->
+                        <rect x="560" y="60" width="120" height="100" fill="#9C27B0" stroke="#7B1FA2" stroke-width="2" rx="8"/>
+                        <text x="620" y="90" text-anchor="middle" font-size="24">🌐</text>
+                        <text x="620" y="115" text-anchor="middle" font-size="12" font-weight="bold" fill="white">IP Address</text>
+                        <text x="620" y="135" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Fallback only</text>
+                        <text x="620" y="150" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">City-level</text>
+                        
+                        <!-- Arrows to center -->
+                        <path d="M120,160 L350,220" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,3"/>
+                        <path d="M290,160 L350,220" stroke="#2196F3" stroke-width="2" stroke-dasharray="5,3"/>
+                        <path d="M460,160 L350,220" stroke="#FF9800" stroke-width="2" stroke-dasharray="5,3"/>
+                        <path d="M620,160 L350,220" stroke="#9C27B0" stroke-width="2" stroke-dasharray="5,3"/>
+                        
+                        <!-- Device -->
+                        <rect x="300" y="210" width="100" height="70" fill="#667eea" stroke="#5a67d8" stroke-width="2" rx="8"/>
+                        <text x="350" y="240" text-anchor="middle" font-size="24">📱</text>
+                        <text x="350" y="265" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Your App</text>
+                    </svg>
+                </div>
+
+                <div class="card">
+                    <h4>⚡ Accuracy vs Battery Trade-off</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Accuracy</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Use Case</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Battery Impact</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Highest</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Navigation, fitness tracking</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔋🔋🔋 High</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>High</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Finding nearby places</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔋🔋 Medium</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Balanced</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">City-level features</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔋 Low</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Low</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Regional content</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔋 Minimal</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Location Permissions -->
+            <section id="permissions">
+                <h2>Location Permissions</h2>
+
+                <p>Location is one of the most privacy-sensitive permissions. Both iOS and Android have strict requirements for how apps request and use location.</p>
+
+                <h3>Permission Types</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+
+// Foreground permission - location while app is open
+const [foregroundPermission, requestForeground] = Location.useForegroundPermissions();
+
+// Background permission - location when app is in background
+const [backgroundPermission, requestBackground] = Location.useBackgroundPermissions();</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Important Permission Rules</h4>
+                    <ul>
+                        <li><strong>Foreground first:</strong> Always request foreground permission before background</li>
+                        <li><strong>iOS options:</strong> "While Using" or "Always" - user chooses</li>
+                        <li><strong>Android 10+:</strong> Background location is a separate permission</li>
+                        <li><strong>App Store review:</strong> You must justify why you need background location</li>
+                    </ul>
+                </div>
+
+                <h3>Requesting Foreground Permission</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as Location from 'expo-location';
+
+export default function LocationPermissionDemo() {
+  const [permission, requestPermission] = Location.useForegroundPermissions();
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+
+  const getLocation = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        return;
+      }
+    }
+
+    const currentLocation = await Location.getCurrentPositionAsync({});
+    setLocation(currentLocation);
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.status}&gt;
+        Permission: {permission?.status ?? 'unknown'}
+      &lt;/Text&gt;
+      
+      {location && (
+        &lt;Text style={styles.location}&gt;
+          📍 {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}
+        &lt;/Text&gt;
+      )}
+      
+      &lt;Pressable style={styles.button} onPress={getLocation}&gt;
+        &lt;Text style={styles.buttonText}&gt;Get My Location&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  status: { fontSize: 16, marginBottom: 20 },
+  location: { fontSize: 18, fontWeight: '600', marginBottom: 20 },
+  button: { backgroundColor: '#667eea', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 8 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+});</code></pre>
+
+                <h3>Permission Configuration</h3>
+
+                <pre><code>// app.json
+{
+  "expo": {
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow MyApp to use your location to track your runs even when the app is in the background.",
+          "locationAlwaysPermission": "Allow MyApp to always access your location.",
+          "locationWhenInUsePermission": "Allow MyApp to access your location while using the app.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "MyApp uses your location to show nearby restaurants.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "MyApp uses your location to track your runs in the background.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
+    }
+  }
+}</code></pre>
+            </section>
+
+            <!-- Getting Current Location -->
+            <section id="current-location">
+                <h2>Getting Current Location</h2>
+
+                <p>The most common use case is getting the user's current position once.</p>
+
+                <h3>Basic Current Position</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+
+async function getCurrentLocation() {
+  // Request permission first
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  
+  if (status !== 'granted') {
+    throw new Error('Location permission not granted');
+  }
+
+  // Get current position
+  const location = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  });
+
+  return location;
+  // Returns:
+  // {
+  //   coords: {
+  //     latitude: 37.7749,
+  //     longitude: -122.4194,
+  //     altitude: 10.5,
+  //     accuracy: 5,
+  //     altitudeAccuracy: 10,
+  //     heading: 90,
+  //     speed: 0,
+  //   },
+  //   timestamp: 1234567890,
+  // }
+}</code></pre>
+
+                <h3>Accuracy Options</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+
+// All accuracy levels
+const accuracyLevels = {
+  // Most accurate, uses GPS, highest battery
+  highest: Location.Accuracy.Highest,
+  
+  // ~10m accuracy
+  high: Location.Accuracy.High,
+  
+  // ~100m accuracy, balanced
+  balanced: Location.Accuracy.Balanced,
+  
+  // ~1km accuracy, low battery
+  low: Location.Accuracy.Low,
+  
+  // ~3km accuracy, minimal battery
+  lowest: Location.Accuracy.Lowest,
+  
+  // Best effort without GPS
+  bestForNavigation: Location.Accuracy.BestForNavigation,
+};
+
+// Usage
+const location = await Location.getCurrentPositionAsync({
+  accuracy: Location.Accuracy.Balanced,
+});</code></pre>
+
+                <h3>Location with Timeout</h3>
+
+                <pre><code>async function getLocationWithTimeout(timeoutMs: number = 10000) {
+  const timeoutPromise = new Promise&lt;never&gt;((_, reject) => {
+    setTimeout(() => reject(new Error('Location timeout')), timeoutMs);
+  });
+
+  const locationPromise = Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  });
+
+  return Promise.race([locationPromise, timeoutPromise]);
+}
+
+// Usage with error handling
+try {
+  const location = await getLocationWithTimeout(5000);
+  console.log('Got location:', location.coords);
+} catch (error) {
+  if (error.message === 'Location timeout') {
+    console.log('Location request timed out');
+  } else {
+    console.log('Location error:', error);
+  }
+}</code></pre>
+
+                <h3>Last Known Location (Fast)</h3>
+
+                <pre><code>// Get last known location - instant but might be stale
+async function getQuickLocation() {
+  // Try last known first (instant)
+  const lastKnown = await Location.getLastKnownPositionAsync();
+  
+  if (lastKnown) {
+    const ageMs = Date.now() - lastKnown.timestamp;
+    const ageMinutes = ageMs / 1000 / 60;
+    
+    // If less than 5 minutes old, use it
+    if (ageMinutes < 5) {
+      return lastKnown;
+    }
+  }
+  
+  // Otherwise get fresh location
+  return Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.Balanced,
+  });
+}</code></pre>
+
+                <h3>Custom Location Hook</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import * as Location from 'expo-location';
+
+interface UseLocationResult {
+  location: Location.LocationObject | null;
+  error: string | null;
+  loading: boolean;
+  refresh: () => Promise&lt;void&gt;;
+}
+
+export function useLocation(accuracy = Location.Accuracy.Balanced): UseLocationResult {
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+
+  const getLocation = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        setError('Location permission denied');
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({ accuracy });
+      setLocation(currentLocation);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get location');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  return { location, error, loading, refresh: getLocation };
+}
+
+// Usage
+function MyComponent() {
+  const { location, error, loading, refresh } = useLocation();
+
+  if (loading) return &lt;Text&gt;Getting location...&lt;/Text&gt;;
+  if (error) return &lt;Text&gt;Error: {error}&lt;/Text&gt;;
+  
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Lat: {location?.coords.latitude}&lt;/Text&gt;
+      &lt;Text&gt;Lng: {location?.coords.longitude}&lt;/Text&gt;
+      &lt;Button title="Refresh" onPress={refresh} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- Location Tracking -->
+            <section id="tracking">
+                <h2>Location Tracking</h2>
+
+                <p>For apps that need continuous location updates (fitness tracking, navigation), use location subscriptions.</p>
+
+                <h3>Watch Position</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import * as Location from 'expo-location';
+
+export default function LocationTracker() {
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+  const [isTracking, setIsTracking] = useState(false);
+
+  useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
+    const startTracking = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000,      // Update every 1 second
+          distanceInterval: 10,   // Or when moved 10 meters
+        },
+        (newLocation) => {
+          setLocation(newLocation);
+          console.log('New location:', newLocation.coords);
+        }
+      );
+      
+      setIsTracking(true);
+    };
+
+    startTracking();
+
+    // Cleanup on unmount
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, []);
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.status}&gt;
+        {isTracking ? '🟢 Tracking' : '⚪ Not tracking'}
+      &lt;/Text&gt;
+      
+      {location && (
+        &lt;View style={styles.locationInfo}&gt;
+          &lt;Text style={styles.coords}&gt;
+            📍 {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}
+          &lt;/Text&gt;
+          &lt;Text style={styles.detail}&gt;
+            Accuracy: ±{location.coords.accuracy?.toFixed(0)}m
+          &lt;/Text&gt;
+          &lt;Text style={styles.detail}&gt;
+            Speed: {((location.coords.speed ?? 0) * 3.6).toFixed(1)} km/h
+          &lt;/Text&gt;
+          &lt;Text style={styles.detail}&gt;
+            Heading: {location.coords.heading?.toFixed(0)}°
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  status: { fontSize: 18, textAlign: 'center', marginBottom: 20 },
+  locationInfo: { backgroundColor: '#f5f5f5', padding: 20, borderRadius: 12 },
+  coords: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
+  detail: { fontSize: 14, color: '#666', marginBottom: 4 },
+});</code></pre>
+
+                <h3>Track with Start/Stop Control</h3>
+
+                <pre><code>import { useState, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as Location from 'expo-location';
+
+export default function ControllableTracker() {
+  const [locations, setLocations] = useState&lt;Location.LocationObject[]&gt;([]);
+  const [isTracking, setIsTracking] = useState(false);
+  const subscriptionRef = useRef&lt;Location.LocationSubscription | null&gt;(null);
+
+  const startTracking = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Location permission required');
+      return;
+    }
+
+    setLocations([]); // Reset locations
+
+    subscriptionRef.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 2000,
+        distanceInterval: 5,
+      },
+      (location) => {
+        setLocations(prev => [...prev, location]);
+      }
+    );
+
+    setIsTracking(true);
+  };
+
+  const stopTracking = () => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.remove();
+      subscriptionRef.current = null;
+    }
+    setIsTracking(false);
+  };
+
+  const calculateDistance = () => {
+    if (locations.length < 2) return 0;
+    
+    let total = 0;
+    for (let i = 1; i < locations.length; i++) {
+      total += getDistanceMeters(
+        locations[i - 1].coords,
+        locations[i].coords
+      );
+    }
+    return total;
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;GPS Tracker&lt;/Text&gt;
+      
+      &lt;View style={styles.stats}&gt;
+        &lt;Text style={styles.stat}&gt;Points: {locations.length}&lt;/Text&gt;
+        &lt;Text style={styles.stat}&gt;Distance: {(calculateDistance() / 1000).toFixed(2)} km&lt;/Text&gt;
+      &lt;/View&gt;
+
+      &lt;Pressable
+        style={[styles.button, isTracking ? styles.stopButton : styles.startButton]}
+        onPress={isTracking ? stopTracking : startTracking}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;
+          {isTracking ? '⏹ Stop Tracking' : '▶ Start Tracking'}
+        &lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// Helper function (see Distance section for full implementation)
+function getDistanceMeters(coord1: any, coord2: any): number {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (coord1.latitude * Math.PI) / 180;
+  const φ2 = (coord2.latitude * Math.PI) / 180;
+  const Δφ = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
+  const Δλ = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 30 },
+  stats: { backgroundColor: '#f5f5f5', padding: 20, borderRadius: 12, marginBottom: 30 },
+  stat: { fontSize: 18, marginBottom: 8 },
+  button: { padding: 20, borderRadius: 12, alignItems: 'center' },
+  startButton: { backgroundColor: '#4CAF50' },
+  stopButton: { backgroundColor: '#f44336' },
+  buttonText: { color: 'white', fontSize: 18, fontWeight: '600' },
+});</code></pre>
+            </section>
+
+            <!-- Geocoding -->
+            <section id="geocoding">
+                <h2>Geocoding</h2>
+
+                <p>Geocoding converts between addresses and coordinates. Expo Location provides built-in geocoding functions.</p>
+
+                <h3>Reverse Geocoding (Coordinates → Address)</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+
+async function getAddressFromCoords(latitude: number, longitude: number) {
+  const results = await Location.reverseGeocodeAsync({
+    latitude,
+    longitude,
+  });
+
+  if (results.length > 0) {
+    const address = results[0];
+    console.log('Address:', address);
+    // {
+    //   city: "San Francisco",
+    //   country: "United States",
+    //   district: "Mission District",
+    //   isoCountryCode: "US",
+    //   name: "123 Main St",
+    //   postalCode: "94102",
+    //   region: "California",
+    //   street: "Main St",
+    //   streetNumber: "123",
+    //   subregion: "San Francisco County",
+    //   timezone: "America/Los_Angeles",
+    // }
+    return address;
+  }
+  
+  return null;
+}
+
+// Format as readable string
+function formatAddress(address: Location.LocationGeocodedAddress): string {
+  const parts = [
+    address.streetNumber,
+    address.street,
+    address.city,
+    address.region,
+    address.postalCode,
+  ].filter(Boolean);
+  
+  return parts.join(', ');
+}</code></pre>
+
+                <h3>Forward Geocoding (Address → Coordinates)</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+
+async function getCoordsFromAddress(address: string) {
+  const results = await Location.geocodeAsync(address);
+
+  if (results.length > 0) {
+    const { latitude, longitude } = results[0];
+    console.log('Coordinates:', latitude, longitude);
+    return { latitude, longitude };
+  }
+  
+  return null;
+}
+
+// Usage
+const coords = await getCoordsFromAddress('1600 Amphitheatre Parkway, Mountain View, CA');
+// { latitude: 37.4220, longitude: -122.0841 }</code></pre>
+
+                <h3>Location with Address Component</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import * as Location from 'expo-location';
+
+export default function CurrentLocationWithAddress() {
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+  const [address, setAddress] = useState&lt;Location.LocationGeocodedAddress | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLoading(false);
+        return;
+      }
+
+      // Get location
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+
+      // Get address
+      const addresses = await Location.reverseGeocodeAsync(loc.coords);
+      if (addresses.length > 0) {
+        setAddress(addresses[0]);
+      }
+
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      &lt;View style={styles.center}&gt;
+        &lt;ActivityIndicator size="large" color="#667eea" /&gt;
+        &lt;Text style={styles.loadingText}&gt;Finding your location...&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.icon}&gt;📍&lt;/Text&gt;
+      
+      {address && (
+        &lt;View style={styles.addressCard}&gt;
+          &lt;Text style={styles.street}&gt;{address.street} {address.streetNumber}&lt;/Text&gt;
+          &lt;Text style={styles.city}&gt;{address.city}, {address.region} {address.postalCode}&lt;/Text&gt;
+          &lt;Text style={styles.country}&gt;{address.country}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+
+      {location && (
+        &lt;Text style={styles.coords}&gt;
+          {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}
+        &lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, color: '#666' },
+  icon: { fontSize: 64, marginBottom: 20 },
+  addressCard: { backgroundColor: '#f5f5f5', padding: 20, borderRadius: 12, alignItems: 'center' },
+  street: { fontSize: 20, fontWeight: '600' },
+  city: { fontSize: 16, color: '#666', marginTop: 4 },
+  country: { fontSize: 14, color: '#999', marginTop: 4 },
+  coords: { marginTop: 20, fontSize: 12, color: '#999' },
+});</code></pre>
+            </section>
+            <!-- Displaying Maps -->
+            <section id="maps">
+                <h2>Displaying Maps</h2>
+
+                <p>The <code>react-native-maps</code> package provides native map components for iOS (Apple Maps) and Android (Google Maps).</p>
+
+                <h3>Installation</h3>
+
+                <pre><code># Install react-native-maps
+npx expo install react-native-maps</code></pre>
+
+                <h3>Basic Map</h3>
+
+                <pre><code>import { View, StyleSheet } from 'react-native';
+import MapView from 'react-native-maps';
+
+export default function BasicMap() {
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: 37.7749,
+          longitude: -122.4194,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+});</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Understanding Delta Values</h4>
+                    <p><code>latitudeDelta</code> and <code>longitudeDelta</code> control the zoom level:</p>
+                    <ul>
+                        <li><strong>0.01:</strong> Street level (~1km)</li>
+                        <li><strong>0.05:</strong> Neighborhood (~5km)</li>
+                        <li><strong>0.1:</strong> City area (~10km)</li>
+                        <li><strong>1.0:</strong> Region (~100km)</li>
+                    </ul>
+                </div>
+
+                <h3>Map with Current Location</h3>
+
+                <pre><code>import { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, Pressable, Text } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
+import * as Location from 'expo-location';
+
+export default function MapWithCurrentLocation() {
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+  const mapRef = useRef&lt;MapView&gt;(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+    })();
+  }, []);
+
+  const centerOnUser = () => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;MapView
+        ref={mapRef}
+        style={styles.map}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        initialRegion={{
+          latitude: location?.coords.latitude ?? 37.7749,
+          longitude: location?.coords.longitude ?? -122.4194,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+      &gt;
+        {location && (
+          &lt;Marker
+            coordinate={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            }}
+            title="You are here"
+            description="Current location"
+          /&gt;
+        )}
+      &lt;/MapView&gt;
+
+      &lt;Pressable style={styles.locationButton} onPress={centerOnUser}&gt;
+        &lt;Text style={styles.locationButtonText}&gt;📍&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  map: { flex: 1 },
+  locationButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  locationButtonText: { fontSize: 24 },
+});</code></pre>
+
+                <h3>Multiple Markers</h3>
+
+                <pre><code>import { View, StyleSheet } from 'react-native';
+import MapView, { Marker, Callout } from 'react-native-maps';
+import { Text } from 'react-native';
+
+interface Place {
+  id: string;
+  name: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+}
+
+const places: Place[] = [
+  { id: '1', name: 'Golden Gate Bridge', description: 'Famous suspension bridge', latitude: 37.8199, longitude: -122.4783 },
+  { id: '2', name: 'Alcatraz Island', description: 'Historic prison', latitude: 37.8267, longitude: -122.4230 },
+  { id: '3', name: 'Fisherman\'s Wharf', description: 'Popular waterfront', latitude: 37.8080, longitude: -122.4177 },
+];
+
+export default function MapWithMarkers() {
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: 37.8199,
+          longitude: -122.4500,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        }}
+      &gt;
+        {places.map((place) => (
+          &lt;Marker
+            key={place.id}
+            coordinate={{
+              latitude: place.latitude,
+              longitude: place.longitude,
+            }}
+            title={place.name}
+            description={place.description}
+            pinColor="#667eea"
+          &gt;
+            &lt;Callout&gt;
+              &lt;View style={styles.callout}&gt;
+                &lt;Text style={styles.calloutTitle}&gt;{place.name}&lt;/Text&gt;
+                &lt;Text style={styles.calloutDesc}&gt;{place.description}&lt;/Text&gt;
+              &lt;/View&gt;
+            &lt;/Callout&gt;
+          &lt;/Marker&gt;
+        ))}
+      &lt;/MapView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  map: { flex: 1 },
+  callout: { padding: 10, minWidth: 150 },
+  calloutTitle: { fontWeight: 'bold', fontSize: 14 },
+  calloutDesc: { color: '#666', marginTop: 4 },
+});</code></pre>
+
+                <h3>Fit Map to Markers</h3>
+
+                <pre><code>import { useRef } from 'react';
+import MapView, { Marker } from 'react-native-maps';
+
+function MapFitToMarkers({ markers }) {
+  const mapRef = useRef&lt;MapView&gt;(null);
+
+  const fitToMarkers = () => {
+    if (mapRef.current && markers.length > 0) {
+      mapRef.current.fitToCoordinates(
+        markers.map(m => ({ latitude: m.latitude, longitude: m.longitude })),
+        {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+          animated: true,
+        }
+      );
+    }
+  };
+
+  return (
+    &lt;MapView
+      ref={mapRef}
+      style={{ flex: 1 }}
+      onMapReady={fitToMarkers}
+    &gt;
+      {markers.map((marker, index) => (
+        &lt;Marker
+          key={index}
+          coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
+        /&gt;
+      ))}
+    &lt;/MapView&gt;
+  );
+}</code></pre>
+
+                <h3>MapView Props Reference</h3>
+
+                <div class="card">
+                    <h4>🗺️ Common MapView Props</h4>
+                    <pre><code>&lt;MapView
+  // Region control
+  initialRegion={{ latitude, longitude, latitudeDelta, longitudeDelta }}
+  region={{ ... }}  // Controlled region
+  onRegionChange={(region) => {}}
+  onRegionChangeComplete={(region) => {}}
+  
+  // User location
+  showsUserLocation={true}
+  followsUserLocation={true}
+  showsMyLocationButton={true}
+  
+  // Map type
+  mapType="standard"  // 'standard' | 'satellite' | 'hybrid' | 'terrain'
+  
+  // UI options
+  showsCompass={true}
+  showsScale={true}
+  showsTraffic={false}
+  showsBuildings={true}
+  showsIndoors={true}
+  
+  // Interaction
+  zoomEnabled={true}
+  rotateEnabled={true}
+  scrollEnabled={true}
+  pitchEnabled={true}
+  
+  // Events
+  onPress={(e) => console.log(e.nativeEvent.coordinate)}
+  onLongPress={(e) => {}}
+  onMarkerPress={(e) => {}}
+  onMapReady={() => {}}
+/&gt;</code></pre>
+                </div>
+            </section>
+
+            <!-- Distance Calculations -->
+            <section id="distance">
+                <h2>Distance Calculations</h2>
+
+                <p>Calculating distance between two points on Earth requires accounting for the planet's curvature. The Haversine formula is the standard approach.</p>
+
+                <h3>Haversine Formula</h3>
+
+                <pre><code>interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @returns Distance in meters
+ */
+function calculateDistance(coord1: Coordinates, coord2: Coordinates): number {
+  const R = 6371e3; // Earth's radius in meters
+  
+  const lat1Rad = (coord1.latitude * Math.PI) / 180;
+  const lat2Rad = (coord2.latitude * Math.PI) / 180;
+  const deltaLat = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
+  const deltaLng = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+    Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+    
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+}
+
+// Usage
+const sanFrancisco = { latitude: 37.7749, longitude: -122.4194 };
+const losAngeles = { latitude: 34.0522, longitude: -118.2437 };
+
+const distanceMeters = calculateDistance(sanFrancisco, losAngeles);
+const distanceKm = distanceMeters / 1000;
+const distanceMiles = distanceMeters / 1609.34;
+
+console.log(`Distance: ${distanceKm.toFixed(1)} km (${distanceMiles.toFixed(1)} miles)`);</code></pre>
+
+                <h3>Format Distance for Display</h3>
+
+                <pre><code>function formatDistance(meters: number): string {
+  if (meters < 1000) {
+    return `${Math.round(meters)}m`;
+  } else if (meters < 10000) {
+    return `${(meters / 1000).toFixed(1)}km`;
+  } else {
+    return `${Math.round(meters / 1000)}km`;
+  }
+}
+
+// Examples:
+// formatDistance(500)    → "500m"
+// formatDistance(1500)   → "1.5km"
+// formatDistance(15000)  → "15km"</code></pre>
+
+                <h3>Sort Places by Distance</h3>
+
+                <pre><code>interface Place {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+function sortByDistance(
+  places: Place[], 
+  userLocation: Coordinates
+): (Place & { distance: number })[] {
+  return places
+    .map(place => ({
+      ...place,
+      distance: calculateDistance(userLocation, {
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }),
+    }))
+    .sort((a, b) => a.distance - b.distance);
+}
+
+// Usage
+const userLocation = { latitude: 37.7749, longitude: -122.4194 };
+const sortedPlaces = sortByDistance(places, userLocation);
+
+sortedPlaces.forEach(place => {
+  console.log(`${place.name}: ${formatDistance(place.distance)}`);
+});</code></pre>
+
+                <h3>Filter Places Within Radius</h3>
+
+                <pre><code>function placesWithinRadius(
+  places: Place[],
+  center: Coordinates,
+  radiusMeters: number
+): Place[] {
+  return places.filter(place => {
+    const distance = calculateDistance(center, {
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
+    return distance <= radiusMeters;
+  });
+}
+
+// Get places within 5km
+const nearbyPlaces = placesWithinRadius(places, userLocation, 5000);</code></pre>
+            </section>
+
+            <!-- Background Location -->
+            <section id="background">
+                <h2>Background Location</h2>
+
+                <p>Background location allows your app to track location when it's not in the foreground. This is needed for fitness tracking, navigation, and location-based reminders.</p>
+
+                <div class="card" style="background-color: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>⚠️ Important Considerations</h4>
+                    <ul>
+                        <li><strong>Battery drain:</strong> Background location significantly impacts battery life</li>
+                        <li><strong>User trust:</strong> Users are wary of apps tracking them in the background</li>
+                        <li><strong>App Store review:</strong> Apple requires justification for background location</li>
+                        <li><strong>Android restrictions:</strong> Android 10+ requires separate permission</li>
+                    </ul>
+                </div>
+
+                <h3>Request Background Permission</h3>
+
+                <pre><code>import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
+
+const LOCATION_TASK_NAME = 'background-location-task';
+
+// Define the background task
+TaskManager.defineTask(LOCATION_TASK_NAME, ({ data, error }) => {
+  if (error) {
+    console.error('Background location error:', error);
+    return;
+  }
+  
+  if (data) {
+    const { locations } = data as { locations: Location.LocationObject[] };
+    console.log('Background locations:', locations);
+    
+    // Process locations - save to storage, upload to server, etc.
+    locations.forEach(location => {
+      console.log(`Lat: ${location.coords.latitude}, Lng: ${location.coords.longitude}`);
+    });
+  }
+});
+
+async function startBackgroundTracking() {
+  // First get foreground permission
+  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+  
+  if (foregroundStatus !== 'granted') {
+    console.log('Foreground permission denied');
+    return false;
+  }
+
+  // Then get background permission
+  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  
+  if (backgroundStatus !== 'granted') {
+    console.log('Background permission denied');
+    return false;
+  }
+
+  // Start background location updates
+  await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 10000,         // Update every 10 seconds
+    distanceInterval: 50,        // Or every 50 meters
+    foregroundService: {
+      notificationTitle: 'Location Tracking',
+      notificationBody: 'Tracking your location in the background',
+      notificationColor: '#667eea',
+    },
+    pausesUpdatesAutomatically: false,
+    showsBackgroundLocationIndicator: true, // iOS blue bar
+  });
+
+  return true;
+}
+
+async function stopBackgroundTracking() {
+  const isTracking = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+  
+  if (isTracking) {
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+  }
+}</code></pre>
+
+                <h3>Check Background Status</h3>
+
+                <pre><code>async function checkBackgroundStatus() {
+  // Check if task is registered
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+  console.log('Task registered:', isRegistered);
+
+  // Check if updates are running
+  const isTracking = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+  console.log('Currently tracking:', isTracking);
+
+  return { isRegistered, isTracking };
+}</code></pre>
+
+                <h3>Background Location Component</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
+
+const TASK_NAME = 'background-location-task';
+
+// Define task outside component
+TaskManager.defineTask(TASK_NAME, ({ data, error }) => {
+  if (error) return;
+  const { locations } = data as { locations: Location.LocationObject[] };
+  // Handle locations - this runs in background
+  console.log('Got background locations:', locations.length);
+});
+
+export default function BackgroundLocationDemo() {
+  const [isTracking, setIsTracking] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+
+  useEffect(() => {
+    checkStatus();
+  }, []);
+
+  const checkStatus = async () => {
+    const tracking = await Location.hasStartedLocationUpdatesAsync(TASK_NAME);
+    setIsTracking(tracking);
+
+    const { status } = await Location.getBackgroundPermissionsAsync();
+    setHasPermission(status === 'granted');
+  };
+
+  const toggleTracking = async () => {
+    if (isTracking) {
+      await Location.stopLocationUpdatesAsync(TASK_NAME);
+      setIsTracking(false);
+    } else {
+      // Request permissions
+      const { status: fg } = await Location.requestForegroundPermissionsAsync();
+      if (fg !== 'granted') {
+        Alert.alert('Permission Required', 'Foreground location access is required');
+        return;
+      }
+
+      const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+      if (bg !== 'granted') {
+        Alert.alert('Permission Required', 'Background location access is required');
+        return;
+      }
+
+      // Start tracking
+      await Location.startLocationUpdatesAsync(TASK_NAME, {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 30000,
+        distanceInterval: 100,
+        foregroundService: {
+          notificationTitle: 'Tracking Active',
+          notificationBody: 'Your location is being tracked',
+        },
+      });
+
+      setIsTracking(true);
+      setHasPermission(true);
+    }
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Background Location&lt;/Text&gt;
+      
+      &lt;View style={styles.statusRow}&gt;
+        &lt;Text&gt;Permission:&lt;/Text&gt;
+        &lt;Text style={hasPermission ? styles.granted : styles.denied}&gt;
+          {hasPermission ? '✓ Granted' : '✕ Not granted'}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+      
+      &lt;View style={styles.statusRow}&gt;
+        &lt;Text&gt;Tracking:&lt;/Text&gt;
+        &lt;Text style={isTracking ? styles.granted : styles.denied}&gt;
+          {isTracking ? '🟢 Active' : '⚪ Inactive'}
+        &lt;/Text&gt;
+      &lt;/View&gt;
+
+      &lt;Pressable
+        style={[styles.button, isTracking ? styles.stopButton : styles.startButton]}
+        onPress={toggleTracking}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;
+          {isTracking ? 'Stop Tracking' : 'Start Background Tracking'}
+        &lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 40 },
+  statusRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  granted: { color: '#4CAF50', fontWeight: '600' },
+  denied: { color: '#f44336', fontWeight: '600' },
+  button: { marginTop: 40, padding: 16, borderRadius: 8, alignItems: 'center' },
+  startButton: { backgroundColor: '#4CAF50' },
+  stopButton: { backgroundColor: '#f44336' },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+});</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Nearby Places Finder</h3>
+                    <p>Build a component that shows places near the user's current location.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Get user's current location</li>
+                        <li>Display a list of sample places sorted by distance</li>
+                        <li>Show distance to each place</li>
+                        <li>Tapping a place shows it on a map</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use the <code>sortByDistance</code> function to order places. Use <code>formatDistance</code> for display. Pass coordinates to a MapView with a Marker when selecting a place.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, FlatList, Pressable, StyleSheet, Modal } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+
+const SAMPLE_PLACES = [
+  { id: '1', name: 'Coffee Shop', latitude: 37.7751, longitude: -122.4180 },
+  { id: '2', name: 'Library', latitude: 37.7790, longitude: -122.4160 },
+  { id: '3', name: 'Park', latitude: 37.7700, longitude: -122.4250 },
+  { id: '4', name: 'Restaurant', latitude: 37.7800, longitude: -122.4100 },
+  { id: '5', name: 'Gym', latitude: 37.7680, longitude: -122.4220 },
+];
+
+export default function NearbyPlacesFinder() {
+  const [location, setLocation] = useState&lt;Location.LocationObject | null&gt;(null);
+  const [places, setPlaces] = useState&lt;any[]&gt;([]);
+  const [selectedPlace, setSelectedPlace] = useState&lt;any&gt;(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+
+      // Sort places by distance
+      const sorted = SAMPLE_PLACES.map(place => ({
+        ...place,
+        distance: calculateDistance(
+          { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
+          { latitude: place.latitude, longitude: place.longitude }
+        ),
+      })).sort((a, b) => a.distance - b.distance);
+
+      setPlaces(sorted);
+    })();
+  }, []);
+
+  const formatDistance = (meters: number) => {
+    if (meters < 1000) return `${Math.round(meters)}m`;
+    return `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  const calculateDistance = (c1: any, c2: any) => {
+    const R = 6371e3;
+    const p1 = (c1.latitude * Math.PI) / 180;
+    const p2 = (c2.latitude * Math.PI) / 180;
+    const dp = ((c2.latitude - c1.latitude) * Math.PI) / 180;
+    const dl = ((c2.longitude - c1.longitude) * Math.PI) / 180;
+    const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Nearby Places&lt;/Text&gt;
+      
+      &lt;FlatList
+        data={places}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          &lt;Pressable style={styles.placeRow} onPress={() => setSelectedPlace(item)}&gt;
+            &lt;Text style={styles.placeName}&gt;{item.name}&lt;/Text&gt;
+            &lt;Text style={styles.placeDistance}&gt;{formatDistance(item.distance)}&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        )}
+      /&gt;
+
+      &lt;Modal visible={!!selectedPlace} animationType="slide"&gt;
+        &lt;View style={styles.modalContainer}&gt;
+          &lt;Pressable style={styles.closeButton} onPress={() => setSelectedPlace(null)}&gt;
+            &lt;Text style={styles.closeText}&gt;✕ Close&lt;/Text&gt;
+          &lt;/Pressable&gt;
+          {selectedPlace && (
+            &lt;MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: selectedPlace.latitude,
+                longitude: selectedPlace.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            &gt;
+              &lt;Marker coordinate={{ latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }} title={selectedPlace.name} /&gt;
+              {location && &lt;Marker coordinate={{ latitude: location.coords.latitude, longitude: location.coords.longitude }} title="You" pinColor="blue" /&gt;}
+            &lt;/MapView&gt;
+          )}
+        &lt;/View&gt;
+      &lt;/Modal&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  placeRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, backgroundColor: '#f5f5f5', borderRadius: 8, marginBottom: 8 },
+  placeName: { fontSize: 16, fontWeight: '600' },
+  placeDistance: { color: '#667eea', fontWeight: '600' },
+  modalContainer: { flex: 1 },
+  closeButton: { padding: 16, backgroundColor: '#f5f5f5' },
+  closeText: { fontSize: 16, fontWeight: '600' },
+  map: { flex: 1 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Address Search with Map</h3>
+                    <p>Build an address search that geocodes input and shows the result on a map.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Text input for address search</li>
+                        <li>Geocode the address when submitted</li>
+                        <li>Display the location on a map with a marker</li>
+                        <li>Show the formatted address below the map</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>Location.geocodeAsync()</code> to convert the address to coordinates. Animate the map to the new coordinates using <code>mapRef.current.animateToRegion()</code>.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useRef } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+
+export default function AddressSearch() {
+  const [address, setAddress] = useState('');
+  const [result, setResult] = useState&lt;{ coords: any; formatted: string } | null&gt;(null);
+  const [error, setError] = useState('');
+  const mapRef = useRef&lt;MapView&gt;(null);
+
+  const searchAddress = async () => {
+    Keyboard.dismiss();
+    setError('');
+    setResult(null);
+
+    try {
+      const geocoded = await Location.geocodeAsync(address);
+      
+      if (geocoded.length === 0) {
+        setError('Address not found');
+        return;
+      }
+
+      const { latitude, longitude } = geocoded[0];
+      
+      // Reverse geocode for formatted address
+      const reverse = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const formatted = reverse[0] 
+        ? `${reverse[0].street} ${reverse[0].streetNumber}, ${reverse[0].city}, ${reverse[0].region}`
+        : address;
+
+      setResult({ coords: { latitude, longitude }, formatted });
+
+      // Animate map
+      mapRef.current?.animateToRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    } catch (err) {
+      setError('Failed to search address');
+    }
+  };
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={styles.searchContainer}&gt;
+        &lt;TextInput
+          style={styles.input}
+          placeholder="Enter an address..."
+          value={address}
+          onChangeText={setAddress}
+          onSubmitEditing={searchAddress}
+          returnKeyType="search"
+        /&gt;
+        &lt;Pressable style={styles.searchButton} onPress={searchAddress}&gt;
+          &lt;Text style={styles.searchButtonText}&gt;🔍&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+
+      {error ? &lt;Text style={styles.error}&gt;{error}&lt;/Text&gt; : null}
+
+      &lt;MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={{
+          latitude: 37.7749,
+          longitude: -122.4194,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        }}
+      &gt;
+        {result && (
+          &lt;Marker
+            coordinate={result.coords}
+            title="Search Result"
+            description={result.formatted}
+          /&gt;
+        )}
+      &lt;/MapView&gt;
+
+      {result && (
+        &lt;View style={styles.resultCard}&gt;
+          &lt;Text style={styles.resultTitle}&gt;📍 Found Location&lt;/Text&gt;
+          &lt;Text style={styles.resultAddress}&gt;{result.formatted}&lt;/Text&gt;
+          &lt;Text style={styles.resultCoords}&gt;
+            {result.coords.latitude.toFixed(6)}, {result.coords.longitude.toFixed(6)}
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  searchContainer: { flexDirection: 'row', padding: 10, backgroundColor: '#f5f5f5' },
+  input: { flex: 1, backgroundColor: 'white', borderRadius: 8, padding: 12, fontSize: 16 },
+  searchButton: { marginLeft: 10, backgroundColor: '#667eea', width: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  searchButtonText: { fontSize: 20 },
+  error: { padding: 10, color: '#f44336', textAlign: 'center' },
+  map: { flex: 1 },
+  resultCard: { padding: 16, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
+  resultTitle: { fontSize: 14, color: '#666' },
+  resultAddress: { fontSize: 16, fontWeight: '600', marginTop: 4 },
+  resultCoords: { fontSize: 12, color: '#999', marginTop: 4 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Running Tracker</h3>
+                    <p>Build a simple running tracker that records your route.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Start/Stop tracking buttons</li>
+                        <li>Display total distance traveled</li>
+                        <li>Show elapsed time</li>
+                        <li>Draw the route on a map as a polyline</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>Location.watchPositionAsync()</code> for continuous tracking. Store locations in an array. Use <code>Polyline</code> from react-native-maps to draw the route. Calculate total distance by summing distances between consecutive points.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import MapView, { Polyline, Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+
+export default function RunningTracker() {
+  const [locations, setLocations] = useState&lt;Location.LocationObject[]&gt;([]);
+  const [isTracking, setIsTracking] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const subscriptionRef = useRef&lt;Location.LocationSubscription | null&gt;(null);
+  const timerRef = useRef&lt;NodeJS.Timeout | null&gt;(null);
+  const mapRef = useRef&lt;MapView&gt;(null);
+
+  useEffect(() => {
+    return () => {
+      subscriptionRef.current?.remove();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startTracking = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+
+    setLocations([]);
+    setElapsedTime(0);
+    setIsTracking(true);
+
+    // Start timer
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+
+    // Start location tracking
+    subscriptionRef.current = await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 5 },
+      (loc) => {
+        setLocations(prev => [...prev, loc]);
+        mapRef.current?.animateToRegion({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        });
+      }
+    );
+  };
+
+  const stopTracking = () => {
+    subscriptionRef.current?.remove();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsTracking(false);
+  };
+
+  const calculateDistance = () => {
+    if (locations.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < locations.length; i++) {
+      const c1 = locations[i - 1].coords;
+      const c2 = locations[i].coords;
+      const R = 6371e3;
+      const p1 = (c1.latitude * Math.PI) / 180;
+      const p2 = (c2.latitude * Math.PI) / 180;
+      const dp = ((c2.latitude - c1.latitude) * Math.PI) / 180;
+      const dl = ((c2.longitude - c1.longitude) * Math.PI) / 180;
+      const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+      total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    return total;
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const routeCoords = locations.map(l => ({ latitude: l.coords.latitude, longitude: l.coords.longitude }));
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;MapView ref={mapRef} style={styles.map} showsUserLocation&gt;
+        {routeCoords.length > 1 && &lt;Polyline coordinates={routeCoords} strokeColor="#667eea" strokeWidth={4} /&gt;}
+        {routeCoords.length > 0 && &lt;Marker coordinate={routeCoords[0]} pinColor="green" title="Start" /&gt;}
+      &lt;/MapView&gt;
+
+      &lt;View style={styles.stats}&gt;
+        &lt;View style={styles.statItem}&gt;
+          &lt;Text style={styles.statValue}&gt;{(calculateDistance() / 1000).toFixed(2)}&lt;/Text&gt;
+          &lt;Text style={styles.statLabel}&gt;km&lt;/Text&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.statItem}&gt;
+          &lt;Text style={styles.statValue}&gt;{formatTime(elapsedTime)}&lt;/Text&gt;
+          &lt;Text style={styles.statLabel}&gt;time&lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+
+      &lt;Pressable
+        style={[styles.button, isTracking ? styles.stopButton : styles.startButton]}
+        onPress={isTracking ? stopTracking : startTracking}
+      &gt;
+        &lt;Text style={styles.buttonText}&gt;{isTracking ? '⏹ Stop' : '▶ Start Run'}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  map: { flex: 1 },
+  stats: { flexDirection: 'row', justifyContent: 'space-around', padding: 20, backgroundColor: '#fff' },
+  statItem: { alignItems: 'center' },
+  statValue: { fontSize: 32, fontWeight: 'bold' },
+  statLabel: { fontSize: 14, color: '#666' },
+  button: { margin: 20, padding: 16, borderRadius: 12, alignItems: 'center' },
+  startButton: { backgroundColor: '#4CAF50' },
+  stopButton: { backgroundColor: '#f44336' },
+  buttonText: { color: 'white', fontSize: 18, fontWeight: '600' },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Location services are essential for many mobile app features. Remember to balance accuracy with battery life, request permissions appropriately, and respect user privacy.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Permissions first:</strong> Always request and check permissions before accessing location</li>
+                        <li><strong>Accuracy levels:</strong> Choose appropriate accuracy for your use case to save battery</li>
+                        <li><strong>getCurrentPositionAsync:</strong> For one-time location needs</li>
+                        <li><strong>watchPositionAsync:</strong> For continuous tracking with cleanup</li>
+                        <li><strong>Geocoding:</strong> Convert between addresses and coordinates</li>
+                        <li><strong>react-native-maps:</strong> Display interactive maps with markers</li>
+                        <li><strong>Haversine formula:</strong> Calculate distances between coordinates</li>
+                        <li><strong>Background location:</strong> Requires separate permission and careful justification</li>
+                        <li><strong>Battery awareness:</strong> Higher accuracy = more battery drain</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll explore push notifications—sending alerts to users even when your app isn't running.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m08_l02_camera_and_media.html" class="prev-link">← Previous: Camera and Media</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m08_l04_notifications.html" class="next-link">Next: Notifications →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

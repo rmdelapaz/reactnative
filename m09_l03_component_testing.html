@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn component testing with React Native Testing Library">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Component Testing | Module 9: Testing and Quality Assurance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m09_l01_testing_fundamentals.html">Module 9</a> &gt;
+            <span>Lesson 9.3</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 9: Testing and Quality Assurance</p>
+                <h1>Component Testing</h1>
+                <p class="lesson-subtitle">Queries, user events, and testing React Native components</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Use React Native Testing Library queries effectively</li>
+                    <li>Simulate user interactions with fireEvent</li>
+                    <li>Test forms, inputs, and user flows</li>
+                    <li>Test components with navigation</li>
+                    <li>Test components that use context</li>
+                    <li>Debug tests with screen.debug()</li>
+                    <li>Write accessible, maintainable component tests</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#rntl-intro">React Native Testing Library</a></li>
+                        <li><a href="#queries">Query Methods</a></li>
+                        <li><a href="#user-events">User Events</a></li>
+                        <li><a href="#forms">Testing Forms</a></li>
+                        <li><a href="#async-components">Async Components</a></li>
+                        <li><a href="#navigation">Testing with Navigation</a></li>
+                        <li><a href="#context">Testing with Context</a></li>
+                        <li><a href="#debugging">Debugging Tests</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- React Native Testing Library -->
+            <section id="rntl-intro">
+                <h2>React Native Testing Library</h2>
+
+                <p>React Native Testing Library (RNTL) encourages testing components the way users interact with them—by finding elements through accessible properties rather than implementation details.</p>
+
+                <h3>Core Philosophy</h3>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Guiding Principles</h4>
+                    <blockquote style="font-style: italic; margin: 0;">
+                        "The more your tests resemble the way your software is used, the more confidence they can give you."
+                    </blockquote>
+                    <p style="margin-top: 12px;">This means:</p>
+                    <ul>
+                        <li>Query by text content users see, not component internals</li>
+                        <li>Interact like users do (press, type, scroll)</li>
+                        <li>Assert on visible outcomes, not state changes</li>
+                    </ul>
+                </div>
+
+                <h3>Basic Rendering</h3>
+
+                <pre><code>import { render, screen } from '@testing-library/react-native';
+import { MyComponent } from './MyComponent';
+
+describe('MyComponent', () => {
+  it('renders correctly', () => {
+    // Render the component
+    render(&lt;MyComponent title="Hello" /&gt;);
+
+    // Query for elements
+    const title = screen.getByText('Hello');
+
+    // Assert
+    expect(title).toBeTruthy();
+  });
+});</code></pre>
+
+                <h3>Render Result</h3>
+
+                <pre><code>const result = render(&lt;MyComponent /&gt;);
+
+// Available properties
+result.getByText        // Query methods on this render
+result.queryByText      
+result.findByText       // Async query
+
+result.rerender(&lt;MyComponent newProp="value" /&gt;);  // Re-render with new props
+result.unmount();       // Unmount component
+result.toJSON();        // Get JSON representation (for snapshots)
+result.debug();         // Print component tree
+
+// Or use screen (recommended)
+import { screen } from '@testing-library/react-native';
+// screen provides the same queries globally</code></pre>
+            </section>
+
+            <!-- Query Methods -->
+            <section id="queries">
+                <h2>Query Methods</h2>
+
+                <p>RNTL provides multiple ways to find elements. Choose based on what you're testing and whether the element should exist.</p>
+
+                <h3>Query Types</h3>
+
+                <div class="card">
+                    <h4>🔍 Query Variants</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">No Match</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">1 Match</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Multiple</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Async</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>getBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Throw</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Return</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Throw</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">No</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>queryBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">null</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Return</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Throw</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">No</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>findBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Reject</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Resolve</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Reject</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Yes</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>getAllBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Throw</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">No</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>queryAllBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">[]</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">No</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>findAllBy</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Reject</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Array</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Yes</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Query Priority</h3>
+
+                <p>Use queries in this order of preference:</p>
+
+                <!-- SVG: Query Priority -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 600 280" style="max-width: 600px; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="600" height="280" fill="#f8f9fa"/>
+                        
+                        <!-- Priority 1 - Accessibility -->
+                        <rect x="20" y="20" width="560" height="60" fill="#4CAF50" rx="8"/>
+                        <text x="40" y="45" font-size="12" font-weight="bold" fill="white">1. Accessible to Everyone</text>
+                        <text x="40" y="65" font-size="11" fill="rgba(255,255,255,0.9)">getByRole, getByLabelText, getByPlaceholderText, getByText, getByDisplayValue</text>
+                        
+                        <!-- Priority 2 - Semantic -->
+                        <rect x="40" y="95" width="520" height="50" fill="#2196F3" rx="8"/>
+                        <text x="60" y="118" font-size="12" font-weight="bold" fill="white">2. Semantic Queries</text>
+                        <text x="60" y="135" font-size="11" fill="rgba(255,255,255,0.9)">getByAltText, getByTitle</text>
+                        
+                        <!-- Priority 3 - Test ID -->
+                        <rect x="60" y="160" width="480" height="50" fill="#FF9800" rx="8"/>
+                        <text x="80" y="183" font-size="12" font-weight="bold" fill="white">3. Test IDs (Last Resort)</text>
+                        <text x="80" y="200" font-size="11" fill="rgba(255,255,255,0.9)">getByTestId - Use when other queries don't work</text>
+                        
+                        <!-- Labels -->
+                        <text x="550" y="55" text-anchor="end" font-size="10" fill="white">Best ✓</text>
+                        <text x="530" y="185" text-anchor="end" font-size="10" fill="white">Acceptable</text>
+                        
+                        <!-- Annotations -->
+                        <text x="300" y="250" text-anchor="middle" font-size="11" fill="#666">Higher = More accessible, more maintainable</text>
+                    </svg>
+                </div>
+
+                <h3>Query Examples</h3>
+
+                <pre><code>import { render, screen } from '@testing-library/react-native';
+
+render(&lt;MyForm /&gt;);
+
+// By Text (exact match)
+screen.getByText('Submit');
+
+// By Text (regex for partial match)
+screen.getByText(/submit/i);  // Case insensitive
+
+// By Text (function matcher)
+screen.getByText((content, element) => {
+  return content.startsWith('Price:');
+});
+
+// By Role (accessibility role)
+screen.getByRole('button');
+screen.getByRole('button', { name: 'Submit' });
+screen.getByRole('heading');
+
+// By Label Text (for inputs with labels)
+screen.getByLabelText('Email');
+
+// By Placeholder
+screen.getByPlaceholderText('Enter your email');
+
+// By Display Value (current input value)
+screen.getByDisplayValue('john@example.com');
+
+// By Test ID (escape hatch)
+screen.getByTestId('submit-button');
+
+// By Hint Text (accessibilityHint)
+screen.getByHintText('Double tap to submit');
+
+// By Accessibility State
+screen.getByRole('button', { disabled: true });
+screen.getByRole('checkbox', { checked: true });</code></pre>
+
+                <h3>When to Use Each Query</h3>
+
+                <pre><code>// Use getBy when element MUST exist
+it('shows welcome message', () => {
+  render(&lt;Home /&gt;);
+  expect(screen.getByText('Welcome')).toBeTruthy();
+});
+
+// Use queryBy when checking element does NOT exist
+it('hides error message initially', () => {
+  render(&lt;Form /&gt;);
+  expect(screen.queryByText('Error')).toBeNull();
+});
+
+// Use findBy for async elements
+it('shows data after loading', async () => {
+  render(&lt;DataList /&gt;);
+  const item = await screen.findByText('Item 1');
+  expect(item).toBeTruthy();
+});
+
+// Use getAllBy for multiple elements
+it('renders all items', () => {
+  render(&lt;List items={['A', 'B', 'C']} /&gt;);
+  const items = screen.getAllByRole('listitem');
+  expect(items).toHaveLength(3);
+});</code></pre>
+
+                <h3>Adding testID</h3>
+
+                <pre><code>// In component - add testID prop
+&lt;View testID="container"&gt;
+  &lt;Text testID="title"&gt;Hello&lt;/Text&gt;
+  &lt;Pressable testID="action-button"&gt;
+    &lt;Text&gt;Press Me&lt;/Text&gt;
+  &lt;/Pressable&gt;
+&lt;/View&gt;
+
+// In test
+screen.getByTestId('container');
+screen.getByTestId('title');
+screen.getByTestId('action-button');</code></pre>
+            </section>
+
+            <!-- User Events -->
+            <section id="user-events">
+                <h2>User Events</h2>
+
+                <p>Simulate user interactions to test component behavior.</p>
+
+                <h3>fireEvent</h3>
+
+                <pre><code>import { render, screen, fireEvent } from '@testing-library/react-native';
+
+// Press (tap)
+fireEvent.press(screen.getByText('Submit'));
+
+// Change text input
+fireEvent.changeText(screen.getByPlaceholderText('Email'), 'test@example.com');
+
+// Focus/Blur
+fireEvent(screen.getByPlaceholderText('Email'), 'focus');
+fireEvent(screen.getByPlaceholderText('Email'), 'blur');
+
+// Submit editing (keyboard submit)
+fireEvent(screen.getByPlaceholderText('Search'), 'submitEditing');
+
+// Scroll
+fireEvent.scroll(screen.getByTestId('scroll-view'), {
+  nativeEvent: {
+    contentOffset: { x: 0, y: 500 },
+    contentSize: { height: 1000, width: 400 },
+    layoutMeasurement: { height: 500, width: 400 },
+  },
+});
+
+// Long press
+fireEvent(screen.getByText('Item'), 'longPress');
+
+// Custom events
+fireEvent(element, 'customEvent', { data: 'value' });</code></pre>
+
+                <h3>Testing Press Events</h3>
+
+                <pre><code>// components/Button.tsx
+interface ButtonProps {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+}
+
+export function Button({ title, onPress, disabled }: ButtonProps) {
+  return (
+    &lt;Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.button,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    &gt;
+      &lt;Text style={styles.text}&gt;{title}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+// components/Button.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { Button } from './Button';
+
+describe('Button', () => {
+  it('calls onPress when pressed', () => {
+    const onPress = jest.fn();
+    render(&lt;Button title="Click Me" onPress={onPress} /&gt;);
+
+    fireEvent.press(screen.getByText('Click Me'));
+
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onPress when disabled', () => {
+    const onPress = jest.fn();
+    render(&lt;Button title="Click Me" onPress={onPress} disabled /&gt;);
+
+    fireEvent.press(screen.getByText('Click Me'));
+
+    expect(onPress).not.toHaveBeenCalled();
+  });
+});</code></pre>
+
+                <h3>Testing Input Changes</h3>
+
+                <pre><code>// components/SearchInput.tsx
+interface SearchInputProps {
+  onSearch: (query: string) => void;
+}
+
+export function SearchInput({ onSearch }: SearchInputProps) {
+  const [query, setQuery] = useState('');
+
+  const handleSubmit = () => {
+    if (query.trim()) {
+      onSearch(query);
+    }
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput
+        placeholder="Search..."
+        value={query}
+        onChangeText={setQuery}
+        onSubmitEditing={handleSubmit}
+        returnKeyType="search"
+      /&gt;
+      &lt;Pressable onPress={handleSubmit}&gt;
+        &lt;Text&gt;Search&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// components/SearchInput.test.tsx
+describe('SearchInput', () => {
+  it('calls onSearch with query when submitted', () => {
+    const onSearch = jest.fn();
+    render(&lt;SearchInput onSearch={onSearch} /&gt;);
+
+    const input = screen.getByPlaceholderText('Search...');
+    fireEvent.changeText(input, 'react native');
+    fireEvent.press(screen.getByText('Search'));
+
+    expect(onSearch).toHaveBeenCalledWith('react native');
+  });
+
+  it('does not search with empty query', () => {
+    const onSearch = jest.fn();
+    render(&lt;SearchInput onSearch={onSearch} /&gt;);
+
+    fireEvent.press(screen.getByText('Search'));
+
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('searches on keyboard submit', () => {
+    const onSearch = jest.fn();
+    render(&lt;SearchInput onSearch={onSearch} /&gt;);
+
+    const input = screen.getByPlaceholderText('Search...');
+    fireEvent.changeText(input, 'testing');
+    fireEvent(input, 'submitEditing');
+
+    expect(onSearch).toHaveBeenCalledWith('testing');
+  });
+});</code></pre>
+            </section>
+
+            <!-- Testing Forms -->
+            <section id="forms">
+                <h2>Testing Forms</h2>
+
+                <p>Forms are a common UI pattern. Test validation, submission, and error states.</p>
+
+                <h3>Complete Form Test</h3>
+
+                <pre><code>// components/LoginForm.tsx
+interface LoginFormProps {
+  onSubmit: (email: string, password: string) => Promise&lt;void&gt;;
+}
+
+export function LoginForm({ onSubmit }: LoginFormProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState&lt;{ email?: string; password?: string }&gt;({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = () => {
+    const newErrors: typeof errors = {};
+    
+    if (!email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Invalid email format';
+    }
+    
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit(email, password);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        testID="email-input"
+      /&gt;
+      {errors.email && &lt;Text testID="email-error"&gt;{errors.email}&lt;/Text&gt;}
+
+      &lt;TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        testID="password-input"
+      /&gt;
+      {errors.password && &lt;Text testID="password-error"&gt;{errors.password}&lt;/Text&gt;}
+
+      &lt;Pressable
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+        testID="submit-button"
+      &gt;
+        &lt;Text&gt;{isSubmitting ? 'Logging in...' : 'Login'}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// components/LoginForm.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { LoginForm } from './LoginForm';
+
+describe('LoginForm', () => {
+  const mockSubmit = jest.fn();
+
+  beforeEach(() => {
+    mockSubmit.mockClear();
+    mockSubmit.mockResolvedValue(undefined);
+  });
+
+  describe('validation', () => {
+    it('shows error for empty email', () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(screen.getByTestId('email-error')).toHaveTextContent('Email is required');
+    });
+
+    it('shows error for invalid email', () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.changeText(screen.getByTestId('email-input'), 'invalid');
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(screen.getByTestId('email-error')).toHaveTextContent('Invalid email format');
+    });
+
+    it('shows error for empty password', () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.changeText(screen.getByTestId('email-input'), 'test@example.com');
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(screen.getByTestId('password-error')).toHaveTextContent('Password is required');
+    });
+
+    it('shows error for short password', () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.changeText(screen.getByTestId('email-input'), 'test@example.com');
+      fireEvent.changeText(screen.getByTestId('password-input'), 'short');
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(screen.getByTestId('password-error')).toHaveTextContent('at least 8 characters');
+    });
+  });
+
+  describe('submission', () => {
+    it('calls onSubmit with valid data', async () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.changeText(screen.getByTestId('email-input'), 'test@example.com');
+      fireEvent.changeText(screen.getByTestId('password-input'), 'password123');
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      await waitFor(() => {
+        expect(mockSubmit).toHaveBeenCalledWith('test@example.com', 'password123');
+      });
+    });
+
+    it('shows loading state while submitting', async () => {
+      mockSubmit.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+      
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.changeText(screen.getByTestId('email-input'), 'test@example.com');
+      fireEvent.changeText(screen.getByTestId('password-input'), 'password123');
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(screen.getByText('Logging in...')).toBeTruthy();
+
+      await waitFor(() => {
+        expect(screen.getByText('Login')).toBeTruthy();
+      });
+    });
+
+    it('does not submit with invalid data', () => {
+      render(&lt;LoginForm onSubmit={mockSubmit} /&gt;);
+
+      fireEvent.press(screen.getByTestId('submit-button'));
+
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+  });
+});</code></pre>
+            </section>
+
+            <!-- Async Components -->
+            <section id="async-components">
+                <h2>Async Components</h2>
+
+                <p>Components that load data asynchronously require special handling with <code>findBy</code> queries and <code>waitFor</code>.</p>
+
+                <h3>Testing Data Loading</h3>
+
+                <pre><code>// components/UserProfile.tsx
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface UserProfileProps {
+  userId: string;
+}
+
+export function UserProfile({ userId }: UserProfileProps) {
+  const [user, setUser] = useState&lt;User | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    fetchUser(userId)
+      .then(setUser)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  if (loading) {
+    return &lt;Text testID="loading"&gt;Loading...&lt;/Text&gt;;
+  }
+
+  if (error) {
+    return &lt;Text testID="error"&gt;{error}&lt;/Text&gt;;
+  }
+
+  return (
+    &lt;View testID="profile"&gt;
+      &lt;Text testID="name"&gt;{user?.name}&lt;/Text&gt;
+      &lt;Text testID="email"&gt;{user?.email}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// components/UserProfile.test.tsx
+import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react-native';
+import { UserProfile } from './UserProfile';
+import { fetchUser } from '../api/users';
+
+jest.mock('../api/users');
+const mockFetchUser = fetchUser as jest.Mock;
+
+describe('UserProfile', () => {
+  beforeEach(() => {
+    mockFetchUser.mockClear();
+  });
+
+  it('shows loading state initially', () => {
+    mockFetchUser.mockImplementation(() => new Promise(() => {}));
+    
+    render(&lt;UserProfile userId="1" /&gt;);
+    
+    expect(screen.getByTestId('loading')).toBeTruthy();
+  });
+
+  it('shows user data after loading', async () => {
+    mockFetchUser.mockResolvedValue({
+      id: '1',
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+
+    render(&lt;UserProfile userId="1" /&gt;);
+
+    // Wait for loading to disappear
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    // Check user data is displayed
+    expect(screen.getByTestId('name')).toHaveTextContent('Alice');
+    expect(screen.getByTestId('email')).toHaveTextContent('alice@example.com');
+  });
+
+  it('shows error on fetch failure', async () => {
+    mockFetchUser.mockRejectedValue(new Error('User not found'));
+
+    render(&lt;UserProfile userId="999" /&gt;);
+
+    // Use findBy for async elements
+    const error = await screen.findByTestId('error');
+    
+    expect(error).toHaveTextContent('User not found');
+  });
+
+  it('refetches when userId changes', async () => {
+    mockFetchUser
+      .mockResolvedValueOnce({ id: '1', name: 'Alice', email: 'a@test.com' })
+      .mockResolvedValueOnce({ id: '2', name: 'Bob', email: 'b@test.com' });
+
+    const { rerender } = render(&lt;UserProfile userId="1" /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('name')).toHaveTextContent('Alice');
+    });
+
+    rerender(&lt;UserProfile userId="2" /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('name')).toHaveTextContent('Bob');
+    });
+
+    expect(mockFetchUser).toHaveBeenCalledTimes(2);
+  });
+});</code></pre>
+            </section>
+            <!-- Testing with Navigation -->
+            <section id="navigation">
+                <h2>Testing with Navigation</h2>
+
+                <p>Components using React Navigation need a navigation context. Create a test wrapper to provide it.</p>
+
+                <h3>Navigation Test Utilities</h3>
+
+                <pre><code>// test-utils/navigation.tsx
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { render } from '@testing-library/react-native';
+
+const Stack = createNativeStackNavigator();
+
+// Simple wrapper for single screen tests
+export function renderWithNavigation(
+  component: React.ReactElement,
+  { initialParams = {} } = {}
+) {
+  const Screen = () => component;
+
+  return render(
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen
+          name="TestScreen"
+          component={Screen}
+          initialParams={initialParams}
+        /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+
+// Full navigation wrapper for testing navigation between screens
+export function renderNavigator(screens: {
+  name: string;
+  component: React.ComponentType&lt;any&gt;;
+  initialParams?: object;
+}[], initialRouteName?: string) {
+  return render(
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator initialRouteName={initialRouteName || screens[0].name}&gt;
+        {screens.map(({ name, component, initialParams }) => (
+          &lt;Stack.Screen
+            key={name}
+            name={name}
+            component={component}
+            initialParams={initialParams}
+          /&gt;
+        ))}
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+
+                <h3>Testing Navigation Actions</h3>
+
+                <pre><code>// screens/HomeScreen.tsx
+export function HomeScreen({ navigation }) {
+  return (
+    &lt;View&gt;
+      &lt;Text&gt;Home Screen&lt;/Text&gt;
+      &lt;Pressable
+        testID="go-to-details"
+        onPress={() => navigation.navigate('Details', { id: 123 })}
+      &gt;
+        &lt;Text&gt;Go to Details&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// screens/DetailsScreen.tsx
+export function DetailsScreen({ route, navigation }) {
+  const { id } = route.params;
+
+  return (
+    &lt;View&gt;
+      &lt;Text testID="item-id"&gt;Item: {id}&lt;/Text&gt;
+      &lt;Pressable testID="go-back" onPress={() => navigation.goBack()}&gt;
+        &lt;Text&gt;Go Back&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// screens/HomeScreen.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { HomeScreen } from './HomeScreen';
+import { DetailsScreen } from './DetailsScreen';
+
+const Stack = createNativeStackNavigator();
+
+function AppNavigator() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen name="Home" component={HomeScreen} /&gt;
+        &lt;Stack.Screen name="Details" component={DetailsScreen} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+
+describe('Navigation', () => {
+  it('navigates from Home to Details', async () => {
+    render(&lt;AppNavigator /&gt;);
+
+    // Start on Home
+    expect(screen.getByText('Home Screen')).toBeTruthy();
+
+    // Navigate to Details
+    fireEvent.press(screen.getByTestId('go-to-details'));
+
+    // Verify we're on Details with correct params
+    expect(await screen.findByTestId('item-id')).toHaveTextContent('Item: 123');
+  });
+
+  it('navigates back from Details to Home', async () => {
+    render(&lt;AppNavigator /&gt;);
+
+    // Go to Details
+    fireEvent.press(screen.getByTestId('go-to-details'));
+    await screen.findByTestId('item-id');
+
+    // Go back
+    fireEvent.press(screen.getByTestId('go-back'));
+
+    // Verify we're back on Home
+    expect(await screen.findByText('Home Screen')).toBeTruthy();
+  });
+});</code></pre>
+
+                <h3>Mocking Navigation</h3>
+
+                <pre><code>// For unit testing a single component without full navigation setup
+const mockNavigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  setOptions: jest.fn(),
+  addListener: jest.fn(() => jest.fn()), // Returns unsubscribe function
+};
+
+const mockRoute = {
+  params: { id: '123' },
+  name: 'TestScreen',
+};
+
+describe('DetailsScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('displays item ID from params', () => {
+    render(&lt;DetailsScreen navigation={mockNavigation} route={mockRoute} /&gt;);
+
+    expect(screen.getByTestId('item-id')).toHaveTextContent('Item: 123');
+  });
+
+  it('calls goBack when back button pressed', () => {
+    render(&lt;DetailsScreen navigation={mockNavigation} route={mockRoute} /&gt;);
+
+    fireEvent.press(screen.getByTestId('go-back'));
+
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+  });
+});</code></pre>
+            </section>
+
+            <!-- Testing with Context -->
+            <section id="context">
+                <h2>Testing with Context</h2>
+
+                <p>Components that consume context need the provider in the test. Create reusable wrapper utilities.</p>
+
+                <h3>Custom Render with Providers</h3>
+
+                <pre><code>// test-utils/render.tsx
+import { render, RenderOptions } from '@testing-library/react-native';
+import { ThemeProvider, Theme } from '../contexts/ThemeContext';
+import { AuthProvider, User } from '../contexts/AuthContext';
+import { NavigationContainer } from '@react-navigation/native';
+
+interface WrapperProps {
+  children: React.ReactNode;
+}
+
+interface CustomRenderOptions extends RenderOptions {
+  theme?: Theme;
+  user?: User | null;
+  withNavigation?: boolean;
+}
+
+export function customRender(
+  ui: React.ReactElement,
+  {
+    theme = 'light',
+    user = null,
+    withNavigation = false,
+    ...renderOptions
+  }: CustomRenderOptions = {}
+) {
+  function Wrapper({ children }: WrapperProps) {
+    let content = children;
+
+    // Wrap with providers inside-out
+    content = (
+      &lt;AuthProvider initialUser={user}&gt;
+        &lt;ThemeProvider initialTheme={theme}&gt;
+          {content}
+        &lt;/ThemeProvider&gt;
+      &lt;/AuthProvider&gt;
+    );
+
+    if (withNavigation) {
+      content = &lt;NavigationContainer&gt;{content}&lt;/NavigationContainer&gt;;
+    }
+
+    return content;
+  }
+
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
+}
+
+// Re-export everything
+export * from '@testing-library/react-native';
+export { customRender as render };</code></pre>
+
+                <h3>Testing Theme Context</h3>
+
+                <pre><code>// contexts/ThemeContext.tsx
+interface ThemeContextType {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  colors: {
+    background: string;
+    text: string;
+  };
+}
+
+export const ThemeContext = createContext&lt;ThemeContextType | null&gt;(null);
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider');
+  }
+  return context;
+}
+
+// components/ThemeToggle.tsx
+export function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    &lt;Pressable testID="theme-toggle" onPress={toggleTheme}&gt;
+      &lt;Text&gt;{theme === 'light' ? '🌙' : '☀️'}&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+// components/ThemeToggle.test.tsx
+import { render, screen, fireEvent } from '../test-utils/render';
+import { ThemeToggle } from './ThemeToggle';
+
+describe('ThemeToggle', () => {
+  it('shows moon icon in light mode', () => {
+    render(&lt;ThemeToggle /&gt;, { theme: 'light' });
+
+    expect(screen.getByText('🌙')).toBeTruthy();
+  });
+
+  it('shows sun icon in dark mode', () => {
+    render(&lt;ThemeToggle /&gt;, { theme: 'dark' });
+
+    expect(screen.getByText('☀️')).toBeTruthy();
+  });
+
+  it('toggles theme when pressed', () => {
+    render(&lt;ThemeToggle /&gt;, { theme: 'light' });
+
+    fireEvent.press(screen.getByTestId('theme-toggle'));
+
+    // After toggle, should show sun (now in dark mode)
+    expect(screen.getByText('☀️')).toBeTruthy();
+  });
+});</code></pre>
+
+                <h3>Testing Auth Context</h3>
+
+                <pre><code>// components/UserMenu.tsx
+export function UserMenu() {
+  const { user, logout } = useAuth();
+
+  if (!user) {
+    return &lt;Text testID="login-prompt"&gt;Please log in&lt;/Text&gt;;
+  }
+
+  return (
+    &lt;View&gt;
+      &lt;Text testID="user-name"&gt;Welcome, {user.name}&lt;/Text&gt;
+      &lt;Pressable testID="logout-button" onPress={logout}&gt;
+        &lt;Text&gt;Logout&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// components/UserMenu.test.tsx
+import { render, screen, fireEvent, waitFor } from '../test-utils/render';
+import { UserMenu } from './UserMenu';
+
+describe('UserMenu', () => {
+  it('shows login prompt when not authenticated', () => {
+    render(&lt;UserMenu /&gt;, { user: null });
+
+    expect(screen.getByTestId('login-prompt')).toBeTruthy();
+  });
+
+  it('shows user name when authenticated', () => {
+    render(&lt;UserMenu /&gt;, { 
+      user: { id: '1', name: 'Alice', email: 'alice@test.com' } 
+    });
+
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Welcome, Alice');
+  });
+
+  it('logs out when logout pressed', async () => {
+    render(&lt;UserMenu /&gt;, { 
+      user: { id: '1', name: 'Alice', email: 'alice@test.com' } 
+    });
+
+    fireEvent.press(screen.getByTestId('logout-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-prompt')).toBeTruthy();
+    });
+  });
+});</code></pre>
+
+                <h3>Testing Multiple Contexts</h3>
+
+                <pre><code>// components/Dashboard.tsx
+export function Dashboard() {
+  const { user } = useAuth();
+  const { theme, colors } = useTheme();
+
+  return (
+    &lt;View style={{ backgroundColor: colors.background }}&gt;
+      &lt;Text style={{ color: colors.text }} testID="greeting"&gt;
+        Hello, {user?.name}!
+      &lt;/Text&gt;
+      &lt;Text testID="theme-status"&gt;Current theme: {theme}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// components/Dashboard.test.tsx
+import { render, screen } from '../test-utils/render';
+import { Dashboard } from './Dashboard';
+
+describe('Dashboard', () => {
+  it('displays user greeting with theme', () => {
+    render(&lt;Dashboard /&gt;, {
+      user: { id: '1', name: 'Alice', email: 'alice@test.com' },
+      theme: 'dark',
+    });
+
+    expect(screen.getByTestId('greeting')).toHaveTextContent('Hello, Alice!');
+    expect(screen.getByTestId('theme-status')).toHaveTextContent('Current theme: dark');
+  });
+});</code></pre>
+            </section>
+
+            <!-- Debugging Tests -->
+            <section id="debugging">
+                <h2>Debugging Tests</h2>
+
+                <p>When tests fail, debugging tools help identify the problem.</p>
+
+                <h3>Using debug()</h3>
+
+                <pre><code>import { render, screen } from '@testing-library/react-native';
+
+it('debugging example', () => {
+  render(&lt;MyComponent /&gt;);
+
+  // Print entire component tree
+  screen.debug();
+
+  // Print specific element
+  screen.debug(screen.getByTestId('container'));
+
+  // Limit output depth
+  screen.debug(undefined, Infinity); // Full depth
+});</code></pre>
+
+                <h3>Debug Output Example</h3>
+
+                <pre><code>// screen.debug() output:
+&lt;View
+  testID="container"
+&gt;
+  &lt;Text&gt;
+    Hello World
+  &lt;/Text&gt;
+  &lt;Pressable
+    onPress={[Function]}
+    testID="button"
+  &gt;
+    &lt;Text&gt;
+      Press Me
+    &lt;/Text&gt;
+  &lt;/Pressable&gt;
+&lt;/View&gt;</code></pre>
+
+                <h3>toJSON for Snapshots</h3>
+
+                <pre><code>it('matches structure', () => {
+  const { toJSON } = render(&lt;MyComponent /&gt;);
+
+  // Get JSON representation
+  const tree = toJSON();
+  console.log(JSON.stringify(tree, null, 2));
+
+  // Use for snapshot
+  expect(tree).toMatchSnapshot();
+});</code></pre>
+
+                <h3>Common Debugging Strategies</h3>
+
+                <div class="card">
+                    <h4>🔧 Debugging Checklist</h4>
+                    <ul>
+                        <li><strong>Element not found:</strong> Use <code>screen.debug()</code> to see what's rendered</li>
+                        <li><strong>Async issues:</strong> Make sure to use <code>findBy</code> or <code>waitFor</code></li>
+                        <li><strong>Mock not working:</strong> Check mock is defined before component renders</li>
+                        <li><strong>Wrong element:</strong> Check for multiple matches with <code>getAllBy</code></li>
+                        <li><strong>State not updating:</strong> Wrap state changes in <code>act()</code></li>
+                        <li><strong>Context missing:</strong> Ensure provider wraps the component</li>
+                    </ul>
+                </div>
+
+                <h3>Using act() Properly</h3>
+
+                <pre><code>import { render, screen, act } from '@testing-library/react-native';
+
+// fireEvent already wraps in act()
+fireEvent.press(button); // ✓ No need for act()
+
+// But direct state updates need act()
+it('updates on external event', async () => {
+  const eventEmitter = new EventEmitter();
+  render(&lt;ListenerComponent emitter={eventEmitter} /&gt;);
+
+  // External event that triggers state update
+  await act(async () => {
+    eventEmitter.emit('data', { value: 42 });
+  });
+
+  expect(screen.getByText('42')).toBeTruthy();
+});</code></pre>
+
+                <h3>Handling Warnings</h3>
+
+                <pre><code>// Suppress specific warnings in tests
+beforeEach(() => {
+  jest.spyOn(console, 'warn').mockImplementation((message) => {
+    // Ignore specific warning
+    if (message.includes('componentWillReceiveProps')) return;
+    console.warn(message);
+  });
+});
+
+afterEach(() => {
+  (console.warn as jest.Mock).mockRestore();
+});
+
+// Or suppress all in a specific test
+it('handles legacy component', () => {
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  
+  render(&lt;LegacyComponent /&gt;);
+  
+  expect(screen.getByText('Works')).toBeTruthy();
+  
+  warn.mockRestore();
+});</code></pre>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Test a Todo Item Component</h3>
+                    <p>Test a todo item with toggle and delete functionality.</p>
+                    
+                    <h4>The Component:</h4>
+                    <pre><code>// components/TodoItem.tsx
+interface TodoItemProps {
+  todo: {
+    id: string;
+    text: string;
+    completed: boolean;
+  };
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
+  return (
+    &lt;View testID={`todo-${todo.id}`} style={styles.container}&gt;
+      &lt;Pressable
+        testID={`toggle-${todo.id}`}
+        onPress={() => onToggle(todo.id)}
+        style={styles.checkbox}
+      &gt;
+        &lt;Text&gt;{todo.completed ? '✓' : '○'}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      
+      &lt;Text
+        testID={`text-${todo.id}`}
+        style={[styles.text, todo.completed && styles.completed]}
+      &gt;
+        {todo.text}
+      &lt;/Text&gt;
+      
+      &lt;Pressable
+        testID={`delete-${todo.id}`}
+        onPress={() => onDelete(todo.id)}
+      &gt;
+        &lt;Text&gt;🗑️&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test that todo text is displayed</li>
+                        <li>Test completed state shows checkmark</li>
+                        <li>Test incomplete state shows circle</li>
+                        <li>Test onToggle is called with correct id</li>
+                        <li>Test onDelete is called with correct id</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/TodoItem.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { TodoItem } from './TodoItem';
+
+describe('TodoItem', () => {
+  const incompleteTodo = { id: '1', text: 'Buy groceries', completed: false };
+  const completedTodo = { id: '2', text: 'Walk the dog', completed: true };
+  
+  const mockOnToggle = jest.fn();
+  const mockOnDelete = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('displays todo text', () => {
+    render(
+      &lt;TodoItem todo={incompleteTodo} onToggle={mockOnToggle} onDelete={mockOnDelete} /&gt;
+    );
+
+    expect(screen.getByTestId('text-1')).toHaveTextContent('Buy groceries');
+  });
+
+  it('shows circle for incomplete todo', () => {
+    render(
+      &lt;TodoItem todo={incompleteTodo} onToggle={mockOnToggle} onDelete={mockOnDelete} /&gt;
+    );
+
+    expect(screen.getByTestId('toggle-1')).toHaveTextContent('○');
+  });
+
+  it('shows checkmark for completed todo', () => {
+    render(
+      &lt;TodoItem todo={completedTodo} onToggle={mockOnToggle} onDelete={mockOnDelete} /&gt;
+    );
+
+    expect(screen.getByTestId('toggle-2')).toHaveTextContent('✓');
+  });
+
+  it('calls onToggle with id when checkbox pressed', () => {
+    render(
+      &lt;TodoItem todo={incompleteTodo} onToggle={mockOnToggle} onDelete={mockOnDelete} /&gt;
+    );
+
+    fireEvent.press(screen.getByTestId('toggle-1'));
+
+    expect(mockOnToggle).toHaveBeenCalledWith('1');
+    expect(mockOnToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onDelete with id when delete pressed', () => {
+    render(
+      &lt;TodoItem todo={incompleteTodo} onToggle={mockOnToggle} onDelete={mockOnDelete} /&gt;
+    );
+
+    fireEvent.press(screen.getByTestId('delete-1'));
+
+    expect(mockOnDelete).toHaveBeenCalledWith('1');
+    expect(mockOnDelete).toHaveBeenCalledTimes(1);
+  });
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Test a FlatList Component</h3>
+                    <p>Test a list component that fetches and displays items.</p>
+                    
+                    <h4>The Component:</h4>
+                    <pre><code>// components/PostList.tsx
+interface Post {
+  id: string;
+  title: string;
+  author: string;
+}
+
+export function PostList() {
+  const [posts, setPosts] = useState&lt;Post[]&gt;([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadPosts = async () => {
+    const data = await fetchPosts();
+    setPosts(data);
+    setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadPosts();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  if (loading) {
+    return &lt;ActivityIndicator testID="loading" /&gt;;
+  }
+
+  if (posts.length === 0) {
+    return &lt;Text testID="empty"&gt;No posts yet&lt;/Text&gt;;
+  }
+
+  return (
+    &lt;FlatList
+      testID="post-list"
+      data={posts}
+      keyExtractor={(item) => item.id}
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      renderItem={({ item }) => (
+        &lt;View testID={`post-${item.id}`}&gt;
+          &lt;Text testID={`title-${item.id}`}&gt;{item.title}&lt;/Text&gt;
+          &lt;Text testID={`author-${item.id}`}&gt;By {item.author}&lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test loading state</li>
+                        <li>Test posts are displayed after loading</li>
+                        <li>Test empty state when no posts</li>
+                        <li>Test pull-to-refresh</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/PostList.test.tsx
+import { render, screen, fireEvent, waitFor, waitForElementToBeRemoved } from '@testing-library/react-native';
+import { PostList } from './PostList';
+import { fetchPosts } from '../api/posts';
+
+jest.mock('../api/posts');
+const mockFetchPosts = fetchPosts as jest.Mock;
+
+describe('PostList', () => {
+  beforeEach(() => {
+    mockFetchPosts.mockClear();
+  });
+
+  it('shows loading indicator initially', () => {
+    mockFetchPosts.mockImplementation(() => new Promise(() => {}));
+    
+    render(&lt;PostList /&gt;);
+    
+    expect(screen.getByTestId('loading')).toBeTruthy();
+  });
+
+  it('displays posts after loading', async () => {
+    const mockPosts = [
+      { id: '1', title: 'First Post', author: 'Alice' },
+      { id: '2', title: 'Second Post', author: 'Bob' },
+    ];
+    mockFetchPosts.mockResolvedValue(mockPosts);
+
+    render(&lt;PostList /&gt;);
+
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    expect(screen.getByTestId('post-list')).toBeTruthy();
+    expect(screen.getByTestId('title-1')).toHaveTextContent('First Post');
+    expect(screen.getByTestId('author-1')).toHaveTextContent('By Alice');
+    expect(screen.getByTestId('title-2')).toHaveTextContent('Second Post');
+  });
+
+  it('shows empty state when no posts', async () => {
+    mockFetchPosts.mockResolvedValue([]);
+
+    render(&lt;PostList /&gt;);
+
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+    expect(screen.getByTestId('empty')).toHaveTextContent('No posts yet');
+  });
+
+  it('refreshes posts on pull-to-refresh', async () => {
+    const initialPosts = [{ id: '1', title: 'Old Post', author: 'Alice' }];
+    const refreshedPosts = [
+      { id: '1', title: 'Old Post', author: 'Alice' },
+      { id: '2', title: 'New Post', author: 'Bob' },
+    ];
+
+    mockFetchPosts
+      .mockResolvedValueOnce(initialPosts)
+      .mockResolvedValueOnce(refreshedPosts);
+
+    render(&lt;PostList /&gt;);
+
+    await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+    expect(screen.queryByTestId('post-2')).toBeNull();
+
+    const list = screen.getByTestId('post-list');
+    fireEvent(list, 'refresh');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('post-2')).toBeTruthy();
+    });
+
+    expect(mockFetchPosts).toHaveBeenCalledTimes(2);
+  });
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Test Navigation Flow</h3>
+                    <p>Test a complete user flow through multiple screens.</p>
+                    
+                    <h4>The Screens:</h4>
+                    <pre><code>// screens/ProductsScreen.tsx
+export function ProductsScreen({ navigation }) {
+  const products = [
+    { id: '1', name: 'Widget', price: 9.99 },
+    { id: '2', name: 'Gadget', price: 19.99 },
+  ];
+
+  return (
+    &lt;FlatList
+      testID="products-list"
+      data={products}
+      renderItem={({ item }) => (
+        &lt;Pressable
+          testID={`product-${item.id}`}
+          onPress={() => navigation.navigate('ProductDetail', { product: item })}
+        &gt;
+          &lt;Text&gt;{item.name} - ${item.price}&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+    /&gt;
+  );
+}
+
+// screens/ProductDetailScreen.tsx
+export function ProductDetailScreen({ route, navigation }) {
+  const { product } = route.params;
+
+  const handleAddToCart = () => {
+    navigation.navigate('Cart', { item: product });
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;Text testID="product-name"&gt;{product.name}&lt;/Text&gt;
+      &lt;Text testID="product-price"&gt;${product.price}&lt;/Text&gt;
+      &lt;Pressable testID="add-to-cart" onPress={handleAddToCart}&gt;
+        &lt;Text&gt;Add to Cart&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+// screens/CartScreen.tsx
+export function CartScreen({ route }) {
+  const { item } = route.params;
+
+  return (
+    &lt;View&gt;
+      &lt;Text testID="cart-title"&gt;Your Cart&lt;/Text&gt;
+      &lt;Text testID="cart-item"&gt;{item.name}&lt;/Text&gt;
+      &lt;Text testID="cart-total"&gt;Total: ${item.price}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test navigating from products list to detail</li>
+                        <li>Test product info is passed correctly</li>
+                        <li>Test adding to cart navigates to cart screen</li>
+                        <li>Test cart shows correct item and total</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// __tests__/ShoppingFlow.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ProductsScreen } from '../screens/ProductsScreen';
+import { ProductDetailScreen } from '../screens/ProductDetailScreen';
+import { CartScreen } from '../screens/CartScreen';
+
+const Stack = createNativeStackNavigator();
+
+function ShoppingNavigator() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen name="Products" component={ProductsScreen} /&gt;
+        &lt;Stack.Screen name="ProductDetail" component={ProductDetailScreen} /&gt;
+        &lt;Stack.Screen name="Cart" component={CartScreen} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+
+describe('Shopping Flow', () => {
+  it('completes full purchase flow', async () => {
+    render(&lt;ShoppingNavigator /&gt;);
+
+    // Start on products list
+    expect(screen.getByTestId('products-list')).toBeTruthy();
+
+    // Tap on Gadget product
+    fireEvent.press(screen.getByTestId('product-2'));
+
+    // Should be on product detail with correct info
+    expect(await screen.findByTestId('product-name')).toHaveTextContent('Gadget');
+    expect(screen.getByTestId('product-price')).toHaveTextContent('$19.99');
+
+    // Add to cart
+    fireEvent.press(screen.getByTestId('add-to-cart'));
+
+    // Should be on cart with correct item
+    expect(await screen.findByTestId('cart-title')).toHaveTextContent('Your Cart');
+    expect(screen.getByTestId('cart-item')).toHaveTextContent('Gadget');
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('Total: $19.99');
+  });
+
+  it('navigates to different product', async () => {
+    render(&lt;ShoppingNavigator /&gt;);
+
+    // Tap on Widget
+    fireEvent.press(screen.getByTestId('product-1'));
+
+    // Verify correct product details
+    expect(await screen.findByTestId('product-name')).toHaveTextContent('Widget');
+    expect(screen.getByTestId('product-price')).toHaveTextContent('$9.99');
+  });
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Component testing with React Native Testing Library focuses on testing from the user's perspective—finding elements by accessible properties and simulating real interactions.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Query priority:</strong> Prefer getByText, getByRole over getByTestId</li>
+                        <li><strong>Query types:</strong> Use getBy for assertions, queryBy for absence, findBy for async</li>
+                        <li><strong>User events:</strong> fireEvent.press, fireEvent.changeText for interactions</li>
+                        <li><strong>Forms:</strong> Test validation, submission, loading, and error states</li>
+                        <li><strong>Async:</strong> Use findBy or waitFor for elements that appear after loading</li>
+                        <li><strong>Navigation:</strong> Wrap in NavigationContainer or mock navigation prop</li>
+                        <li><strong>Context:</strong> Create custom render with all needed providers</li>
+                        <li><strong>Debugging:</strong> Use screen.debug() to see component tree</li>
+                        <li><strong>Test behavior:</strong> Focus on what users see and do, not implementation</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll explore integration testing, where we test how multiple components and systems work together.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l02_unit_testing.html" class="prev-link">← Previous: Unit Testing with Jest</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l04_integration_testing.html" class="next-link">Next: Integration Testing →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

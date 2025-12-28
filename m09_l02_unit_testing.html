@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master unit testing with Jest for React Native applications">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Unit Testing with Jest | Module 9: Testing and Quality Assurance | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <a href="m09_l01_testing_fundamentals.html">Module 9</a> &gt;
+            <span>Lesson 9.2</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 9: Testing and Quality Assurance</p>
+                <h1>Unit Testing with Jest</h1>
+                <p class="lesson-subtitle">Mocking, async testing, custom matchers, and testing hooks</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Master Jest's mocking capabilities</li>
+                    <li>Test asynchronous code with async/await</li>
+                    <li>Use Jest's built-in matchers effectively</li>
+                    <li>Create custom matchers for domain-specific assertions</li>
+                    <li>Test React hooks with renderHook</li>
+                    <li>Understand snapshot testing and when to use it</li>
+                    <li>Mock modules, timers, and external dependencies</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#jest-basics">Jest Basics Review</a></li>
+                        <li><a href="#matchers">Matchers Deep Dive</a></li>
+                        <li><a href="#mocking">Mocking</a></li>
+                        <li><a href="#async-testing">Async Testing</a></li>
+                        <li><a href="#testing-hooks">Testing Hooks</a></li>
+                        <li><a href="#timers">Testing Timers</a></li>
+                        <li><a href="#snapshots">Snapshot Testing</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Jest Basics Review -->
+            <section id="jest-basics">
+                <h2>Jest Basics Review</h2>
+
+                <p>Jest is the testing framework that comes with Expo. It provides everything you need: test runner, assertion library, and mocking utilities.</p>
+
+                <h3>Test Structure</h3>
+
+                <pre><code>// Basic test structure
+describe('Module or Component Name', () => {
+  // Setup that runs before each test
+  beforeEach(() => {
+    // Reset state, clear mocks, etc.
+  });
+
+  // Setup that runs once before all tests
+  beforeAll(() => {
+    // Expensive setup (database connection, etc.)
+  });
+
+  // Cleanup after each test
+  afterEach(() => {
+    // Clean up subscriptions, timers, etc.
+  });
+
+  // Cleanup after all tests
+  afterAll(() => {
+    // Close connections, etc.
+  });
+
+  // Nested describe for grouping
+  describe('specific feature', () => {
+    it('does something specific', () => {
+      // Test code
+    });
+
+    it('handles edge case', () => {
+      // Test code
+    });
+  });
+
+  // Use test or it (they're identical)
+  test('another test', () => {
+    // Test code
+  });
+});</code></pre>
+
+                <h3>Skipping and Focusing Tests</h3>
+
+                <pre><code>// Skip a test
+it.skip('this test is skipped', () => {
+  // Won't run
+});
+
+// Skip a describe block
+describe.skip('all tests in here are skipped', () => {
+  it('test 1', () => {});
+  it('test 2', () => {});
+});
+
+// Run only this test (useful for debugging)
+it.only('only this test runs', () => {
+  // Only this runs
+});
+
+// Run only this describe block
+describe.only('only these tests run', () => {
+  it('test 1', () => {});
+  it('test 2', () => {});
+});
+
+// TODO test (always fails as reminder)
+it.todo('implement this test later');</code></pre>
+
+                <h3>Test Each (Parameterized Tests)</h3>
+
+                <pre><code>// Run same test with different inputs
+describe('formatCurrency', () => {
+  it.each([
+    [100, '$1.00'],
+    [999, '$9.99'],
+    [1050, '$10.50'],
+    [0, '$0.00'],
+  ])('formats %i cents as %s', (cents, expected) => {
+    expect(formatCurrency(cents)).toBe(expected);
+  });
+});
+
+// With named parameters
+it.each`
+  input         | expected
+  ${'hello'}    | ${'HELLO'}
+  ${'World'}    | ${'WORLD'}
+  ${'TeSt'}     | ${'TEST'}
+`('converts "$input" to "$expected"', ({ input, expected }) => {
+  expect(input.toUpperCase()).toBe(expected);
+});</code></pre>
+            </section>
+
+            <!-- Matchers Deep Dive -->
+            <section id="matchers">
+                <h2>Matchers Deep Dive</h2>
+
+                <p>Jest provides a rich set of matchers for different types of assertions.</p>
+
+                <h3>Common Matchers</h3>
+
+                <pre><code>// Equality
+expect(value).toBe(expected);           // Strict equality (===)
+expect(value).toEqual(expected);        // Deep equality for objects/arrays
+expect(value).toStrictEqual(expected);  // Deep equality + undefined props
+
+// Truthiness
+expect(value).toBeTruthy();
+expect(value).toBeFalsy();
+expect(value).toBeNull();
+expect(value).toBeUndefined();
+expect(value).toBeDefined();
+
+// Numbers
+expect(value).toBeGreaterThan(3);
+expect(value).toBeGreaterThanOrEqual(3);
+expect(value).toBeLessThan(5);
+expect(value).toBeLessThanOrEqual(5);
+expect(value).toBeCloseTo(0.3, 5);      // For floating point
+
+// Strings
+expect(value).toMatch(/pattern/);
+expect(value).toContain('substring');
+
+// Arrays
+expect(array).toContain(item);
+expect(array).toContainEqual({ id: 1 }); // Deep equality
+expect(array).toHaveLength(3);
+
+// Objects
+expect(object).toHaveProperty('key');
+expect(object).toHaveProperty('nested.key', 'value');
+expect(object).toMatchObject({ partial: 'match' });
+
+// Exceptions
+expect(() => throwingFn()).toThrow();
+expect(() => throwingFn()).toThrow('error message');
+expect(() => throwingFn()).toThrow(ErrorClass);</code></pre>
+
+                <h3>Negation</h3>
+
+                <pre><code>// Use .not for negation
+expect(value).not.toBe(5);
+expect(array).not.toContain('item');
+expect(object).not.toHaveProperty('missing');
+expect(() => fn()).not.toThrow();</code></pre>
+
+                <h3>Asymmetric Matchers</h3>
+
+                <pre><code>// Match part of an object
+expect(response).toEqual({
+  id: expect.any(Number),
+  name: expect.any(String),
+  createdAt: expect.any(Date),
+  data: expect.anything(),
+});
+
+// Match array containing specific items
+expect(array).toEqual(expect.arrayContaining([1, 2]));
+
+// Match object containing specific properties
+expect(object).toEqual(expect.objectContaining({
+  name: 'Alice',
+}));
+
+// Match string containing substring
+expect(message).toEqual(expect.stringContaining('error'));
+
+// Match string matching regex
+expect(message).toEqual(expect.stringMatching(/Error: .*/));</code></pre>
+
+                <h3>Custom Matchers</h3>
+
+                <pre><code>// jest.setup.js - Add custom matchers
+expect.extend({
+  toBeWithinRange(received, floor, ceiling) {
+    const pass = received >= floor && received <= ceiling;
+    
+    if (pass) {
+      return {
+        message: () =>
+          `expected ${received} not to be within range ${floor} - ${ceiling}`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `expected ${received} to be within range ${floor} - ${ceiling}`,
+        pass: false,
+      };
+    }
+  },
+
+  toBeValidEmail(received) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const pass = emailRegex.test(received);
+    
+    return {
+      message: () =>
+        pass
+          ? `expected ${received} not to be a valid email`
+          : `expected ${received} to be a valid email`,
+      pass,
+    };
+  },
+});
+
+// TypeScript declaration
+declare global {
+  namespace jest {
+    interface Matchers&lt;R&gt; {
+      toBeWithinRange(floor: number, ceiling: number): R;
+      toBeValidEmail(): R;
+    }
+  }
+}
+
+// Usage
+expect(100).toBeWithinRange(90, 110);
+expect('test@example.com').toBeValidEmail();</code></pre>
+            </section>
+
+            <!-- Mocking -->
+            <section id="mocking">
+                <h2>Mocking</h2>
+
+                <p>Mocking allows you to replace dependencies with controlled implementations, isolating the code under test.</p>
+
+                <h3>Mock Functions</h3>
+
+                <pre><code>// Create a mock function
+const mockFn = jest.fn();
+
+// Mock with return value
+const mockWithReturn = jest.fn().mockReturnValue(42);
+expect(mockWithReturn()).toBe(42);
+
+// Mock with different return values
+const mockMultiple = jest.fn()
+  .mockReturnValueOnce(1)
+  .mockReturnValueOnce(2)
+  .mockReturnValue(3);
+
+expect(mockMultiple()).toBe(1);
+expect(mockMultiple()).toBe(2);
+expect(mockMultiple()).toBe(3);
+expect(mockMultiple()).toBe(3); // Continues returning 3
+
+// Mock implementation
+const mockImpl = jest.fn((x) => x * 2);
+expect(mockImpl(5)).toBe(10);
+
+// Async mock
+const mockAsync = jest.fn().mockResolvedValue({ data: 'result' });
+await expect(mockAsync()).resolves.toEqual({ data: 'result' });
+
+// Async rejection
+const mockReject = jest.fn().mockRejectedValue(new Error('Failed'));
+await expect(mockReject()).rejects.toThrow('Failed');</code></pre>
+
+                <h3>Mock Function Assertions</h3>
+
+                <pre><code>const mockFn = jest.fn();
+
+// Call the mock
+mockFn('arg1', 'arg2');
+mockFn('arg3');
+
+// Assertions
+expect(mockFn).toHaveBeenCalled();
+expect(mockFn).toHaveBeenCalledTimes(2);
+expect(mockFn).toHaveBeenCalledWith('arg1', 'arg2');
+expect(mockFn).toHaveBeenLastCalledWith('arg3');
+expect(mockFn).toHaveBeenNthCalledWith(1, 'arg1', 'arg2');
+
+// Access call information
+expect(mockFn.mock.calls.length).toBe(2);
+expect(mockFn.mock.calls[0]).toEqual(['arg1', 'arg2']);
+expect(mockFn.mock.results[0].value).toBe(undefined);
+
+// Clear mock
+mockFn.mockClear();  // Clears calls and results
+mockFn.mockReset();  // Clears + removes implementation
+mockFn.mockRestore(); // Restores original (for spies)</code></pre>
+
+                <h3>Spying on Methods</h3>
+
+                <pre><code>// Spy on object method
+const video = {
+  play() {
+    return true;
+  },
+};
+
+const playSpy = jest.spyOn(video, 'play');
+
+video.play();
+
+expect(playSpy).toHaveBeenCalled();
+
+// Spy and mock implementation
+jest.spyOn(video, 'play').mockImplementation(() => false);
+expect(video.play()).toBe(false);
+
+// Restore original
+playSpy.mockRestore();
+expect(video.play()).toBe(true);
+
+// Spy on console
+const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+myFunction(); // Calls console.log internally
+expect(consoleSpy).toHaveBeenCalledWith('expected message');
+consoleSpy.mockRestore();</code></pre>
+
+                <h3>Mocking Modules</h3>
+
+                <pre><code>// __mocks__/api.ts - Manual mock file
+export const fetchUser = jest.fn().mockResolvedValue({
+  id: 1,
+  name: 'Test User',
+});
+
+export const fetchPosts = jest.fn().mockResolvedValue([]);
+
+// In test file
+jest.mock('./api');
+import { fetchUser, fetchPosts } from './api';
+
+describe('UserProfile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('displays user data', async () => {
+    // Can override mock for specific test
+    (fetchUser as jest.Mock).mockResolvedValueOnce({
+      id: 2,
+      name: 'Alice',
+    });
+
+    render(&lt;UserProfile userId={2} /&gt;);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeTruthy();
+    });
+  });
+});</code></pre>
+
+                <h3>Mocking Partial Modules</h3>
+
+                <pre><code>// Mock only specific exports
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'), // Keep real implementations
+  calculateTax: jest.fn().mockReturnValue(10), // Mock specific function
+}));
+
+// Mock default export
+jest.mock('./MyComponent', () => ({
+  __esModule: true,
+  default: () => &lt;div&gt;Mocked Component&lt;/div&gt;,
+}));
+
+// Mock named and default exports
+jest.mock('./module', () => ({
+  __esModule: true,
+  default: jest.fn(),
+  namedExport: jest.fn(),
+}));</code></pre>
+
+                <h3>Mocking React Native Modules</h3>
+
+                <pre><code>// jest.setup.js - Common React Native mocks
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+// Mock react-native-reanimated
+jest.mock('react-native-reanimated', () =>
+  require('react-native-reanimated/mock')
+);
+
+// Mock expo-location
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getCurrentPositionAsync: jest.fn().mockResolvedValue({
+    coords: { latitude: 37.7749, longitude: -122.4194 },
+  }),
+}));
+
+// Mock expo-camera
+jest.mock('expo-camera', () => ({
+  Camera: 'Camera',
+  useCameraPermissions: jest.fn().mockReturnValue([
+    { granted: true },
+    jest.fn(),
+  ]),
+}));
+
+// Mock Linking
+jest.mock('react-native/Libraries/Linking/Linking', () => ({
+  openURL: jest.fn().mockResolvedValue(true),
+  canOpenURL: jest.fn().mockResolvedValue(true),
+}));</code></pre>
+            </section>
+
+            <!-- Async Testing -->
+            <section id="async-testing">
+                <h2>Async Testing</h2>
+
+                <p>Testing asynchronous code requires special handling to ensure tests wait for operations to complete.</p>
+
+                <h3>Async/Await Pattern</h3>
+
+                <pre><code>// Best practice: async/await
+it('fetches user data', async () => {
+  const user = await fetchUser(1);
+  
+  expect(user.name).toBe('Alice');
+});
+
+// Testing rejections
+it('throws on invalid user', async () => {
+  await expect(fetchUser(-1)).rejects.toThrow('Invalid user ID');
+});
+
+// Multiple async operations
+it('loads all data', async () => {
+  const [user, posts] = await Promise.all([
+    fetchUser(1),
+    fetchPosts(1),
+  ]);
+
+  expect(user).toBeDefined();
+  expect(posts).toHaveLength(5);
+});</code></pre>
+
+                <h3>Testing Promises</h3>
+
+                <pre><code>// Using resolves/rejects matchers
+it('resolves with data', () => {
+  return expect(fetchData()).resolves.toEqual({ success: true });
+});
+
+it('rejects with error', () => {
+  return expect(fetchInvalid()).rejects.toThrow();
+});
+
+// Testing promise chains
+it('processes data correctly', () => {
+  return fetchData()
+    .then(data => processData(data))
+    .then(result => {
+      expect(result).toBeDefined();
+    });
+});</code></pre>
+
+                <h3>waitFor and findBy</h3>
+
+                <pre><code>import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react-native';
+
+it('shows data after loading', async () => {
+  render(&lt;DataComponent /&gt;);
+
+  // Wait for element to appear
+  const element = await screen.findByText('Loaded Data');
+  expect(element).toBeTruthy();
+
+  // Or use waitFor for more control
+  await waitFor(() => {
+    expect(screen.getByText('Loaded Data')).toBeTruthy();
+  });
+
+  // With timeout options
+  await waitFor(
+    () => {
+      expect(screen.getByText('Loaded Data')).toBeTruthy();
+    },
+    { timeout: 5000, interval: 100 }
+  );
+});
+
+it('hides loading indicator', async () => {
+  render(&lt;DataComponent /&gt;);
+
+  // Wait for element to be removed
+  await waitForElementToBeRemoved(() => screen.getByTestId('loading'));
+
+  expect(screen.getByText('Content')).toBeTruthy();
+});</code></pre>
+
+                <h3>Testing API Calls</h3>
+
+                <pre><code>// Mock fetch globally
+global.fetch = jest.fn();
+
+describe('API calls', () => {
+  beforeEach(() => {
+    (fetch as jest.Mock).mockClear();
+  });
+
+  it('fetches data correctly', async () => {
+    const mockData = { id: 1, name: 'Test' };
+    
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    const result = await fetchUser(1);
+
+    expect(fetch).toHaveBeenCalledWith('/api/users/1');
+    expect(result).toEqual(mockData);
+  });
+
+  it('handles errors', async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+    });
+
+    await expect(fetchUser(999)).rejects.toThrow('User not found');
+  });
+
+  it('handles network failures', async () => {
+    (fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+
+    await expect(fetchUser(1)).rejects.toThrow('Network error');
+  });
+});</code></pre>
+            </section>
+
+            <!-- Testing Hooks -->
+            <section id="testing-hooks">
+                <h2>Testing Hooks</h2>
+
+                <p>Custom hooks can be tested using <code>renderHook</code> from React Testing Library.</p>
+
+                <h3>Setup</h3>
+
+                <pre><code># Install if not already included
+npm install --save-dev @testing-library/react-hooks</code></pre>
+
+                <h3>Basic Hook Testing</h3>
+
+                <pre><code>// hooks/useCounter.ts
+import { useState, useCallback } from 'react';
+
+export function useCounter(initialValue = 0) {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = useCallback(() => setCount(c => c + 1), []);
+  const decrement = useCallback(() => setCount(c => c - 1), []);
+  const reset = useCallback(() => setCount(initialValue), [initialValue]);
+
+  return { count, increment, decrement, reset };
+}
+
+// hooks/useCounter.test.ts
+import { renderHook, act } from '@testing-library/react-native';
+import { useCounter } from './useCounter';
+
+describe('useCounter', () => {
+  it('starts with initial value', () => {
+    const { result } = renderHook(() => useCounter(10));
+    
+    expect(result.current.count).toBe(10);
+  });
+
+  it('defaults to 0', () => {
+    const { result } = renderHook(() => useCounter());
+    
+    expect(result.current.count).toBe(0);
+  });
+
+  it('increments', () => {
+    const { result } = renderHook(() => useCounter(0));
+
+    act(() => {
+      result.current.increment();
+    });
+
+    expect(result.current.count).toBe(1);
+  });
+
+  it('decrements', () => {
+    const { result } = renderHook(() => useCounter(5));
+
+    act(() => {
+      result.current.decrement();
+    });
+
+    expect(result.current.count).toBe(4);
+  });
+
+  it('resets to initial value', () => {
+    const { result } = renderHook(() => useCounter(10));
+
+    act(() => {
+      result.current.increment();
+      result.current.increment();
+      result.current.reset();
+    });
+
+    expect(result.current.count).toBe(10);
+  });
+});</code></pre>
+
+                <h3>Testing Async Hooks</h3>
+
+                <pre><code>// hooks/useUser.ts
+import { useState, useEffect } from 'react';
+
+interface User {
+  id: number;
+  name: string;
+}
+
+export function useUser(userId: number) {
+  const [user, setUser] = useState&lt;User | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    fetch(`/api/users/${userId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+      })
+      .then(data => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  return { user, loading, error };
+}
+
+// hooks/useUser.test.ts
+import { renderHook, waitFor } from '@testing-library/react-native';
+import { useUser } from './useUser';
+
+global.fetch = jest.fn();
+
+describe('useUser', () => {
+  beforeEach(() => {
+    (fetch as jest.Mock).mockClear();
+  });
+
+  it('starts in loading state', () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 1, name: 'Alice' }),
+    });
+
+    const { result } = renderHook(() => useUser(1));
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.user).toBeNull();
+  });
+
+  it('fetches user data', async () => {
+    const mockUser = { id: 1, name: 'Alice' };
+    
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => mockUser,
+    });
+
+    const { result } = renderHook(() => useUser(1));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.user).toEqual(mockUser);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('handles errors', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+    });
+
+    const { result } = renderHook(() => useUser(1));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBe('Failed to fetch');
+    expect(result.current.user).toBeNull();
+  });
+
+  it('refetches when userId changes', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 1, name: 'Alice' }),
+    });
+
+    const { result, rerender } = renderHook(
+      ({ userId }) => useUser(userId),
+      { initialProps: { userId: 1 } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 2, name: 'Bob' }),
+    });
+
+    rerender({ userId: 2 });
+
+    await waitFor(() => {
+      expect(result.current.user?.name).toBe('Bob');
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});</code></pre>
+
+                <h3>Testing Hooks with Context</h3>
+
+                <pre><code>// hooks/useTheme.ts
+import { useContext } from 'react';
+import { ThemeContext } from '../contexts/ThemeContext';
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider');
+  }
+  return context;
+}
+
+// hooks/useTheme.test.ts
+import { renderHook } from '@testing-library/react-native';
+import { ThemeProvider } from '../contexts/ThemeContext';
+import { useTheme } from './useTheme';
+
+describe('useTheme', () => {
+  it('throws without provider', () => {
+    expect(() => {
+      renderHook(() => useTheme());
+    }).toThrow('useTheme must be used within ThemeProvider');
+  });
+
+  it('returns theme context', () => {
+    const wrapper = ({ children }) => (
+      &lt;ThemeProvider&gt;{children}&lt;/ThemeProvider&gt;
+    );
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current).toHaveProperty('theme');
+    expect(result.current).toHaveProperty('toggleTheme');
+  });
+});</code></pre>
+            </section>
+            <!-- Testing Timers -->
+            <section id="timers">
+                <h2>Testing Timers</h2>
+
+                <p>Code that uses <code>setTimeout</code>, <code>setInterval</code>, or <code>Date</code> can be tricky to test. Jest provides utilities to control time.</p>
+
+                <h3>Fake Timers</h3>
+
+                <pre><code>// Enable fake timers
+jest.useFakeTimers();
+
+describe('Timer functions', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('calls callback after delay', () => {
+    const callback = jest.fn();
+    
+    // Function that uses setTimeout
+    delayedCall(callback, 1000);
+
+    // Callback not called yet
+    expect(callback).not.toHaveBeenCalled();
+
+    // Fast-forward time
+    jest.advanceTimersByTime(1000);
+
+    // Now it's called
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles multiple timers', () => {
+    const callback1 = jest.fn();
+    const callback2 = jest.fn();
+
+    setTimeout(callback1, 500);
+    setTimeout(callback2, 1000);
+
+    jest.advanceTimersByTime(500);
+    expect(callback1).toHaveBeenCalled();
+    expect(callback2).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(500);
+    expect(callback2).toHaveBeenCalled();
+  });
+});</code></pre>
+
+                <h3>Timer Utilities</h3>
+
+                <pre><code>// Run all pending timers
+jest.runAllTimers();
+
+// Run only currently pending timers (not ones scheduled by those)
+jest.runOnlyPendingTimers();
+
+// Advance by specific time
+jest.advanceTimersByTime(1000);
+
+// Advance to next timer
+jest.advanceTimersToNextTimer();
+
+// Clear all timers
+jest.clearAllTimers();
+
+// Check pending timers
+jest.getTimerCount();</code></pre>
+
+                <h3>Testing Debounce/Throttle</h3>
+
+                <pre><code>// utils/debounce.ts
+export function debounce&lt;T extends (...args: any[]) => any&gt;(
+  fn: T,
+  delay: number
+): (...args: Parameters&lt;T&gt;) => void {
+  let timeoutId: NodeJS.Timeout;
+
+  return (...args: Parameters&lt;T&gt;) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
+
+// utils/debounce.test.ts
+import { debounce } from './debounce';
+
+describe('debounce', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('delays function execution', () => {
+    const fn = jest.fn();
+    const debounced = debounce(fn, 500);
+
+    debounced();
+
+    expect(fn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(500);
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('only calls once for rapid calls', () => {
+    const fn = jest.fn();
+    const debounced = debounce(fn, 500);
+
+    debounced();
+    debounced();
+    debounced();
+    debounced();
+
+    jest.advanceTimersByTime(500);
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets timer on each call', () => {
+    const fn = jest.fn();
+    const debounced = debounce(fn, 500);
+
+    debounced();
+    jest.advanceTimersByTime(300);
+    
+    debounced(); // Resets timer
+    jest.advanceTimersByTime(300);
+    
+    expect(fn).not.toHaveBeenCalled();
+    
+    jest.advanceTimersByTime(200);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes arguments to function', () => {
+    const fn = jest.fn();
+    const debounced = debounce(fn, 500);
+
+    debounced('arg1', 'arg2');
+
+    jest.advanceTimersByTime(500);
+
+    expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
+  });
+});</code></pre>
+
+                <h3>Testing with Intervals</h3>
+
+                <pre><code>// Polling function
+function poll(fn: () => void, interval: number) {
+  const id = setInterval(fn, interval);
+  return () => clearInterval(id);
+}
+
+describe('poll', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('calls function repeatedly', () => {
+    const fn = jest.fn();
+    
+    poll(fn, 1000);
+
+    jest.advanceTimersByTime(3000);
+
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops when cleanup is called', () => {
+    const fn = jest.fn();
+    
+    const cleanup = poll(fn, 1000);
+
+    jest.advanceTimersByTime(2000);
+    expect(fn).toHaveBeenCalledTimes(2);
+
+    cleanup();
+
+    jest.advanceTimersByTime(2000);
+    expect(fn).toHaveBeenCalledTimes(2); // No more calls
+  });
+});</code></pre>
+
+                <h3>Mocking Date</h3>
+
+                <pre><code>describe('Date-dependent code', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('uses mocked date', () => {
+    expect(new Date().toISOString()).toBe('2025-01-15T10:00:00.000Z');
+  });
+
+  it('formats date correctly', () => {
+    const formatted = formatDate(new Date());
+    expect(formatted).toBe('January 15, 2025');
+  });
+
+  it('calculates age correctly', () => {
+    const birthDate = new Date('2000-01-15');
+    expect(calculateAge(birthDate)).toBe(25);
+  });
+});</code></pre>
+            </section>
+
+            <!-- Snapshot Testing -->
+            <section id="snapshots">
+                <h2>Snapshot Testing</h2>
+
+                <p>Snapshot testing captures a "snapshot" of output and compares future runs against it. Useful for detecting unexpected changes.</p>
+
+                <h3>Basic Snapshot</h3>
+
+                <pre><code>import { render } from '@testing-library/react-native';
+import { UserCard } from './UserCard';
+
+describe('UserCard', () => {
+  it('renders correctly', () => {
+    const tree = render(
+      &lt;UserCard
+        name="Alice"
+        email="alice@example.com"
+        avatar="https://example.com/avatar.jpg"
+      /&gt;
+    );
+
+    expect(tree.toJSON()).toMatchSnapshot();
+  });
+});</code></pre>
+
+                <h3>Inline Snapshots</h3>
+
+                <pre><code>it('formats data correctly', () => {
+  const result = formatUserData({ id: 1, name: 'Alice' });
+  
+  // Snapshot is stored inline in the test file
+  expect(result).toMatchInlineSnapshot(`
+    {
+      "displayName": "Alice",
+      "id": "user-1",
+      "initials": "A",
+    }
+  `);
+});</code></pre>
+
+                <h3>Updating Snapshots</h3>
+
+                <pre><code># Update all snapshots
+npm test -- --updateSnapshot
+
+# Or press 'u' in watch mode
+
+# Update specific snapshot
+npm test -- --updateSnapshot --testNamePattern="UserCard"</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Snapshot Testing Caveats</h4>
+                    <ul>
+                        <li><strong>Review carefully:</strong> Don't blindly update snapshots</li>
+                        <li><strong>Keep small:</strong> Large snapshots are hard to review</li>
+                        <li><strong>Don't overuse:</strong> Behavior tests are usually better</li>
+                        <li><strong>Avoid dynamic data:</strong> Timestamps, IDs can cause false failures</li>
+                        <li><strong>Use for stable output:</strong> Best for components that rarely change</li>
+                    </ul>
+                </div>
+
+                <h3>Property Matchers in Snapshots</h3>
+
+                <pre><code>it('matches with dynamic fields', () => {
+  const user = createUser();
+
+  expect(user).toMatchSnapshot({
+    id: expect.any(String),
+    createdAt: expect.any(Date),
+    name: 'Alice', // Exact match
+  });
+});</code></pre>
+
+                <h3>When to Use Snapshots</h3>
+
+                <div class="card">
+                    <h4>✅ Good Uses for Snapshots</h4>
+                    <ul>
+                        <li>Serialized data structures</li>
+                        <li>Configuration objects</li>
+                        <li>Error messages</li>
+                        <li>Generated content (emails, reports)</li>
+                        <li>Simple, stable components</li>
+                    </ul>
+
+                    <h4 style="margin-top: 16px;">❌ Avoid Snapshots For</h4>
+                    <ul>
+                        <li>Complex components with frequent changes</li>
+                        <li>Testing specific behavior</li>
+                        <li>Components with dynamic content</li>
+                        <li>Anything you wouldn't carefully review in PR</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Mock a Service</h3>
+                    <p>Test a component that fetches data from an API service.</p>
+                    
+                    <h4>The Code:</h4>
+                    <pre><code>// services/productService.ts
+export async function getProducts(): Promise&lt;Product[]&gt; {
+  const response = await fetch('/api/products');
+  if (!response.ok) throw new Error('Failed to fetch');
+  return response.json();
+}
+
+// components/ProductList.tsx
+export function ProductList() {
+  const [products, setProducts] = useState&lt;Product[]&gt;([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+
+  useEffect(() => {
+    getProducts()
+      .then(setProducts)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return &lt;Text testID="loading"&gt;Loading...&lt;/Text&gt;;
+  if (error) return &lt;Text testID="error"&gt;{error}&lt;/Text&gt;;
+  
+  return (
+    &lt;FlatList
+      testID="product-list"
+      data={products}
+      renderItem={({ item }) => &lt;Text&gt;{item.name}&lt;/Text&gt;}
+    /&gt;
+  );
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Mock the getProducts service</li>
+                        <li>Test loading state</li>
+                        <li>Test successful data display</li>
+                        <li>Test error handling</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/ProductList.test.tsx
+import { render, screen, waitFor } from '@testing-library/react-native';
+import { ProductList } from './ProductList';
+import * as productService from '../services/productService';
+
+jest.mock('../services/productService');
+
+const mockGetProducts = productService.getProducts as jest.Mock;
+
+describe('ProductList', () => {
+  beforeEach(() => {
+    mockGetProducts.mockClear();
+  });
+
+  it('shows loading state initially', () => {
+    mockGetProducts.mockImplementation(() => new Promise(() => {})); // Never resolves
+    
+    render(&lt;ProductList /&gt;);
+    
+    expect(screen.getByTestId('loading')).toBeTruthy();
+  });
+
+  it('displays products after loading', async () => {
+    const mockProducts = [
+      { id: 1, name: 'Product A' },
+      { id: 2, name: 'Product B' },
+    ];
+    mockGetProducts.mockResolvedValueOnce(mockProducts);
+    
+    render(&lt;ProductList /&gt;);
+    
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading')).toBeNull();
+    });
+    
+    expect(screen.getByTestId('product-list')).toBeTruthy();
+    expect(screen.getByText('Product A')).toBeTruthy();
+    expect(screen.getByText('Product B')).toBeTruthy();
+  });
+
+  it('shows error message on failure', async () => {
+    mockGetProducts.mockRejectedValueOnce(new Error('Network error'));
+    
+    render(&lt;ProductList /&gt;);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toBeTruthy();
+    });
+    
+    expect(screen.getByText('Network error')).toBeTruthy();
+  });
+
+  it('shows empty state when no products', async () => {
+    mockGetProducts.mockResolvedValueOnce([]);
+    
+    render(&lt;ProductList /&gt;);
+    
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading')).toBeNull();
+    });
+    
+    expect(screen.getByTestId('product-list')).toBeTruthy();
+  });
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Test a Custom Hook with Timer</h3>
+                    <p>Test a useTimeout hook that executes a callback after a delay.</p>
+                    
+                    <h4>The Hook:</h4>
+                    <pre><code>// hooks/useTimeout.ts
+import { useEffect, useRef } from 'react';
+
+export function useTimeout(callback: () => void, delay: number | null) {
+  const savedCallback = useRef(callback);
+
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    if (delay === null) return;
+
+    const id = setTimeout(() => savedCallback.current(), delay);
+    return () => clearTimeout(id);
+  }, [delay]);
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Test callback is called after delay</li>
+                        <li>Test null delay doesn't call callback</li>
+                        <li>Test cleanup on unmount</li>
+                        <li>Test delay change resets timer</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// hooks/useTimeout.test.ts
+import { renderHook } from '@testing-library/react-native';
+import { useTimeout } from './useTimeout';
+
+describe('useTimeout', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('calls callback after delay', () => {
+    const callback = jest.fn();
+    
+    renderHook(() => useTimeout(callback, 1000));
+    
+    expect(callback).not.toHaveBeenCalled();
+    
+    jest.advanceTimersByTime(1000);
+    
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call callback when delay is null', () => {
+    const callback = jest.fn();
+    
+    renderHook(() => useTimeout(callback, null));
+    
+    jest.advanceTimersByTime(10000);
+    
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('cleans up on unmount', () => {
+    const callback = jest.fn();
+    
+    const { unmount } = renderHook(() => useTimeout(callback, 1000));
+    
+    jest.advanceTimersByTime(500);
+    unmount();
+    jest.advanceTimersByTime(1000);
+    
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('resets timer when delay changes', () => {
+    const callback = jest.fn();
+    
+    const { rerender } = renderHook(
+      ({ delay }) => useTimeout(callback, delay),
+      { initialProps: { delay: 1000 } }
+    );
+    
+    jest.advanceTimersByTime(500);
+    
+    rerender({ delay: 2000 }); // Reset timer
+    
+    jest.advanceTimersByTime(1500);
+    expect(callback).not.toHaveBeenCalled();
+    
+    jest.advanceTimersByTime(500);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses latest callback', () => {
+    let value = 'initial';
+    const callback = jest.fn(() => value);
+    
+    const { rerender } = renderHook(
+      ({ cb }) => useTimeout(cb, 1000),
+      { initialProps: { cb: callback } }
+    );
+    
+    value = 'updated';
+    rerender({ cb: callback });
+    
+    jest.advanceTimersByTime(1000);
+    
+    expect(callback).toHaveReturnedWith('updated');
+  });
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Test Complex Mocking Scenario</h3>
+                    <p>Test a component that uses multiple external dependencies.</p>
+                    
+                    <h4>The Component:</h4>
+                    <pre><code>// components/ShareButton.tsx
+import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
+import { Alert } from 'react-native';
+
+export function ShareButton({ content }: { content: string }) {
+  const handleShare = async () => {
+    try {
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        Alert.alert('Error', 'Sharing is not available');
+        return;
+      }
+      
+      await Sharing.shareAsync(content);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share');
+    }
+  };
+
+  return (
+    &lt;Pressable testID="share-button" onPress={handleShare}&gt;
+      &lt;Text&gt;Share&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Mock expo-sharing, expo-haptics, and Alert</li>
+                        <li>Test successful share flow</li>
+                        <li>Test when sharing is unavailable</li>
+                        <li>Test error handling</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>// components/ShareButton.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
+import { ShareButton } from './ShareButton';
+
+jest.mock('expo-sharing');
+jest.mock('expo-haptics');
+jest.spyOn(Alert, 'alert');
+
+const mockSharing = Sharing as jest.Mocked&lt;typeof Sharing&gt;;
+const mockHaptics = Haptics as jest.Mocked&lt;typeof Haptics&gt;;
+
+describe('ShareButton', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSharing.isAvailableAsync.mockResolvedValue(true);
+    mockSharing.shareAsync.mockResolvedValue(undefined);
+    mockHaptics.notificationAsync.mockResolvedValue(undefined);
+  });
+
+  it('shares content successfully', async () => {
+    render(&lt;ShareButton content="test-content" /&gt;);
+    
+    fireEvent.press(screen.getByTestId('share-button'));
+    
+    await waitFor(() => {
+      expect(mockSharing.shareAsync).toHaveBeenCalledWith('test-content');
+    });
+    
+    expect(mockHaptics.notificationAsync).toHaveBeenCalledWith(
+      Haptics.NotificationFeedbackType.Success
+    );
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it('shows alert when sharing unavailable', async () => {
+    mockSharing.isAvailableAsync.mockResolvedValue(false);
+    
+    render(&lt;ShareButton content="test" /&gt;);
+    
+    fireEvent.press(screen.getByTestId('share-button'));
+    
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Sharing is not available');
+    });
+    
+    expect(mockSharing.shareAsync).not.toHaveBeenCalled();
+  });
+
+  it('shows error alert on failure', async () => {
+    mockSharing.shareAsync.mockRejectedValue(new Error('Share failed'));
+    
+    render(&lt;ShareButton content="test" /&gt;);
+    
+    fireEvent.press(screen.getByTestId('share-button'));
+    
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to share');
+    });
+    
+    expect(mockHaptics.notificationAsync).not.toHaveBeenCalled();
+  });
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Jest provides powerful tools for testing JavaScript code. Master mocking, async testing, and timer control to write comprehensive unit tests.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Matchers:</strong> Use toBe for primitives, toEqual for objects, toMatch for patterns</li>
+                        <li><strong>Mock functions:</strong> jest.fn() for spies, mockReturnValue for stubs</li>
+                        <li><strong>Module mocks:</strong> jest.mock() for replacing imports</li>
+                        <li><strong>Async testing:</strong> Use async/await with waitFor for async operations</li>
+                        <li><strong>renderHook:</strong> Test custom hooks with act() for state updates</li>
+                        <li><strong>Fake timers:</strong> jest.useFakeTimers() for setTimeout/setInterval</li>
+                        <li><strong>Snapshots:</strong> Use sparingly for stable output</li>
+                        <li><strong>Clear mocks:</strong> Reset between tests with beforeEach</li>
+                        <li><strong>Test isolation:</strong> Each test should be independent</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll learn component testing with React Native Testing Library, focusing on rendering, queries, and user interaction testing.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m09_l01_testing_fundamentals.html" class="prev-link">← Previous: Testing Fundamentals</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m09_l03_component_testing.html" class="next-link">Next: Component Testing →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

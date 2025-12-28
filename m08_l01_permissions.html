@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn how to request and manage device permissions in React Native with Expo - camera, location, notifications, and more">
+    <meta name="author" content="React Native & Expo Course">
+    <title>Permissions | Module 8: Native Features and Device APIs | React Native & Expo Course</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">📱 RN Course</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">
+                ☰
+            </button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="index.html#appendices">Appendices</a>
+                <button id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a> &gt;
+            <a href="index.html#modules">Modules</a> &gt;
+            <span>Module 8</span> &gt;
+            <span>Lesson 8.1</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <div class="container">
+            <!-- Lesson Header -->
+            <header>
+                <p class="module-tag">Module 8: Native Features and Device APIs</p>
+                <h1>Permissions</h1>
+                <p class="lesson-subtitle">Requesting access to device capabilities the right way</p>
+            </header>
+
+            <!-- Learning Objectives -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white; border: none; margin-top: 0;">🎯 Learning Objectives</h2>
+                <ul style="color: white;">
+                    <li>Understand how mobile permissions work on iOS and Android</li>
+                    <li>Know when permissions are required and when they're not</li>
+                    <li>Request permissions using Expo's unified API</li>
+                    <li>Handle all permission states: granted, denied, and undetermined</li>
+                    <li>Implement best practices for permission requests</li>
+                    <li>Guide users to settings when permissions are denied</li>
+                    <li>Configure permissions in app.json for store submission</li>
+                </ul>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="toc-container">
+                <details class="toc-details" open>
+                    <summary>📑 Table of Contents</summary>
+                    <ul class="toc-list">
+                        <li><a href="#why-permissions">Why Permissions Matter</a></li>
+                        <li><a href="#permission-types">Types of Permissions</a></li>
+                        <li><a href="#permission-states">Permission States</a></li>
+                        <li><a href="#expo-permissions">Expo Permissions API</a></li>
+                        <li><a href="#requesting">Requesting Permissions</a></li>
+                        <li><a href="#best-practices">Best Practices</a></li>
+                        <li><a href="#handling-denied">Handling Denied Permissions</a></li>
+                        <li><a href="#configuration">App Configuration</a></li>
+                        <li><a href="#exercises">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </details>
+            </div>
+
+            <!-- Why Permissions Matter -->
+            <section id="why-permissions">
+                <h2>Why Permissions Matter</h2>
+
+                <p>Mobile apps run in a sandboxed environment with limited access to device capabilities. When your app needs to use sensitive features like the camera, location, or contacts, it must explicitly request permission from the user. This protects user privacy and gives them control over their data.</p>
+
+                <div class="card">
+                    <h4>🔒 What Permissions Protect</h4>
+                    <ul>
+                        <li><strong>Camera & Microphone:</strong> Prevents unauthorized recording</li>
+                        <li><strong>Location:</strong> Protects physical whereabouts</li>
+                        <li><strong>Contacts:</strong> Guards personal relationships</li>
+                        <li><strong>Photos:</strong> Secures private memories</li>
+                        <li><strong>Notifications:</strong> Controls interruptions</li>
+                        <li><strong>Calendar:</strong> Protects schedule and events</li>
+                    </ul>
+                </div>
+
+                <!-- SVG: Permission Flow -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 280" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="280" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">The Permission Request Flow</text>
+                        
+                        <!-- Step 1: App -->
+                        <rect x="50" y="80" width="120" height="100" fill="#667eea" stroke="#5a67d8" stroke-width="2" rx="8"/>
+                        <text x="110" y="115" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Your App</text>
+                        <text x="110" y="135" text-anchor="middle" font-size="24" fill="white">📱</text>
+                        <text x="110" y="165" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Needs camera</text>
+                        
+                        <!-- Arrow 1 -->
+                        <path d="M170,130 L230,130" stroke="#333" stroke-width="2" marker-end="url(#arrowBlack)"/>
+                        <text x="200" y="120" text-anchor="middle" font-size="9" fill="#666">Request</text>
+                        
+                        <!-- Step 2: OS Dialog -->
+                        <rect x="230" y="60" width="160" height="140" fill="#fff" stroke="#ddd" stroke-width="2" rx="12"/>
+                        <rect x="245" y="75" width="130" height="20" fill="#f5f5f5" rx="4"/>
+                        <text x="310" y="90" text-anchor="middle" font-size="9" fill="#333">"MyApp" wants access</text>
+                        <text x="310" y="115" text-anchor="middle" font-size="32">📷</text>
+                        <text x="310" y="145" text-anchor="middle" font-size="9" fill="#666">to your camera</text>
+                        
+                        <!-- Buttons -->
+                        <rect x="250" y="160" width="50" height="25" fill="#f44336" rx="4"/>
+                        <text x="275" y="177" text-anchor="middle" font-size="9" fill="white">Deny</text>
+                        <rect x="315" y="160" width="60" height="25" fill="#4CAF50" rx="4"/>
+                        <text x="345" y="177" text-anchor="middle" font-size="9" fill="white">Allow</text>
+                        
+                        <!-- Arrow 2a: Deny -->
+                        <path d="M310,200 L310,240 L190,240 L110,220" stroke="#f44336" stroke-width="2" marker-end="url(#arrowRed)" stroke-dasharray="5,3"/>
+                        <text x="200" y="255" text-anchor="middle" font-size="9" fill="#c62828">Denied: Feature unavailable</text>
+                        
+                        <!-- Arrow 2b: Allow -->
+                        <path d="M390,130 L450,130" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                        <text x="420" y="120" text-anchor="middle" font-size="9" fill="#2e7d32">Granted</text>
+                        
+                        <!-- Step 3: Access -->
+                        <rect x="450" y="80" width="120" height="100" fill="#4CAF50" stroke="#388E3C" stroke-width="2" rx="8"/>
+                        <text x="510" y="115" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Device API</text>
+                        <text x="510" y="140" text-anchor="middle" font-size="24" fill="white">✓</text>
+                        <text x="510" y="165" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">Access granted</text>
+                        
+                        <!-- Arrow 3 -->
+                        <path d="M570,130 L630,130" stroke="#333" stroke-width="2" marker-end="url(#arrowBlack)"/>
+                        
+                        <!-- Step 4: Feature -->
+                        <rect x="630" y="100" width="60" height="60" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="8"/>
+                        <text x="660" y="138" text-anchor="middle" font-size="28">📸</text>
+                        
+                        <defs>
+                            <marker id="arrowBlack" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+                            </marker>
+                            <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50"/>
+                            </marker>
+                            <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#f44336"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">📖 The Permission Contract</h4>
+                    <p style="color: white;">When users grant permission, they're trusting your app with access to sensitive capabilities. Honor that trust by only requesting permissions you truly need, using them only for their stated purpose, and being transparent about why you need them.</p>
+                </div>
+            </section>
+
+            <!-- Types of Permissions -->
+            <section id="permission-types">
+                <h2>Types of Permissions</h2>
+
+                <p>Not all device features require explicit permission. Understanding what needs permission—and what doesn't—helps you build apps that request only what's necessary.</p>
+
+                <h3>Features That Require Permission</h3>
+
+                <div class="card">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Feature</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Expo Package</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">📷 Camera</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-camera</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Photo and video capture</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">📍 Location</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-location</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Foreground and background</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🎤 Microphone</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-av</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Audio recording</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🖼️ Media Library</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-media-library</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Read/write photos and videos</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">👤 Contacts</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-contacts</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Access address book</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">📅 Calendar</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-calendar</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Read/write events</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🔔 Notifications</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-notifications</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Push and local notifications</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">🏃 Motion/Fitness</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><code>expo-sensors</code></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Pedometer, accelerometer</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Features That Don't Require Permission</h3>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ No Permission Needed</h4>
+                    <ul>
+                        <li><strong>Network access:</strong> HTTP requests, WebSockets</li>
+                        <li><strong>Local storage:</strong> AsyncStorage, SecureStore, MMKV</li>
+                        <li><strong>Vibration:</strong> Haptic feedback</li>
+                        <li><strong>Device info:</strong> Model, OS version (basic info)</li>
+                        <li><strong>Clipboard:</strong> Read/write (mostly)</li>
+                        <li><strong>Sharing:</strong> Share sheet for content</li>
+                        <li><strong>Opening URLs:</strong> Linking to websites, apps</li>
+                        <li><strong>Flashlight:</strong> Camera flash as flashlight</li>
+                    </ul>
+                </div>
+
+                <h3>Platform Differences</h3>
+
+                <p>iOS and Android handle permissions differently in some cases:</p>
+
+                <div class="card">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Aspect</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">iOS</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Android</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>When asked</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Only when you request</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">At install (old) or runtime (new)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Denial behavior</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Can only ask once</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Can ask multiple times</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Location options</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">While Using / Always / Once</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">While Using / Always / Deny</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>Photo access</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">Limited selection option (iOS 14+)</td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;">All or nothing</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Permission States -->
+            <section id="permission-states">
+                <h2>Permission States</h2>
+
+                <p>Every permission exists in one of several states. Understanding these states is crucial for handling permissions correctly.</p>
+
+                <!-- Mermaid: Permission States -->
+                <pre class="mermaid">
+stateDiagram-v2
+    [*] --> Undetermined: App installed
+    Undetermined --> Granted: User allows
+    Undetermined --> Denied: User denies
+    
+    Granted --> Denied: User revokes in Settings
+    Denied --> Granted: User enables in Settings
+    
+    note right of Undetermined
+        Never asked yet.
+        Safe to request.
+    end note
+    
+    note right of Granted
+        Permission active.
+        Feature available.
+    end note
+    
+    note right of Denied
+        User said no.
+        Must go to Settings.
+    end note
+                </pre>
+
+                <h3>Permission Status Values</h3>
+
+                <pre><code>import { PermissionStatus } from 'expo-modules-core';
+
+// The possible states
+PermissionStatus.UNDETERMINED  // Never asked
+PermissionStatus.GRANTED       // User allowed
+PermissionStatus.DENIED        // User denied
+
+// Some permissions have additional states
+// For location on iOS:
+// - 'granted' with accuracy: 'full' or 'reduced'
+// - Background location has separate permission</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ iOS "Ask Once" Rule</h4>
+                    <p>On iOS, you can only show the system permission dialog <strong>once</strong>. If the user denies, the dialog won't appear again—you must direct them to Settings. This makes the timing of your permission request critical.</p>
+                </div>
+            </section>
+
+            <!-- Expo Permissions API -->
+            <section id="expo-permissions">
+                <h2>Expo Permissions API</h2>
+
+                <p>Each Expo package that needs permissions includes its own permission hooks and methods. The pattern is consistent across all packages.</p>
+
+                <h3>The Permission Pattern</h3>
+
+                <pre><code>// Every Expo package with permissions follows this pattern:
+import * as SomeFeature from 'expo-some-feature';
+
+// Check current permission status (doesn't prompt user)
+const [status, requestPermission] = SomeFeature.usePermissions();
+
+// Or without hooks:
+const { status } = await SomeFeature.getPermissionsAsync();
+
+// Request permission (prompts user if undetermined)
+const { status: newStatus } = await SomeFeature.requestPermissionsAsync();
+
+// The status object includes:
+// - status: 'granted' | 'denied' | 'undetermined'
+// - granted: boolean
+// - canAskAgain: boolean (Android)
+// - expires: 'never' | number (some permissions)</code></pre>
+
+                <h3>Common Permission Packages</h3>
+
+                <pre><code>// Camera
+import * as Camera from 'expo-camera';
+const [permission, requestPermission] = Camera.useCameraPermissions();
+
+// Location
+import * as Location from 'expo-location';
+const [permission, requestPermission] = Location.useForegroundPermissions();
+const [bgPermission, requestBgPermission] = Location.useBackgroundPermissions();
+
+// Media Library
+import * as MediaLibrary from 'expo-media-library';
+const [permission, requestPermission] = MediaLibrary.usePermissions();
+
+// Contacts
+import * as Contacts from 'expo-contacts';
+const { status } = await Contacts.getPermissionsAsync();
+const { status } = await Contacts.requestPermissionsAsync();
+
+// Notifications
+import * as Notifications from 'expo-notifications';
+const { status } = await Notifications.getPermissionsAsync();
+const { status } = await Notifications.requestPermissionsAsync();
+
+// Audio Recording
+import { Audio } from 'expo-av';
+const { status } = await Audio.getPermissionsAsync();
+const { status } = await Audio.requestPermissionsAsync();</code></pre>
+
+                <h3>Using Permission Hooks</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import * as Camera from 'expo-camera';
+
+export default function CameraScreen() {
+  // The hook returns [PermissionResponse, requestPermission]
+  const [permission, requestPermission] = Camera.useCameraPermissions();
+
+  // Handle loading state
+  if (!permission) {
+    return &lt;View /&gt;; // Loading
+  }
+
+  // Handle denied state
+  if (!permission.granted) {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;Text style={styles.message}&gt;
+          We need your permission to show the camera
+        &lt;/Text&gt;
+        &lt;Button onPress={requestPermission} title="Grant Permission" /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  // Permission granted - show camera
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Camera.CameraView style={styles.camera} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  message: {
+    textAlign: 'center',
+    paddingBottom: 10,
+  },
+  camera: {
+    flex: 1,
+  },
+});</code></pre>
+            </section>
+
+            <!-- Requesting Permissions -->
+            <section id="requesting">
+                <h2>Requesting Permissions</h2>
+
+                <p>How and when you request permissions significantly impacts user experience and grant rates.</p>
+
+                <h3>The Wrong Way: Ask Immediately</h3>
+
+                <pre><code>// ❌ Don't do this - asking on app launch
+function App() {
+  useEffect(() => {
+    // User just opened the app, has no context
+    Camera.requestPermissionsAsync();
+    Location.requestForegroundPermissionsAsync();
+    Notifications.requestPermissionsAsync();
+  }, []);
+  
+  return &lt;MainApp /&gt;;
+}</code></pre>
+
+                <div class="card" style="background-color: #ffebee; border-left: 4px solid #f44336;">
+                    <h4>❌ Why This Is Bad</h4>
+                    <ul>
+                        <li>User doesn't understand why you need the permission</li>
+                        <li>Feels invasive and suspicious</li>
+                        <li>Higher denial rates</li>
+                        <li>On iOS, you've wasted your one chance to ask</li>
+                    </ul>
+                </div>
+
+                <h3>The Right Way: Ask in Context</h3>
+
+                <pre><code>// ✅ Ask when the user tries to use the feature
+function ProfileScreen() {
+  const [photo, setPhoto] = useState&lt;string | null&gt;(null);
+  const [permission, requestPermission] = Camera.useCameraPermissions();
+
+  const handleTakePhoto = async () => {
+    // Ask when user taps "Take Photo"
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        // Handle denial gracefully
+        return;
+      }
+    }
+    
+    // Now open camera
+    const result = await Camera.takePictureAsync();
+    setPhoto(result.uri);
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;Image source={{ uri: photo }} /&gt;
+      &lt;Button title="Take Photo" onPress={handleTakePhoto} /&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Pre-Permission Explanation</h3>
+
+                <p>Before showing the system dialog, explain why you need the permission:</p>
+
+                <pre><code>import { Alert } from 'react-native';
+
+async function requestCameraWithExplanation() {
+  const { status: existingStatus } = await Camera.getPermissionsAsync();
+  
+  if (existingStatus === 'granted') {
+    return true;
+  }
+  
+  // Show explanation BEFORE the system dialog
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Camera Permission',
+      'We need camera access to let you take profile photos. Your photos are stored only on your device.',
+      [
+        {
+          text: 'Not Now',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            const { status } = await Camera.requestPermissionsAsync();
+            resolve(status === 'granted');
+          },
+        },
+      ]
+    );
+  });
+}</code></pre>
+
+                <!-- SVG: Permission Request Strategy -->
+                <div class="svg-container" style="text-align: center; margin: 2rem 0;">
+                    <svg viewBox="0 0 700 320" style="max-width: 100%; height: auto; font-family: system-ui, sans-serif;">
+                        <!-- Background -->
+                        <rect width="700" height="320" fill="#f8f9fa"/>
+                        
+                        <!-- Title -->
+                        <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">The Pre-Permission Pattern</text>
+                        
+                        <!-- Step 1 -->
+                        <rect x="50" y="60" width="140" height="100" fill="#fff" stroke="#ddd" stroke-width="2" rx="8"/>
+                        <text x="120" y="85" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">1. User Action</text>
+                        <text x="120" y="115" text-anchor="middle" font-size="24">📸</text>
+                        <text x="120" y="145" text-anchor="middle" font-size="9" fill="#666">Taps "Take Photo"</text>
+                        
+                        <!-- Arrow -->
+                        <path d="M190,110 L230,110" stroke="#667eea" stroke-width="2" marker-end="url(#arrowPurple)"/>
+                        
+                        <!-- Step 2 -->
+                        <rect x="230" y="60" width="140" height="100" fill="#fff3e0" stroke="#FF9800" stroke-width="2" rx="8"/>
+                        <text x="300" y="85" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">2. Your Dialog</text>
+                        <text x="300" y="110" text-anchor="middle" font-size="9" fill="#333">"We need camera</text>
+                        <text x="300" y="125" text-anchor="middle" font-size="9" fill="#333">access to take your</text>
+                        <text x="300" y="140" text-anchor="middle" font-size="9" fill="#333">profile photo"</text>
+                        <text x="300" y="155" text-anchor="middle" font-size="8" fill="#4CAF50">[Continue]</text>
+                        
+                        <!-- Arrow -->
+                        <path d="M370,110 L410,110" stroke="#667eea" stroke-width="2" marker-end="url(#arrowPurple)"/>
+                        
+                        <!-- Step 3 -->
+                        <rect x="410" y="60" width="140" height="100" fill="#e3f2fd" stroke="#2196F3" stroke-width="2" rx="8"/>
+                        <text x="480" y="85" text-anchor="middle" font-size="10" font-weight="bold" fill="#1976D2">3. System Dialog</text>
+                        <text x="480" y="110" text-anchor="middle" font-size="9" fill="#333">"MyApp" would like</text>
+                        <text x="480" y="125" text-anchor="middle" font-size="9" fill="#333">to access the camera</text>
+                        <text x="480" y="150" text-anchor="middle" font-size="8" fill="#f44336">[Don't Allow]</text>
+                        <text x="480" y="150" text-anchor="middle" font-size="8" fill="#4CAF50" dx="50">[OK]</text>
+                        
+                        <!-- Arrow -->
+                        <path d="M550,110 L590,110" stroke="#667eea" stroke-width="2" marker-end="url(#arrowPurple)"/>
+                        
+                        <!-- Step 4 -->
+                        <rect x="590" y="60" width="80" height="100" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="8"/>
+                        <text x="630" y="85" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">4. Access</text>
+                        <text x="630" y="120" text-anchor="middle" font-size="28">✓</text>
+                        
+                        <!-- Benefits -->
+                        <rect x="100" y="190" width="500" height="100" fill="#e8f5e9" stroke="#4CAF50" stroke-width="2" rx="8"/>
+                        <text x="350" y="215" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Why This Works Better:</text>
+                        <text x="150" y="240" font-size="10" fill="#333">✓ User understands the context</text>
+                        <text x="150" y="260" font-size="10" fill="#333">✓ You explain privacy practices</text>
+                        <text x="400" y="240" font-size="10" fill="#333">✓ Higher grant rates</text>
+                        <text x="400" y="260" font-size="10" fill="#333">✓ User feels in control</text>
+                        
+                        <defs>
+                            <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#667eea"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Best Practices -->
+            <section id="best-practices">
+                <h2>Best Practices</h2>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Permission Best Practices</h4>
+                    <ol>
+                        <li><strong>Ask in context:</strong> Request when the user tries to use the feature</li>
+                        <li><strong>Explain first:</strong> Show a custom dialog explaining why before the system dialog</li>
+                        <li><strong>Be specific:</strong> Tell users exactly what you'll use the permission for</li>
+                        <li><strong>Request minimal:</strong> Only ask for permissions you actually need</li>
+                        <li><strong>Degrade gracefully:</strong> App should work (with reduced features) without permissions</li>
+                        <li><strong>Don't block:</strong> Never prevent app usage until permissions are granted</li>
+                        <li><strong>Provide alternatives:</strong> Offer manual input if permission is denied</li>
+                        <li><strong>Respect denial:</strong> Don't repeatedly nag users who said no</li>
+                    </ol>
+                </div>
+
+                <h3>Creating a Permission Helper</h3>
+
+                <pre><code>// utils/permissions.ts
+import { Alert, Linking, Platform } from 'react-native';
+
+interface PermissionConfig {
+  title: string;
+  message: string;
+  checkPermission: () => Promise&lt;{ status: string }&gt;;
+  requestPermission: () => Promise&lt;{ status: string }&gt;;
+}
+
+export async function requestWithExplanation(
+  config: PermissionConfig
+): Promise&lt;boolean&gt; {
+  // First check current status
+  const { status: existingStatus } = await config.checkPermission();
+  
+  if (existingStatus === 'granted') {
+    return true;
+  }
+  
+  // Show explanation dialog
+  return new Promise((resolve) => {
+    Alert.alert(
+      config.title,
+      config.message,
+      [
+        {
+          text: 'Not Now',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            const { status } = await config.requestPermission();
+            
+            if (status === 'granted') {
+              resolve(true);
+            } else {
+              // Offer to open settings
+              showSettingsAlert(config.title);
+              resolve(false);
+            }
+          },
+        },
+      ]
+    );
+  });
+}
+
+function showSettingsAlert(permissionName: string) {
+  Alert.alert(
+    'Permission Required',
+    `To use this feature, please enable ${permissionName} in your device settings.`,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Open Settings', 
+        onPress: () => Linking.openSettings() 
+      },
+    ]
+  );
+}
+
+// Usage
+import * as Camera from 'expo-camera';
+
+const granted = await requestWithExplanation({
+  title: 'Camera Access',
+  message: 'We need camera access to take photos for your posts. Photos are stored locally.',
+  checkPermission: Camera.getCameraPermissionsAsync,
+  requestPermission: Camera.requestCameraPermissionsAsync,
+});</code></pre>
+            </section>
+            <!-- Handling Denied Permissions -->
+            <section id="handling-denied">
+                <h2>Handling Denied Permissions</h2>
+
+                <p>When users deny permissions, your app should handle it gracefully without breaking. Here's how to provide a good experience even without full permissions.</p>
+
+                <h3>Detecting Permanent Denial</h3>
+
+                <pre><code>import * as Camera from 'expo-camera';
+import { Alert, Linking, Platform } from 'react-native';
+
+async function checkCameraPermission() {
+  const { status, canAskAgain } = await Camera.getCameraPermissionsAsync();
+  
+  if (status === 'granted') {
+    return 'granted';
+  }
+  
+  if (status === 'denied' && !canAskAgain) {
+    // On Android, canAskAgain is false after "Don't ask again"
+    // On iOS, it's always false after first denial
+    return 'permanently-denied';
+  }
+  
+  if (status === 'denied') {
+    return 'denied';
+  }
+  
+  return 'undetermined';
+}
+
+// Handle based on status
+async function handleCameraAccess() {
+  const permissionState = await checkCameraPermission();
+  
+  switch (permissionState) {
+    case 'granted':
+      // Proceed to camera
+      openCamera();
+      break;
+      
+    case 'undetermined':
+      // Can still request
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      if (status === 'granted') openCamera();
+      break;
+      
+    case 'denied':
+      // On Android, can request again
+      if (Platform.OS === 'android') {
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        if (status === 'granted') openCamera();
+      } else {
+        // iOS - must go to settings
+        promptOpenSettings();
+      }
+      break;
+      
+    case 'permanently-denied':
+      // Must go to settings on both platforms
+      promptOpenSettings();
+      break;
+  }
+}
+
+function promptOpenSettings() {
+  Alert.alert(
+    'Camera Permission Required',
+    'Please enable camera access in Settings to take photos.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Open Settings', onPress: () => Linking.openSettings() },
+    ]
+  );
+}</code></pre>
+
+                <h3>Providing Alternatives</h3>
+
+                <pre><code>// When camera is denied, offer to pick from library instead
+import * as ImagePicker from 'expo-image-picker';
+
+function PhotoUpload() {
+  const [cameraPermission] = Camera.useCameraPermissions();
+  const [libraryPermission] = ImagePicker.useMediaLibraryPermissions();
+
+  const handleAddPhoto = async () => {
+    // Try camera first
+    if (cameraPermission?.granted) {
+      const result = await ImagePicker.launchCameraAsync();
+      if (!result.canceled) {
+        setPhoto(result.assets[0].uri);
+        return;
+      }
+    }
+    
+    // Fall back to library
+    if (libraryPermission?.granted) {
+      const result = await ImagePicker.launchImageLibraryAsync();
+      if (!result.canceled) {
+        setPhoto(result.assets[0].uri);
+        return;
+      }
+    }
+    
+    // Neither available - show options
+    Alert.alert(
+      'Add Photo',
+      'Choose how to add a photo',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const granted = await requestCameraPermission();
+            if (granted) {
+              // Try again
+              handleAddPhoto();
+            }
+          },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const granted = await requestLibraryPermission();
+            if (granted) {
+              handleAddPhoto();
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  return (
+    &lt;Pressable onPress={handleAddPhoto}&gt;
+      &lt;Text&gt;Add Photo&lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}</code></pre>
+
+                <h3>Complete Permission Component</h3>
+
+                <pre><code>import { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import * as Camera from 'expo-camera';
+
+type PermissionState = 'loading' | 'granted' | 'undetermined' | 'denied' | 'blocked';
+
+export function CameraPermissionGate({ children }: { children: React.ReactNode }) {
+  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [state, setState] = useState&lt;PermissionState&gt;('loading');
+
+  useEffect(() => {
+    if (!permission) {
+      setState('loading');
+    } else if (permission.granted) {
+      setState('granted');
+    } else if (permission.status === 'undetermined') {
+      setState('undetermined');
+    } else if (!permission.canAskAgain) {
+      setState('blocked');
+    } else {
+      setState('denied');
+    }
+  }, [permission]);
+
+  const handleRequest = async () => {
+    await requestPermission();
+  };
+
+  const handleOpenSettings = () => {
+    Linking.openSettings();
+  };
+
+  if (state === 'loading') {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;Text&gt;Loading...&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  if (state === 'granted') {
+    return &lt;&gt;{children}&lt;/&gt;;
+  }
+
+  if (state === 'blocked') {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;Text style={styles.icon}&gt;🔒&lt;/Text&gt;
+        &lt;Text style={styles.title}&gt;Camera Access Blocked&lt;/Text&gt;
+        &lt;Text style={styles.message}&gt;
+          Camera access was previously denied. Please enable it in your device settings.
+        &lt;/Text&gt;
+        &lt;Pressable style={styles.button} onPress={handleOpenSettings}&gt;
+          &lt;Text style={styles.buttonText}&gt;Open Settings&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  // undetermined or denied (can ask again)
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.icon}&gt;📷&lt;/Text&gt;
+      &lt;Text style={styles.title}&gt;Camera Permission Needed&lt;/Text&gt;
+      &lt;Text style={styles.message}&gt;
+        We need access to your camera to take photos. Your photos stay on your device.
+      &lt;/Text&gt;
+      &lt;Pressable style={styles.button} onPress={handleRequest}&gt;
+        &lt;Text style={styles.buttonText}&gt;Enable Camera&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  icon: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  button: {
+    backgroundColor: '#667eea',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+// Usage
+function CameraScreen() {
+  return (
+    &lt;CameraPermissionGate&gt;
+      &lt;Camera.CameraView style={{ flex: 1 }} /&gt;
+    &lt;/CameraPermissionGate&gt;
+  );
+}</code></pre>
+            </section>
+
+            <!-- App Configuration -->
+            <section id="configuration">
+                <h2>App Configuration</h2>
+
+                <p>To pass app store review, you must configure permissions properly in your app.json. Each platform requires specific descriptions explaining why you need each permission.</p>
+
+                <h3>iOS Permission Descriptions</h3>
+
+                <p>iOS requires a usage description string for every permission. These appear in the system dialog and must clearly explain why you need the permission.</p>
+
+                <pre><code>// app.json
+{
+  "expo": {
+    "ios": {
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take profile photos and scan documents.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone to record voice messages.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photos to upload images to your posts.",
+        "NSPhotoLibraryAddUsageDescription": "This app saves photos you take to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to show nearby places.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location in the background to track your runs.",
+        "NSContactsUsageDescription": "This app accesses your contacts to help you invite friends.",
+        "NSCalendarsUsageDescription": "This app accesses your calendar to schedule events.",
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely unlock your account.",
+        "NSMotionUsageDescription": "This app uses motion sensors to count your steps."
+      }
+    }
+  }
+}</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ App Store Rejection Warning</h4>
+                    <p>Apple rejects apps with:</p>
+                    <ul>
+                        <li>Vague descriptions like "This app needs camera access"</li>
+                        <li>Missing descriptions for used permissions</li>
+                        <li>Permissions requested but never used</li>
+                    </ul>
+                    <p>Be specific: "This app uses the camera to take profile photos" is much better than "This app needs camera."</p>
+                </div>
+
+                <h3>Android Permissions</h3>
+
+                <p>Android permissions are added to AndroidManifest.xml. Expo handles most of this automatically based on the packages you use, but you can customize them:</p>
+
+                <pre><code>// app.json
+{
+  "expo": {
+    "android": {
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "READ_CONTACTS",
+        "WRITE_CONTACTS",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "VIBRATE"
+      ],
+      // Block permissions you don't want included
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    }
+  }
+}</code></pre>
+
+                <h3>Complete Example Configuration</h3>
+
+                <pre><code>// app.json for a photo-sharing app
+{
+  "expo": {
+    "name": "PhotoShare",
+    "slug": "photoshare",
+    "version": "1.0.0",
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PhotoShare needs camera access to take photos for your posts."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "PhotoShare needs access to your photos to upload images.",
+          "savePhotosPermission": "PhotoShare saves photos you take to your gallery.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "PhotoShare uses your location to tag photos with where they were taken."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#667eea"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.photoshare",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PhotoShare needs camera access to take photos for your posts.",
+        "NSPhotoLibraryUsageDescription": "PhotoShare needs access to your photos to upload images.",
+        "NSPhotoLibraryAddUsageDescription": "PhotoShare saves photos you take to your gallery.",
+        "NSLocationWhenInUseUsageDescription": "PhotoShare uses your location to tag photos with where they were taken."
+      }
+    },
+    "android": {
+      "package": "com.example.photoshare",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#667eea"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    }
+  }
+}</code></pre>
+
+                <h3>Plugin Configuration Reference</h3>
+
+                <div class="card">
+                    <h4>📦 Common Plugin Configurations</h4>
+                    <p>Each Expo package with permissions can be configured via plugins:</p>
+                    <pre><code>// expo-camera
+["expo-camera", {
+  "cameraPermission": "Custom camera message",
+  "microphonePermission": "Custom microphone message",
+  "recordAudioAndroid": true
+}]
+
+// expo-location
+["expo-location", {
+  "locationAlwaysAndWhenInUsePermission": "Background location message",
+  "locationAlwaysPermission": "Always location message",
+  "locationWhenInUsePermission": "Foreground location message"
+}]
+
+// expo-media-library
+["expo-media-library", {
+  "photosPermission": "Photo access message",
+  "savePhotosPermission": "Save photos message",
+  "isAccessMediaLocationEnabled": true
+}]
+
+// expo-contacts
+["expo-contacts", {
+  "contactsPermission": "Contacts access message"
+}]
+
+// expo-calendar
+["expo-calendar", {
+  "calendarPermission": "Calendar access message"
+}]</code></pre>
+                </div>
+            </section>
+
+            <!-- Hands-On Exercises -->
+            <section id="exercises">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-card">
+                    <h3>Exercise 1: Camera Permission Flow</h3>
+                    <p>Build a complete camera permission flow with pre-permission explanation.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Show a custom explanation dialog before requesting</li>
+                        <li>Handle all permission states (granted, denied, blocked)</li>
+                        <li>Provide a button to open Settings when blocked</li>
+                        <li>Only show camera when permission is granted</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>Camera.useCameraPermissions()</code> hook. Check <code>permission.canAskAgain</code> to detect if permission is blocked. Use <code>Alert.alert()</code> for the pre-permission dialog and <code>Linking.openSettings()</code> to open device settings.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState } from 'react';
+import { View, Text, Pressable, Alert, Linking, StyleSheet } from 'react-native';
+import * as Camera from 'expo-camera';
+
+export default function CameraPermissionDemo() {
+  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [showCamera, setShowCamera] = useState(false);
+
+  const handleRequestCamera = async () => {
+    // Already granted
+    if (permission?.granted) {
+      setShowCamera(true);
+      return;
+    }
+
+    // Blocked - go to settings
+    if (permission?.status === 'denied' && !permission?.canAskAgain) {
+      Alert.alert(
+        'Permission Blocked',
+        'Camera access is blocked. Please enable it in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+
+    // Show pre-permission dialog
+    Alert.alert(
+      'Camera Access',
+      'We need camera access to take photos. Your photos are stored only on your device and are never uploaded without your consent.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            const result = await requestPermission();
+            if (result.granted) {
+              setShowCamera(true);
+            } else if (!result.canAskAgain) {
+              Alert.alert(
+                'Permission Denied',
+                'You can enable camera access later in Settings.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (showCamera && permission?.granted) {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;Camera.CameraView style={styles.camera}&gt;
+          &lt;View style={styles.overlay}&gt;
+            &lt;Pressable 
+              style={styles.closeButton}
+              onPress={() => setShowCamera(false)}
+            &gt;
+              &lt;Text style={styles.closeText}&gt;✕ Close&lt;/Text&gt;
+            &lt;/Pressable&gt;
+          &lt;/View&gt;
+        &lt;/Camera.CameraView&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.icon}&gt;📷&lt;/Text&gt;
+      &lt;Text style={styles.title}&gt;Camera Demo&lt;/Text&gt;
+      &lt;Text style={styles.status}&gt;
+        Status: {permission?.status ?? 'loading'}
+        {permission?.canAskAgain === false && ' (blocked)'}
+      &lt;/Text&gt;
+      &lt;Pressable style={styles.button} onPress={handleRequestCamera}&gt;
+        &lt;Text style={styles.buttonText}&gt;Open Camera&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  camera: { flex: 1, width: '100%' },
+  overlay: { flex: 1, backgroundColor: 'transparent', padding: 20 },
+  closeButton: { alignSelf: 'flex-end', padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
+  closeText: { color: 'white', fontSize: 16 },
+  icon: { fontSize: 64, marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  status: { fontSize: 14, color: '#666', marginBottom: 30 },
+  button: { backgroundColor: '#667eea', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 8 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 2: Multi-Permission Request</h3>
+                    <p>Create a function that requests multiple permissions in sequence with proper handling.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Request camera, microphone, and location permissions</li>
+                        <li>Show progress/status for each permission</li>
+                        <li>Return a summary of which permissions were granted</li>
+                        <li>Handle partial grants (some allowed, some denied)</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Create an async function that requests permissions one at a time. Store results in an object. Use a state variable to show which permission is currently being requested.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as Camera from 'expo-camera';
+import { Audio } from 'expo-av';
+import * as Location from 'expo-location';
+
+interface PermissionResults {
+  camera: boolean;
+  microphone: boolean;
+  location: boolean;
+}
+
+type CurrentStep = 'idle' | 'camera' | 'microphone' | 'location' | 'done';
+
+export default function MultiPermissionRequest() {
+  const [currentStep, setCurrentStep] = useState&lt;CurrentStep&gt;('idle');
+  const [results, setResults] = useState&lt;PermissionResults | null&gt;(null);
+
+  const requestAllPermissions = async () => {
+    const permissionResults: PermissionResults = {
+      camera: false,
+      microphone: false,
+      location: false,
+    };
+
+    // Camera
+    setCurrentStep('camera');
+    const cameraResult = await Camera.requestCameraPermissionsAsync();
+    permissionResults.camera = cameraResult.granted;
+
+    // Microphone
+    setCurrentStep('microphone');
+    const audioResult = await Audio.requestPermissionsAsync();
+    permissionResults.microphone = audioResult.granted;
+
+    // Location
+    setCurrentStep('location');
+    const locationResult = await Location.requestForegroundPermissionsAsync();
+    permissionResults.location = locationResult.granted;
+
+    setCurrentStep('done');
+    setResults(permissionResults);
+  };
+
+  const getStepIcon = (step: keyof PermissionResults) => {
+    if (!results) {
+      if (currentStep === step) return '⏳';
+      return '⬜';
+    }
+    return results[step] ? '✅' : '❌';
+  };
+
+  const allGranted = results && 
+    results.camera && 
+    results.microphone && 
+    results.location;
+
+  const grantedCount = results ? 
+    Object.values(results).filter(Boolean).length : 0;
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Permission Setup&lt;/Text&gt;
+      
+      &lt;View style={styles.permissionList}&gt;
+        &lt;View style={styles.permissionRow}&gt;
+          &lt;Text style={styles.permissionIcon}&gt;{getStepIcon('camera')}&lt;/Text&gt;
+          &lt;Text style={styles.permissionText}&gt;Camera&lt;/Text&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.permissionRow}&gt;
+          &lt;Text style={styles.permissionIcon}&gt;{getStepIcon('microphone')}&lt;/Text&gt;
+          &lt;Text style={styles.permissionText}&gt;Microphone&lt;/Text&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.permissionRow}&gt;
+          &lt;Text style={styles.permissionIcon}&gt;{getStepIcon('location')}&lt;/Text&gt;
+          &lt;Text style={styles.permissionText}&gt;Location&lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+
+      {results && (
+        &lt;View style={[
+          styles.resultCard, 
+          allGranted ? styles.successCard : styles.warningCard
+        ]}&gt;
+          &lt;Text style={styles.resultText}&gt;
+            {allGranted 
+              ? '🎉 All permissions granted!' 
+              : `⚠️ ${grantedCount}/3 permissions granted`}
+          &lt;/Text&gt;
+        &lt;/View&gt;
+      )}
+
+      {currentStep === 'idle' && (
+        &lt;Pressable style={styles.button} onPress={requestAllPermissions}&gt;
+          &lt;Text style={styles.buttonText}&gt;Request Permissions&lt;/Text&gt;
+        &lt;/Pressable&gt;
+      )}
+
+      {currentStep !== 'idle' && currentStep !== 'done' && (
+        &lt;Text style={styles.statusText}&gt;
+          Requesting {currentStep} permission...
+        &lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 30 },
+  permissionList: { marginBottom: 30 },
+  permissionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  permissionIcon: { fontSize: 24, marginRight: 16 },
+  permissionText: { fontSize: 18 },
+  resultCard: { padding: 16, borderRadius: 8, marginBottom: 20 },
+  successCard: { backgroundColor: '#e8f5e9' },
+  warningCard: { backgroundColor: '#fff3e0' },
+  resultText: { fontSize: 16, textAlign: 'center' },
+  button: { backgroundColor: '#667eea', padding: 16, borderRadius: 8, alignItems: 'center' },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  statusText: { textAlign: 'center', color: '#666', fontSize: 14 },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-card">
+                    <h3>Exercise 3: Permission Status Monitor</h3>
+                    <p>Build a settings-style screen that shows real-time permission status for all app permissions.</p>
+                    
+                    <h4>Requirements:</h4>
+                    <ul>
+                        <li>Display all permission types with their current status</li>
+                        <li>Show granted/denied/not-determined status</li>
+                        <li>Provide a button to request each permission</li>
+                        <li>Refresh status when returning from Settings</li>
+                    </ul>
+
+                    <details>
+                        <summary>Show Hint</summary>
+                        <p>Use <code>useEffect</code> with <code>AppState</code> listener to refresh permissions when the app comes back to foreground. Call all <code>getPermissionsAsync()</code> functions in a single refresh function.</p>
+                    </details>
+
+                    <details>
+                        <summary>Show Solution</summary>
+                        <pre><code>import { useState, useEffect, useCallback } from 'react';
+import { View, Text, Pressable, ScrollView, AppState, Linking, StyleSheet } from 'react-native';
+import * as Camera from 'expo-camera';
+import * as Location from 'expo-location';
+import * as MediaLibrary from 'expo-media-library';
+import * as Notifications from 'expo-notifications';
+
+interface PermissionInfo {
+  name: string;
+  icon: string;
+  status: 'granted' | 'denied' | 'undetermined' | 'loading';
+  request: () => Promise&lt;void&gt;;
+}
+
+export default function PermissionMonitor() {
+  const [permissions, setPermissions] = useState&lt;PermissionInfo[]&gt;([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshPermissions = useCallback(async () => {
+    setLoading(true);
+    
+    const [camera, location, mediaLibrary, notifications] = await Promise.all([
+      Camera.getCameraPermissionsAsync(),
+      Location.getForegroundPermissionsAsync(),
+      MediaLibrary.getPermissionsAsync(),
+      Notifications.getPermissionsAsync(),
+    ]);
+
+    setPermissions([
+      {
+        name: 'Camera',
+        icon: '📷',
+        status: camera.status as any,
+        request: async () => {
+          await Camera.requestCameraPermissionsAsync();
+          refreshPermissions();
+        },
+      },
+      {
+        name: 'Location',
+        icon: '📍',
+        status: location.status as any,
+        request: async () => {
+          await Location.requestForegroundPermissionsAsync();
+          refreshPermissions();
+        },
+      },
+      {
+        name: 'Photos',
+        icon: '🖼️',
+        status: mediaLibrary.status as any,
+        request: async () => {
+          await MediaLibrary.requestPermissionsAsync();
+          refreshPermissions();
+        },
+      },
+      {
+        name: 'Notifications',
+        icon: '🔔',
+        status: notifications.status as any,
+        request: async () => {
+          await Notifications.requestPermissionsAsync();
+          refreshPermissions();
+        },
+      },
+    ]);
+    
+    setLoading(false);
+  }, []);
+
+  // Refresh on mount
+  useEffect(() => {
+    refreshPermissions();
+  }, [refreshPermissions]);
+
+  // Refresh when returning from background (e.g., Settings)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshPermissions();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshPermissions]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'granted': return '#4CAF50';
+      case 'denied': return '#f44336';
+      default: return '#FF9800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'granted': return 'Allowed';
+      case 'denied': return 'Denied';
+      default: return 'Not Asked';
+    }
+  };
+
+  return (
+    &lt;ScrollView style={styles.container}&gt;
+      &lt;Text style={styles.title}&gt;Permissions&lt;/Text&gt;
+      &lt;Text style={styles.subtitle}&gt;
+        Manage app permissions. Changes take effect immediately.
+      &lt;/Text&gt;
+
+      {permissions.map((perm) => (
+        &lt;View key={perm.name} style={styles.permissionCard}&gt;
+          &lt;View style={styles.permissionInfo}&gt;
+            &lt;Text style={styles.permissionIcon}&gt;{perm.icon}&lt;/Text&gt;
+            &lt;View&gt;
+              &lt;Text style={styles.permissionName}&gt;{perm.name}&lt;/Text&gt;
+              &lt;Text style={[styles.permissionStatus, { color: getStatusColor(perm.status) }]}&gt;
+                {getStatusText(perm.status)}
+              &lt;/Text&gt;
+            &lt;/View&gt;
+          &lt;/View&gt;
+          
+          {perm.status !== 'granted' && (
+            &lt;Pressable 
+              style={styles.requestButton} 
+              onPress={perm.status === 'denied' ? () => Linking.openSettings() : perm.request}
+            &gt;
+              &lt;Text style={styles.requestButtonText}&gt;
+                {perm.status === 'denied' ? 'Settings' : 'Enable'}
+              &lt;/Text&gt;
+            &lt;/Pressable&gt;
+          )}
+        &lt;/View&gt;
+      ))}
+
+      &lt;Pressable style={styles.settingsButton} onPress={() => Linking.openSettings()}&gt;
+        &lt;Text style={styles.settingsButtonText}&gt;Open Device Settings&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/ScrollView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
+  subtitle: { fontSize: 14, color: '#666', marginBottom: 24 },
+  permissionCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  permissionInfo: { flexDirection: 'row', alignItems: 'center' },
+  permissionIcon: { fontSize: 28, marginRight: 16 },
+  permissionName: { fontSize: 16, fontWeight: '600' },
+  permissionStatus: { fontSize: 13, marginTop: 2 },
+  requestButton: { backgroundColor: '#667eea', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6 },
+  requestButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  settingsButton: { marginTop: 20, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
+  settingsButtonText: { color: '#667eea', fontSize: 16, fontWeight: '600' },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <!-- Summary -->
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Permissions are a critical part of mobile app development. Handling them correctly builds user trust and ensures a smooth experience.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white;">🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>Ask in context:</strong> Request permissions when the user tries to use the feature</li>
+                        <li><strong>Explain first:</strong> Show a custom dialog before the system dialog</li>
+                        <li><strong>Handle all states:</strong> granted, denied, undetermined, and blocked</li>
+                        <li><strong>Degrade gracefully:</strong> App should work with reduced features if permission denied</li>
+                        <li><strong>iOS is strict:</strong> You only get one chance to ask—make it count</li>
+                        <li><strong>Use hooks:</strong> <code>useXxxPermissions()</code> is the cleanest pattern</li>
+                        <li><strong>Direct to Settings:</strong> When blocked, help users find the setting</li>
+                        <li><strong>Configure properly:</strong> Add usage descriptions to app.json for store approval</li>
+                        <li><strong>Refresh on foreground:</strong> Re-check permissions when app becomes active</li>
+                    </ul>
+                </div>
+
+                <p>In the next lesson, we'll use these permission patterns to work with the Camera and Media Library—taking photos, recording videos, and accessing the user's photo library.</p>
+            </section>
+
+            <!-- Lesson Navigation -->
+            <div class="lesson-nav">
+                <a href="m07_l05_forms_and_validation.html" class="prev-link">← Previous: Forms and Validation</a>
+                <a href="index.html" class="home-link">🏠 Home</a>
+                <a href="m08_l02_camera_and_media.html" class="next-link">Next: Camera and Media →</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 React Native & Expo Course. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
