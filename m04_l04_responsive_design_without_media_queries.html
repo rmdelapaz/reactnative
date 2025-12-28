@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Design Without Media Queries | React Native & Expo Course</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="index.html" class="logo" aria-label="Course Home">
+                <span class="logo-react">⚛️</span> RN
+            </a>
+            <nav class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="appendix_c_component_reference.html">Reference</a>
+            </nav>
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a>
+            <span aria-hidden="true">›</span>
+            <a href="index.html#module4">Module 4</a>
+            <span aria-hidden="true">›</span>
+            <span aria-current="page">Responsive Design</span>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <article class="lesson-container">
+            <header class="lesson-header">
+                <div class="module-badge">Module 4: StyleSheet Deep Dive</div>
+                <h1>Responsive Design Without Media Queries</h1>
+                <p class="lesson-subtitle">Build layouts that adapt beautifully to any screen size</p>
+            </header>
+
+            <details class="toc-container" id="toc">
+                <summary>Table of Contents</summary>
+                <nav class="toc-nav" aria-label="Table of Contents">
+                    <ul>
+                        <li><a href="#introduction">Introduction</a></li>
+                        <li><a href="#responsive-tools">React Native's Responsive Tools</a></li>
+                        <li><a href="#useWindowDimensions">useWindowDimensions Hook</a></li>
+                        <li><a href="#dimensions-api">Dimensions API</a></li>
+                        <li><a href="#percentage-layouts">Percentage-Based Layouts</a></li>
+                        <li><a href="#breakpoints">Creating Breakpoint Systems</a></li>
+                        <li><a href="#orientation">Handling Orientation Changes</a></li>
+                        <li><a href="#device-types">Adapting for Device Types</a></li>
+                        <li><a href="#scalable-units">Scalable Units and Typography</a></li>
+                        <li><a href="#safe-areas">Safe Areas and Notches</a></li>
+                        <li><a href="#real-world">Real-World Responsive Patterns</a></li>
+                        <li><a href="#hands-on">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </nav>
+            </details>
+
+            <div class="learning-objectives card">
+                <h2>🎯 Learning Objectives</h2>
+                <ul>
+                    <li>Use <code>useWindowDimensions</code> to create reactive layouts</li>
+                    <li>Understand when to use <code>Dimensions</code> API vs the hook</li>
+                    <li>Build a reusable breakpoint system for your app</li>
+                    <li>Handle device orientation changes gracefully</li>
+                    <li>Adapt layouts for phones, tablets, and foldables</li>
+                    <li>Implement scalable typography that respects user preferences</li>
+                    <li>Work with safe areas across different device types</li>
+                </ul>
+            </div>
+
+            <section id="introduction">
+                <h2>Introduction</h2>
+
+                <p>On the web, responsive design means media queries: <code>@media (min-width: 768px)</code>. In React Native, there are no media queries. Instead, you have something more powerful: JavaScript that can read device dimensions and compute styles dynamically.</p>
+
+                <p>This shift from declarative CSS breakpoints to imperative JavaScript logic might seem like a step backward, but it's actually more flexible. You can create any breakpoint system you want, respond to orientation changes in real-time, and build truly adaptive layouts that go beyond simple width checks.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4>📱 The Mobile Responsive Challenge</h4>
+                    <p style="color: white;">Mobile devices vary wildly: iPhone SE (375×667) to iPad Pro (1024×1366), portrait to landscape, notches and Dynamic Island, Android phones with every imaginable aspect ratio. Your layouts need to handle all of this gracefully.</p>
+                </div>
+
+                <h3>What We'll Build</h3>
+
+                <p>By the end of this lesson, you'll have a toolkit for responsive design:</p>
+                <ul>
+                    <li>A reusable breakpoint hook that works like CSS media queries</li>
+                    <li>Responsive grid that changes columns based on screen width</li>
+                    <li>Typography that scales appropriately across devices</li>
+                    <li>Layouts that reorganize when orientation changes</li>
+                </ul>
+
+                <pre class="mermaid">
+flowchart LR
+    subgraph Input["Device Context"]
+        W["Screen Width"]
+        H["Screen Height"]
+        O["Orientation"]
+        S["Scale Factor"]
+    end
+    
+    subgraph Logic["Responsive Logic"]
+        BP["Breakpoint<br/>Detection"]
+        CALC["Dynamic<br/>Calculations"]
+    end
+    
+    subgraph Output["Adaptive UI"]
+        L["Layout Changes"]
+        T["Typography Scaling"]
+        G["Grid Columns"]
+    end
+    
+    Input --> Logic
+    Logic --> Output
+    
+    style Input fill:#e3f2fd
+    style Logic fill:#fff3e0
+    style Output fill:#e8f5e9
+                </pre>
+            </section>
+
+            <section id="responsive-tools">
+                <h2>React Native's Responsive Tools</h2>
+
+                <p>React Native provides several built-in tools for responsive design. Let's understand when to use each one:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background: #e3f2fd;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Tool</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Type</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Updates On Change</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Best For</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;"><code>useWindowDimensions</code></td>
+                            <td style="padding: 12px;">Hook</td>
+                            <td style="padding: 12px;">✅ Yes (reactive)</td>
+                            <td style="padding: 12px;">Component layouts, orientation</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;"><code>Dimensions.get()</code></td>
+                            <td style="padding: 12px;">API</td>
+                            <td style="padding: 12px;">❌ No (static)</td>
+                            <td style="padding: 12px;">Initial values, outside components</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;"><code>PixelRatio</code></td>
+                            <td style="padding: 12px;">API</td>
+                            <td style="padding: 12px;">N/A (constant)</td>
+                            <td style="padding: 12px;">Pixel-perfect sizing, font scaling</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;">Percentage strings</td>
+                            <td style="padding: 12px;">Style value</td>
+                            <td style="padding: 12px;">✅ Yes (via layout)</td>
+                            <td style="padding: 12px;">Simple proportional sizing</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Rule of Thumb</h4>
+                    <p>Use <code>useWindowDimensions</code> for anything that should update when the screen size changes (like rotation). Use <code>Dimensions.get()</code> only when you need dimensions outside a component or for one-time calculations.</p>
+                </div>
+            </section>
+
+            <section id="useWindowDimensions">
+                <h2>useWindowDimensions Hook</h2>
+
+                <p>The <code>useWindowDimensions</code> hook is your primary tool for responsive layouts. It returns the current window dimensions and automatically triggers re-renders when they change.</p>
+
+<pre><code class="language-typescript">import { useWindowDimensions, View, Text, StyleSheet } from 'react-native';
+
+function ResponsiveComponent() {
+  const { width, height } = useWindowDimensions();
+  
+  // Derived values
+  const isLandscape = width > height;
+  const isTablet = width >= 768;
+  const columnCount = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text&gt;Screen: {width} × {height}&lt;/Text&gt;
+      &lt;Text&gt;Orientation: {isLandscape ? 'Landscape' : 'Portrait'}&lt;/Text&gt;
+      &lt;Text&gt;Device: {isTablet ? 'Tablet' : 'Phone'}&lt;/Text&gt;
+      &lt;Text&gt;Grid Columns: {columnCount}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Dynamic Styles with useWindowDimensions</h3>
+
+                <p>You can use the dimensions to compute styles inline or in a style-generating function:</p>
+
+<pre><code class="language-typescript">function AdaptiveCard() {
+  const { width } = useWindowDimensions();
+  
+  // Card width adapts to screen
+  const cardWidth = width >= 768 
+    ? 300                    // Fixed width on tablets
+    : width - 32;            // Full width minus padding on phones
+  
+  return (
+    &lt;View style={[styles.card, { width: cardWidth }]}&gt;
+      &lt;Text style={styles.cardTitle}&gt;Adaptive Card&lt;/Text&gt;
+      &lt;Text style={styles.cardBody}&gt;
+        This card is {cardWidth}dp wide
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  cardBody: {
+    fontSize: 14,
+    color: '#666',
+  },
+});</code></pre>
+
+                <h3>When Dimensions Change</h3>
+
+                <p>The hook re-renders your component whenever dimensions change. This happens when:</p>
+                <ul>
+                    <li>Device rotates (portrait ↔ landscape)</li>
+                    <li>Foldable device unfolds/folds</li>
+                    <li>Split-screen multitasking on tablets</li>
+                    <li>Keyboard appears (on some Android devices)</li>
+                </ul>
+
+                <svg viewBox="0 0 600 200" style="width: 100%; max-width: 600px; margin: 20px auto; display: block;">
+                    <!-- Portrait phone -->
+                    <g transform="translate(50, 20)">
+                        <rect x="0" y="0" width="80" height="140" rx="10" fill="#1a1a1a"/>
+                        <rect x="5" y="15" width="70" height="110" fill="#e3f2fd"/>
+                        <text x="40" y="75" text-anchor="middle" font-size="10" fill="#1976D2">375×667</text>
+                        <text x="40" y="170" text-anchor="middle" font-size="11" fill="#666">Portrait</text>
+                    </g>
+                    
+                    <!-- Arrow -->
+                    <text x="175" y="100" font-size="24" fill="#999">→</text>
+                    
+                    <!-- Landscape phone -->
+                    <g transform="translate(210, 45)">
+                        <rect x="0" y="0" width="140" height="80" rx="10" fill="#1a1a1a"/>
+                        <rect x="15" y="5" width="110" height="70" fill="#e8f5e9"/>
+                        <text x="70" y="45" text-anchor="middle" font-size="10" fill="#388E3C">667×375</text>
+                        <text x="70" y="105" text-anchor="middle" font-size="11" fill="#666">Landscape</text>
+                    </g>
+                    
+                    <!-- Arrow -->
+                    <text x="385" y="100" font-size="24" fill="#999">→</text>
+                    
+                    <!-- Tablet -->
+                    <g transform="translate(420, 10)">
+                        <rect x="0" y="0" width="130" height="160" rx="10" fill="#1a1a1a"/>
+                        <rect x="5" y="10" width="120" height="140" fill="#fff3e0"/>
+                        <text x="65" y="85" text-anchor="middle" font-size="10" fill="#F57C00">768×1024</text>
+                        <text x="65" y="185" text-anchor="middle" font-size="11" fill="#666">Tablet</text>
+                    </g>
+                </svg>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Performance Tip</h4>
+                    <p>The hook causes re-renders on dimension changes. For complex components, consider memoizing expensive calculations or splitting responsive logic into a parent component that passes props to memoized children.</p>
+                </div>
+            </section>
+
+            <section id="dimensions-api">
+                <h2>Dimensions API</h2>
+
+                <p>The <code>Dimensions</code> API provides screen and window measurements. Unlike the hook, it returns static values at call time.</p>
+
+<pre><code class="language-typescript">import { Dimensions } from 'react-native';
+
+// Get current dimensions (static snapshot)
+const { width, height } = Dimensions.get('window');
+const screen = Dimensions.get('screen');
+
+console.log('Window:', width, '×', height);
+console.log('Screen:', screen.width, '×', screen.height);</code></pre>
+
+                <h3>Window vs Screen</h3>
+
+                <p>The API provides two measurement types:</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div class="card" style="margin: 0;">
+                        <h4>Window</h4>
+                        <p>The visible area of your app. On iOS, this is the same as screen. On Android, this excludes the status bar and navigation bar.</p>
+                        <p><strong>Use for:</strong> Layout calculations</p>
+                    </div>
+                    <div class="card" style="margin: 0;">
+                        <h4>Screen</h4>
+                        <p>The full physical screen dimensions, including areas covered by system UI.</p>
+                        <p><strong>Use for:</strong> Full-screen overlays, splash screens</p>
+                    </div>
+                </div>
+
+                <h3>Listening to Dimension Changes</h3>
+
+                <p>While the API itself is static, you can subscribe to changes:</p>
+
+<pre><code class="language-typescript">import { useEffect, useState } from 'react';
+import { Dimensions } from 'react-native';
+
+// Custom hook that mimics useWindowDimensions
+function useDimensions() {
+  const [dimensions, setDimensions] = useState(() =&gt; Dimensions.get('window'));
+  
+  useEffect(() =&gt; {
+    const subscription = Dimensions.addEventListener('change', ({ window }) =&gt; {
+      setDimensions(window);
+    });
+    
+    return () =&gt; subscription.remove();
+  }, []);
+  
+  return dimensions;
+}</code></pre>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 When to Use Dimensions API</h4>
+                    <ul>
+                        <li>Creating StyleSheet outside components (initial values)</li>
+                        <li>Calculating values in utility functions</li>
+                        <li>When you explicitly don't want reactive updates</li>
+                        <li>Getting screen (not window) dimensions</li>
+                    </ul>
+                </div>
+
+                <h3>Using Dimensions in StyleSheet</h3>
+
+                <p>You can use Dimensions when defining StyleSheet, but remember these are static:</p>
+
+<pre><code class="language-typescript">const { width } = Dimensions.get('window');
+
+// These styles are calculated once at import time
+const styles = StyleSheet.create({
+  halfWidth: {
+    width: width / 2,  // Won't update on rotation!
+  },
+  responsive: {
+    // Better: use percentages or calculate in component
+    width: '50%',
+  },
+});</code></pre>
+            </section>
+
+            <section id="percentage-layouts">
+                <h2>Percentage-Based Layouts</h2>
+
+                <p>The simplest form of responsive design uses percentage values. These automatically adapt to container size without any JavaScript calculation.</p>
+
+<pre><code class="language-typescript">const styles = StyleSheet.create({
+  // Percentages for width
+  fullWidth: {
+    width: '100%',
+  },
+  halfWidth: {
+    width: '50%',
+  },
+  
+  // Percentages for height (relative to parent)
+  halfHeight: {
+    height: '50%',
+  },
+  
+  // Percentages for positioning
+  centered: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    // Note: This centers the top-left corner, not the element
+  },
+  
+  // Padding and margin also work
+  spacious: {
+    padding: '5%',    // 5% of parent width
+    marginHorizontal: '10%',
+  },
+});</code></pre>
+
+                <h3>Percentage Gotchas</h3>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Important Limitations</h4>
+                    <ul>
+                        <li><strong>Height percentages</strong> require the parent to have a defined height</li>
+                        <li><strong>No viewport units</strong> — <code>100%</code> is relative to parent, not screen</li>
+                        <li><strong>Padding/margin</strong> percentages are based on parent <em>width</em> (both horizontal and vertical)</li>
+                        <li><strong>Font sizes</strong> don't support percentages</li>
+                    </ul>
+                </div>
+
+                <h3>Common Percentage Patterns</h3>
+
+<pre><code class="language-typescript">// Full-screen container
+const FullScreen = ({ children }) =&gt; (
+  &lt;View style={{ flex: 1 }}&gt;  {/* flex: 1 is better than height: '100%' */}
+    {children}
+  &lt;/View&gt;
+);
+
+// Two equal columns
+function TwoColumns({ left, right }) {
+  return (
+    &lt;View style={styles.row}&gt;
+      &lt;View style={styles.column}&gt;{left}&lt;/View&gt;
+      &lt;View style={styles.column}&gt;{right}&lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  column: {
+    flex: 1,  // Equal flex is often better than width: '50%'
+  },
+});
+
+// Aspect ratio maintained image
+function ResponsiveImage({ source }) {
+  return (
+    &lt;Image
+      source={source}
+      style={{
+        width: '100%',
+        aspectRatio: 16 / 9,  // Maintains ratio regardless of width
+      }}
+      resizeMode="cover"
+    /&gt;
+  );
+}</code></pre>
+            </section>
+            <section id="breakpoints">
+                <h2>Creating Breakpoint Systems</h2>
+
+                <p>While React Native doesn't have CSS media queries, you can build your own breakpoint system. This gives you media-query-like functionality with more flexibility.</p>
+
+                <h3>Defining Breakpoints</h3>
+
+<pre><code class="language-typescript">// breakpoints.ts
+export const BREAKPOINTS = {
+  small: 0,      // Small phones
+  medium: 375,   // Standard phones (iPhone 12/13/14)
+  large: 414,    // Large phones (iPhone Plus/Max)
+  tablet: 768,   // Tablets
+  desktop: 1024, // Large tablets, desktop
+} as const;
+
+export type Breakpoint = keyof typeof BREAKPOINTS;</code></pre>
+
+                <h3>Breakpoint Hook</h3>
+
+<pre><code class="language-typescript">// useBreakpoint.ts
+import { useWindowDimensions } from 'react-native';
+import { BREAKPOINTS, Breakpoint } from './breakpoints';
+
+export function useBreakpoint(): Breakpoint {
+  const { width } = useWindowDimensions();
+  
+  if (width >= BREAKPOINTS.desktop) return 'desktop';
+  if (width >= BREAKPOINTS.tablet) return 'tablet';
+  if (width >= BREAKPOINTS.large) return 'large';
+  if (width >= BREAKPOINTS.medium) return 'medium';
+  return 'small';
+}
+
+// Additional utility hooks
+export function useIsTablet(): boolean {
+  const { width } = useWindowDimensions();
+  return width >= BREAKPOINTS.tablet;
+}
+
+export function useIsPhone(): boolean {
+  const { width } = useWindowDimensions();
+  return width < BREAKPOINTS.tablet;
+}</code></pre>
+
+                <h3>Using Breakpoints in Components</h3>
+
+<pre><code class="language-typescript">function ResponsiveGrid({ items }) {
+  const breakpoint = useBreakpoint();
+  
+  // Different column counts per breakpoint
+  const columns = {
+    small: 1,
+    medium: 2,
+    large: 2,
+    tablet: 3,
+    desktop: 4,
+  }[breakpoint];
+  
+  return (
+    &lt;View style={styles.grid}&gt;
+      {items.map((item, index) =&gt; (
+        &lt;View 
+          key={index} 
+          style={[styles.gridItem, { width: `${100 / columns}%` }]}
+        &gt;
+          &lt;ItemCard item={item} /&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  gridItem: {
+    padding: 8,
+  },
+});</code></pre>
+
+                <h3>Responsive Style Objects</h3>
+
+                <p>Create a utility for responsive styles similar to CSS media queries:</p>
+
+<pre><code class="language-typescript">// useResponsiveStyles.ts
+import { useWindowDimensions } from 'react-native';
+import { BREAKPOINTS } from './breakpoints';
+import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
+
+type Style = ViewStyle | TextStyle | ImageStyle;
+
+interface ResponsiveStyles&lt;T extends Style&gt; {
+  base: T;
+  sm?: Partial&lt;T&gt;;
+  md?: Partial&lt;T&gt;;
+  lg?: Partial&lt;T&gt;;
+  tablet?: Partial&lt;T&gt;;
+  desktop?: Partial&lt;T&gt;;
+}
+
+export function useResponsiveStyle&lt;T extends Style&gt;(
+  responsiveStyles: ResponsiveStyles&lt;T&gt;
+): T {
+  const { width } = useWindowDimensions();
+  
+  let result = { ...responsiveStyles.base };
+  
+  if (width >= BREAKPOINTS.medium && responsiveStyles.sm) {
+    result = { ...result, ...responsiveStyles.sm };
+  }
+  if (width >= BREAKPOINTS.large && responsiveStyles.md) {
+    result = { ...result, ...responsiveStyles.md };
+  }
+  if (width >= BREAKPOINTS.tablet && responsiveStyles.tablet) {
+    result = { ...result, ...responsiveStyles.tablet };
+  }
+  if (width >= BREAKPOINTS.desktop && responsiveStyles.desktop) {
+    result = { ...result, ...responsiveStyles.desktop };
+  }
+  
+  return result as T;
+}
+
+// Usage
+function ResponsiveCard() {
+  const cardStyle = useResponsiveStyle({
+    base: {
+      padding: 12,
+      borderRadius: 8,
+    },
+    tablet: {
+      padding: 24,
+      borderRadius: 16,
+    },
+    desktop: {
+      padding: 32,
+      maxWidth: 600,
+    },
+  });
+  
+  return &lt;View style={cardStyle}&gt;...&lt;/View&gt;;
+}</code></pre>
+
+                <svg viewBox="0 0 700 180" style="width: 100%; max-width: 700px; margin: 20px auto; display: block;">
+                    <!-- Small -->
+                    <g transform="translate(20, 20)">
+                        <rect x="0" y="0" width="60" height="100" rx="6" fill="#e3f2fd" stroke="#2196F3"/>
+                        <text x="30" y="55" text-anchor="middle" font-size="9" fill="#1976D2">1 col</text>
+                        <text x="30" y="120" text-anchor="middle" font-size="10" fill="#666">small</text>
+                        <text x="30" y="135" text-anchor="middle" font-size="8" fill="#999">&lt;375</text>
+                    </g>
+                    
+                    <!-- Medium -->
+                    <g transform="translate(110, 20)">
+                        <rect x="0" y="0" width="90" height="100" rx="6" fill="#e8f5e9" stroke="#4CAF50"/>
+                        <rect x="5" y="10" width="38" height="35" fill="#c8e6c9" rx="4"/>
+                        <rect x="47" y="10" width="38" height="35" fill="#c8e6c9" rx="4"/>
+                        <text x="45" y="70" text-anchor="middle" font-size="9" fill="#388E3C">2 cols</text>
+                        <text x="45" y="120" text-anchor="middle" font-size="10" fill="#666">medium</text>
+                        <text x="45" y="135" text-anchor="middle" font-size="8" fill="#999">375-413</text>
+                    </g>
+                    
+                    <!-- Large -->
+                    <g transform="translate(230, 20)">
+                        <rect x="0" y="0" width="100" height="100" rx="6" fill="#fff3e0" stroke="#FF9800"/>
+                        <rect x="5" y="10" width="43" height="35" fill="#ffe0b2" rx="4"/>
+                        <rect x="52" y="10" width="43" height="35" fill="#ffe0b2" rx="4"/>
+                        <text x="50" y="70" text-anchor="middle" font-size="9" fill="#F57C00">2 cols</text>
+                        <text x="50" y="120" text-anchor="middle" font-size="10" fill="#666">large</text>
+                        <text x="50" y="135" text-anchor="middle" font-size="8" fill="#999">414-767</text>
+                    </g>
+                    
+                    <!-- Tablet -->
+                    <g transform="translate(360, 10)">
+                        <rect x="0" y="0" width="140" height="110" rx="8" fill="#fce4ec" stroke="#E91E63"/>
+                        <rect x="5" y="10" width="40" height="40" fill="#f8bbd9" rx="4"/>
+                        <rect x="50" y="10" width="40" height="40" fill="#f8bbd9" rx="4"/>
+                        <rect x="95" y="10" width="40" height="40" fill="#f8bbd9" rx="4"/>
+                        <text x="70" y="75" text-anchor="middle" font-size="9" fill="#C2185B">3 cols</text>
+                        <text x="70" y="130" text-anchor="middle" font-size="10" fill="#666">tablet</text>
+                        <text x="70" y="145" text-anchor="middle" font-size="8" fill="#999">768-1023</text>
+                    </g>
+                    
+                    <!-- Desktop -->
+                    <g transform="translate(530, 5)">
+                        <rect x="0" y="0" width="160" height="120" rx="8" fill:#e1bee7" stroke="#9C27B0"/>
+                        <rect x="5" y="10" width="35" height="45" fill="#ce93d8" rx="4"/>
+                        <rect x="45" y="10" width="35" height="45" fill="#ce93d8" rx="4"/>
+                        <rect x="85" y="10" width="35" height="45" fill="#ce93d8" rx="4"/>
+                        <rect x="125" y="10" width="30" height="45" fill="#ce93d8" rx="4"/>
+                        <text x="80" y="80" text-anchor="middle" font-size="9" fill="#7B1FA2">4 cols</text>
+                        <text x="80" y="135" text-anchor="middle" font-size="10" fill="#666">desktop</text>
+                        <text x="80" y="150" text-anchor="middle" font-size="8" fill="#999">1024+</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section id="orientation">
+                <h2>Handling Orientation Changes</h2>
+
+                <p>Device orientation affects layout significantly. Portrait and landscape modes often need different arrangements.</p>
+
+                <h3>Detecting Orientation</h3>
+
+<pre><code class="language-typescript">import { useWindowDimensions } from 'react-native';
+
+function useOrientation() {
+  const { width, height } = useWindowDimensions();
+  
+  return {
+    isPortrait: height >= width,
+    isLandscape: width > height,
+    orientation: height >= width ? 'portrait' : 'landscape',
+  };
+}
+
+// Usage
+function OrientationAwareScreen() {
+  const { isPortrait, isLandscape } = useOrientation();
+  
+  return (
+    &lt;View style={[
+      styles.container,
+      isLandscape && styles.containerLandscape,
+    ]}&gt;
+      {/* Content adapts to orientation */}
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Layout Changes by Orientation</h3>
+
+<pre><code class="language-typescript">function MediaPlayer({ video, controls }) {
+  const { isLandscape } = useOrientation();
+  
+  if (isLandscape) {
+    // Landscape: video fills screen, controls overlay
+    return (
+      &lt;View style={styles.fullScreen}&gt;
+        &lt;Video source={video} style={StyleSheet.absoluteFill} /&gt;
+        &lt;View style={styles.overlayControls}&gt;
+          {controls}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  // Portrait: video top, controls bottom
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Video source={video} style={styles.videoPortrait} /&gt;
+      &lt;View style={styles.controlsBelow}&gt;
+        {controls}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  fullScreen: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+  videoPortrait: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  overlayControls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+  },
+  controlsBelow: {
+    flex: 1,
+    padding: 16,
+  },
+});</code></pre>
+
+                <h3>Sidebar Pattern for Landscape</h3>
+
+                <p>A common pattern: show content in a list on portrait, show sidebar + detail on landscape.</p>
+
+<pre><code class="language-typescript">function MasterDetailLayout({ items, selectedItem, onSelect, renderDetail }) {
+  const { isLandscape } = useOrientation();
+  const [localSelected, setLocalSelected] = useState(selectedItem);
+  
+  const handleSelect = (item) =&gt; {
+    setLocalSelected(item);
+    onSelect?.(item);
+  };
+  
+  if (isLandscape) {
+    // Side-by-side layout
+    return (
+      &lt;View style={styles.splitView}&gt;
+        &lt;View style={styles.sidebar}&gt;
+          &lt;ItemList items={items} onSelect={handleSelect} /&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.detail}&gt;
+          {localSelected ? renderDetail(localSelected) : (
+            &lt;EmptyState message="Select an item" /&gt;
+          )}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  // Portrait: show list or detail (use navigation)
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;ItemList items={items} onSelect={handleSelect} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  splitView: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 320,
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  detail: {
+    flex: 1,
+  },
+});</code></pre>
+            </section>
+
+            <section id="device-types">
+                <h2>Adapting for Device Types</h2>
+
+                <p>Phones, tablets, and foldables each have different interaction patterns and content density expectations.</p>
+
+                <h3>Device Detection Hook</h3>
+
+<pre><code class="language-typescript">import { useWindowDimensions, Platform } from 'react-native';
+
+interface DeviceInfo {
+  isPhone: boolean;
+  isTablet: boolean;
+  isSmallPhone: boolean;
+  isLargePhone: boolean;
+  deviceType: 'phone' | 'tablet';
+}
+
+export function useDeviceType(): DeviceInfo {
+  const { width, height } = useWindowDimensions();
+  const shortDimension = Math.min(width, height);
+  const longDimension = Math.max(width, height);
+  
+  // Tablets typically have shortest dimension >= 600dp
+  // and aspect ratio closer to square
+  const isTablet = shortDimension >= 600;
+  
+  return {
+    isPhone: !isTablet,
+    isTablet,
+    isSmallPhone: !isTablet && shortDimension < 375,
+    isLargePhone: !isTablet && shortDimension >= 414,
+    deviceType: isTablet ? 'tablet' : 'phone',
+  };
+}</code></pre>
+
+                <h3>Tablet-Optimized Layouts</h3>
+
+                <p>Tablets can display more content and use different navigation patterns:</p>
+
+<pre><code class="language-typescript">function AppLayout({ children }) {
+  const { isTablet } = useDeviceType();
+  
+  if (isTablet) {
+    return (
+      &lt;View style={styles.tabletLayout}&gt;
+        &lt;View style={styles.tabletSidebar}&gt;
+          &lt;NavigationMenu /&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.tabletContent}&gt;
+          {children}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  // Phone: bottom tab navigation
+  return (
+    &lt;View style={styles.phoneLayout}&gt;
+      &lt;View style={styles.phoneContent}&gt;
+        {children}
+      &lt;/View&gt;
+      &lt;BottomTabBar /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  tabletLayout: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  tabletSidebar: {
+    width: 280,
+    backgroundColor: '#f5f5f5',
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  tabletContent: {
+    flex: 1,
+  },
+  phoneLayout: {
+    flex: 1,
+  },
+  phoneContent: {
+    flex: 1,
+  },
+});</code></pre>
+
+                <h3>Content Density</h3>
+
+                <p>Tablets can show more information at once. Adjust your content density:</p>
+
+<pre><code class="language-typescript">function ProductList({ products }) {
+  const { isTablet } = useDeviceType();
+  const { width } = useWindowDimensions();
+  
+  // More columns on tablet
+  const numColumns = isTablet ? 3 : 2;
+  
+  // Larger items on tablet
+  const itemSpacing = isTablet ? 16 : 8;
+  const itemWidth = (width - itemSpacing * (numColumns + 1)) / numColumns;
+  
+  return (
+    &lt;FlatList
+      data={products}
+      numColumns={numColumns}
+      key={numColumns} // Force re-render when columns change
+      contentContainerStyle={{ padding: itemSpacing }}
+      columnWrapperStyle={{ gap: itemSpacing }}
+      ItemSeparatorComponent={() =&gt; &lt;View style={{ height: itemSpacing }} /&gt;}
+      renderItem={({ item }) =&gt; (
+        &lt;ProductCard 
+          product={item} 
+          width={itemWidth}
+          // Larger text on tablet
+          titleSize={isTablet ? 18 : 14}
+          priceSize={isTablet ? 20 : 16}
+        /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="scalable-units">
+                <h2>Scalable Units and Typography</h2>
+
+                <p>Creating consistent sizing across different screen sizes requires understanding density-independent units and font scaling.</p>
+
+                <h3>PixelRatio API</h3>
+
+<pre><code class="language-typescript">import { PixelRatio, Dimensions } from 'react-native';
+
+// Get device pixel density
+const pixelRatio = PixelRatio.get();
+// iPhone: 2 or 3, Android varies: 1, 1.5, 2, 3, 4
+
+// Get font scale (user accessibility setting)
+const fontScale = PixelRatio.getFontScale();
+// 1.0 = default, >1 = larger text, <1 = smaller
+
+// Round to nearest pixel
+const roundedSize = PixelRatio.roundToNearestPixel(10.5);
+// Ensures crisp rendering
+
+console.log('Pixel Ratio:', pixelRatio);
+console.log('Font Scale:', fontScale);</code></pre>
+
+                <h3>Scaled Typography</h3>
+
+                <p>Create a typography system that scales with screen size:</p>
+
+<pre><code class="language-typescript">import { Dimensions, PixelRatio } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Base width for scaling (iPhone 14 as reference)
+const BASE_WIDTH = 390;
+
+// Scale factor based on screen width
+const scale = SCREEN_WIDTH / BASE_WIDTH;
+
+// Scale a value with min/max bounds
+export function scaleSize(size: number, factor = 0.5): number {
+  const scaledSize = size + (size * (scale - 1) * factor);
+  return PixelRatio.roundToNearestPixel(scaledSize);
+}
+
+// Typography scales
+export const typography = {
+  // Headings scale more
+  h1: scaleSize(32),
+  h2: scaleSize(24),
+  h3: scaleSize(20),
+  
+  // Body text scales less
+  body: scaleSize(16, 0.3),
+  bodySmall: scaleSize(14, 0.3),
+  
+  // Captions barely scale
+  caption: scaleSize(12, 0.2),
+};
+
+// Usage
+const styles = StyleSheet.create({
+  heading: {
+    fontSize: typography.h1,
+    fontWeight: 'bold',
+  },
+  body: {
+    fontSize: typography.body,
+    lineHeight: typography.body * 1.5,
+  },
+});</code></pre>
+
+                <h3>Respecting User Font Size Preferences</h3>
+
+                <p>Users can adjust system font size for accessibility. Your app should respect this:</p>
+
+<pre><code class="language-typescript">import { PixelRatio, Text, StyleSheet } from 'react-native';
+
+// Check if user has increased font size
+const fontScale = PixelRatio.getFontScale();
+const hasLargeText = fontScale > 1.2;
+
+// Adjust layouts for large text
+function AccessibleCard({ title, description }) {
+  return (
+    &lt;View style={[
+      styles.card,
+      hasLargeText && styles.cardLargeText,
+    ]}&gt;
+      &lt;Text 
+        style={styles.title}
+        // Allow text to scale with system settings
+        allowFontScaling={true}
+        // Or limit maximum scaling
+        maxFontSizeMultiplier={1.5}
+      &gt;
+        {title}
+      &lt;/Text&gt;
+      &lt;Text style={styles.description}&gt;
+        {description}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    padding: 16,
+  },
+  cardLargeText: {
+    // Stack vertically when text is large
+    flexDirection: 'column',
+  },
+  title: {
+    fontSize: 16,
+  },
+  description: {
+    fontSize: 14,
+  },
+});</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Accessibility Best Practices</h4>
+                    <ul>
+                        <li>Always test with font scaling set to maximum</li>
+                        <li>Use <code>allowFontScaling={true}</code> (default) for body text</li>
+                        <li>Consider <code>maxFontSizeMultiplier</code> for UI elements that break at large sizes</li>
+                        <li>Adjust layouts when <code>fontScale > 1.2</code> to prevent overflow</li>
+                    </ul>
+                </div>
+            </section>
+            <section id="safe-areas">
+                <h2>Safe Areas and Notches</h2>
+
+                <p>Modern devices have notches, Dynamic Island, rounded corners, and home indicators. Safe areas ensure your content doesn't hide behind these elements.</p>
+
+                <h3>Understanding Safe Areas</h3>
+
+                <svg viewBox="0 0 300 500" style="width: 100%; max-width: 300px; margin: 20px auto; display: block;">
+                    <!-- Phone outline -->
+                    <rect x="20" y="10" width="260" height="480" rx="40" fill="#1a1a1a"/>
+                    
+                    <!-- Screen -->
+                    <rect x="25" y="15" width="250" height="470" rx="38" fill="#fff"/>
+                    
+                    <!-- Notch -->
+                    <path d="M100,15 Q100,45 130,45 L170,45 Q200,45 200,15" fill="#1a1a1a"/>
+                    
+                    <!-- Home indicator -->
+                    <rect x="115" y="465" width="70" height="5" rx="2" fill="#1a1a1a"/>
+                    
+                    <!-- Safe area -->
+                    <rect x="30" y="55" width="240" height="400" fill="#e8f5e9" fill-opacity="0.5" stroke="#4CAF50" stroke-dasharray="5,5"/>
+                    
+                    <!-- Labels -->
+                    <text x="150" y="35" text-anchor="middle" font-size="10" fill="#fff">Status Bar</text>
+                    <text x="150" y="255" text-anchor="middle" font-size="12" fill="#388E3C" font-weight="bold">Safe Area</text>
+                    <text x="150" y="445" text-anchor="middle" font-size="10" fill="#666">Home Indicator</text>
+                    
+                    <!-- Inset indicators -->
+                    <line x1="30" y1="55" x2="270" y2="55" stroke="#4CAF50" stroke-width="2"/>
+                    <text x="280" y="58" font-size="8" fill="#4CAF50">top inset</text>
+                    
+                    <line x1="30" y1="455" x2="270" y2="455" stroke="#4CAF50" stroke-width="2"/>
+                    <text x="280" y="458" font-size="8" fill="#4CAF50">bottom inset</text>
+                </svg>
+
+                <h3>Using react-native-safe-area-context</h3>
+
+                <p>The recommended way to handle safe areas in Expo and React Native:</p>
+
+<pre><code class="language-bash"># Install
+npx expo install react-native-safe-area-context</code></pre>
+
+<pre><code class="language-typescript">// App.tsx - Wrap your app
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;Navigation /&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}</code></pre>
+
+                <h3>SafeAreaView Component</h3>
+
+<pre><code class="language-typescript">import { SafeAreaView } from 'react-native-safe-area-context';
+
+function Screen() {
+  return (
+    &lt;SafeAreaView style={styles.container}&gt;
+      {/* Content is inset from notch and home indicator */}
+      &lt;Text&gt;Safe content here&lt;/Text&gt;
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+// Control which edges to apply
+function CustomScreen() {
+  return (
+    &lt;SafeAreaView 
+      style={styles.container}
+      edges={['top', 'left', 'right']} // Exclude bottom
+    &gt;
+      {/* Bottom edge extends to screen edge */}
+    &lt;/SafeAreaView&gt;
+  );
+}</code></pre>
+
+                <h3>useSafeAreaInsets Hook</h3>
+
+                <p>For fine-grained control, use the insets directly:</p>
+
+<pre><code class="language-typescript">import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function CustomHeader() {
+  const insets = useSafeAreaInsets();
+  
+  return (
+    &lt;View style={[
+      styles.header,
+      { paddingTop: insets.top + 12 } // Add to safe area
+    ]}&gt;
+      &lt;Text style={styles.title}&gt;Header&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+function BottomSheet() {
+  const insets = useSafeAreaInsets();
+  
+  return (
+    &lt;View style={[
+      styles.sheet,
+      { paddingBottom: Math.max(insets.bottom, 16) }
+    ]}&gt;
+      {/* Content */}
+    &lt;/View&gt;
+  );
+}
+
+// All available insets
+function DebugInsets() {
+  const insets = useSafeAreaInsets();
+  
+  console.log({
+    top: insets.top,      // Notch/status bar
+    bottom: insets.bottom, // Home indicator
+    left: insets.left,     // Landscape notch
+    right: insets.right,   // Landscape notch
+  });
+  
+  return null;
+}</code></pre>
+
+                <h3>Safe Areas in Different Contexts</h3>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div class="card" style="margin: 0;">
+                        <h4>Full-Screen Content</h4>
+<pre><code class="language-typescript">// Image extends to edges
+// Controls stay in safe area
+&lt;View style={styles.fullScreen}&gt;
+  &lt;Image 
+    source={image} 
+    style={StyleSheet.absoluteFill} 
+  /&gt;
+  &lt;SafeAreaView style={styles.overlay}&gt;
+    &lt;Controls /&gt;
+  &lt;/SafeAreaView&gt;
+&lt;/View&gt;</code></pre>
+                    </div>
+                    <div class="card" style="margin: 0;">
+                        <h4>Scroll Content</h4>
+<pre><code class="language-typescript">// Content scrolls under notch
+// with proper padding
+&lt;ScrollView
+  contentContainerStyle={{
+    paddingTop: insets.top,
+    paddingBottom: insets.bottom,
+  }}
+&gt;
+  {/* Scrollable content */}
+&lt;/ScrollView&gt;</code></pre>
+                    </div>
+                </div>
+
+                <h3>Keyboard Avoiding with Safe Areas</h3>
+
+<pre><code class="language-typescript">import { KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function ChatScreen() {
+  const insets = useSafeAreaInsets();
+  
+  return (
+    &lt;KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top}
+    &gt;
+      &lt;MessageList /&gt;
+      &lt;View style={{ paddingBottom: insets.bottom }}&gt;
+        &lt;MessageInput /&gt;
+      &lt;/View&gt;
+    &lt;/KeyboardAvoidingView&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="real-world">
+                <h2>Real-World Responsive Patterns</h2>
+
+                <p>Let's combine everything into practical, production-ready patterns.</p>
+
+                <h3>Pattern: Responsive Product Grid</h3>
+
+<pre><code class="language-typescript">import { useWindowDimensions, FlatList, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function ProductGrid({ products }) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  
+  // Responsive columns
+  const numColumns = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
+  const spacing = width >= 768 ? 16 : 12;
+  const horizontalPadding = Math.max(insets.left, spacing);
+  
+  const itemWidth = (width - horizontalPadding * 2 - spacing * (numColumns - 1)) / numColumns;
+  
+  return (
+    &lt;FlatList
+      data={products}
+      numColumns={numColumns}
+      key={`grid-${numColumns}`}
+      contentContainerStyle={{
+        paddingTop: spacing,
+        paddingBottom: insets.bottom + spacing,
+        paddingHorizontal: horizontalPadding,
+      }}
+      columnWrapperStyle={{ gap: spacing }}
+      ItemSeparatorComponent={() =&gt; &lt;View style={{ height: spacing }} /&gt;}
+      renderItem={({ item }) =&gt; (
+        &lt;ProductCard product={item} width={itemWidth} /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Pattern: Adaptive Navigation</h3>
+
+<pre><code class="language-typescript">function AppShell({ children }) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isWideScreen = width >= 768;
+  
+  if (isWideScreen) {
+    // Sidebar navigation for tablets/desktops
+    return (
+      &lt;View style={styles.wideContainer}&gt;
+        &lt;View style={[styles.sidebar, { paddingTop: insets.top }]}&gt;
+          &lt;SidebarNav /&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.mainContent}&gt;
+          {children}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  // Bottom tab navigation for phones
+  return (
+    &lt;View style={styles.phoneContainer}&gt;
+      &lt;View style={[styles.content, { paddingTop: insets.top }]}&gt;
+        {children}
+      &lt;/View&gt;
+      &lt;View style={{ paddingBottom: insets.bottom }}&gt;
+        &lt;BottomTabNav /&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  wideContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 280,
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  mainContent: {
+    flex: 1,
+  },
+  phoneContainer: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+});</code></pre>
+
+                <h3>Pattern: Responsive Form Layout</h3>
+
+<pre><code class="language-typescript">function SignupForm() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= 600;
+  
+  return (
+    &lt;ScrollView contentContainerStyle={styles.form}&gt;
+      {/* Name fields side-by-side on wide screens */}
+      &lt;View style={[styles.row, !isWide && styles.stack]}&gt;
+        &lt;View style={[styles.field, isWide && styles.halfField]}&gt;
+          &lt;LabeledInput label="First Name" /&gt;
+        &lt;/View&gt;
+        &lt;View style={[styles.field, isWide && styles.halfField]}&gt;
+          &lt;LabeledInput label="Last Name" /&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+      
+      {/* Email always full width */}
+      &lt;View style={styles.field}&gt;
+        &lt;LabeledInput label="Email" /&gt;
+      &lt;/View&gt;
+      
+      {/* Address fields */}
+      &lt;View style={[styles.row, !isWide && styles.stack]}&gt;
+        &lt;View style={[styles.field, isWide && styles.wideField]}&gt;
+          &lt;LabeledInput label="City" /&gt;
+        &lt;/View&gt;
+        &lt;View style={[styles.field, isWide && styles.narrowField]}&gt;
+          &lt;LabeledInput label="State" /&gt;
+        &lt;/View&gt;
+        &lt;View style={[styles.field, isWide && styles.narrowField]}&gt;
+          &lt;LabeledInput label="ZIP" /&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/ScrollView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  form: {
+    padding: 16,
+    maxWidth: 800,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  stack: {
+    flexDirection: 'column',
+    gap: 0,
+  },
+  field: {
+    marginBottom: 20,
+  },
+  halfField: {
+    flex: 1,
+  },
+  wideField: {
+    flex: 2,
+  },
+  narrowField: {
+    flex: 1,
+  },
+});</code></pre>
+
+                <h3>Pattern: Responsive Modal/Dialog</h3>
+
+<pre><code class="language-typescript">function ResponsiveModal({ visible, onClose, children }) {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  
+  const isPhone = width < 600;
+  
+  // On phones: bottom sheet
+  // On tablets: centered modal
+  const modalStyle = isPhone
+    ? {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        maxHeight: height * 0.9,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        paddingBottom: insets.bottom,
+      }
+    : {
+        width: Math.min(500, width - 48),
+        maxHeight: height - 100,
+        borderRadius: 16,
+        alignSelf: 'center',
+      };
+  
+  if (!visible) return null;
+  
+  return (
+    &lt;View style={styles.overlay}&gt;
+      &lt;Pressable style={StyleSheet.absoluteFill} onPress={onClose} /&gt;
+      &lt;View style={[styles.modal, modalStyle]}&gt;
+        {children}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+  },
+  modal: {
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+});</code></pre>
+            </section>
+
+            <section id="hands-on">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-container">
+                    <h3>Exercise 1: Create a Breakpoint Hook</h3>
+                    <p>Build a custom <code>useBreakpoint</code> hook that returns 'xs', 'sm', 'md', 'lg', or 'xl' based on screen width.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { useWindowDimensions } from 'react-native';
+
+type Breakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+
+const breakpoints = {
+  xs: 0,
+  sm: 375,
+  md: 428,
+  lg: 768,
+  xl: 1024,
+};
+
+export function useBreakpoint(): Breakpoint {
+  const { width } = useWindowDimensions();
+  
+  if (width >= breakpoints.xl) return 'xl';
+  if (width >= breakpoints.lg) return 'lg';
+  if (width >= breakpoints.md) return 'md';
+  if (width >= breakpoints.sm) return 'sm';
+  return 'xs';
+}
+
+// Bonus: helper to check minimum breakpoint
+export function useMinBreakpoint(minBreakpoint: Breakpoint): boolean {
+  const { width } = useWindowDimensions();
+  return width >= breakpoints[minBreakpoint];
+}
+
+// Usage
+function MyComponent() {
+  const breakpoint = useBreakpoint();
+  const isTabletOrLarger = useMinBreakpoint('lg');
+  
+  console.log(`Current: ${breakpoint}, Tablet+: ${isTabletOrLarger}`);
+}</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-container">
+                    <h3>Exercise 2: Build a Responsive Card Grid</h3>
+                    <p>Create a grid that shows 1 column on small phones, 2 columns on regular phones, 3 columns on tablets, and 4 columns on large screens.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { useWindowDimensions, View, StyleSheet } from 'react-native';
+
+function ResponsiveCardGrid({ items, renderCard }) {
+  const { width } = useWindowDimensions();
+  
+  const getColumns = () =&gt; {
+    if (width >= 1024) return 4;
+    if (width >= 768) return 3;
+    if (width >= 375) return 2;
+    return 1;
+  };
+  
+  const columns = getColumns();
+  const gap = 12;
+  const padding = 16;
+  const cardWidth = (width - padding * 2 - gap * (columns - 1)) / columns;
+  
+  return (
+    &lt;View style={[styles.grid, { padding }]}&gt;
+      {items.map((item, index) =&gt; (
+        &lt;View 
+          key={item.id ?? index}
+          style={[
+            styles.cardWrapper,
+            { width: cardWidth },
+            index % columns !== columns - 1 && { marginRight: gap },
+          ]}
+        &gt;
+          {renderCard(item, cardWidth)}
+        &lt;/View&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  cardWrapper: {
+    marginBottom: 12,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-container">
+                    <h3>Exercise 3: Handle Orientation Change</h3>
+                    <p>Create a video player component that shows controls below the video in portrait but overlays controls in landscape.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { useWindowDimensions, View, StyleSheet } from 'react-native';
+
+function VideoPlayer({ videoSource }) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={isLandscape ? styles.fullscreenVideo : styles.portraitVideo}&gt;
+        &lt;Video source={videoSource} style={StyleSheet.absoluteFill} /&gt;
+        
+        {isLandscape && (
+          &lt;View style={styles.overlayControls}&gt;
+            &lt;PlayerControls /&gt;
+          &lt;/View&gt;
+        )}
+      &lt;/View&gt;
+      
+      {!isLandscape && (
+        &lt;View style={styles.belowControls}&gt;
+          &lt;PlayerControls /&gt;
+          &lt;VideoInfo /&gt;
+        &lt;/View&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  fullscreenVideo: {
+    flex: 1,
+  },
+  portraitVideo: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  overlayControls: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  belowControls: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+});</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>You now have a complete toolkit for building responsive React Native apps without CSS media queries.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>useWindowDimensions</strong> is your primary tool — it's reactive and updates on changes</li>
+                        <li><strong>Breakpoint systems</strong> can be built with simple JavaScript logic</li>
+                        <li><strong>Orientation</strong> is just comparing width vs height</li>
+                        <li><strong>Tablets</strong> need different layouts, navigation, and content density</li>
+                        <li><strong>Typography</strong> should scale with screen size and respect user preferences</li>
+                        <li><strong>Safe areas</strong> are essential for modern devices with notches</li>
+                    </ul>
+                </div>
+
+                <h3>Quick Reference</h3>
+
+<pre><code class="language-typescript">// Essential imports
+import { useWindowDimensions, Dimensions, PixelRatio } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Get dimensions (reactive)
+const { width, height } = useWindowDimensions();
+
+// Orientation
+const isLandscape = width > height;
+
+// Device type
+const isTablet = Math.min(width, height) >= 600;
+
+// Safe areas
+const insets = useSafeAreaInsets();
+
+// Breakpoints
+const breakpoint = 
+  width >= 1024 ? 'desktop' :
+  width >= 768 ? 'tablet' :
+  width >= 414 ? 'large' :
+  width >= 375 ? 'medium' : 'small';
+
+// Font scaling
+const fontScale = PixelRatio.getFontScale();</code></pre>
+
+                <h3>Coming Up Next</h3>
+
+                <p>In the next lesson, we'll explore <strong>Platform-Specific Styles</strong>. You'll learn how to write styles that work differently on iOS and Android, handle platform quirks, and create a consistent cross-platform experience.</p>
+            </section>
+
+            <nav class="lesson-nav">
+                <a href="m04_l03_common_layout_patterns.html" class="prev-link">← Previous: Common Layout Patterns</a>
+                <a href="index.html" class="home-link">Course Home</a>
+                <a href="m04_l05_platform_specific_styles.html" class="next-link">Next: Platform-Specific Styles →</a>
+            </nav>
+        </article>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>React Native & Expo Course © 2025</p>
+        </div>
+    </footer>
+
+    <script>
+        const toggle = document.getElementById('mobile-menu-toggle');
+        const navLinks = document.getElementById('nav-links');
+        
+        toggle?.addEventListener('click', () => {
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', !isExpanded);
+            navLinks?.classList.toggle('active');
+        });
+
+        document.querySelectorAll('.toc-nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').slice(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                    const toc = document.getElementById('toc');
+                    if (toc && window.innerWidth < 768) {
+                        toc.removeAttribute('open');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

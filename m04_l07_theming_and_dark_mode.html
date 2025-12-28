@@ -1,0 +1,2068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theming and Dark Mode | React Native & Expo Course</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="index.html" class="logo" aria-label="Course Home">
+                <span class="logo-react">⚛️</span> RN
+            </a>
+            <nav class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">Modules</a>
+                <a href="appendix_c_component_reference.html">Reference</a>
+            </nav>
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <div class="container">
+            <a href="index.html">Home</a>
+            <span aria-hidden="true">›</span>
+            <a href="index.html#module4">Module 4</a>
+            <span aria-hidden="true">›</span>
+            <span aria-current="page">Theming and Dark Mode</span>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <article class="lesson-container">
+            <header class="lesson-header">
+                <div class="module-badge">Module 4: StyleSheet Deep Dive</div>
+                <h1>Theming and Dark Mode</h1>
+                <p class="lesson-subtitle">Create a flexible design system with light and dark mode support</p>
+            </header>
+
+            <details class="toc-container" id="toc">
+                <summary>Table of Contents</summary>
+                <nav class="toc-nav" aria-label="Table of Contents">
+                    <ul>
+                        <li><a href="#introduction">Introduction</a></li>
+                        <li><a href="#color-scheme">Detecting System Color Scheme</a></li>
+                        <li><a href="#theme-structure">Building a Theme Structure</a></li>
+                        <li><a href="#theme-context">Creating Theme Context</a></li>
+                        <li><a href="#themed-components">Building Themed Components</a></li>
+                        <li><a href="#dynamic-styles">Dynamic Styles with useTheme</a></li>
+                        <li><a href="#theme-switching">Manual Theme Switching</a></li>
+                        <li><a href="#persisting-preference">Persisting Theme Preference</a></li>
+                        <li><a href="#status-bar-nav">Status Bar and Navigation</a></li>
+                        <li><a href="#best-practices">Best Practices</a></li>
+                        <li><a href="#hands-on">Hands-On Exercises</a></li>
+                        <li><a href="#summary">Summary</a></li>
+                    </ul>
+                </nav>
+            </details>
+
+            <div class="learning-objectives card">
+                <h2>🎯 Learning Objectives</h2>
+                <ul>
+                    <li>Detect and respond to system color scheme preferences</li>
+                    <li>Build a comprehensive theme structure with colors, spacing, and typography</li>
+                    <li>Create a ThemeContext for app-wide theme access</li>
+                    <li>Build themed components that adapt automatically</li>
+                    <li>Implement manual theme switching (light/dark/system)</li>
+                    <li>Persist user theme preferences with AsyncStorage</li>
+                    <li>Handle status bar and navigation theming</li>
+                </ul>
+            </div>
+
+            <section id="introduction">
+                <h2>Introduction</h2>
+
+                <p>Dark mode isn't just a trend — it's an accessibility feature, a battery saver on OLED screens, and a user preference that modern apps must support. A well-implemented theme system makes your app adaptable, maintainable, and professional.</p>
+
+                <p>In this lesson, we'll build a complete theming system from scratch. By the end, you'll have reusable code that you can drop into any React Native project.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4>🌓 Why Theme Support Matters</h4>
+                    <ul style="color: white;">
+                        <li><strong>User preference:</strong> Many users prefer dark mode, especially at night</li>
+                        <li><strong>Accessibility:</strong> Some users need high contrast or specific color schemes</li>
+                        <li><strong>Battery life:</strong> Dark mode saves battery on OLED/AMOLED screens</li>
+                        <li><strong>Platform expectations:</strong> iOS and Android both support system-wide dark mode</li>
+                    </ul>
+                </div>
+
+                <h3>What We'll Build</h3>
+
+                <svg viewBox="0 0 700 300" style="width: 100%; max-width: 700px; margin: 20px auto; display: block;">
+                    <!-- Light Mode Phone -->
+                    <g transform="translate(100, 20)">
+                        <text x="70" y="0" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Light Mode</text>
+                        <rect x="0" y="15" width="140" height="250" rx="16" fill="#1a1a1a"/>
+                        <rect x="5" y="25" width="130" height="230" rx="14" fill="#ffffff"/>
+                        
+                        <!-- Header -->
+                        <rect x="5" y="25" width="130" height="40" fill="#f5f5f5"/>
+                        <text x="70" y="50" text-anchor="middle" font-size="11" font-weight="bold" fill="#1a1a1a">Settings</text>
+                        
+                        <!-- List items -->
+                        <rect x="15" y="75" width="110" height="35" fill="#ffffff" stroke="#e0e0e0" rx="6"/>
+                        <text x="25" y="97" font-size="10" fill="#333">🌙 Dark Mode</text>
+                        
+                        <rect x="15" y="115" width="110" height="35" fill="#ffffff" stroke="#e0e0e0" rx="6"/>
+                        <text x="25" y="137" font-size="10" fill="#333">🔔 Notifications</text>
+                        
+                        <rect x="15" y="155" width="110" height="35" fill="#ffffff" stroke="#e0e0e0" rx="6"/>
+                        <text x="25" y="177" font-size="10" fill="#333">👤 Account</text>
+                        
+                        <!-- Button -->
+                        <rect x="25" y="210" width="90" height="30" fill="#2196F3" rx="6"/>
+                        <text x="70" y="230" text-anchor="middle" font-size="10" fill="#fff">Save</text>
+                    </g>
+                    
+                    <!-- Arrow -->
+                    <g transform="translate(300, 140)">
+                        <text x="50" y="10" text-anchor="middle" font-size="24" fill="#666">⇄</text>
+                        <text x="50" y="35" text-anchor="middle" font-size="10" fill="#999">Theme Switch</text>
+                    </g>
+                    
+                    <!-- Dark Mode Phone -->
+                    <g transform="translate(450, 20)">
+                        <text x="70" y="0" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">Dark Mode</text>
+                        <rect x="0" y="15" width="140" height="250" rx="16" fill="#1a1a1a"/>
+                        <rect x="5" y="25" width="130" height="230" rx="14" fill="#121212"/>
+                        
+                        <!-- Header -->
+                        <rect x="5" y="25" width="130" height="40" fill="#1e1e1e"/>
+                        <text x="70" y="50" text-anchor="middle" font-size="11" font-weight="bold" fill="#ffffff">Settings</text>
+                        
+                        <!-- List items -->
+                        <rect x="15" y="75" width="110" height="35" fill="#1e1e1e" rx="6"/>
+                        <text x="25" y="97" font-size="10" fill="#e0e0e0">🌙 Dark Mode</text>
+                        
+                        <rect x="15" y="115" width="110" height="35" fill="#1e1e1e" rx="6"/>
+                        <text x="25" y="137" font-size="10" fill="#e0e0e0">🔔 Notifications</text>
+                        
+                        <rect x="15" y="155" width="110" height="35" fill="#1e1e1e" rx="6"/>
+                        <text x="25" y="177" font-size="10" fill="#e0e0e0">👤 Account</text>
+                        
+                        <!-- Button -->
+                        <rect x="25" y="210" width="90" height="30" fill="#bb86fc" rx="6"/>
+                        <text x="70" y="230" text-anchor="middle" font-size="10" fill="#000">Save</text>
+                    </g>
+                </svg>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph System["System Detection"]
+        CS["useColorScheme()"]
+    end
+    
+    subgraph Theme["Theme System"]
+        TC["ThemeContext"]
+        LT["Light Theme"]
+        DT["Dark Theme"]
+    end
+    
+    subgraph Components["Themed Components"]
+        TC --> C1["Cards"]
+        TC --> C2["Buttons"]
+        TC --> C3["Text"]
+        TC --> C4["Inputs"]
+    end
+    
+    CS --> TC
+    TC --> LT
+    TC --> DT
+    
+    style System fill:#e3f2fd
+    style Theme fill:#fff3e0
+    style Components fill:#e8f5e9
+                </pre>
+            </section>
+
+            <section id="color-scheme">
+                <h2>Detecting System Color Scheme</h2>
+
+                <p>React Native provides the <code>useColorScheme</code> hook to detect the system's current color scheme preference.</p>
+
+                <h3>Basic Usage</h3>
+
+<pre><code class="language-typescript">import { useColorScheme, View, Text, StyleSheet } from 'react-native';
+
+function App() {
+  const colorScheme = useColorScheme();
+  // Returns: 'light' | 'dark' | null
+  
+  const isDarkMode = colorScheme === 'dark';
+  
+  return (
+    &lt;View style={[
+      styles.container,
+      { backgroundColor: isDarkMode ? '#121212' : '#ffffff' }
+    ]}&gt;
+      &lt;Text style={{ color: isDarkMode ? '#ffffff' : '#000000' }}&gt;
+        Current theme: {colorScheme}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});</code></pre>
+
+                <h3>Understanding useColorScheme</h3>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background: #e3f2fd;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Return Value</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Meaning</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;"><code>'light'</code></td>
+                            <td style="padding: 12px;">System is in light mode</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;"><code>'dark'</code></td>
+                            <td style="padding: 12px;">System is in dark mode</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;"><code>null</code></td>
+                            <td style="padding: 12px;">Preference not available (rare, default to light)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Automatic Updates</h4>
+                    <p>The <code>useColorScheme</code> hook automatically triggers a re-render when the user changes their system theme. No event listeners needed!</p>
+                </div>
+
+                <h3>Simple Theme Selection</h3>
+
+<pre><code class="language-typescript">import { useColorScheme, View, Text } from 'react-native';
+
+// Define color constants
+const colors = {
+  light: {
+    background: '#ffffff',
+    text: '#1a1a1a',
+    primary: '#2196F3',
+  },
+  dark: {
+    background: '#121212',
+    text: '#e0e0e0',
+    primary: '#bb86fc',
+  },
+};
+
+function ThemedScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = colors[colorScheme];
+  
+  return (
+    &lt;View style={{ flex: 1, backgroundColor: theme.background }}&gt;
+      &lt;Text style={{ color: theme.text }}&gt;
+        Hello, themed world!
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+            </section>
+
+            <section id="theme-structure">
+                <h2>Building a Theme Structure</h2>
+
+                <p>A well-organized theme structure makes your styles consistent and maintainable. Let's build a comprehensive theme object.</p>
+
+                <h3>Theme Type Definitions</h3>
+
+<pre><code class="language-typescript">// theme/types.ts
+export interface ThemeColors {
+  // Backgrounds
+  background: string;
+  backgroundSecondary: string;
+  backgroundTertiary: string;
+  
+  // Surfaces (cards, modals)
+  surface: string;
+  surfaceElevated: string;
+  
+  // Text
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  textInverse: string;
+  
+  // Primary brand color
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  onPrimary: string;
+  
+  // Secondary brand color
+  secondary: string;
+  onSecondary: string;
+  
+  // Semantic colors
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
+  
+  // Borders and dividers
+  border: string;
+  divider: string;
+  
+  // Interactive states
+  disabled: string;
+  placeholder: string;
+}
+
+export interface ThemeSpacing {
+  xs: number;
+  sm: number;
+  md: number;
+  lg: number;
+  xl: number;
+  xxl: number;
+}
+
+export interface ThemeTypography {
+  h1: TextStyle;
+  h2: TextStyle;
+  h3: TextStyle;
+  body: TextStyle;
+  bodySmall: TextStyle;
+  caption: TextStyle;
+  button: TextStyle;
+}
+
+export interface ThemeShadows {
+  sm: ViewStyle;
+  md: ViewStyle;
+  lg: ViewStyle;
+}
+
+export interface Theme {
+  dark: boolean;
+  colors: ThemeColors;
+  spacing: ThemeSpacing;
+  typography: ThemeTypography;
+  shadows: ThemeShadows;
+  borderRadius: {
+    sm: number;
+    md: number;
+    lg: number;
+    full: number;
+  };
+}</code></pre>
+
+                <h3>Light Theme Definition</h3>
+
+<pre><code class="language-typescript">// theme/lightTheme.ts
+import { Theme } from './types';
+import { Platform } from 'react-native';
+
+export const lightTheme: Theme = {
+  dark: false,
+  
+  colors: {
+    // Backgrounds
+    background: '#ffffff',
+    backgroundSecondary: '#f5f5f5',
+    backgroundTertiary: '#eeeeee',
+    
+    // Surfaces
+    surface: '#ffffff',
+    surfaceElevated: '#ffffff',
+    
+    // Text
+    text: '#1a1a1a',
+    textSecondary: '#666666',
+    textTertiary: '#999999',
+    textInverse: '#ffffff',
+    
+    // Primary (Blue)
+    primary: '#2196F3',
+    primaryLight: '#64b5f6',
+    primaryDark: '#1976d2',
+    onPrimary: '#ffffff',
+    
+    // Secondary (Orange)
+    secondary: '#FF9800',
+    onSecondary: '#000000',
+    
+    // Semantic
+    success: '#4CAF50',
+    warning: '#FFC107',
+    error: '#F44336',
+    info: '#2196F3',
+    
+    // Borders
+    border: '#e0e0e0',
+    divider: '#eeeeee',
+    
+    // States
+    disabled: '#bdbdbd',
+    placeholder: '#9e9e9e',
+  },
+  
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  
+  typography: {
+    h1: {
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 40,
+    },
+    h2: {
+      fontSize: 24,
+      fontWeight: '600',
+      lineHeight: 32,
+    },
+    h3: {
+      fontSize: 20,
+      fontWeight: '600',
+      lineHeight: 28,
+    },
+    body: {
+      fontSize: 16,
+      fontWeight: '400',
+      lineHeight: 24,
+    },
+    bodySmall: {
+      fontSize: 14,
+      fontWeight: '400',
+      lineHeight: 20,
+    },
+    caption: {
+      fontSize: 12,
+      fontWeight: '400',
+      lineHeight: 16,
+    },
+    button: {
+      fontSize: 16,
+      fontWeight: '600',
+      lineHeight: 24,
+    },
+  },
+  
+  shadows: {
+    sm: Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }) as any,
+    md: Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }) as any,
+    lg: Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }) as any,
+  },
+  
+  borderRadius: {
+    sm: 4,
+    md: 8,
+    lg: 16,
+    full: 9999,
+  },
+};</code></pre>
+
+                <h3>Dark Theme Definition</h3>
+
+<pre><code class="language-typescript">// theme/darkTheme.ts
+import { Theme } from './types';
+import { lightTheme } from './lightTheme';
+
+export const darkTheme: Theme = {
+  ...lightTheme, // Inherit spacing, typography, shadows, borderRadius
+  dark: true,
+  
+  colors: {
+    // Backgrounds (Material Design dark theme guidelines)
+    background: '#121212',
+    backgroundSecondary: '#1e1e1e',
+    backgroundTertiary: '#2c2c2c',
+    
+    // Surfaces (slightly elevated from background)
+    surface: '#1e1e1e',
+    surfaceElevated: '#2c2c2c',
+    
+    // Text (reduced contrast for dark mode comfort)
+    text: '#e0e0e0',
+    textSecondary: '#a0a0a0',
+    textTertiary: '#6c6c6c',
+    textInverse: '#1a1a1a',
+    
+    // Primary (lighter for dark backgrounds)
+    primary: '#bb86fc',
+    primaryLight: '#e1bee7',
+    primaryDark: '#9c27b0',
+    onPrimary: '#000000',
+    
+    // Secondary
+    secondary: '#03DAC6',
+    onSecondary: '#000000',
+    
+    // Semantic (slightly desaturated)
+    success: '#81c784',
+    warning: '#ffb74d',
+    error: '#ef5350',
+    info: '#64b5f6',
+    
+    // Borders
+    border: '#3c3c3c',
+    divider: '#2c2c2c',
+    
+    // States
+    disabled: '#4a4a4a',
+    placeholder: '#6c6c6c',
+  },
+};</code></pre>
+
+                <div class="card" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h4>⚠️ Dark Mode Design Guidelines</h4>
+                    <ul>
+                        <li><strong>Don't use pure black (#000000):</strong> Use dark gray (#121212) for better readability</li>
+                        <li><strong>Reduce contrast:</strong> Use #e0e0e0 instead of #ffffff for text</li>
+                        <li><strong>Desaturate colors:</strong> Bright colors feel harsh on dark backgrounds</li>
+                        <li><strong>Maintain hierarchy:</strong> Use slightly lighter surfaces for elevation</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="theme-context">
+                <h2>Creating Theme Context</h2>
+
+                <p>Context provides theme access throughout your component tree without prop drilling.</p>
+
+                <h3>Theme Context Implementation</h3>
+
+<pre><code class="language-typescript">// context/ThemeContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useColorScheme } from 'react-native';
+import { Theme } from '../theme/types';
+import { lightTheme } from '../theme/lightTheme';
+import { darkTheme } from '../theme/darkTheme';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+interface ThemeContextType {
+  theme: Theme;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  isDark: boolean;
+}
+
+const ThemeContext = createContext&lt;ThemeContextType | undefined&gt;(undefined);
+
+interface ThemeProviderProps {
+  children: ReactNode;
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState&lt;ThemeMode&gt;('system');
+  
+  // Determine actual theme based on mode
+  const isDark = 
+    themeMode === 'dark' || 
+    (themeMode === 'system' && systemColorScheme === 'dark');
+  
+  const theme = isDark ? darkTheme : lightTheme;
+  
+  const value: ThemeContextType = {
+    theme,
+    themeMode,
+    setThemeMode,
+    isDark,
+  };
+  
+  return (
+    &lt;ThemeContext.Provider value={value}&gt;
+      {children}
+    &lt;/ThemeContext.Provider&gt;
+  );
+}
+
+// Custom hook for accessing theme
+export function useTheme(): ThemeContextType {
+  const context = useContext(ThemeContext);
+  
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  
+  return context;
+}
+
+// Convenience hook for just the theme object
+export function useThemeColors() {
+  const { theme } = useTheme();
+  return theme.colors;
+}</code></pre>
+
+                <h3>Setting Up the Provider</h3>
+
+<pre><code class="language-typescript">// App.tsx
+import { ThemeProvider } from './context/ThemeContext';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;ThemeProvider&gt;
+        &lt;ThemedApp /&gt;
+      &lt;/ThemeProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+
+function ThemedApp() {
+  const { isDark } = useTheme();
+  
+  return (
+    &lt;&gt;
+      &lt;StatusBar style={isDark ? 'light' : 'dark'} /&gt;
+      &lt;Navigation /&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+
+                <pre class="mermaid">
+flowchart TB
+    subgraph App["App Component"]
+        TP["ThemeProvider"]
+    end
+    
+    subgraph Context["Theme Context"]
+        TM["themeMode: 'system'"]
+        T["theme: lightTheme | darkTheme"]
+        ST["setThemeMode()"]
+    end
+    
+    subgraph Usage["Component Usage"]
+        UT["useTheme()"]
+        UTC["useThemeColors()"]
+    end
+    
+    TP --> Context
+    Context --> Usage
+    
+    style App fill:#e3f2fd
+    style Context fill:#fff3e0
+    style Usage fill:#e8f5e9
+                </pre>
+            </section>
+            <section id="themed-components">
+                <h2>Building Themed Components</h2>
+
+                <p>Create a library of themed components that automatically adapt to the current theme.</p>
+
+                <h3>Themed Text Component</h3>
+
+<pre><code class="language-typescript">// components/themed/ThemedText.tsx
+import { Text, TextProps, StyleSheet } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+
+type TextVariant = 'h1' | 'h2' | 'h3' | 'body' | 'bodySmall' | 'caption';
+type TextColor = 'primary' | 'secondary' | 'tertiary' | 'error' | 'success' | 'brand';
+
+interface ThemedTextProps extends TextProps {
+  variant?: TextVariant;
+  color?: TextColor;
+}
+
+export function ThemedText({ 
+  variant = 'body', 
+  color = 'primary',
+  style, 
+  ...props 
+}: ThemedTextProps) {
+  const { theme } = useTheme();
+  
+  const colorMap = {
+    primary: theme.colors.text,
+    secondary: theme.colors.textSecondary,
+    tertiary: theme.colors.textTertiary,
+    error: theme.colors.error,
+    success: theme.colors.success,
+    brand: theme.colors.primary,
+  };
+  
+  return (
+    &lt;Text
+      style={[
+        theme.typography[variant],
+        { color: colorMap[color] },
+        style,
+      ]}
+      {...props}
+    /&gt;
+  );
+}
+
+// Usage
+&lt;ThemedText variant="h1"&gt;Welcome&lt;/ThemedText&gt;
+&lt;ThemedText variant="body" color="secondary"&gt;Description&lt;/ThemedText&gt;
+&lt;ThemedText variant="caption" color="error"&gt;Error message&lt;/ThemedText&gt;</code></pre>
+
+                <h3>Themed View Component</h3>
+
+<pre><code class="language-typescript">// components/themed/ThemedView.tsx
+import { View, ViewProps } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+
+type BackgroundVariant = 'primary' | 'secondary' | 'tertiary' | 'surface' | 'elevated';
+
+interface ThemedViewProps extends ViewProps {
+  background?: BackgroundVariant;
+}
+
+export function ThemedView({ 
+  background = 'primary', 
+  style, 
+  ...props 
+}: ThemedViewProps) {
+  const { theme } = useTheme();
+  
+  const backgroundMap = {
+    primary: theme.colors.background,
+    secondary: theme.colors.backgroundSecondary,
+    tertiary: theme.colors.backgroundTertiary,
+    surface: theme.colors.surface,
+    elevated: theme.colors.surfaceElevated,
+  };
+  
+  return (
+    &lt;View
+      style={[{ backgroundColor: backgroundMap[background] }, style]}
+      {...props}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>Themed Card Component</h3>
+
+<pre><code class="language-typescript">// components/themed/Card.tsx
+import { View, ViewProps, StyleSheet } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+
+interface CardProps extends ViewProps {
+  elevated?: boolean;
+}
+
+export function Card({ elevated = false, style, children, ...props }: CardProps) {
+  const { theme } = useTheme();
+  
+  return (
+    &lt;View
+      style={[
+        styles.card,
+        {
+          backgroundColor: elevated 
+            ? theme.colors.surfaceElevated 
+            : theme.colors.surface,
+          borderRadius: theme.borderRadius.lg,
+        },
+        elevated && theme.shadows.md,
+        style,
+      ]}
+      {...props}
+    &gt;
+      {children}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    padding: 16,
+  },
+});</code></pre>
+
+                <h3>Themed Button Component</h3>
+
+<pre><code class="language-typescript">// components/themed/Button.tsx
+import { Pressable, Text, StyleSheet, ViewStyle, Platform } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+
+type ButtonVariant = 'filled' | 'outlined' | 'text';
+type ButtonSize = 'sm' | 'md' | 'lg';
+
+interface ButtonProps {
+  title: string;
+  onPress: () => void;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  disabled?: boolean;
+}
+
+export function Button({ 
+  title, 
+  onPress, 
+  variant = 'filled',
+  size = 'md',
+  disabled = false,
+}: ButtonProps) {
+  const { theme } = useTheme();
+  
+  const sizeStyles = {
+    sm: { paddingVertical: 8, paddingHorizontal: 16, fontSize: 14 },
+    md: { paddingVertical: 12, paddingHorizontal: 20, fontSize: 16 },
+    lg: { paddingVertical: 16, paddingHorizontal: 24, fontSize: 18 },
+  };
+  
+  const getButtonStyle = (): ViewStyle => {
+    const base: ViewStyle = {
+      borderRadius: theme.borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: sizeStyles[size].paddingVertical,
+      paddingHorizontal: sizeStyles[size].paddingHorizontal,
+    };
+    
+    if (disabled) {
+      return {
+        ...base,
+        backgroundColor: theme.colors.disabled,
+      };
+    }
+    
+    switch (variant) {
+      case 'filled':
+        return {
+          ...base,
+          backgroundColor: theme.colors.primary,
+          ...theme.shadows.sm,
+        };
+      case 'outlined':
+        return {
+          ...base,
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: theme.colors.primary,
+        };
+      case 'text':
+        return {
+          ...base,
+          backgroundColor: 'transparent',
+        };
+    }
+  };
+  
+  const getTextColor = () => {
+    if (disabled) return theme.colors.textTertiary;
+    if (variant === 'filled') return theme.colors.onPrimary;
+    return theme.colors.primary;
+  };
+  
+  return (
+    &lt;Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) =&gt; [
+        getButtonStyle(),
+        Platform.OS === 'ios' && pressed && styles.pressed,
+      ]}
+      android_ripple={{
+        color: variant === 'filled' 
+          ? 'rgba(255,255,255,0.2)' 
+          : `${theme.colors.primary}20`,
+      }}
+    &gt;
+      &lt;Text style={[
+        theme.typography.button,
+        { color: getTextColor(), fontSize: sizeStyles[size].fontSize },
+      ]}&gt;
+        {title}
+      &lt;/Text&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.7,
+  },
+});</code></pre>
+
+                <h3>Themed Input Component</h3>
+
+<pre><code class="language-typescript">// components/themed/Input.tsx
+import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+
+interface InputProps extends TextInputProps {
+  label?: string;
+  error?: string;
+}
+
+export function Input({ label, error, style, ...props }: InputProps) {
+  const { theme } = useTheme();
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      {label && (
+        &lt;Text style={[styles.label, { color: theme.colors.textSecondary }]}&gt;
+          {label}
+        &lt;/Text&gt;
+      )}
+      
+      &lt;TextInput
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.colors.backgroundSecondary,
+            color: theme.colors.text,
+            borderColor: error ? theme.colors.error : theme.colors.border,
+            borderRadius: theme.borderRadius.md,
+          },
+          style,
+        ]}
+        placeholderTextColor={theme.colors.placeholder}
+        {...props}
+      /&gt;
+      
+      {error && (
+        &lt;Text style={[styles.error, { color: theme.colors.error }]}&gt;
+          {error}
+        &lt;/Text&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  input: {
+    height: 48,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  error: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+});</code></pre>
+
+                <h3>Export All Themed Components</h3>
+
+<pre><code class="language-typescript">// components/themed/index.ts
+export { ThemedText } from './ThemedText';
+export { ThemedView } from './ThemedView';
+export { Card } from './Card';
+export { Button } from './Button';
+export { Input } from './Input';
+
+// Usage in screens
+import { ThemedText, ThemedView, Card, Button, Input } from '../components/themed';</code></pre>
+            </section>
+
+            <section id="dynamic-styles">
+                <h2>Dynamic Styles with useTheme</h2>
+
+                <p>For more complex components, create styles dynamically based on the theme.</p>
+
+                <h3>useThemedStyles Hook</h3>
+
+<pre><code class="language-typescript">// hooks/useThemedStyles.ts
+import { useMemo } from 'react';
+import { StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { Theme } from '../theme/types';
+
+type StyleFactory&lt;T&gt; = (theme: Theme) =&gt; T;
+
+export function useThemedStyles&lt;T extends StyleSheet.NamedStyles&lt;T&gt;&gt;(
+  styleFactory: StyleFactory&lt;T&gt;
+): T {
+  const { theme } = useTheme();
+  
+  return useMemo(() =&gt; styleFactory(theme), [theme, styleFactory]);
+}
+
+// Usage
+function ProfileScreen() {
+  const styles = useThemedStyles((theme) =&gt; StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      padding: theme.spacing.md,
+    },
+    header: {
+      ...theme.typography.h1,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.lg,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.md,
+      ...theme.shadows.md,
+    },
+    label: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing.xs,
+    },
+    value: {
+      ...theme.typography.body,
+      color: theme.colors.text,
+    },
+  }));
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={styles.header}&gt;Profile&lt;/Text&gt;
+      &lt;View style={styles.card}&gt;
+        &lt;Text style={styles.label}&gt;Name&lt;/Text&gt;
+        &lt;Text style={styles.value}&gt;John Doe&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Inline Theme Usage</h3>
+
+<pre><code class="language-typescript">// For simpler cases, use theme directly
+function SimpleComponent() {
+  const { theme } = useTheme();
+  
+  return (
+    &lt;View style={{ 
+      backgroundColor: theme.colors.background,
+      padding: theme.spacing.md,
+    }}&gt;
+      &lt;Text style={{ 
+        ...theme.typography.h2,
+        color: theme.colors.text,
+      }}&gt;
+        Title
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+
+                <h3>Style Prop Pattern</h3>
+
+<pre><code class="language-typescript">// Allow style overrides in themed components
+interface ThemedCardProps extends ViewProps {
+  variant?: 'default' | 'outlined';
+}
+
+function ThemedCard({ variant = 'default', style, children, ...props }: ThemedCardProps) {
+  const { theme } = useTheme();
+  
+  const cardStyle: ViewStyle = {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    ...(variant === 'outlined' 
+      ? { borderWidth: 1, borderColor: theme.colors.border }
+      : theme.shadows.md
+    ),
+  };
+  
+  return (
+    &lt;View style={[cardStyle, style]} {...props}&gt;
+      {children}
+    &lt;/View&gt;
+  );
+}
+
+// Usage with overrides
+&lt;ThemedCard style={{ marginBottom: 16 }}&gt;
+  &lt;Content /&gt;
+&lt;/ThemedCard&gt;</code></pre>
+            </section>
+
+            <section id="theme-switching">
+                <h2>Manual Theme Switching</h2>
+
+                <p>Allow users to choose between light, dark, or system theme preference.</p>
+
+                <h3>Theme Selector Component</h3>
+
+<pre><code class="language-typescript">// components/ThemeSelector.tsx
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+
+type ThemeOption = 'light' | 'dark' | 'system';
+
+const options: { value: ThemeOption; label: string; icon: string }[] = [
+  { value: 'light', label: 'Light', icon: '☀️' },
+  { value: 'dark', label: 'Dark', icon: '🌙' },
+  { value: 'system', label: 'System', icon: '⚙️' },
+];
+
+export function ThemeSelector() {
+  const { theme, themeMode, setThemeMode } = useTheme();
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text style={[styles.title, { color: theme.colors.text }]}&gt;
+        Appearance
+      &lt;/Text&gt;
+      
+      &lt;View style={[styles.options, { backgroundColor: theme.colors.backgroundSecondary }]}&gt;
+        {options.map((option) =&gt; {
+          const isSelected = themeMode === option.value;
+          
+          return (
+            &lt;Pressable
+              key={option.value}
+              style={[
+                styles.option,
+                isSelected && { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() =&gt; setThemeMode(option.value)}
+            &gt;
+              &lt;Text style={styles.icon}&gt;{option.icon}&lt;/Text&gt;
+              &lt;Text style={[
+                styles.optionText,
+                { color: isSelected ? theme.colors.onPrimary : theme.colors.text },
+              ]}&gt;
+                {option.label}
+              &lt;/Text&gt;
+            &lt;/Pressable&gt;
+          );
+        })}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  options: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
+  },
+  option: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  icon: {
+    fontSize: 16,
+  },
+  optionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});</code></pre>
+
+                <svg viewBox="0 0 400 80" style="width: 100%; max-width: 400px; margin: 20px auto; display: block;">
+                    <!-- Background -->
+                    <rect x="10" y="10" width="380" height="60" rx="12" fill="#f5f5f5"/>
+                    
+                    <!-- Light option -->
+                    <rect x="18" y="18" width="118" height="44" rx="8" fill="#2196F3"/>
+                    <text x="77" y="45" text-anchor="middle" font-size="12" fill="#fff">☀️ Light</text>
+                    
+                    <!-- Dark option -->
+                    <rect x="144" y="18" width="118" height="44" rx="8" fill="transparent"/>
+                    <text x="203" y="45" text-anchor="middle" font-size="12" fill="#333">🌙 Dark</text>
+                    
+                    <!-- System option -->
+                    <rect x="270" y="18" width="112" height="44" rx="8" fill="transparent"/>
+                    <text x="326" y="45" text-anchor="middle" font-size="12" fill="#333">⚙️ System</text>
+                </svg>
+            </section>
+
+            <section id="persisting-preference">
+                <h2>Persisting Theme Preference</h2>
+
+                <p>Save the user's theme choice so it persists between app launches.</p>
+
+                <h3>Updated ThemeProvider with Persistence</h3>
+
+<pre><code class="language-typescript">// context/ThemeContext.tsx (updated)
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Theme } from '../theme/types';
+import { lightTheme } from '../theme/lightTheme';
+import { darkTheme } from '../theme/darkTheme';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+const THEME_STORAGE_KEY = '@app_theme_mode';
+
+interface ThemeContextType {
+  theme: Theme;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  isDark: boolean;
+  isLoading: boolean;
+}
+
+const ThemeContext = createContext&lt;ThemeContextType | undefined&gt;(undefined);
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeModeState] = useState&lt;ThemeMode&gt;('system');
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Load saved preference on mount
+  useEffect(() => {
+    async function loadThemePreference() {
+      try {
+        const savedMode = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (savedMode && ['light', 'dark', 'system'].includes(savedMode)) {
+          setThemeModeState(savedMode as ThemeMode);
+        }
+      } catch (error) {
+        console.error('Failed to load theme preference:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadThemePreference();
+  }, []);
+  
+  // Save preference when it changes
+  const setThemeMode = async (mode: ThemeMode) => {
+    setThemeModeState(mode);
+    try {
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+    } catch (error) {
+      console.error('Failed to save theme preference:', error);
+    }
+  };
+  
+  const isDark = 
+    themeMode === 'dark' || 
+    (themeMode === 'system' && systemColorScheme === 'dark');
+  
+  const theme = isDark ? darkTheme : lightTheme;
+  
+  const value: ThemeContextType = {
+    theme,
+    themeMode,
+    setThemeMode,
+    isDark,
+    isLoading,
+  };
+  
+  return (
+    &lt;ThemeContext.Provider value={value}&gt;
+      {children}
+    &lt;/ThemeContext.Provider&gt;
+  );
+}
+
+export function useTheme(): ThemeContextType {
+  const context = useContext(ThemeContext);
+  
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  
+  return context;
+}</code></pre>
+
+                <h3>Handling Loading State</h3>
+
+<pre><code class="language-typescript">// App.tsx
+import { ActivityIndicator, View } from 'react-native';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+
+function App() {
+  return (
+    &lt;ThemeProvider&gt;
+      &lt;AppContent /&gt;
+    &lt;/ThemeProvider&gt;
+  );
+}
+
+function AppContent() {
+  const { isLoading, theme } = useTheme();
+  
+  // Show loading while theme preference is being loaded
+  if (isLoading) {
+    return (
+      &lt;View style={{ 
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        backgroundColor: '#121212', // Use dark to avoid flash
+      }}&gt;
+        &lt;ActivityIndicator size="large" color="#bb86fc" /&gt;
+      &lt;/View&gt;
+    );
+  }
+  
+  return &lt;Navigation /&gt;;
+}</code></pre>
+
+                <div class="card" style="background: #e8f5e9; border-left: 4px solid #4CAF50;">
+                    <h4>✅ Pro Tip: Avoid White Flash</h4>
+                    <p>Use a dark splash screen and dark loading state to avoid a jarring white flash when dark mode users open the app. The splash screen should match the most common expected theme.</p>
+                </div>
+            </section>
+            <section id="status-bar-nav">
+                <h2>Status Bar and Navigation Theming</h2>
+
+                <p>Complete theme integration requires styling the status bar and navigation to match your theme.</p>
+
+                <h3>Status Bar Theming</h3>
+
+<pre><code class="language-typescript">// Using Expo StatusBar
+import { StatusBar } from 'expo-status-bar';
+import { useTheme } from '../context/ThemeContext';
+
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  
+  return (
+    &lt;StatusBar 
+      style={isDark ? 'light' : 'dark'} 
+      backgroundColor={isDark ? '#121212' : '#ffffff'}
+    /&gt;
+  );
+}
+
+// Include in your app root
+function App() {
+  return (
+    &lt;ThemeProvider&gt;
+      &lt;ThemedStatusBar /&gt;
+      &lt;Navigation /&gt;
+    &lt;/ThemeProvider&gt;
+  );
+}</code></pre>
+
+                <h3>React Navigation Theming</h3>
+
+                <p>React Navigation has built-in theme support that integrates with your custom theme.</p>
+
+<pre><code class="language-typescript">// navigation/theme.ts
+import { Theme as NavigationTheme } from '@react-navigation/native';
+import { Theme } from '../theme/types';
+
+export function createNavigationTheme(theme: Theme): NavigationTheme {
+  return {
+    dark: theme.dark,
+    colors: {
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      notification: theme.colors.error,
+    },
+  };
+}</code></pre>
+
+<pre><code class="language-typescript">// navigation/Navigation.tsx
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from '../context/ThemeContext';
+import { createNavigationTheme } from './theme';
+
+const Stack = createNativeStackNavigator();
+
+export function Navigation() {
+  const { theme, isDark } = useTheme();
+  const navigationTheme = createNavigationTheme(theme);
+  
+  return (
+    &lt;NavigationContainer theme={navigationTheme}&gt;
+      &lt;Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.colors.surface,
+          },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: {
+            ...theme.typography.h3,
+            color: theme.colors.text,
+          },
+          headerShadowVisible: false,
+          contentStyle: {
+            backgroundColor: theme.colors.background,
+          },
+        }}
+      &gt;
+        &lt;Stack.Screen name="Home" component={HomeScreen} /&gt;
+        &lt;Stack.Screen name="Settings" component={SettingsScreen} /&gt;
+        &lt;Stack.Screen name="Profile" component={ProfileScreen} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+
+                <h3>Bottom Tab Navigator Theming</h3>
+
+<pre><code class="language-typescript">import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useTheme } from '../context/ThemeContext';
+
+const Tab = createBottomTabNavigator();
+
+function TabNavigator() {
+  const { theme } = useTheme();
+  
+  return (
+    &lt;Tab.Navigator
+      screenOptions={{
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        headerStyle: {
+          backgroundColor: theme.colors.surface,
+        },
+        headerTintColor: theme.colors.text,
+      }}
+    &gt;
+      &lt;Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color }) =&gt; &lt;HomeIcon color={color} /&gt;,
+        }}
+      /&gt;
+      &lt;Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          tabBarIcon: ({ color }) =&gt; &lt;SettingsIcon color={color} /&gt;,
+        }}
+      /&gt;
+    &lt;/Tab.Navigator&gt;
+  );
+}</code></pre>
+
+                <h3>Modal Theming</h3>
+
+<pre><code class="language-typescript">function ThemedModal({ visible, onClose, children }) {
+  const { theme } = useTheme();
+  
+  return (
+    &lt;Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    &gt;
+      &lt;View style={styles.overlay}&gt;
+        &lt;View style={[
+          styles.modal,
+          {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.borderRadius.lg,
+            ...theme.shadows.lg,
+          }
+        ]}&gt;
+          {children}
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/Modal&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modal: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 24,
+  },
+});</code></pre>
+            </section>
+
+            <section id="best-practices">
+                <h2>Best Practices</h2>
+
+                <h3>1. Define Semantic Colors</h3>
+
+<pre><code class="language-typescript">// ✅ Good - semantic naming
+colors: {
+  background: '#ffffff',
+  text: '#1a1a1a',
+  textSecondary: '#666666',
+  error: '#f44336',
+}
+
+// ❌ Bad - literal color names
+colors: {
+  white: '#ffffff',
+  black: '#1a1a1a',
+  gray: '#666666',
+  red: '#f44336',
+}</code></pre>
+
+                <h3>2. Use Theme Tokens Consistently</h3>
+
+<pre><code class="language-typescript">// ✅ Good - use theme tokens
+&lt;View style={{ padding: theme.spacing.md }}&gt;
+  &lt;Text style={{ color: theme.colors.text }}&gt;Hello&lt;/Text&gt;
+&lt;/View&gt;
+
+// ❌ Bad - hardcoded values
+&lt;View style={{ padding: 16 }}&gt;
+  &lt;Text style={{ color: '#1a1a1a' }}&gt;Hello&lt;/Text&gt;
+&lt;/View&gt;</code></pre>
+
+                <h3>3. Create Themed Component Library</h3>
+
+<pre><code class="language-typescript">// Build a complete set of themed primitives
+export { ThemedText } from './ThemedText';
+export { ThemedView } from './ThemedView';
+export { Card } from './Card';
+export { Button } from './Button';
+export { Input } from './Input';
+export { Divider } from './Divider';
+export { Avatar } from './Avatar';
+export { Badge } from './Badge';
+
+// Then use them exclusively
+import { ThemedText, Card, Button } from '../components/themed';</code></pre>
+
+                <h3>4. Test Both Themes</h3>
+
+                <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                    <h4>💡 Testing Checklist</h4>
+                    <ul>
+                        <li>☐ All text is readable in both themes</li>
+                        <li>☐ Interactive elements are clearly visible</li>
+                        <li>☐ Images/icons work on both backgrounds</li>
+                        <li>☐ Status bar contrasts with header</li>
+                        <li>☐ Disabled states are distinguishable</li>
+                        <li>☐ Error/success states are visible</li>
+                        <li>☐ No hardcoded colors bypass the theme</li>
+                    </ul>
+                </div>
+
+                <h3>5. Handle Images and Icons</h3>
+
+<pre><code class="language-typescript">// For icons that need to adapt
+function ThemedIcon({ name, size = 24 }) {
+  const { theme } = useTheme();
+  return &lt;Icon name={name} size={size} color={theme.colors.text} /&gt;;
+}
+
+// For images that need dark variants
+function ThemedLogo() {
+  const { isDark } = useTheme();
+  
+  return (
+    &lt;Image
+      source={isDark 
+        ? require('../assets/logo-dark.png')
+        : require('../assets/logo-light.png')
+      }
+      style={styles.logo}
+    /&gt;
+  );
+}</code></pre>
+
+                <h3>6. Smooth Theme Transitions</h3>
+
+<pre><code class="language-typescript">// Consider animating theme changes for smoother UX
+import { LayoutAnimation, Platform, UIManager } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+// In setThemeMode
+const setThemeMode = async (mode: ThemeMode) => {
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  setThemeModeState(mode);
+  // ... persist
+};</code></pre>
+
+                <h3>Complete File Structure</h3>
+
+<pre><code class="language-text">src/
+├── theme/
+│   ├── index.ts          # Export all theme items
+│   ├── types.ts          # TypeScript interfaces
+│   ├── lightTheme.ts     # Light theme definition
+│   └── darkTheme.ts      # Dark theme definition
+├── context/
+│   └── ThemeContext.tsx  # Theme provider and hooks
+├── components/
+│   └── themed/
+│       ├── index.ts      # Export all components
+│       ├── ThemedText.tsx
+│       ├── ThemedView.tsx
+│       ├── Card.tsx
+│       ├── Button.tsx
+│       └── Input.tsx
+├── hooks/
+│   └── useThemedStyles.ts
+└── navigation/
+    ├── theme.ts          # Navigation theme adapter
+    └── Navigation.tsx    # Themed navigator</code></pre>
+            </section>
+
+            <section id="hands-on">
+                <h2>Hands-On Exercises</h2>
+
+                <div class="exercise-container">
+                    <h3>Exercise 1: Create a Theme Toggle Switch</h3>
+                    <p>Build a toggle switch component that switches between light and dark mode, displaying the current mode.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { View, Text, Switch, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+
+function ThemeToggle() {
+  const { theme, isDark, setThemeMode } = useTheme();
+  
+  const handleToggle = (value: boolean) => {
+    setThemeMode(value ? 'dark' : 'light');
+  };
+  
+  return (
+    &lt;View style={[styles.container, { backgroundColor: theme.colors.surface }]}&gt;
+      &lt;View style={styles.row}&gt;
+        &lt;Text style={styles.icon}&gt;☀️&lt;/Text&gt;
+        &lt;Switch
+          value={isDark}
+          onValueChange={handleToggle}
+          trackColor={{ 
+            false: theme.colors.border, 
+            true: theme.colors.primary 
+          }}
+          thumbColor={theme.colors.surface}
+        /&gt;
+        &lt;Text style={styles.icon}&gt;🌙&lt;/Text&gt;
+      &lt;/View&gt;
+      &lt;Text style={[styles.label, { color: theme.colors.textSecondary }]}&gt;
+        {isDark ? 'Dark Mode' : 'Light Mode'}
+      &lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  icon: {
+    fontSize: 20,
+  },
+  label: {
+    marginTop: 8,
+    fontSize: 14,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-container">
+                    <h3>Exercise 2: Build a Themed Settings Screen</h3>
+                    <p>Create a complete settings screen with themed list items, a theme selector, and proper dark mode support.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
+import { ThemeSelector } from '../components/ThemeSelector';
+
+function SettingsScreen() {
+  const { theme } = useTheme();
+  
+  const settingsGroups = [
+    {
+      title: 'Appearance',
+      items: [
+        { icon: '🎨', label: 'Theme', component: &lt;ThemeSelector /&gt; },
+      ],
+    },
+    {
+      title: 'Account',
+      items: [
+        { icon: '👤', label: 'Profile', onPress: () =&gt; {} },
+        { icon: '🔔', label: 'Notifications', onPress: () =&gt; {} },
+        { icon: '🔒', label: 'Privacy', onPress: () =&gt; {} },
+      ],
+    },
+    {
+      title: 'Support',
+      items: [
+        { icon: '❓', label: 'Help Center', onPress: () =&gt; {} },
+        { icon: '📧', label: 'Contact Us', onPress: () =&gt; {} },
+      ],
+    },
+  ];
+  
+  return (
+    &lt;SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}&gt;
+      &lt;ScrollView&gt;
+        &lt;Text style={[styles.screenTitle, { color: theme.colors.text }]}&gt;
+          Settings
+        &lt;/Text&gt;
+        
+        {settingsGroups.map((group) =&gt; (
+          &lt;View key={group.title} style={styles.group}&gt;
+            &lt;Text style={[styles.groupTitle, { color: theme.colors.textSecondary }]}&gt;
+              {group.title}
+            &lt;/Text&gt;
+            
+            &lt;View style={[styles.groupContent, { backgroundColor: theme.colors.surface }]}&gt;
+              {group.items.map((item, index) =&gt; (
+                &lt;View key={item.label}&gt;
+                  {item.component ? (
+                    item.component
+                  ) : (
+                    &lt;Pressable
+                      style={styles.settingsItem}
+                      onPress={item.onPress}
+                    &gt;
+                      &lt;Text style={styles.itemIcon}&gt;{item.icon}&lt;/Text&gt;
+                      &lt;Text style={[styles.itemLabel, { color: theme.colors.text }]}&gt;
+                        {item.label}
+                      &lt;/Text&gt;
+                      &lt;Text style={{ color: theme.colors.textTertiary }}&gt;›&lt;/Text&gt;
+                    &lt;/Pressable&gt;
+                  )}
+                  
+                  {index &lt; group.items.length - 1 && (
+                    &lt;View style={[styles.divider, { backgroundColor: theme.colors.divider }]} /&gt;
+                  )}
+                &lt;/View&gt;
+              ))}
+            &lt;/View&gt;
+          &lt;/View&gt;
+        ))}
+      &lt;/ScrollView&gt;
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  screenTitle: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    padding: 16,
+  },
+  group: {
+    marginBottom: 24,
+  },
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginLeft: 16,
+    marginBottom: 8,
+  },
+  groupContent: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  itemIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  itemLabel: {
+    flex: 1,
+    fontSize: 16,
+  },
+  divider: {
+    height: 1,
+    marginLeft: 52,
+  },
+});</code></pre>
+                    </details>
+                </div>
+
+                <div class="exercise-container">
+                    <h3>Exercise 3: Create a useThemedStyles Hook</h3>
+                    <p>Build a custom hook that creates memoized styles based on the current theme.</p>
+
+                    <details>
+                        <summary>Show Solution</summary>
+<pre><code class="language-typescript">import { useMemo, useCallback } from 'react';
+import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { Theme } from '../theme/types';
+
+type NamedStyles&lt;T&gt; = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+type StyleFactory&lt;T extends NamedStyles&lt;T&gt;&gt; = (theme: Theme) =&gt; T;
+
+export function useThemedStyles&lt;T extends NamedStyles&lt;T&gt;&gt;(
+  factory: StyleFactory&lt;T&gt;
+): T {
+  const { theme } = useTheme();
+  
+  // Memoize the factory to prevent unnecessary recreations
+  const stableFactory = useCallback(factory, []);
+  
+  // Memoize styles based on theme
+  const styles = useMemo(
+    () =&gt; StyleSheet.create(stableFactory(theme)),
+    [theme, stableFactory]
+  );
+  
+  return styles;
+}
+
+// Usage example
+function ProfileCard() {
+  const styles = useThemedStyles((theme) =&gt; ({
+    container: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.md,
+      ...theme.shadows.md,
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: theme.colors.primary,
+      marginBottom: theme.spacing.sm,
+    },
+    name: {
+      ...theme.typography.h3,
+      color: theme.colors.text,
+    },
+    bio: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing.xs,
+    },
+  }));
+  
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;View style={styles.avatar} /&gt;
+      &lt;Text style={styles.name}&gt;John Doe&lt;/Text&gt;
+      &lt;Text style={styles.bio}&gt;Software Developer&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+                    </details>
+                </div>
+            </section>
+
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <p>Congratulations! You've completed Module 4 and built a complete theming system with dark mode support.</p>
+
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4>🎯 Key Takeaways</h4>
+                    <ul style="color: white;">
+                        <li><strong>useColorScheme</strong> detects system theme preference automatically</li>
+                        <li><strong>Theme structure</strong> should include colors, spacing, typography, and shadows</li>
+                        <li><strong>ThemeContext</strong> provides app-wide theme access</li>
+                        <li><strong>Themed components</strong> adapt automatically to theme changes</li>
+                        <li><strong>Theme selector</strong> allows users to choose light, dark, or system</li>
+                        <li><strong>AsyncStorage</strong> persists theme preference between sessions</li>
+                        <li><strong>Navigation theming</strong> requires passing theme to NavigationContainer</li>
+                    </ul>
+                </div>
+
+                <h3>Module 4 Complete! 🎉</h3>
+
+                <p>You've now mastered React Native styling:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background: #e3f2fd;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Lesson</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #2196F3;">Topic</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.1</td>
+                            <td style="padding: 12px;">StyleSheet Fundamentals</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.2</td>
+                            <td style="padding: 12px;">Flexbox in React Native</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.3</td>
+                            <td style="padding: 12px;">Common Layout Patterns</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.4</td>
+                            <td style="padding: 12px;">Responsive Design</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.5</td>
+                            <td style="padding: 12px;">Platform-Specific Styles</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px;">4.6</td>
+                            <td style="padding: 12px;">Animation Basics</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;">4.7</td>
+                            <td style="padding: 12px;">Theming and Dark Mode ✓</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Quick Reference</h3>
+
+<pre><code class="language-typescript">// Detect system theme
+const colorScheme = useColorScheme(); // 'light' | 'dark' | null
+
+// Use theme context
+const { theme, isDark, setThemeMode } = useTheme();
+
+// Apply themed styles
+&lt;View style={{ backgroundColor: theme.colors.background }}&gt;
+  &lt;Text style={{ color: theme.colors.text }}&gt;Hello&lt;/Text&gt;
+&lt;/View&gt;
+
+// Themed components
+import { ThemedText, Card, Button } from './components/themed';
+
+// Persist preference
+await AsyncStorage.setItem('@theme_mode', 'dark');
+const saved = await AsyncStorage.getItem('@theme_mode');</code></pre>
+
+                <h3>Coming Up Next</h3>
+
+                <p>In <strong>Module 5: Navigation Fundamentals</strong>, you'll learn how to build complete navigation systems with React Navigation, including stack navigation, tab navigation, drawer navigation, and deep linking.</p>
+            </section>
+
+            <nav class="lesson-nav">
+                <a href="m04_l06_animation_basics.html" class="prev-link">← Previous: Animation Basics</a>
+                <a href="index.html" class="home-link">Course Home</a>
+                <a href="m05_l01_react_navigation_setup.html" class="next-link">Next: Module 5 - Navigation →</a>
+            </nav>
+        </article>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>React Native & Expo Course © 2025</p>
+        </div>
+    </footer>
+
+    <script>
+        const toggle = document.getElementById('mobile-menu-toggle');
+        const navLinks = document.getElementById('nav-links');
+        
+        toggle?.addEventListener('click', () => {
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', !isExpanded);
+            navLinks?.classList.toggle('active');
+        });
+
+        document.querySelectorAll('.toc-nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').slice(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                    const toc = document.getElementById('toc');
+                    if (toc && window.innerWidth < 768) {
+                        toc.removeAttribute('open');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
