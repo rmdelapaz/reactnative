@@ -165,7 +165,7 @@ A complete task management app demonstrating all course concepts:
 
 ### View Online
 
-Visit the GitHub Pages site: [Course Link] *(Enable GitHub Pages in repository settings)*
+Visit the site: https://rays-reactnative.netlify.app/
 
 ## 🛠️ Technologies Covered
 
