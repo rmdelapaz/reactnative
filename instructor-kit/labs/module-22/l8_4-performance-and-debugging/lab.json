@@ -1,0 +1,80 @@
+{
+  "title": "The debugging method on a new screen: read the stack, reproduce with a test, remove the listener",
+  "lesson": "8.4",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter-search",
+      "dir": "starter",
+      "cmd": "npm test -- src/SiteSearch.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "Test suite failed to run",
+        "handleSubscription.remove is not a function"
+      ]
+    },
+    {
+      "name": "starter-foreground",
+      "dir": "starter",
+      "cmd": "npm test -- src/useOnForeground.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "stops listening when the screen closes",
+        "Tests:       1 failed, 1 passed, 2 total"
+      ]
+    },
+    {
+      "name": "starter-task1-done",
+      "dir": "starter",
+      "files": {
+        "src/SiteSearch.test.tsx": "// Tests: npm test -- src/SiteSearch.test.tsx (Tasks 1 and 2)\nimport { render, screen, userEvent } from '@testing-library/react-native';\n\nimport { SiteSearch } from './SiteSearch';\n\n// SiteSearch imports ./reminders, which imports expo-notifications: it cannot load in Jest (Lesson 8.4)\njest.mock('./reminders', () => ({ remindMe: jest.fn(async () => 'reminder-1') }));\n\ntest('Task 1: lists all six beaches before anything is typed', async () => {\n  await render(<SiteSearch />);\n  expect(screen.getByText('6 beaches')).toBeOnTheScreen();\n});\n\ntest('Task 1: finds a beach by its name, typed as it is written', async () => {\n  const user = userEvent.setup();\n  await render(<SiteSearch />);\n  await user.type(screen.getByLabelText('Search beaches'), 'Cove');\n  expect(screen.getByText('Driftwood Cove')).toBeOnTheScreen();\n  expect(screen.getByText('1 beach')).toBeOnTheScreen();\n});\n\ntest('Task 1: Remind me sets a reminder for that beach', async () => {\n  const user = userEvent.setup();\n  await render(<SiteSearch />);\n  await user.press(screen.getByRole('button', { name: 'Remind me about low tide at North Jetty' }));\n  expect(await screen.findByText('Reminder set for North Jetty')).toBeOnTheScreen();\n});\n\n// The report: \"I typed cove and nothing came up, but the beach is called Driftwood Cove!\"\ntest('Task 2: finds a beach whatever the case of the letters typed', async () => {\n  throw new Error(\n    'TODO 2: reproduce the report first (type cove, expect Driftwood Cove and 1 beach), watch it fail, then fix one thing',\n  );\n});\n"
+      },
+      "cmd": "npm test -- src/SiteSearch.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "TODO 2",
+        "Tests:       1 failed, 3 passed, 4 total"
+      ]
+    },
+    {
+      "name": "starter-bug-caught",
+      "dir": "starter",
+      "files": {
+        "src/SiteSearch.test.tsx": "// Tests: npm test -- src/SiteSearch.test.tsx (Tasks 1 and 2)\nimport { render, screen, userEvent } from '@testing-library/react-native';\n\nimport { SiteSearch } from './SiteSearch';\n\n// SiteSearch imports ./reminders, which imports expo-notifications: it cannot load in Jest (Lesson 8.4)\njest.mock('./reminders', () => ({ remindMe: jest.fn(async () => 'reminder-1') }));\n\ntest('Task 1: lists all six beaches before anything is typed', async () => {\n  await render(<SiteSearch />);\n  expect(screen.getByText('6 beaches')).toBeOnTheScreen();\n});\n\ntest('Task 1: finds a beach by its name, typed as it is written', async () => {\n  const user = userEvent.setup();\n  await render(<SiteSearch />);\n  await user.type(screen.getByLabelText('Search beaches'), 'Cove');\n  expect(screen.getByText('Driftwood Cove')).toBeOnTheScreen();\n  expect(screen.getByText('1 beach')).toBeOnTheScreen();\n});\n\ntest('Task 1: Remind me sets a reminder for that beach', async () => {\n  const user = userEvent.setup();\n  await render(<SiteSearch />);\n  await user.press(screen.getByRole('button', { name: 'Remind me about low tide at North Jetty' }));\n  expect(await screen.findByText('Reminder set for North Jetty')).toBeOnTheScreen();\n});\n\n// The report: \"I typed cove and nothing came up, but the beach is called Driftwood Cove!\"\ntest('Task 2: finds a beach whatever the case of the letters typed', async () => {\n  const user = userEvent.setup();\n  await render(<SiteSearch />);\n  await user.type(screen.getByLabelText('Search beaches'), 'cove');\n  expect(screen.getByText('Driftwood Cove')).toBeOnTheScreen();\n  expect(screen.getByText('1 beach')).toBeOnTheScreen();\n});\n"
+      },
+      "cmd": "npm test -- src/SiteSearch.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "Unable to find an element with text: Driftwood Cove",
+        "Tests:       1 failed, 3 passed, 4 total"
+      ]
+    },
+    {
+      "name": "solution",
+      "dir": "solution",
+      "cmd": "npm test",
+      "exit": 0,
+      "expect": [
+        "Tests:       6 passed, 6 total"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-lint",
+      "dir": "solution",
+      "cmd": "npm run lint",
+      "exit": 0,
+      "absent": [
+        "problem"
+      ]
+    }
+  ]
+}

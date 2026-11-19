@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 11</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 11: Sign-In Flows and Deep Links</h1>
+    <p class="sub">Your workbook for Session 11: the key ideas of Lessons 4.3 and 4.4, worked examples from the API and the app, the guided labs, predict-then-check practice, a self-check for each lesson, and your exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Lessons <b>4.3–4.4</b></span>
+      <span class="chip">Session <b>11</b> · 3 hours</span>
+      <span class="chip">Name: ____________________</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Explain where a session lives on a phone (secure storage, async, strings) and what the web preview does instead.</li>
+  <li>Read a sign-in from the API's side: 200 with a token, 401 and 400 with the API's own words, 401 for a token it forgot.</li>
+  <li>Guard screens with <code class="inline">Stack.Protected</code> and predict where Expo Router sends someone who opens a guarded address.</li>
+  <li>Read a deep link (scheme, path) and name the file that answers it, in a build, in Expo Go and in the web preview.</li>
+  <li>Put the tabs underneath a linked screen, share a link that every phone keeps, and keep links from ever acting on their own.</li>
+</ul>
+
+  <div class="sec"><h2>Warm-up</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Session 10 in four questions</div>
+<div class="q"><div class="qn">W1</div><div class="qt">Which file answers the address <code class="inline">/cleanups/e08</code>, and how does the screen read <code class="inline">e08</code>?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W2</div><div class="qt">The tabs live in <code class="inline">src/app/(tabs)/</code>. What does the folder name <code class="inline">(tabs)</code> add to an address?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W3</div><div class="qt">Before you go is a modal. What does <code class="inline">presentation: 'modal'</code> change on a phone, and in the web preview?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W4</div><div class="qt">Its Done button calls <code class="inline">router.back()</code> only <code class="inline">if (router.canGoBack())</code>. Why the check?</div><div class="write"></div></div>
+</div>
+
+  <div class="sec"><h2>Lessons</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">4.3</span><h3>Sign-In Flows and Protected Routes</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Store a session token in the phone's secure storage with expo-secure-store, explain why it is async, and say what the web preview does instead</li>
+  <li>Restore a saved session at startup while the splash screen stays up, so the first screen already knows who is signed in</li>
+  <li>Guard routes with Expo Router's Stack.Protected, and predict where the app goes when a guard changes or someone opens a guarded address</li>
+  <li>Build a sign-in modal that shows the API's own error messages, never keeps a failed password, and closes back to the screen that opened it</li>
+  <li>Sign out, and handle a 401 from the API by forgetting the session and asking the volunteer to sign in again</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>A token, not a password:</b> the app sends the password once, gets a token and the user back, and keeps only those. Every later request carries <code class="inline">Authorization: Bearer &lt;token&gt;</code>.</li>
+  <li><b>Where it lives:</b> expo-secure-store (iOS Keychain; Keystore-encrypted values on Android): async, strings only (JSON), survives restarts (so Sign out deletes it). Not AsyncStorage, never an <code class="inline">EXPO_PUBLIC_</code> variable. The web preview has none: <code class="inline">isAvailableAsync()</code> is false, the session lives in memory only.</li>
+  <li><b>One store, one listener:</b> the client keeps the session in memory with listeners (copied from the HQ); session.ts restores the saved copy once at startup (the splash screen waits) and saves every change. Imports point one way, or Metro warns about a require cycle.</li>
+  <li><b><code class="inline">useSession()</code></b> = <code class="inline">useSyncExternalStore(onSessionChange, readSession, () =&gt; null)</code>: the third function is for the web preview's server.</li>
+  <li><b><code class="inline">Stack.Protected guard={…}</code></b> decides which screens exist. A guarded address, or a guard that turns false while its screen is open, redirects to the anchor (or <code class="inline">redirectTo</code>). So the sign-in modal closes first, then sets the session. A guard hides screens; the API protects data.</li>
+  <li><b>When the API forgets you:</b> a 401 to a request that carried a token forgets the session everywhere; Profile asks <code class="inline">GET /api/auth/me</code> each time it comes into view (useFocusEffect) and says "Your sign-in has ended. Sign in again."</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the API's side of a sign-in</div>
+<p>The API's side of the sign-in modal, for Theo (<code class="inline">theo.nakamura@example.com</code>, <code class="inline">shoreline-demo</code>). A wrong password and an empty form get the API's own words, which the screen shows:</p>
+<pre class="out">HTTP/1.1 401 Unauthorized
+cache-control: no-store
+content-type: application/json; charset=utf-8
+vary: Origin
+
+{
+  "error": "unauthorized",
+  "message": "Email or password is incorrect."
+}</pre><p>A token the API has forgotten (after a restart) gets a 401 even from the public list of cleanups, because the request claimed to be someone:</p>
+<pre class="out">HTTP/1.1 401 Unauthorized
+cache-control: no-store
+content-type: application/json; charset=utf-8
+vary: Origin
+
+{
+  "error": "unauthorized",
+  "message": "Your session has ended. Sign in again."
+}</pre><p>So the client's rule: a 401 to a request that carried a token forgets the session everywhere (<code class="inline">setSession(null)</code>), and session.ts's listener deletes the saved copy. A wrong password is also a 401, but from a request without a token: nothing to forget.</p>
+<div class="codefile">shoreline-crew/src/api/client.ts</div>
+<pre class="code" data-src="shoreline-crew/src/api/client.ts" data-stage="lesson_13" data-match="excerpt">    <span class="k">if</span> (response.status === <span class="s">401</span> &amp;&amp; session !== <span class="k">null</span>) {
+      <span class="c">// The API no longer knows this sign-in (it restarted, or the session ended): forget it here too</span>
+      setSession(<span class="k">null</span>);</pre></div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-11/l4_3-sign-in-flows-and-protected-routes/TASKS.md</code>. A terminal in <code class="inline">starter</code> (the shared lab install: nothing to install). <code class="inline">npm test</code>: eight of eleven fail.</li>
+  <li>Task 1: one change in <code class="inline">setSession</code>. Task 2: ask, check, catch, listen, save. Run <code class="inline">npm test</code> after each change.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>When does <code class="inline">useSyncExternalStore</code> draw a component again?</td><td></td></tr>
+<tr><td>Why must <code class="inline">restoreSession()</code> never reject?</td><td></td></tr>
+<tr><td>Task 3: where does a volunteer who types <code class="inline">/kit-room</code> land, and why?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       11 passed, 11 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the answer key has the real outputs.</p>
+<div class="q"><div class="qn">P1</div><div class="qt">No Authorization header at all: who does the API think you are? Predict, then check (the answer key has the real runs).</div><pre class="code">GET http://localhost:4000/api/auth/me</pre><div class="write"></div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">A public address, with a token from before the API restarted. Predict, then check (the answer key has the real runs).</div><pre class="code">GET http://localhost:4000/api/sites/driftwood-cove
+Authorization: Bearer st_yesterday_v04</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Signing In to Shoreline Crew</b> (lesson page, "Project: Signing In to Shoreline Crew"). In class: Steps 1 and 2. At home: Steps 3 to 7.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npx expo install expo-secure-store</code>; the config plugin is in app.json</li>
+  <li>☐ Step 2: the client sends <code class="inline">Authorization: Bearer …</code>, forgets the session on a 401, has postSignIn, postSignOut and getMe</li>
+  <li>☐ Step 3: <code class="inline">src/auth/session.ts</code> and <code class="inline">src/hooks/useSession.ts</code> (three functions)</li>
+  <li>☐ Step 4: the splash screen waits for the session; <code class="inline">/sign-in</code> is guarded</li>
+  <li>☐ Step 5: FormField and the Sign in modal (close first, then set the session)</li>
+  <li>☐ Step 6: Profile and My cleanups with two faces</li>
+  <li>☐ Step 7: tsc silent, lint only the env: lines, the six paths walked, committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">After Theo signs in on a phone, what does Shoreline Crew write to secure storage?</div><div class="opts"><div class="opt">A) His email and password, so it can sign in again at the next start</div><div class="opt">B) The session as JSON: the API's token and the user it belongs to</div><div class="opt">C) Only his email; the token stays in memory</div><div class="opt">D) The token, in an <code class="inline">EXPO_PUBLIC_</code> variable</div></div></div>
+<div class="q" data-sc="2" data-kind="short"><div class="qn">Q2</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this after a change to Profile. What is it telling you, and what are the two honest fixes?</div><pre class="code">src/app/(tabs)/profile.tsx:14:17 - error TS18047: 'session' is possibly 'null'.
+
+14   const token = session.token;
+                   ~~~~~~~
+
+
+Found 1 error in src/app/(tabs)/profile.tsx:14</pre><div class="write"></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">What does expo-secure-store 58 do in the web preview?</div><div class="opts"><div class="opt">A) It stores values in localStorage instead</div><div class="opt">B) It stores values in memory until the page reloads</div><div class="opt">C) <code class="inline">isAvailableAsync()</code> resolves to false, and get/set reject with a TypeError</div><div class="opt">D) It throws as soon as the module is imported</div></div></div>
+<div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">A teammate's sign-in screen calls <code class="inline">setSession(session)</code> and THEN <code class="inline">router.back()</code>. Theo opens it from the Profile tab and signs in. Where does he land?</div><div class="opts"><div class="opt">A) Back on Profile, signed in</div><div class="opt">B) On the sign-in screen, which stays open</div><div class="opt">C) On the not-found screen</div><div class="opt">D) On the Cleanups tab: the guard removed the screen before back() ran</div></div></div>
+<div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt"><code class="inline">request()</code> forgets the session on a 401 only <code class="inline">if (response.status === 401 &amp;&amp; session !== null)</code>. Why the second condition?</div><div class="opts"><div class="opt">A) A wrong password is also a 401, and that request carried no token: there is nothing to forget</div><div class="opt">B) Guests never get a 401</div><div class="opt">C) The API sends 401 only to signed-in requests</div><div class="opt">D) Without it, TypeScript reports that session is possibly null</div></div></div>
+<div class="q" data-sc="6" data-kind="short"><div class="qn">Q6</div><div class="qt">Why does <code class="inline">useSession()</code> pass a third function, <code class="inline">() =&gt; null</code>, to <code class="inline">useSyncExternalStore</code>, and what do you see without it?</div><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: draw the life of Theo's token as a timeline: typed password, the API's answer, memory, secure storage, every request after that, an API restart, the 401, the deleted copy. Mark each place where the web preview behaves differently from a phone, and each line of code that handles a step.</p>
+</div>
+    </div>
+  </section>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">4.4</span><h3>Deep Links</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Read a deep link such as shorelinecrew://cleanups/e08: its scheme, its path, and the file in src/app that answers it</li>
+  <li>Say which form of a link opens the app in a build, in Expo Go and in the web preview, and let Linking.createURL make the right one</li>
+  <li>Put the tabs underneath a screen opened by a link with unstable_settings.anchor, and predict where a link to a guarded screen goes</li>
+  <li>Share a link to a cleanup through the phone's share sheet with React Native's Share, with a fallback where there is none</li>
+  <li>Open links on an Android emulator, an iOS Simulator or a phone, and treat every incoming link as input from outside</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>A deep link</b> = a scheme (which app: <code class="inline">shorelinecrew</code>, in app.json since Lesson 1.2, written into the native projects at build time) + a path (which screen: Expo Router reads it like a web address) + optional search params.</li>
+  <li><b>Three forms of one link:</b> a build <code class="inline">shorelinecrew://cleanups/e08</code>; Expo Go <code class="inline">exp://192.168.1.42:8081/--/cleanups/e08</code> (Expo Go owns exp; only for testing); the web preview <code class="inline">http://localhost:8081/cleanups/e08</code>. <code class="inline">Linking.createURL</code> makes the right one.</li>
+  <li><b><code class="inline">unstable_settings = { anchor: '(tabs)' }</code></b> keeps the tabs underneath any screen a link opens, so back leads somewhere. The anchor names a screen of THAT layout; the tabs underneath load their data too. With an anchor, send people home with <code class="inline">dismissTo</code>, not <code class="inline">replace</code>.</li>
+  <li><b>Links to guarded screens follow the guard</b> (redirect to the anchor). Every link is input from outside: ids go through <code class="inline">encodeURIComponent</code>, unknown ids and paths have screens, and a link only ever opens a screen.</li>
+  <li><b><code class="inline">Share.share()</code></b> opens the share sheet: Android passes only title and message (the link goes inside the message), iOS message and url; the web preview rejects without a share sheet, so show the link in a <code class="inline">selectable</code> Text.</li>
+  <li><b>On a device:</b> <code class="inline">npx uri-scheme open "…" --android|--ios</code>, <code class="inline">adb shell am start …</code>, <code class="inline">xcrun simctl openurl booted …</code> (quote the URL), or send yourself the link. <code class="inline">npx uri-scheme list</code> finds nothing until a build.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the scheme and the anchor</div>
+<p>The scheme in app.json (<code class="inline">grep -n '"scheme"' app.json</code> in shoreline-crew):</p>
+<pre class="out">8:    "scheme": "shorelinecrew",</pre><p>With it, <code class="inline">shorelinecrew://cleanups/e08</code> opens <code class="inline">src/app/cleanups/[id].tsx</code> with id <code class="inline">e08</code>, in a build of the app. Expo Go answers <code class="inline">exp://192.168.1.42:8081/--/cleanups/e08</code> (your address differs) and the web preview <code class="inline">http://localhost:8081/cleanups/e08</code>; <code class="inline">Linking.createURL</code> picks. The anchor puts the tabs underneath whatever a link opens:</p>
+<div class="codefile">shoreline-crew/src/app/_layout.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/app/_layout.tsx" data-stage="lesson_14" data-match="excerpt"><span class="k">export</span> <span class="k">const</span> unstable_settings = {
+  anchor: <span class="s">'(tabs)'</span>,
+};</pre><p>Name a screen of another layout (<code class="inline">'index'</code>, which lives inside <code class="inline">(tabs)</code>), and neither checker notices:</p>
+<pre class="code">npx tsc --noEmit
+npx expo lint</pre><pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL</pre><p>The error comes when Expo Router builds the stack: a blank page, and Metro prints the layout's real routes (Lab 4.4 Task 3 shows you the same message).</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-11/l4_4-deep-links/TASKS.md</code>. A terminal in <code class="inline">starter</code>; <code class="inline">npm test</code>: six of eight fail. Start with Task 3: read the error's list of routes.</li>
+  <li>Task 3a: the anchor. Task 3b: <code class="inline">?join=yes</code> must sign nobody up. Then Tasks 1 and 2.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which layout's routes did the error list, and what did you name instead?</td><td></td></tr>
+<tr><td>Who can write <code class="inline">shorelinecrew://cleanups/e08?join=yes</code>, and who can receive it?</td><td></td></tr>
+<tr><td>Task 2: what does an Android friend get from <code class="inline">{ message, url }</code>?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       8 passed, 8 total</code>, and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the answer key has the real outputs.</p>
+<div class="q"><div class="qn">P3</div><div class="qt">In [id].tsx: <code class="inline">Share.share({ message: 'Join me at Weekend Cove!', url: link })</code>. Does tsc complain? What does an Android friend receive? Predict, then check (the answer key has the real runs).</div><pre class="code">npx tsc --noEmit</pre><div class="write"></div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">In _layout.tsx: <code class="inline">anchor: 'index'</code>. What do the two checks print? Predict, then check (the answer key has the real runs).</div><pre class="code">npx tsc --noEmit
+npx expo lint</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Links Into Shoreline Crew</b> (lesson page, "Project: Links Into Shoreline Crew"). In class: Steps 1 to 3. At home: Steps 4 to 7.</p>
+<ul class="tick">
+  <li>☐ Step 1: the scheme in app.json; <code class="inline">npx uri-scheme list</code> and what its answer means</li>
+  <li>☐ Step 2: five addresses in the web preview, with or without a back arrow</li>
+  <li>☐ Step 3: the anchor; <code class="inline">dismissTo</code> on the not-found screen (one tab bar)</li>
+  <li>☐ Step 4: <code class="inline">src/utils/links.ts</code> (cleanupLink, cleanupMessage)</li>
+  <li>☐ Step 5: Share this cleanup, with the link inside the message and the fallback</li>
+  <li>☐ Step 6 (with a device): a link from outside, with the app closed and open</li>
+  <li>☐ Step 7: tsc silent, lint only the env: lines, the five paths walked, committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">In the web preview, what does <code class="inline">Linking.createURL('/cleanups/e08')</code> give?</div><div class="opts"><div class="opt">A) <code class="inline">shorelinecrew://cleanups/e08</code></div><div class="opt">B) <code class="inline">exp://192.168.1.42:8081/--/cleanups/e08</code></div><div class="opt">C) <code class="inline">/cleanups/e08</code></div><div class="opt">D) <code class="inline">http://localhost:8081/cleanups/e08</code></div></div></div>
+<div class="q" data-sc="8" data-kind="short"><div class="qn">Q8</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this. What does the type want, and what is the fix?</div><pre class="code">src/app/cleanups/[id].tsx:97:25 - error TS2345: Argument of type '{ title: string; }' is not assignable to parameter of type 'ShareContent'.
+  Property 'message' is missing in type '{ title: string; }' but required in type '{ title?: string | undefined; url?: string | undefined; message: string; }'.
+
+97       await Share.share({ title: event.title });
+                           ~~~~~~~~~~~~~~~~~~~~~~</pre><div class="write"></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">You write <code class="inline">export const unstable_settings = { anchor: 'index' }</code> in the root layout. What do <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> say?</div><div class="opts"><div class="opt">A) TS2322: 'index' is not assignable to the route names</div><div class="opt">B) Nothing new: tsc prints nothing, lint only its two env: lines</div><div class="opt">C) One lint error from expo-router's rules</div><div class="opt">D) Metro refuses to start</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">With the anchor in place, the not-found screen still says <code class="inline">&lt;Link href="/" replace&gt;</code>. A volunteer presses Back to the cleanups. What is on the page?</div><div class="opts"><div class="opt">A) The Cleanups tab, exactly as before</div><div class="opt">B) A blank screen</div><div class="opt">C) Two tab bars: a copy of the tabs on top of the ones underneath</div><div class="opt">D) The not-found screen again</div></div></div>
+<div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Which of these may a link into Shoreline Crew carry?</div><div class="opts"><div class="opt">A) The volunteer's token, so the friend is signed in at once</div><div class="opt">B) A password-reset code</div><div class="opt">C) The id of a cleanup</div><div class="opt">D) <code class="inline">?join=yes</code>, so the cleanup signs the reader up as it opens</div></div></div>
+<div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt"><code class="inline">npx uri-scheme list</code> prints <code class="inline">Could not find any native URI schemes to list.</code> What does it mean?</div><div class="opts"><div class="opt">A) The project has no ios/ or android/ folders yet: Expo writes the scheme into them at build time</div><div class="opt">B) app.json has no scheme</div><div class="opt">C) uri-scheme failed to install</div><div class="opt">D) The phone is not connected</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: follow one link on its whole journey: a crew leader taps Share this cleanup, a friend receives the message and taps the link while the app is closed, reads the cleanup, and presses back. Write each step and the piece of code (or the part of the phone) responsible for it. Then write the same journey for the web preview, and mark where the two differ.</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<p>Three questions, no notes.</p>
+<div class="q"><div class="qn">E1</div><div class="qt">Where does Shoreline Crew keep the token on a phone, and why does the splash screen wait for it?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E2</div><div class="qt">A sign-in screen sets the session and then closes. Opened from Profile, where does the volunteer land, and why?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E3</div><div class="qt">Name the three forms of a link to Weekend Cove and where each one works.</div><div class="write"></div></div>
+
+  <div class="sec"><h2>Notes</h2><span class="rule"></span></div>
+<div class="notes-lines"></div>
+
+  <div class="sec"><h2>Homework Checklist</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ Finish Signing In to Shoreline Crew (Steps 3 to 7, the six paths, the commit)</li>
+  <li>☐ Finish Links Into Shoreline Crew (Steps 4 to 7, the five paths, the commit)</li>
+  <li>☐ Lesson 4.3 Exercises 1 to 3 (Exercise 4 is a stretch)</li>
+  <li>☐ Lesson 4.4 Exercises 1 to 3 (Exercise 4 is a stretch)</li>
+  <li>☐ Both Quick Quizzes on the lesson pages</li>
+  <li>☐ Lab 4.3 Task 3; Lab 4.4 Tasks 1 and 2</li>
+  <li>☐ Both journal entries (the token timeline; one link's journey)</li>
+  <li>☐ My computer's Wi-Fi address written down (for Session 12)</li>
+  <li>☐ Bring to Session 12: the code as Lesson 4.4 ends (or <code class="inline">lesson-15-start</code>), my phone with Expo Go on the same Wi-Fi, this workbook</li>
+</ul>
+
+  <div class="sec"><h2>Glossary</h2><span class="rule"></span></div>
+<table class="timing">
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>token</td><td>The API's proof of a sign-in, sent as <code class="inline">Authorization: Bearer &lt;token&gt;</code> with every request</td></tr>
+<tr><td>session</td><td>The token and the user it belongs to (<code class="inline">SignInResponse</code>), kept in memory by the client</td></tr>
+<tr><td>secure storage</td><td>expo-secure-store: the iOS Keychain, or Keystore-encrypted values on Android; async, strings only</td></tr>
+<tr><td><code class="inline">useSyncExternalStore</code></td><td>React's hook for a store outside React; the third function answers for the web preview's server</td></tr>
+<tr><td><code class="inline">Stack.Protected</code></td><td>A group of screens that exist only while its <code class="inline">guard</code> is true</td></tr>
+<tr><td>anchor</td><td>The screen always at the bottom of a layout's stack (<code class="inline">unstable_settings.anchor</code>); also where a guard redirects</td></tr>
+<tr><td>401 Unauthorized</td><td>The API does not know who you are: a wrong password, no token, or a token it forgot</td></tr>
+<tr><td>config plugin</td><td>A setting in app.json that changes the native projects when the app is built</td></tr>
+<tr><td>require cycle</td><td>Two files that import each other; Metro warns, and a value can be undefined</td></tr>
+<tr><td>deep link</td><td>A link that opens one screen inside an app: scheme + path</td></tr>
+<tr><td>scheme</td><td>The app's part of a link (<code class="inline">shorelinecrew</code>), registered with the phone when a build is installed</td></tr>
+<tr><td><code class="inline">exp://…/--/…</code></td><td>Expo Go's form of a link to your project during development</td></tr>
+<tr><td><code class="inline">dismissTo</code></td><td>Close screens back to an address already underneath (replace only when there is nothing)</td></tr>
+<tr><td>share sheet</td><td>The phone's panel for sending something to another app; React Native's <code class="inline">Share.share()</code></td></tr>
+<tr><td>universal links / App Links</td><td>https links that open the app when installed and a web page otherwise (after Module 9)</td></tr>
+</tbody>
+</table>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 11 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 21</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 21: Testing Screens and Flows</h1>
+    <p class="sub">Answers and reasoning for every Session 21 item: Checkpoint 3's model answer and rubric, both self-checks, predict-then-check, the lab's reference tests and planted bugs, the lesson page's own quiz and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip"><b>1</b> lesson + Checkpoint 3</span>
+      <span class="chip"><b>3 hrs</b> session</span>
+      <span class="chip">Lesson <b>8.3</b></span>
+      <span class="chip">Session <b>21</b> of 26 · Part 3</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Checkpoint 3: Model Answer</h2><span class="rule"></span></div>
+<p>C1's tests are the specification; C2's tests are the learner's. The model solution is <code class="inline">labs/module-21/checkpoint-3/solution/</code>. Every output below is a real run of <code class="inline">labs/check_labs.py</code> (a fresh copy of the folder, Node 24, a learner's terminal).</p>
+<div class="blk"><div class="h">C1: src/CleanupRow.tsx</div>
+<pre class="code"><span class="k">import</span> { Pressable, StyleSheet, Text, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">type</span> CleanupRowProps = {
+  title: <span class="k">string</span>;
+  spotsLeft: <span class="k">number</span>;
+  onJoin: () =&gt; <span class="k">void</span>;
+};
+
+<span class="c">// C1 (Lesson 8.1): one row of a cleanup list, as a screen reader meets it: a heading, the words,</span>
+<span class="c">// and one button whose name starts with what is written on it. The wave is decoration.</span>
+<span class="k">export</span> <span class="k">function</span> CleanupRow({ title, spotsLeft, onJoin }: CleanupRowProps) {
+  <span class="k">const</span> full = spotsLeft === <span class="s">0</span>;
+  <span class="k">return</span> (
+    &lt;View style={styles.row}&gt;
+      &lt;Text aria-hidden style={styles.wave}&gt;
+        🌊
+      &lt;/Text&gt;
+      &lt;View style={styles.text}&gt;
+        &lt;Text accessibilityRole=<span class="s">"header"</span> style={styles.title}&gt;
+          {title}
+        &lt;/Text&gt;
+        &lt;Text&gt;{full ? <span class="s">'Full'</span> : spotsLeft === <span class="s">1</span> ? <span class="s">'1 spot left'</span> : <span class="s">`${spotsLeft} spots left`</span>}&lt;/Text&gt;
+      &lt;/View&gt;
+      &lt;Pressable
+        accessibilityRole=<span class="s">"button"</span>
+        accessibilityLabel={<span class="s">`Join ${title}`</span>}
+        disabled={full}
+        onPress={onJoin}
+        style={styles.join}
+      &gt;
+        &lt;Text&gt;Join&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  row: { flexDirection: <span class="s">'row'</span>, alignItems: <span class="s">'center'</span>, gap: <span class="s">12</span>, minHeight: <span class="s">48</span> },
+  wave: { fontSize: <span class="s">24</span> },
+  text: { flex: <span class="s">1</span> },
+  title: { fontSize: <span class="s">18</span>, fontWeight: <span class="s">'600'</span> },
+  join: { minWidth: <span class="s">64</span>, minHeight: <span class="s">48</span>, alignItems: <span class="s">'center'</span>, justifyContent: <span class="s">'center'</span> },
+});</pre><p><code class="inline">accessibilityRole="header"</code> on the title; the button's name starts with its visible word, then says which cleanup (Label in Name); <code class="inline">aria-hidden</code> on the wave; <code class="inline">disabled</code> keeps a full cleanup's button on the screen, switched off, and RNTL's <code class="inline">toBeDisabled()</code> and <code class="inline">user.press()</code> both respect it.</p>
+</div>
+<div class="blk"><div class="h">C2: src/c2.test.ts (one good answer)</div>
+<pre class="code"><span class="c">// C2 (model answer): the tests for swipeOutcome(), named as sentences. Each one would fail if the</span>
+<span class="c">// rule changed: the edge at exactly 40 %, the direction of a fling, the direction of a swipe.</span>
+<span class="k">import</span> { swipeOutcome } <span class="k">from</span> <span class="s">'./swipe'</span>;
+
+<span class="k">const</span> WIDTH = <span class="s">350</span>; <span class="c">// a row on a 390-point phone, minus the screen's padding</span>
+
+it.each([
+  [<span class="s">'a slow swipe 40 % of the way, exactly'</span>, -<span class="s">140</span>, <span class="s">0</span>, <span class="s">'remove'</span>],
+  [<span class="s">'a slow swipe that is not far enough'</span>, -<span class="s">139</span>, <span class="s">0</span>, <span class="s">'rest'</span>],
+  [<span class="s">'a short swipe flung to the left fast'</span>, -<span class="s">30</span>, -<span class="s">800</span>, <span class="s">'remove'</span>],
+  [<span class="s">'a short swipe that slows down'</span>, -<span class="s">30</span>, -<span class="s">799</span>, <span class="s">'rest'</span>],
+  [<span class="s">'a long swipe to the right'</span>, <span class="s">300</span>, <span class="s">0</span>, <span class="s">'rest'</span>],
+  [<span class="s">'a fling to the right'</span>, <span class="s">30</span>, <span class="s">1200</span>, <span class="s">'rest'</span>],
+] <span class="k">as</span> <span class="k">const</span>)(<span class="s">'C2: %s: %s'</span>, (_case, translationX, velocityX, expected) =&gt; {
+  expect(swipeOutcome({ translationX, velocityX }, WIDTH)).toBe(expected);
+});
+
+it(<span class="s">'C2: measures the 40 % against the row it is given'</span>, () =&gt; {
+  expect(swipeOutcome({ translationX: -<span class="s">100</span>, velocityX: <span class="s">0</span> }, <span class="s">200</span>)).toBe(<span class="s">'remove'</span>);
+  expect(swipeOutcome({ translationX: -<span class="s">100</span>, velocityX: <span class="s">0</span> }, <span class="s">400</span>)).toBe(<span class="s">'rest'</span>);
+});</pre><p>Each case would fail if the rule changed: the edge at exactly 40 % (and one point short), the speed limit (800 and 799), and the direction of both a swipe and a fling.</p>
+</div>
+<div class="blk lab"><div class="h">The runs</div>
+<p>As shipped (<code class="inline">npm test</code> in <code class="inline">starter/</code>, the first failures):</p>
+<pre class="out">● C2: (your first test, as a sentence)
+  TODO C2: write the tests for swipeOutcome
+● C1: the title is a heading
+  Unable to find an element with role: header, name: Tide Pool Morning Cleanup
+● C1: Join is a button whose name starts with its words, and one press joins once
+  Unable to find an element with role: button, name: Join Tide Pool Morning Cleanup
+● C1: the wave is decoration
+  expect(received).toBeNull()
+● C1: a full cleanup says so, and its Join button is switched off
+  Unable to find an element with text: Full</pre><pre class="out">Test Suites: 2 failed, 2 total
+Tests:       5 failed, 5 total</pre><p>The model solution, <code class="inline">npm test -- --verbose</code>:</p>
+<pre class="out"> PASS  src/c2.test.ts
+  ✓ C2: a slow swipe 40 % of the way, exactly: -140
+  ✓ C2: a slow swipe that is not far enough: -139
+  ✓ C2: a short swipe flung to the left fast: -30
+  ✓ C2: a short swipe that slows down: -30
+  ✓ C2: a long swipe to the right: 300
+  ✓ C2: a fling to the right: 30
+  ✓ C2: measures the 40 % against the row it is given
+ PASS  src/c1.test.tsx
+  ✓ C1: the title is a heading
+  ✓ C1: Join is a button whose name starts with its words, and one press joins once
+  ✓ C1: the wave is decoration
+  ✓ C1: a full cleanup says so, and its Join button is switched off
+Tests:       11 passed, 11 total</pre><p>The model C2 tests against the two planted changes (the kit's runs replace <code class="inline">src/swipe.ts</code>): the 40 % edge made <code class="inline">&lt;</code>, and a fling in EITHER direction that removes. Each change fails exactly one test:</p>
+<pre class="out">● C2: a slow swipe 40 % of the way, exactly: -140
+  expect(received).toBe(expected) // Object.is equality
+Tests:       1 failed, 6 passed, 7 total
+
+● C2: a fling to the right: 30
+  expect(received).toBe(expected) // Object.is equality
+Tests:       1 failed, 6 passed, 7 total</pre></div>
+<div class="blk"><div class="h">W1 to W4: model answers</div>
+<ol class="steps">
+  <li><b>W1</b> A spring with overshoot passes the target and comes back (the lesson's 0 … 49 … 41 … 42): a number that reads 49 is false for a moment. Use withTiming (or the gentle default spring, which does not overshoot) for values people read.</li>
+  <li><b>W2</b> Another way to do the same thing (a Remove button, or an accessibility action on the row: WCAG 2.5.1) and a way to find it (screen readers and switch users do not swipe; the action must be named). Any two of: a visible button, accessibilityActions with a name, a hint or a confirmation that says what happened.</li>
+  <li><b>W3</b> A fade (or no movement at all): the motion inventory decides per animation. Layout animations take .reduceMotion(...), Reanimated's own timing and spring jump to the end, CSS-style ones need useReducedMotion(); the app keeps meaning (the color fade) and drops movement.</li>
+  <li><b>W4</b> iOS has no live regions: VoiceOver says new words only when the app asks it to. On Android, accessibilityLiveRegion="polite" makes TalkBack say them, so announcing too would say them twice. (Today's AppText test checks both sides.)</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Rubric</div>
+<table class="rubric">
+<thead><tr><th>Criterion</th><th>2 · met</th><th>1 · partly</th><th>0 · not yet</th></tr></thead>
+<tbody>
+<tr><td class="crit">C1 roles and names</td><td>Heading role on the title; Join is a button named <code class="inline">Join &lt;title&gt;</code> (starts with its visible word)</td><td>One of the two right, or a name that does not start with Join</td><td>Neither</td></tr>
+<tr><td class="crit">C1 hidden and disabled</td><td>The wave is <code class="inline">aria-hidden</code>; a full cleanup says Full and its button is <code class="inline">disabled</code></td><td>One of the two</td><td>Neither</td></tr>
+<tr><td class="crit">C2 tests that catch changes</td><td>Pass on the working rule and fail on both planted changes (the 40 % edge, the fling's direction)</td><td>Pass, and catch one of the two</td><td>Missing, failing, or catch neither</td></tr>
+<tr><td class="crit">C2 test quality</td><td>Named as sentences; it.each or one case per test; both directions and the speed limit covered</td><td>Some sentences or cases missing</td><td>One vague test</td></tr>
+<tr><td class="crit">W1 to W4</td><td>All four correct in their own words, naming the mechanism</td><td>Two or three correct</td><td>One or none</td></tr>
+</tbody>
+</table>
+</div>
+
+  <div class="sec"><h2>8.3 · Testing Screens and Flows: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">Which line renders a component correctly in a React Native Testing Library 14 test?</div><div class="opts"><div class="opt">A) <code class="inline">render(&lt;SwitchRow ... /&gt;);</code></div><div class="opt correct">B) <code class="inline">await render(&lt;SwitchRow ... /&gt;);</code> inside an <code class="inline">async</code> test</div><div class="opt">C) <code class="inline">render(&lt;SwitchRow ... /&gt;).then(screen.debug);</code> at the top of the file</div><div class="opt">D) <code class="inline">await screen.render(&lt;SwitchRow ... /&gt;);</code></div></div><div class="why"><b>Why:</b> In RNTL 14, <code class="inline">render</code>, <code class="inline">rerender</code>, <code class="inline">renderHook</code>, <code class="inline">fireEvent</code> and <code class="inline">act</code> return Promises (React 19's async rendering): await each one, in an async test. Without the await the kit's run says <code class="inline"></code> <code class="inline">render</code> function has not been called <code class="inline"></code>, with the arrow on the next line (the lesson's first Common Mistake).<br><b>A</b> is wrong: The web habit: the render has not happened when the next line asks <code class="inline">screen</code>.<br><b>C</b> is wrong: Rendering belongs inside a test, and the next line still runs before it finishes.<br><b>D</b> is wrong: <code class="inline">screen</code> holds the queries of the last render; it does not render.</div></div>
+  <div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The kit made the lesson's mistake: a plain <code class="inline">getByText('Group by date')</code> in the SwitchRow test. Which change makes the test right without weakening it?</div><pre class="code">● flips exactly once for a tap on the switch or on the words
+
+  Unable to find an element with text: Group by date
+
+  &lt;View
+    accessible={false}
+  &gt;
+    &lt;Text
+      aria-hidden={true}
+    &gt;
+      Group by date
+    &lt;/Text&gt;
+    &lt;RCTSwitch
+      accessibilityLabel="Group by date"
+      accessibilityRole="switch"
+      value={true}</pre><div class="opts"><div class="opt">A) Remove <code class="inline">aria-hidden</code> from the words in SwitchRow</div><div class="opt">B) Add a <code class="inline">testID</code> to the Text and use <code class="inline">getByTestId</code></div><div class="opt correct">C) Find the switch by role and name, or add <code class="inline">{ includeHiddenElements: true }</code> to press the words as a finger can</div><div class="opt">D) Wrap the query in <code class="inline">waitFor()</code></div></div><div class="why"><b>Why:</b> RNTL skips what a screen reader skips: the words are <code class="inline">aria-hidden</code> on purpose (Lesson 8.1), so a screen reader meets one control, the switch, named by <code class="inline">accessibilityLabel</code>. Ask for it by role and name; to press the words (a finger can), say so with <code class="inline">includeHiddenElements: true</code>.<br><b>A</b> is wrong: That breaks the design the test protects: a screen reader would hear the words twice.<br><b>B</b> is wrong: A testID peeks at the wiring; the lesson keeps it for things with no good name.<br><b>D</b> is wrong: Nothing is loading: the element is hidden, not late.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Lesson 8.3's sign-in test imports <code class="inline">screen</code> and <code class="inline">userEvent</code> from <code class="inline">expo-router/testing-library</code>. Jest passes. What happens next?</div><div class="opts"><div class="opt">A) Nothing: both modules export the same names</div><div class="opt">B) Metro refuses to bundle the app</div><div class="opt">C) <code class="inline">npx expo lint</code> reports a duplicate import</div><div class="opt correct">D) <code class="inline">npx tsc --noEmit</code> reports TS1362: userEvent was exported using <code class="inline">export type</code></div></div><div class="why"><b>Why:</b> Expo Router's testing library passes RNTL's exports through at run time, but its type file only re-exports RNTL's types (<code class="inline">export type *</code>), so TypeScript says <code class="inline">'userEvent' cannot be used as a value</code> (the kit's run is the lesson's card). Import RNTL's names from <code class="inline">@testing-library/react-native</code>, only renderRouter, testRouter and the matchers from Expo Router.<br><b>A</b> is wrong: At run time, yes; the type checker disagrees, and it is right to.<br><b>B</b> is wrong: Test files are not part of the app bundle.<br><b>C</b> is wrong: The linter accepts the import.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">Without <code class="inline">"fakeTimers": { "doNotFake": ["nextTick", "queueMicrotask"] }</code>, the Cleanups screen test stays on "Loading cleanups…", while Lesson 8.2's <code class="inline">sendLogs.test.ts</code> still passes. Why the difference?</div><div class="opts"><div class="opt correct">A) Only renderRouter switches on Jest's fake clock, and that clock froze the steps Node's fetch uses to finish</div><div class="opt">B) The sender's tests use a different mock API</div><div class="opt">C) FlashList's stand-in blocks requests</div><div class="opt">D) The sender's tests do not send requests</div></div><div class="why"><b>Why:</b> renderRouter calls <code class="inline">jest.useFakeTimers()</code>; by default that also fakes <code class="inline">process.nextTick</code> and <code class="inline">queueMicrotask</code>, which Node's fetch and MSW need. The sender's tests never start a fake clock, so their requests finish (the kit ran both: Predict P2). Suspect the clock, not the API.<br><b>B</b> is wrong: Both use the HQ's handlers through <code class="inline">startMockApi()</code>.<br><b>C</b> is wrong: FlashList's stand-in measures; it sends nothing.<br><b>D</b> is wrong: They do: POST /api/events/e17/logs.</div></div>
+  <div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Predict, then check: in SwitchRow.tsx you delete <code class="inline">style={styles.switch}</code> (the <code class="inline">pointerEvents: 'none'</code>). The test presses the switch with <code class="inline">user.press()</code>. What does Jest report on the first expect, and why?</div><div class="opts"><div class="opt correct">The second test fails: <code class="inline">onChange.mock.calls</code> is <code class="inline">[]</code> (Received: Array []), because the press now stops at the switch, and in Jest there is no native switch to flip itself</div></div><div class="why"><b>Why:</b> <code class="inline">user.press()</code> follows React Native's touch rules: with <code class="inline">pointerEvents: 'none'</code> the touch passes to the row's Pressable, which flips the value once. Without it the switch takes the touch; on a phone the native switch would flip, in Jest nothing does. The test pins down Lesson 8.1's decision that the row takes the finger.</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Which question needs an end-to-end flow (Maestro) rather than a Jest screen test?</div><div class="opts"><div class="opt">A) Does Sign in show "Enter an email address." when nothing is typed?</div><div class="opt">B) Does the Logbook tab's name say how many logs wait?</div><div class="opt correct">C) Can a volunteer sign in with the release build on a real Android phone?</div><div class="opt">D) Does Try again load the list after a 503?</div></div><div class="why"><b>Why:</b> Only an end-to-end test drives the real app, built, on a device or emulator. The other three are decisions a screen test in Node proves in milliseconds (all three are in the lesson's project). Keep flows for the few paths that must work on a device every release.<br><b>A</b> is wrong: sign-in.test.tsx checks exactly this.<br><b>B</b> is wrong: tabs.test.tsx checks it.<br><b>D</b> is wrong: cleanups.test.tsx checks it, with the API answering 503.</div></div>
+
+  <div class="sec"><h2>Modules 7 and 8 review: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">Why does Reanimated move an animation with shared values instead of React state?</div><div class="opts"><div class="opt">A) State is not allowed inside Animated.View</div><div class="opt">B) React state cannot hold numbers</div><div class="opt">C) Shared values are saved between app launches</div><div class="opt correct">D) Shared values change on the UI thread every frame without re-rendering React; state would re-render on the JavaScript thread</div></div><div class="why"><b>Why:</b> Lesson 7.1's skipper and the helm: React sets the destination once; the UI thread steers every frame. A frame lasts 16.7 ms (8.3 on 120 Hz screens): a setState per frame competes with everything else on the JavaScript thread.<br><b>A</b> is wrong: Animated.View takes ordinary props too.<br><b>B</b> is wrong: State holds anything; it is the re-render per frame that hurts.<br><b>C</b> is wrong: Nothing is saved: a shared value lives while the component does.</div></div>
+  <div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">A swipe-to-remove row sits in a vertical list. Volunteers complain the list jumps sideways when they scroll. What does Lesson 7.2 add to the pan gesture?</div><div class="opts"><div class="opt correct">A) <code class="inline">activeOffsetX</code> (start only after a clear sideways move) and <code class="inline">failOffsetY</code> (give up on a vertical one)</div><div class="opt">B) <code class="inline">numberOfTaps: 2</code></div><div class="opt">C) A <code class="inline">setTimeout</code> before onActivate</div><div class="opt">D) <code class="inline">pointerEvents: 'none'</code> on the list</div></div><div class="why"><b>Why:</b> Without offsets the pan activates on any movement, so a crooked vertical drag slides the card (the lesson measured 54 points). activeOffsetX waits for a clear sideways move; failOffsetY hands a vertical one to the list.<br><b>B</b> is wrong: That is a tap gesture's option.<br><b>C</b> is wrong: Gestures are recognized on the UI thread; a timer only delays the problem.<br><b>D</b> is wrong: Then the list could not scroll at all.</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">With Reduce Motion on, which of these still moves, unless the app checks <code class="inline">useReducedMotion()</code> itself?</div><div class="opts"><div class="opt">A) <code class="inline">withTiming(1)</code> on a shared value</div><div class="opt">B) <code class="inline">withSpring(0)</code></div><div class="opt correct">C) A CSS-style transition or keyframes animation in a style</div><div class="opt">D) <code class="inline">withSequence(...)</code></div></div><div class="why"><b>Why:</b> Lesson 7.1 measured it: withTiming, withSpring and withSequence jump to their end (ReduceMotion.System by default); the CSS-style transitions and keyframes do not, so the app reads useReducedMotion() for them (and, as Lesson 7.3 notes, Reanimated reads the setting once, at start).<br><b>A</b> is wrong: It jumps to the end.<br><b>B</b> is wrong: It jumps to the end.<br><b>D</b> is wrong: It jumps to the end.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">A volunteer uses voice control and says the words on a button. Which accessibilityLabel works for a button that shows "Join" on the Tide Pool card?</div><div class="opts"><div class="opt">A) <code class="inline">Sign up for this cleanup</code></div><div class="opt correct">B) <code class="inline">Join Tide Pool Morning Cleanup</code></div><div class="opt">C) <code class="inline">Button</code></div><div class="opt">D) <code class="inline">Tide Pool Morning Cleanup, join</code></div></div><div class="why"><b>Why:</b> Label in Name (WCAG 2.5.3, Lesson 8.1): the name starts with the words you see, so "Join" works for voice control and the rest tells a screen reader which card. Checkpoint 3's C1 asks for exactly this.<br><b>A</b> is wrong: Saying "Join" would not match it.<br><b>C</b> is wrong: The role is announced already; the name must say what it does.<br><b>D</b> is wrong: The visible word is not at the start.</div></div>
+  <div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Lesson 8.2 tests the log sender with <code class="inline">jest.mock('@/storage/logbook')</code> and no factory. What do the stand-ins do?</div><div class="opts"><div class="opt correct">A) Nothing: every function exists and returns undefined, and remembers its calls</div><div class="opt">B) Write to a temporary SQLite file</div><div class="opt">C) Throw, so the test notices storage</div><div class="opt">D) Call the real module</div></div><div class="why"><b>Why:</b> An automatic mock keeps the module's shape with empty <code class="inline">jest.fn()</code>s: they answer undefined and record calls. That is why Lesson 8.2 mocks its own SQLite module (no SQLite in Jest) and asserts on what the sender asked for.<br><b>B</b> is wrong: Nothing real runs.<br><b>C</b> is wrong: Empty mocks answer undefined; they do not throw.<br><b>D</b> is wrong: That is <code class="inline">jest.requireActual</code>.</div></div>
+  <div class="q" data-sc="12" data-kind="short"><div class="qn">Q12</div><div class="qt">Checkpoint 3's C2: name one test of <code class="inline">swipeOutcome()</code> that would catch someone changing <code class="inline">translationX &lt;= -0.4 * width</code> to <code class="inline">&lt;</code>.</div><div class="opts"><div class="opt correct">A slow swipe of exactly 40 % of the width (for example -140 on a 350-point row) expects <code class="inline">remove</code></div></div><div class="why"><b>Why:</b> Boundaries catch off-by-one changes: the model answer's "a slow swipe 40 % of the way, exactly" is the one test that fails on the planted <code class="inline">&lt;</code> (the kit ran it: <code class="inline">1 failed, 6 passed</code>). Lesson 8.2: a test that never fails proves nothing.</div></div>
+
+  <div class="sec"><h2>8.3 · predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">In SwitchRow.tsx, delete the line <code class="inline">style={styles.switch}</code> from the Switch (the switch now takes the touch itself). Which test fails, and what does it print?</div><pre class="code">npm test -- --watchAll=false src/components/SwitchRow.test.tsx</pre><div class="opts"><div class="opt correct"><pre class="out">● flips exactly once for a tap on the switch or on the words
+
+  expect(received).toEqual(expected) // deep equality
+
+  - Expected  - 5
+  + Received  + 1
+
+  - Array [
+  -   Array [
+  -     true,
+  -   ],
+  - ]
+  + Array []
+
+    34 |
+    35 |   await user.press(toggle); // a finger on the switch itself
+  &gt; 36 |   expect(onChange.mock.calls).toEqual([[true]]);
+       |                               ^</pre></div></div><div class="why"><b>Why:</b> The press stops at the switch now: <code class="inline">onChange</code> was never called. On a phone the native switch would flip itself; in Jest there is no native switch, so nothing changes. The test pins down Lesson 8.1's decision that the row, not the switch, takes the finger. Put the line back.</div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Remove the <code class="inline">fakeTimers</code> key from package.json (the Cleanups screen test then hangs on Loading). Do Lesson 8.2's sender tests still pass?</div><pre class="code">npm test -- --watchAll=false src/state/sendLogs.test.ts</pre><div class="opts"><div class="opt correct"><pre class="out"> PASS  src/state/sendLogs.test.ts
+  ✓ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✓ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✓ keeps the log for the next sign-in when the sign-in has ended
+Tests:       5 passed, 5 total</pre></div></div><div class="why"><b>Why:</b> Yes, all five pass: only renderRouter switches on the fake clock, and the sender's tests never call it. A screen test stuck on its loading face while the logic tests pass: suspect the clock, not the API (the lesson's Common Mistakes).</div></div>
+
+  <div class="sec"><h2>Lab 8.3: Reference</h2><span class="rule"></span></div>
+<p>The reference is <code class="inline">labs/module-21/l8_3-testing-screens-and-flows/solution/</code>: the same working code as the starter, with the tests written. The runs are check_labs.py's own.</p>
+<div class="blk"><div class="h">Task 1: src/BagCounter.test.tsx</div>
+<pre class="code"><span class="c">// Task 1 (reference): the tests for BagCounter, by role and name. Run: npm test</span>
+<span class="k">import</span> { render, screen, userEvent } <span class="k">from</span> <span class="s">'@testing-library/react-native'</span>;
+<span class="k">import</span> { useState } <span class="k">from</span> <span class="s">'react'</span>;
+
+<span class="k">import</span> { BagCounter } <span class="k">from</span> <span class="s">'./BagCounter'</span>;
+
+<span class="c">// A screen's part that keeps the count, as a log form would. onChange records every change.</span>
+<span class="k">function</span> Bags({ onChange }: { onChange: (count: <span class="k">number</span>) =&gt; <span class="k">void</span> }) {
+  <span class="k">const</span> [count, setCount] = useState(<span class="s">0</span>);
+  <span class="k">return</span> (
+    &lt;BagCounter
+      count={count}
+      onChange={(next) =&gt; {
+        setCount(next);
+        onChange(next);
+      }}
+    /&gt;
+  );
+}
+
+it(<span class="s">'starts at no bags, with the minus button switched off'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> render(&lt;Bags onChange={jest.fn()} /&gt;);
+  expect(screen.getByText(<span class="s">'0 bags'</span>)).toBeOnTheScreen();
+  expect(screen.getByRole(<span class="s">'button'</span>, { name: <span class="s">'One bag fewer'</span> })).toBeDisabled();
+});
+
+it(<span class="s">'counts one bag per press, as a finger would'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> onChange = jest.fn();
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;Bags onChange={onChange} /&gt;);
+  <span class="k">await</span> user.press(screen.getByRole(<span class="s">'button'</span>, { name: <span class="s">'One more bag'</span> }));
+  <span class="k">await</span> user.press(screen.getByRole(<span class="s">'button'</span>, { name: <span class="s">'One more bag'</span> }));
+  expect(screen.getByText(<span class="s">'2 bags'</span>)).toBeOnTheScreen();
+  expect(onChange.mock.calls).toEqual([[<span class="s">1</span>], [<span class="s">2</span>]]);
+});
+
+it(<span class="s">'keeps the decoration away from screen readers'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> render(&lt;Bags onChange={jest.fn()} /&gt;);
+  expect(screen.queryByText(<span class="s">'♻'</span>)).toBeNull();
+  expect(screen.getByText(<span class="s">'♻'</span>, { includeHiddenElements: <span class="k">true</span> })).toBeOnTheScreen();
+});</pre></div>
+<div class="blk"><div class="h">Task 2: src/BeachList.test.tsx</div>
+<pre class="code"><span class="c">// Task 2 (reference): BeachList's three faces, with the mock API in src/test/server.ts</span>
+<span class="k">import</span> { render, screen, userEvent } <span class="k">from</span> <span class="s">'@testing-library/react-native'</span>;
+<span class="k">import</span> { http, HttpResponse } <span class="k">from</span> <span class="s">'msw'</span>;
+
+<span class="k">import</span> { BeachList } <span class="k">from</span> <span class="s">'./BeachList'</span>;
+<span class="k">import</span> { API_URL, server, startMockApi } <span class="k">from</span> <span class="s">'./test/server'</span>;
+
+startMockApi();
+
+it(<span class="s">'says it is loading, then lists every beach'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> render(&lt;BeachList apiUrl={API_URL} /&gt;);
+  expect(screen.getByText(<span class="s">'Loading beaches…'</span>)).toBeOnTheScreen();
+  expect(<span class="k">await</span> screen.findByRole(<span class="s">'header'</span>, { name: <span class="s">'6 beaches'</span> })).toBeOnTheScreen();
+  expect(screen.getByText(<span class="s">'Pelican Point Beach, Port Marisol'</span>)).toBeOnTheScreen();
+});
+
+it(<span class="s">'says what went wrong as an alert, and tries again'</span>, <span class="k">async</span> () =&gt; {
+  server.use(http.get(<span class="s">`${API_URL}/api/sites`</span>, () =&gt; <span class="k">new</span> HttpResponse(<span class="k">null</span>, { status: <span class="s">503</span> }), { once: <span class="k">true</span> }));
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;BeachList apiUrl={API_URL} /&gt;);
+  expect(<span class="k">await</span> screen.findByRole(<span class="s">'alert'</span>)).toHaveTextContent(<span class="s">'Could not load the beaches (503).'</span>);
+  <span class="k">await</span> user.press(screen.getByRole(<span class="s">'button'</span>, { name: <span class="s">'Try again'</span> }));
+  expect(<span class="k">await</span> screen.findByRole(<span class="s">'header'</span>, { name: <span class="s">'6 beaches'</span> })).toBeOnTheScreen();
+});</pre><p><code class="inline">{ once: true }</code> makes the 503 answer only the first request, so Try again reaches the normal handler again (the lesson's <code class="inline">server.resetHandlers()</code> does the same for a whole test).</p>
+</div>
+<div class="blk"><div class="h">Task 3: src/screens.test.tsx</div>
+<pre class="code"><span class="c">// Task 3 (reference): two screens under Expo Router's testing library</span>
+<span class="k">import</span> { screen, userEvent } <span class="k">from</span> <span class="s">'@testing-library/react-native'</span>;
+<span class="k">import</span> { Stack } <span class="k">from</span> <span class="s">'expo-router'</span>;
+<span class="k">import</span> { renderRouter } <span class="k">from</span> <span class="s">'expo-router/testing-library'</span>;
+
+<span class="k">import</span> CleanupScreen <span class="k">from</span> <span class="s">'./screens/CleanupScreen'</span>;
+<span class="k">import</span> NextCleanupScreen <span class="k">from</span> <span class="s">'./screens/NextCleanupScreen'</span>;
+
+<span class="c">// The two screens as an app: '/' and '/cleanups/[id]'</span>
+<span class="k">const</span> routes = {
+  _layout: () =&gt; &lt;Stack /&gt;,
+  index: NextCleanupScreen,
+  <span class="s">'cleanups/[id]'</span>: CleanupScreen,
+};
+
+it(<span class="s">"opens the next cleanup's own screen from its link"</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> renderRouter(routes);
+  <span class="k">await</span> user.press(screen.getByRole(<span class="s">'link'</span>, { name: <span class="s">'Open Tide Pool Morning Cleanup'</span> }));
+  expect(<span class="k">await</span> screen.findByText(<span class="s">'Meet at: Gravel pull-out on Highway 1'</span>)).toBeOnTheScreen();
+  expect(screen).toHavePathname(<span class="s">'/cleanups/e17'</span>);
+});
+
+it(<span class="s">'says so for a cleanup that does not exist'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> renderRouter(routes, { initialUrl: <span class="s">'/cleanups/e99'</span> });
+  expect(screen.getByRole(<span class="s">'alert'</span>)).toHaveTextContent(<span class="s">'No such cleanup: e99'</span>);
+});</pre><p>No request in these screens (they read <code class="inline">fixtures/next.json</code>), so renderRouter's fake clock needs no <code class="inline">doNotFake</code> here: the lab's package.json is the template's. With <code class="inline">screen</code> and <code class="inline">userEvent</code> imported from Expo Router's module, <code class="inline">npm run typecheck</code> says:</p>
+<pre class="out">src/screens.test.tsx:17:16 - error TS1362: 'userEvent' cannot be used as a value because it was exported using 'export type'.</pre></div>
+<div class="blk lab"><div class="h">The runs</div>
+<p>As shipped:</p>
+<pre class="out">Test Suites: 3 failed, 3 total
+Tests:       7 failed, 7 total</pre><p>The reference, <code class="inline">--verbose</code>:</p>
+<pre class="out"> PASS  src/BeachList.test.tsx
+  ✓ says it is loading, then lists every beach
+  ✓ says what went wrong as an alert, and tries again
+ PASS  src/BagCounter.test.tsx
+  ✓ starts at no bags, with the minus button switched off
+  ✓ counts one bag per press, as a finger would
+  ✓ keeps the decoration away from screen readers
+ PASS  src/screens.test.tsx
+  ✓ opens the next cleanup's own screen from its link
+  ✓ says so for a cleanup that does not exist
+Tests:       7 passed, 7 total</pre><p>The planted bugs against the reference tests:</p>
+<table class="timing">
+<thead><tr><th>Handout</th><th>What is wrong</th><th>The kit's run</th></tr></thead>
+<tbody>
+<tr><td><code class="inline">debug_BagCounter.tsx</code></td><td>the minus button is never switched off; the ♻ is read out</td><td><code class="inline">Tests:       2 failed, 1 passed, 3 total</code></td></tr>
+<tr><td><code class="inline">debug_BeachList.tsx</code></td><td>the error is plain text (no alert); Try again only clears the error</td><td><code class="inline">Tests:       1 failed, 1 passed, 2 total</code></td></tr>
+<tr><td><code class="inline">debug_NextCleanupScreen.tsx</code></td><td>the link goes to <code class="inline">/cleanup/e17</code>, a screen that does not exist</td><td><code class="inline">Tests:       1 failed, 1 passed, 2 total</code></td></tr>
+</tbody>
+</table>
+</div>
+
+  <div class="sec"><h2>Lesson 8.3: the page's own quiz</h2><span class="rule"></span></div>
+<p>The five questions on the lesson page, with their answers and the page's own reasons:</p>
+<div class="blk"><div class="h">Lesson 8.3 · Testing Screens and Flows</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="8.3">
+  <li><b>C</b> The words are hidden from screen readers, and RNTL's queries skip hidden elements by default: SwitchRow hides its words from screen readers (aria-hidden) and puts them on the switch as its accessibilityLabel. RNTL skips hidden elements, like a screen reader. Find the control with getByRole('switch', { name: 'Only cleanups with spots left' }), or pass includeHiddenElements: true when you really want the words, for example to press them.</li>
+  <li><b>A</b> The fake clock that renderRouter switches on froze the small steps Node's fetch needs to finish a request: renderRouter switches on Jest's fake timers, and by default they also freeze process.nextTick and queueMicrotask, which Node's fetch and MSW need to finish a request. The fakeTimers doNotFake setting in package.json keeps those two real.</li>
+  <li><b>D</b> The touch goes to the row's Pressable, which flips the value once, as a finger would: user.press respects pointerEvents and passes the touch to the nearest parent that takes it, the row's Pressable, whose onPress flips the value once, exactly as a finger does on a phone. A screen reader takes the other path: it flips the native switch, which reports valueChange.</li>
+  <li><b>B</b> An end-to-end flow, for example with Maestro, run against that build on a device or emulator: Only an end-to-end test drives the real app on a device: Maestro opens the build, taps, types and checks what appears. Jest tests run in Node with stand-ins for the phone, so they prove the app's decisions, not that the build works on a device.</li>
+  <li><b>B</b> true, because React Native's Jest preset pretends a window with text at twice its size: React Native's Jest preset pretends a 750 by 1334 window with fontScale 2, so useLargeText() (fontScale of 1.5 or more) is true. Shoreline Crew's jest.setup.ts sets a phone-sized window with fontScale 1 before every test, and tests that care change it with Dimensions.set().</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>Role and name = accessibility check:</b> RNTL finds what a screen reader finds; a control with no role or name, or hidden, cannot be found by the test either.</li>
+  <li><b>What is new in RNTL 14:</b> <code class="inline">await</code> before render (and rerender, renderHook, fireEvent, act), in an async test.</li>
+  <li><b>What Jest cannot prove:</b> that the built app works on a real device; an end-to-end flow such as Maestro on a device or emulator can.</li>
+</ol>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 21 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

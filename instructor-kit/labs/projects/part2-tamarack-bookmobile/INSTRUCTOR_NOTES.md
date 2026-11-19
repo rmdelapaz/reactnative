@@ -1,0 +1,12 @@
+# Instructor notes: Bookmobile Stops (Tamarack County Library Bookmobile)
+
+Keep this file and `solution/` until every hand-in is scored. The scoring guidance, the model's outputs, the Part 2
+assessment key and the scoring sheet are in the kit's `final-assessment.html` (Part 2 section).
+
+- The tests in `src/project.test.tsx` are the acceptance criteria: 25 tests, each named with its requirement and TODO (R1a ... R5d). As handed out, `npm test` fails all 25 (even the given Books tab: it needs the R3a guards), and `npm run typecheck` and `npm run lint` are clean: the TODOs type-check, they just do not work yet. The starter's screens show a "TODO Rn" line, so the web preview runs from the first minute.
+- Scoring: a row is 1 (meets) when its tests pass and the web preview behaves as Done when says; 2 (strong) needs the extras in the rubric's last column, seen in the code or the demo. A row at 0 = not complete: write the next step (which TODO, which lesson) and allow one resubmission within two weeks.
+- The API is the project's own (`bookmobile-api/`, port 4100), never shoreline-api: both can run at once. Card 2145 0021 / PIN 4821 (June Okafor, one hold ready at Ridgeline Senior Center), card 2145 0038 / PIN 1357 (Tomas Lindgren, no holds). Restarting the API forgets sign-ins: the app's next request gets a 401 and signs out.
+- Offline in the web preview: DevTools > Network > Offline, place a hold (it waits: "Not sent yet"), go back online (it is sent by itself). On a phone: airplane mode, the same steps (NetInfo).
+- Location in the web preview: Chrome asks for the page's location after Continue; Allow gives the nearest stop from the browser's position (DevTools > Sensors > Location sets a fake one: Tamarack County is near 46.85, -91.52). Block shows the blocked face. Expo Go asks as itself, with its own words (Lesson 6.1).
+- Common slips seen while building the model: `register` instead of `useController` (nothing sent, Lesson 5.4); a new `randomUUID()` per press (duplicates); `useHoldQueue((s) => s.holds.filter(...))` without `useShallow` (React error #185, a blank tab); asking for the location in a `useEffect` at startup; `Tabs` imported from 'expo-router' (deprecated: `expo-router/js-tabs`).
+- The kit verified the model: lab.json (the shared install, Jest, tsc, lint, `npx expo export` for web, android and ios, the API's own tests) and `rnkit.py check` on `rnkit-part2-tamarack-bookmobile/` (npm ci from the course app's lockfile, the same steps, and Expo-web browser checks including a granted, faked geolocation).

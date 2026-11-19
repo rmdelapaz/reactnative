@@ -1,0 +1,137 @@
+{
+  "title": "Types first on a new brief, inside the final-project starter",
+  "lesson": "10.1",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter-tests",
+      "dir": "starter",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npm test -- --watchAll=false src/rentals",
+      "exit": "nonzero",
+      "expect": [
+        "TODO 1",
+        "Tests:       8 failed, 1 passed, 9 total"
+      ]
+    },
+    {
+      "name": "starter-types",
+      "dir": "starter",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npx expo customize tsconfig.json > /dev/null && npx tsc --noEmit",
+      "exit": "nonzero",
+      "expect": [
+        "error TS2741: Property 'cancelled' is missing",
+        "Found 2 errors in the same file"
+      ]
+    },
+    {
+      "name": "solution-tests",
+      "dir": "solution",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npm test -- --watchAll=false src/rentals",
+      "exit": 0,
+      "expect": [
+        "Tests:       9 passed, 9 total"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npx expo customize tsconfig.json > /dev/null && npx tsc --noEmit",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-lint",
+      "dir": "solution",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npx expo lint",
+      "exit": 0,
+      "absent": [
+        "problem"
+      ]
+    },
+    {
+      "name": "solution-all",
+      "dir": "solution",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "cp -R src/. kit/starter/src/ && cd kit/starter && npm test -- --watchAll=false",
+      "exit": 0,
+      "expect": [
+        "Test Suites: 8 passed, 8 total",
+        "Tests:       31 passed, 31 total"
+      ]
+    },
+    {
+      "name": "demo-rules",
+      "dir": "fixtures",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "mv kit/starter copperline-couriers && cp -R copperline/. copperline-couriers/ && cd copperline-couriers && npm test -- --watchAll=false src/mock-api/deliveries",
+      "exit": 0,
+      "expect": [
+        "Tests:       4 passed, 4 total"
+      ]
+    },
+    {
+      "name": "demo-all",
+      "dir": "fixtures",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "mv kit/starter copperline-couriers && cp -R copperline/. copperline-couriers/ && cd copperline-couriers && npm test -- --watchAll=false",
+      "exit": 0,
+      "expect": [
+        "Tests:       26 passed, 26 total"
+      ]
+    },
+    {
+      "name": "demo-new-status",
+      "dir": "fixtures",
+      "course": "final-project-kit",
+      "into": "kit",
+      "files": {
+        "copperline/src/api/types.ts": "// The contract between the screens, the API (or the mock API) and the tests: write your brief's\n// types here FIRST, before any screen (worksheet section 1). `Item` is the starter's example:\n// add your own types next to it, and delete it in Milestone 2 (tsc then lists what still uses it).\n\n/** An instant as the API sends it: an ISO 8601 string such as \"2030-04-02T09:30:00.000Z\" */\nexport type Timestamp = string;\n\n/** A union of literal types: the label table in src/utils/labels.ts must cover every value */\nexport type ItemStatus = 'open' | 'done';\n\nexport interface Item {\n  id: string;\n  name: string;\n  /** null: no note (an empty string would be a note with nothing in it) */\n  note: string | null;\n  status: ItemStatus;\n  createdAt: Timestamp;\n}\n\n/** What the New item form sends (POST /items): the server makes the rest */\nexport type NewItem = Pick<Item, 'name' | 'note'>;\n\n/** What PATCH /items/:id may change */\nexport type ItemChanges = Partial<Pick<Item, 'status'>>;\n\n// ---------------------------------------------------------------- Copperline Couriers (Milestone 1)\n\n/** A day of deliveries: \"2030-04-02\" */\nexport type DateString = string;\n\n/** A time of day on the run sheet: \"09:30\" */\nexport type TimeString = string;\n\nexport interface Rider {\n  id: string;\n  name: string;\n}\n\n/** Where a parcel is picked up or dropped off */\nexport interface Place {\n  name: string;\n  address: string;\n  /** \"Ring the side bell\", or null: no note */\n  note: string | null;\n}\n\n/** One step at a time: assigned -> picked-up -> delivered, or picked-up -> failed */\nexport type DeliveryStatus = 'assigned' | 'picked-up' | 'delivered' | 'failed' | 'returned';\n\nexport interface Delivery {\n  id: string;\n  runDate: DateString;\n  riderId: string;\n  pickup: Place;\n  dropoff: Place;\n  /** The promised window at the drop-off */\n  window: { from: TimeString; to: TimeString };\n  status: DeliveryStatus;\n  /** Why it failed (\"Nobody home\"): only when status is 'failed' */\n  failedReason: string | null;\n  /** The proof-of-delivery photo the API keeps: only when status is 'delivered' */\n  proofPhotoId: string | null;\n}\n\n/** What the rider sends: the next status, and what that status needs */\nexport type DeliveryChanges = Pick<Delivery, 'status'> &\n  Partial<Pick<Delivery, 'failedReason' | 'proofPhotoId'>>;\n\n/** The error codes the API answers with, and the shape of an error answer */\nexport type ErrorCode = 'bad_request' | 'not_found' | 'conflict' | 'server_error';\n\nexport interface ApiErrorBody {\n  error: ErrorCode;\n  message: string;\n  /** For 400 and 409: the field the message belongs to, so the form shows it under that field */\n  fieldErrors?: Record<string, string[]>;\n}\n"
+      },
+      "cmd": "mv kit/starter copperline-couriers && cp -R copperline/. copperline-couriers/ && cd copperline-couriers && npx expo customize tsconfig.json > /dev/null && npx tsc --noEmit",
+      "exit": "nonzero",
+      "expect": [
+        "Property 'returned' is missing"
+      ]
+    },
+    {
+      "name": "demo-no-item",
+      "dir": "fixtures",
+      "course": "final-project-kit",
+      "into": "kit",
+      "files": {
+        "copperline/src/api/types.ts": "// The contract between the screens, the API (or the mock API) and the tests: write your brief's\n// types here FIRST, before any screen (worksheet section 1). `Item` is the starter's example:\n// add your own types next to it, and delete it in Milestone 2 (tsc then lists what still uses it).\n\n/** An instant as the API sends it: an ISO 8601 string such as \"2030-04-02T09:30:00.000Z\" */\nexport type Timestamp = string;\n\n// ---------------------------------------------------------------- Copperline Couriers (Milestone 1)\n\n/** A day of deliveries: \"2030-04-02\" */\nexport type DateString = string;\n\n/** A time of day on the run sheet: \"09:30\" */\nexport type TimeString = string;\n\nexport interface Rider {\n  id: string;\n  name: string;\n}\n\n/** Where a parcel is picked up or dropped off */\nexport interface Place {\n  name: string;\n  address: string;\n  /** \"Ring the side bell\", or null: no note */\n  note: string | null;\n}\n\n/** One step at a time: assigned -> picked-up -> delivered, or picked-up -> failed */\nexport type DeliveryStatus = 'assigned' | 'picked-up' | 'delivered' | 'failed';\n\nexport interface Delivery {\n  id: string;\n  runDate: DateString;\n  riderId: string;\n  pickup: Place;\n  dropoff: Place;\n  /** The promised window at the drop-off */\n  window: { from: TimeString; to: TimeString };\n  status: DeliveryStatus;\n  /** Why it failed (\"Nobody home\"): only when status is 'failed' */\n  failedReason: string | null;\n  /** The proof-of-delivery photo the API keeps: only when status is 'delivered' */\n  proofPhotoId: string | null;\n}\n\n/** What the rider sends: the next status, and what that status needs */\nexport type DeliveryChanges = Pick<Delivery, 'status'> &\n  Partial<Pick<Delivery, 'failedReason' | 'proofPhotoId'>>;\n\n/** The error codes the API answers with, and the shape of an error answer */\nexport type ErrorCode = 'bad_request' | 'not_found' | 'conflict' | 'server_error';\n\nexport interface ApiErrorBody {\n  error: ErrorCode;\n  message: string;\n  /** For 400 and 409: the field the message belongs to, so the form shows it under that field */\n  fieldErrors?: Record<string, string[]>;\n}\n"
+      },
+      "cmd": "mv kit/starter copperline-couriers && cp -R copperline/. copperline-couriers/ && cd copperline-couriers && npx expo customize tsconfig.json > /dev/null && npx tsc --noEmit",
+      "exit": "nonzero",
+      "expect": [
+        "Found 12 errors in 8 files."
+      ]
+    },
+    {
+      "name": "demo-production",
+      "dir": "fixtures",
+      "course": "final-project-kit",
+      "into": "kit",
+      "cmd": "mv kit/starter copperline-couriers && cp -R copperline/. copperline-couriers/ && cd copperline-couriers && cp .env.example .env.local && APP_VARIANT=production npx expo config",
+      "exit": "nonzero",
+      "expect": [
+        "A production build needs an https:// EXPO_PUBLIC_API_URL, not \"demo\"."
+      ]
+    }
+  ]
+}

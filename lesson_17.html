@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Storing data on a phone: what each kind of storage is for (AsyncStorage, SecureStore, SQLite), what survives a restart, an update and an uninstall, a theme choice saved with AsyncStorage and applied before the first screen, a logbook of sent debris logs in a SQLite database with a migration, local data in the TanStack Query cache, and what the web preview needs for SQLite. React Native &amp; Expo: Build and Ship a Mobile App Lesson 5.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Storing Data on the Device - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+            <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>💾 Lesson 5.3: Storing Data on the Device</h1>
+                <p class="lead">Close a browser tab and open the site again: the server still has everything. Force-quit a phone app and open it again, and it starts with whatever it saved on the phone, and nothing else. Today you decide what Shoreline Crew keeps, and where: the sign-in in the phone's lockbox, a small setting in a key-value store, and a logbook of debris logs in a real database that opens on a beach with no signal.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Choose between AsyncStorage, SecureStore and SQLite for a piece of data, and say what survives a restart, an update and an uninstall</li>
+                        <li>Save a small setting with AsyncStorage, check it when you read it back, and apply it before the first screen appears</li>
+                        <li>Create a SQLite table, write rows with <code>?</code> values, and ask questions across them (newest first, totals)</li>
+                        <li>Give a database a version number and a migration, so a later version of the app can change its tables safely</li>
+                        <li>Read data from the phone through the TanStack Query cache, without waiting for a network it does not need</li>
+                        <li>Set up the web preview for SQLite and know where it differs from a phone</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_16.html">Lesson 5.2: TanStack Query on Mobile</a> (and Lesson 4.3's SecureStore session)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A <strong>Theme</strong> choice on Profile (phone setting, light or dark) that the app remembers, and a Logbook tab that keeps your sent debris logs in a SQLite database on the phone, with totals, readable with no signal</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), AsyncStorage 2.2.0, expo-sqlite 58.0, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone (or the Android emulator) with shoreline-api running <code>--host</code>; the web preview for the quick checks</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-17-start.zip">lesson-17-start.zip</a> · Finished code: <a href="downloads/lesson-17-end.zip">lesson-17-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: What a Phone Remembers</a></li>
+                        <li><a href="#places" class="toc-link">Three Places to Keep Things</a></li>
+                        <li><a href="#asyncstorage" class="toc-link">AsyncStorage: Small Settings</a></li>
+                        <li><a href="#sqlite" class="toc-link">SQLite: A Database in the App</a></li>
+                        <li><a href="#migrations" class="toc-link">Tables That Change Later</a></li>
+                        <li><a href="#cache" class="toc-link">Phone Data in the Query Cache</a></li>
+                        <li><a href="#web" class="toc-link">SQLite in the Web Preview</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Settings and a Logbook</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: What a Phone Remembers</h2>
+                <p>If you tried last lesson's "Before the Next Lesson" task, you saw the split already. After a force-quit, Shoreline Crew still knew who you were (Lesson 4.3 saved the session in SecureStore), but the Cleanups list started with "Loading cleanups…": the TanStack Query cache lives in memory, and a closed app has no memory left. Everything a phone app keeps between launches, it keeps because someone wrote it to the phone's storage on purpose.</p>
+                <p>The web course had this choice too, and it was easy: the server keeps the real data, the browser keeps a token in <code>sessionStorage</code> and maybe a preference in <code>localStorage</code>. A phone app has more reasons to keep things itself. It opens with no signal, it is closed by the system without warning when memory runs low, and people expect it to look the way they left it.</p>
+                <p>By the end of today:</p>
+                <ul>
+                    <li><strong>You can pick the right storage</strong> for a piece of data, and explain the choice to a teammate.</li>
+                    <li><strong>Profile has a Theme choice</strong> (phone setting, light, dark) that the app remembers and applies before the first screen.</li>
+                    <li><strong>The Logbook tab is real:</strong> your sent debris logs, in a SQLite database on the phone, with totals, readable with no signal.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "where does this live?" is one of the first questions in any mobile code review. Tokens in plain storage are a security finding, a setting that flickers on every launch is a bug report, and a database without a migration plan is next year's data-loss incident. These are small decisions with long tails.</p>
+                <p><strong>Why it matters for the volunteers:</strong> a crew leader opens the app at a beach with no signal to see what the team logged last month. If that history lives only on the server, the app has nothing to show.</p>
+                <div class="card card-accent">
+                    <h4>🌱 A little SQL goes a long way</h4>
+                    <p>If you have never written SQL, today has a few lines of it. You do not need to master databases to use one well in an app: four kinds of statement cover almost everything Shoreline Crew does, and the lesson explains each one. If a query fails, the error names what SQLite did not understand, which is feedback you can read.</p>
+                </div>
+            </section>
+
+            <section id="places" class="lesson-section">
+                <h2>🗄️ Three Places to Keep Things</h2>
+                <p>Expo gives a phone app three main places to store data (and a file system, which Lesson 6.2 uses for photos and Lesson 6.5 for shared files). They differ in what they hold, how safe it is, and how you ask for it:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>AsyncStorage</th><th>SecureStore</th><th>SQLite (expo-sqlite)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Holds</td><td>Text under a key (store objects as JSON)</td><td>Short text under a key</td><td>Tables of rows with the same columns</td></tr>
+                            <tr><td>Protected</td><td>No: plain files in the app's private folder</td><td>Yes: the iOS Keychain, or values encrypted with the Android Keystore</td><td>No: a plain database file in the app's private folder</td></tr>
+                            <tr><td>You ask</td><td>"The value for this key"</td><td>"The value for this key"</td><td>Anything SQL can say: filter, sort, count, add up</td></tr>
+                            <tr><td>Good for</td><td>Settings, small flags, "seen this tip"</td><td>Tokens, keys, anything secret</td><td>Many records you search, sort or total; offline data</td></tr>
+                            <tr><td>Not for</td><td>Secrets; hundreds of records</td><td>Anything big (Expo's documentation warns some iPhones reject values over about 2,048 bytes)</td><td>Secrets (not encrypted); one small setting</td></tr>
+                            <tr><td>Shoreline Crew keeps</td><td>The theme choice (<code>src/state/settings.ts</code>)</td><td>The session (<code>src/auth/session.ts</code>, Lesson 4.3)</td><td>The logbook (<code>src/storage/logbook.ts</code>)</td></tr>
+                            <tr><td>In the web preview</td><td>The browser's <code>localStorage</code> (measured)</td><td>Nothing: not available (Lesson 4.3)</td><td>A WebAssembly SQLite in the browser's private file storage (measured, with setup: <a href="#web">below</a>)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>All three are <strong>asynchronous</strong>: every read and write returns a promise, because the phone answers from storage, not from memory. That is the main thing to unlearn from <code>localStorage</code>, which answers at once. It also means the app's first frame cannot "just read" a saved value: it has to wait for it, or draw something else first. Shoreline Crew already waits for the session behind the splash screen, and today the settings join it.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the crew van</h4>
+                    <p>Shoreline Crew's van has three places for paper. A <strong>clipboard on the dashboard</strong> holds the few things you check every trip (which radio channel, the lights setting): that is AsyncStorage. A <strong>lockbox under the seat</strong> holds the keys and the permit: SecureStore. A <strong>ruled ledger in the glove box</strong> has a line for every bag the crew ever collected, with the same columns on every line, so you can add up a season in a minute: SQLite. Nobody keeps the permit on the clipboard, and nobody writes a season of bags on a sticky note.</p>
+                </div>
+                <h3>What survives what</h3>
+                <p>"Stored on the phone" is not forever. According to the Expo and platform documentation:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Event</th><th>Memory (the Query cache)</th><th>AsyncStorage, SQLite</th><th>SecureStore</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Force-quit, or the system closes the app</td><td>Gone</td><td>Kept</td><td>Kept</td></tr>
+                            <tr><td>An app update (from a store, or an update in Lesson 9.3)</td><td>Gone</td><td>Kept: your new code must read the old data (<a href="#migrations">migrations</a>)</td><td>Kept</td></tr>
+                            <tr><td>"Clear data" (Android settings) or uninstall</td><td>Gone</td><td>Gone</td><td>Gone on Android; on iOS, Keychain items can survive an uninstall (Lesson 4.3)</td></tr>
+                            <tr><td>A new phone</td><td>Gone</td><td>Only if the platform's backup copies it</td><td>Not on Android: the config plugin leaves it out of backups (Lesson 4.3)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The rule that follows: <strong>the phone keeps copies; the server keeps the truth</strong>. Anything that matters to the crew must eventually reach shoreline-api. The logbook you build today is a copy of logs the server already has, which is why a "Bring in my sent logs" button can always rebuild it.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: AsyncStorage 2.2, not 3</h4>
+                    <p>npm's newest <code>@react-native-async-storage/async-storage</code> is a 3.x version, but Expo SDK 58 pins <strong>2.2.0</strong>, the version built into Expo Go. <code>npx expo install</code> picks it for you. Articles about AsyncStorage 3 describe a newer API; everything in this lesson is the 2.2 API (<code>getItem</code>, <code>setItem</code>, <code>removeItem</code>), which version 3 still has according to its documentation.</p>
+                </div>
+            </section>
+
+            <section id="asyncstorage" class="lesson-section">
+                <h2>🔑 AsyncStorage: Small Settings</h2>
+                <p>AsyncStorage is <code>localStorage</code> with promises. Three methods do almost all the work:</p>
+                <pre data-snippet><code class="language-ts">import AsyncStorage from '@react-native-async-storage/async-storage';
+
+await AsyncStorage.setItem('shoreline-crew-settings', JSON.stringify({ theme: 'dark' }));
+const saved = await AsyncStorage.getItem('shoreline-crew-settings'); // string | null
+await AsyncStorage.removeItem('shoreline-crew-settings');</code></pre>
+                <p>Values are strings, so objects go through <code>JSON.stringify</code> and <code>JSON.parse</code>, exactly as in the browser. Shoreline Crew keeps all its settings in <strong>one key</strong> as one small JSON object: one read at startup, one write per change, and Lesson 6.4 can add the reminders switch without a second key.</p>
+                <h3>Read it back like API data</h3>
+                <p>What comes out of storage was written by some earlier version of your app, on a phone you have never seen. The web course taught you to check data from the API before trusting it; data from the phone gets the same treatment. Shoreline Crew's settings store parses the saved text, keeps a theme only if it is one of the three it knows, and falls back to the default otherwise. Measured in the web preview: a saved <code>{"theme":"sepia"}</code> opened with <strong>Phone setting</strong> chosen, and a saved <code>{not json</code> did too, with a warning in the console instead of a broken app.</p>
+                <h3>Before the first frame</h3>
+                <p>The theme decides the colors of the very first screen. If the app drew first and read the setting second, a volunteer who chose Dark would see a white flash on every launch. The root layout already holds the splash screen until the fonts and the session are loaded; the settings load at the same time (<code>Promise.all</code>), so the splash hides on a screen that is already in the right colors. On a phone that read takes a moment; in the web preview it reads <code>localStorage</code> (measured: the app saved the key <code>shoreline-crew-settings</code> there).</p>
+                <h3>One reader for the theme</h3>
+                <p>Lesson 2.5 made <code>useTheme()</code> the single place that decides light or dark, and every component and style sheet asks it. That pays off today: <code>useTheme</code> reads the choice and the phone's setting, and nothing else in the app changes. The navigation theme, the status bar icons and every <code>createThemedStyles</code> sheet follow by themselves.</p>
+                <div class="card card-danger">
+                    <h4>🛑 Never put a token or a password in AsyncStorage</h4>
+                    <p>AsyncStorage files are not encrypted. On a rooted or jailbroken phone, in some backups, or in a debugging tool, they are readable text. Tokens go in SecureStore (Lesson 4.3), passwords nowhere at all. A good habit for code review: search the project for <code>AsyncStorage.setItem</code> and read what each call saves.</p>
+                </div>
+            </section>
+
+            <section id="sqlite" class="lesson-section">
+                <h2>🗃️ SQLite: A Database in the App</h2>
+                <p>SQLite is a complete SQL database in a single file, and it is already inside iOS and Android. <code>expo-sqlite</code> gives JavaScript a way to talk to it, and Expo Go includes it (no development build needed, according to Expo's documentation). The database file sits in the app's private folder, so another app cannot open it, but it is not encrypted.</p>
+                <h3>Why not AsyncStorage for the logbook?</h3>
+                <p>You could store the logbook as one big JSON array under one key. It works for ten logs. Then a crew leader has three hundred: every new log means reading the whole array, parsing it, adding one item, writing it all back, and the totals screen adds up every log in JavaScript on each visit. A database keeps each log as a <strong>row</strong> in a <strong>table</strong>, adds one row without touching the others, and answers questions like "this volunteer's logs, newest first" or "the total weight" itself. That is the job SQLite is for: <strong>many records with the same fields that you search, sort or total</strong>. (Lesson 5.5's queue of logs waiting to be sent uses AsyncStorage on purpose: it is a handful of items, read and written whole.)</p>
+                <h3>Four statements</h3>
+                <p>Shoreline Crew's logbook needs four kinds of SQL statement. Each one in a sentence:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Statement</th><th>What it does</th><th>In the logbook</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CREATE TABLE sent_logs (…)</code></td><td>Makes a table: column names, a type for each (<code>TEXT</code>, <code>INTEGER</code>, <code>REAL</code> for decimals), <code>NOT NULL</code> where a value is required, and a <code>PRIMARY KEY</code> (what makes a row unique)</td><td>Once, the first time the database opens</td></tr>
+                            <tr><td><code>INSERT OR REPLACE INTO sent_logs (…) VALUES (?, ?, …)</code></td><td>Adds a row; if a row with the same primary key exists, replaces it</td><td>Each log brought in from the server (the same log twice stays one row)</td></tr>
+                            <tr><td><code>SELECT … FROM sent_logs WHERE volunteer_id = ? ORDER BY recorded_at DESC</code></td><td>Reads the rows that match, sorted</td><td>The entries on the Logbook screen, newest first</td></tr>
+                            <tr><td><code>SELECT COUNT(*), SUM(pieces), … FROM sent_logs WHERE …</code></td><td>Adds up across the matching rows into one answer row</td><td>"1 log in all: 42 pieces, 1 bag, 2.5 kg."</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The primary key is <code>(volunteer_id, client_id)</code>, the same pair shoreline-api uses to recognize a log it already has: every log carries a <code>clientId</code> made by the phone that recorded it (Lesson 5.4 makes them). On a phone shared by two volunteers, <code>WHERE volunteer_id = ?</code> keeps each logbook to its owner, the database version of last lesson's "the viewer is in the key".</p>
+                <h3>Values go in <code>?</code>, never into the SQL text</h3>
+                <p>Every <code>?</code> in a statement is a placeholder that SQLite fills in with a value you pass separately, in the same order. The value is never read as SQL, so a note like <em>Theo's bag split by the stairs</em> is stored as written. Build the statement with a template string instead, and the apostrophe ends the SQL string early. Measured in the web preview:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>Error: Error code 1: near "s": syntax error</code></pre>
+                </div>
+                <p>That is the friendly version. The unfriendly one is a note written to change the SQL on purpose (SQL injection). The rule is short: <strong>data goes in <code>?</code> values; only your own fixed text goes in the SQL</strong>.</p>
+                <h3>The expo-sqlite methods</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Method</th><th>Use it for</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>SQLite.openDatabaseAsync('logbook.db')</code></td><td>Open (or create) a database file; you get a database object</td></tr>
+                            <tr><td><code>db.execAsync(sql)</code></td><td>Fixed SQL with no values, possibly several statements (creating tables)</td></tr>
+                            <tr><td><code>db.runAsync(sql, ...values)</code></td><td>A write with <code>?</code> values (insert, update, delete)</td></tr>
+                            <tr><td><code>db.getAllAsync&lt;Row&gt;(sql, ...values)</code></td><td>Every matching row, as an array of objects</td></tr>
+                            <tr><td><code>db.getFirstAsync&lt;Row&gt;(sql, ...values)</code></td><td>The first row, or <code>null</code></td></tr>
+                            <tr><td><code>db.withTransactionAsync(async () =&gt; …)</code></td><td>Several statements that succeed or fail together</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Every method has a synchronous twin (<code>execSync</code>, <code>getAllSync</code>…). Shoreline Crew uses only the async ones: a sync call blocks the JavaScript thread, so a slow query would freeze taps and animations, and in the web preview the sync methods need extra setup (<a href="#web">below</a>). The <code>&lt;Row&gt;</code> type parameter tells TypeScript what a row looks like; it does not check it. Rows written by your own code with your own columns are as trustworthy as your code, which is why the SQL renames columns to match the type (<code>client_id AS clientId</code>).</p>
+            </section>
+
+            <section id="migrations" class="lesson-section">
+                <h2>🧱 Tables That Change Later</h2>
+                <p>A web app's database lives on one server, and the team changes its tables once, with a migration. A phone app's database lives on every phone that installed the app, and you never get to log in to any of them. When version 2 of Shoreline Crew needs a new column, the new code runs on phones whose database files were made by version 1, and on fresh installs, and on a phone that skipped a version. The code itself has to bring each file up to date.</p>
+                <p>SQLite keeps a number in every database file for exactly this: <code>PRAGMA user_version</code>, 0 in a new file. Shoreline Crew's logbook reads it when it opens the database and runs each missing step in order:</p>
+                <ul>
+                    <li><strong>Version 0 (a new file):</strong> create <code>sent_logs</code>, then set the number to 1.</li>
+                    <li><strong>Version 1:</strong> nothing to do today. A later lesson that adds a column adds <code>if (version &lt; 2) { ALTER TABLE … }</code> and sets 2.</li>
+                </ul>
+                <p>The steps and the new number run in one <strong>transaction</strong>: if a step fails, SQLite rolls everything back, and the file keeps its old tables and its old number, ready to try again on the next launch. Two habits from the expo-sqlite documentation keep this safe: never delete a user's database to get past a migration error, and never edit a step that has already shipped (write a new one).</p>
+                <div class="card card-info">
+                    <h4>💡 Why not just <code>CREATE TABLE IF NOT EXISTS</code>?</h4>
+                    <p>It is fine for a first version, and many examples use it. It answers "is there a table?", not "which version of the table is it?". The day you add a column, an old file already has the table, so <code>IF NOT EXISTS</code> skips it, and the first query that names the new column fails on every phone that updated. The version number answers the question you will need later; today it costs five lines.</p>
+                </div>
+                <p>One more decision: <strong>one connection for the whole app</strong>. <code>src/storage/logbook.ts</code> opens the database the first time a function needs it and keeps the promise, so every later call shares it. (expo-sqlite also has a <code>&lt;SQLiteProvider&gt;</code> component and a <code>useSQLiteContext()</code> Hook for apps that read the database from many components. Shoreline Crew reads it in one place, through the query cache, so a plain module is simpler.)</p>
+            </section>
+
+            <section id="cache" class="lesson-section">
+                <h2>🔄 Phone Data in the Query Cache</h2>
+                <p>The Logbook screen could read SQLite in a <code>useEffect</code>. But you already have a tool that tracks loading, errors, refetching and "something changed, read it again": TanStack Query does not care where a <code>queryFn</code> gets its answer. <code>logbookQuery(viewer)</code> reads the database, and the bring-in mutation invalidates <code>['logbook']</code> when it has written new rows, so the screen reads again by itself. Same pattern as last lesson, with the phone as the server.</p>
+<div class="mermaid">
+graph TD
+    A["Bring in my sent logs"] --> B["GET logs from the API"]
+    B --> C["saveSentLogs: SQLite"]
+    C --> D["invalidate logbook"]
+    D --> E["readLogbook: SQLite"]
+    E --> F["Logbook screen"]
+</div>
+                <p>Two options are different for data that lives on the phone:</p>
+                <ul>
+                    <li><strong><code>networkMode: 'always'</code>.</strong> Since last lesson, TanStack Query knows when the phone is offline, and its default mode pauses any query that would need to fetch. That is right for the API and wrong for a database on the phone: the logbook must open on a beach with no signal. Measured in the web preview with the browser reporting "offline": with <code>'always'</code>, the Logbook tab opened at once; without it, it stayed on "Opening your logbook…" until the connection came back.</li>
+                    <li><strong><code>staleTime: Infinity</code>.</strong> Nothing changes the logbook behind the app's back: only the app writes it, and every write invalidates the query. So the answer never goes stale by itself, and screens never re-read it just because time passed.</li>
+                </ul>
+                <p>The bring-in itself stays an ordinary mutation with the default network mode: it asks the API, so it should wait for a connection. Offline, the button says "Bringing in…", the screen says "No connection: your logs come in when you are back online.", and the entries already on the phone stay on screen (measured, pictured in the project).</p>
+                <div class="card card-info">
+                    <h4>🧭 What Lesson 5.5 builds on this</h4>
+                    <p>Today's storage layer is the base for Offline First. Lesson 5.5 adds a queue of debris logs that are <em>not yet</em> sent, kept with AsyncStorage through Zustand's <code>persist</code> middleware (the Zustand you know from the web course, plus storage), and when a queued log is sent, it goes into this same <code>sent_logs</code> table. The settings store you write today is plain AsyncStorage on purpose: one small object needs no library, and you will see exactly what <code>persist</code> saves you from writing.</p>
+                </div>
+            </section>
+
+            <section id="web" class="lesson-section">
+                <h2>🌐 SQLite in the Web Preview</h2>
+                <p>A browser has no SQLite built in, so expo-sqlite's web version is SQLite compiled to <strong>WebAssembly</strong> (a <code>.wasm</code> file), running in a background worker and saving the database in the browser's private file storage (the Origin Private File System). The course measured what it needs with SDK 58:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setup</th><th>What happened in the web preview</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Nothing added</td><td>The web bundle fails: Metro does not bundle <code>.wasm</code> files (<a href="#mistakes">Common Mistakes</a> shows the message). Expo Go and the Android and iOS bundles are unaffected.</td></tr>
+                            <tr><td><code>metro.config.js</code> adds <code>wasm</code> to the asset types</td><td>Every async method works, in the dev server and in an exported build; the rows were still there after reloading the page</td></tr>
+                            <tr><td>The same, calling a <strong>sync</strong> method</td><td><code>ReferenceError: SharedArrayBuffer is not defined</code></td></tr>
+                            <tr><td>Plus two "cross-origin isolation" headers (the expo-sqlite documentation's setup)</td><td>Sync methods work too</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Shoreline Crew uses only async methods, so it needs only the one Metro line. If you ever need the sync methods on the web, the expo-sqlite documentation shows the two headers (<code>Cross-Origin-Embedder-Policy</code> and <code>Cross-Origin-Opener-Policy</code>) for the dev server and for hosting; they also change how a page may load content from other sites, which is why the course leaves them out.</p>
+                <p>Two habits for the web preview:</p>
+                <ul>
+                    <li><strong>One tab at a time.</strong> A second browser tab of the same preview could not open the database while the first had it (measured: "Access Handles cannot be created if there is another open Access Handle…"). Close the extra tab and reload.</li>
+                    <li><strong>Starting over.</strong> The web preview's logbook and settings live in that browser: Chrome's DevTools, <strong>Application</strong> panel, <strong>Storage</strong>, <strong>Clear site data</strong> empties both (and <code>localStorage</code> shows the key <code>shoreline-crew-settings</code> on the way). On a phone, uninstalling the app (or Android's <strong>Clear storage</strong> for Expo Go) does the same.</li>
+                </ul>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each mistake was made on purpose in a copy of the finished project and quoted as the tools showed it.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Forgetting <code>.wasm</code> in Metro's asset types</h4>
+                    <p>After <code>npx expo install expo-sqlite</code>, Expo Go keeps working, but the web preview breaks the moment any screen imports the logbook. Without <code>metro.config.js</code>, <code>npx expo export --platform web</code> stopped with (trimmed):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+...
+Error: Unable to resolve module ./wa-sqlite/wa-sqlite.wasm from ~/shoreline/shoreline-crew/node_modules/expo-sqlite/web/worker.ts:
+None of these files exist:
+  * node_modules/expo-sqlite/web/wa-sqlite/wa-sqlite.wasm(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * node_modules/expo-sqlite/web/wa-sqlite/wa-sqlite.wasm
+...</code></pre>
+                    </div>
+                    <p>"None of these files exist" is misleading: the file is right there. Metro is saying it does not know what to do with a <code>.wasm</code> file, so it looked for other file types instead. The web preview from <code>npx expo start</code> (<kbd>w</kbd>) should stop at the same "Unable to resolve" message, since it is the same bundler. The fix is Step 1's <code>metro.config.js</code>, then restart Metro with <code>npx expo start --clear</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Reading the phone with the network's rules</h4>
+                    <p>Leave <code>networkMode: 'always'</code> out of <code>logbookQuery</code> and nothing complains: <code>tsc</code>, <code>expo lint</code> and the online web preview are all happy. Then, offline, the Logbook tab says "Opening your logbook…" and keeps saying it (measured), because TanStack Query paused a query that never needed the network. Any query whose <code>queryFn</code> reads only the phone gets <code>networkMode: 'always'</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Building SQL from data</h4>
+                    <p><code>db.execAsync(`INSERT INTO … VALUES ('${note}')`)</code> works until a note contains an apostrophe, then fails with <code>near "s": syntax error</code> (measured in the web preview; a phone should report the same SQLite message inside its own error text). Pass values as <code>?</code> placeholders to <code>runAsync</code>, <code>getAllAsync</code> and <code>getFirstAsync</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ One screen for two people</h4>
+                    <p>A first draft of the Logbook screen called <code>useMutation</code> at the top of the screen, above the "not signed in" check. In that version, Theo brought in his logs, signed out, and Amara signed in on the same phone: her empty logbook still said "Done: the server has 1 log of yours, and your logbook has them all." (measured). A mutation's result lives as long as the component that called <code>useMutation</code>, and a tab screen never unmounts. The finished screen puts the signed-in part in its own component, <code>MyLogbook</code>, which signing out unmounts, so the next person starts fresh.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Two tabs of the web preview</h4>
+                    <p>Open the preview in a second tab while the first is still open, and the second cannot open the database: its Logbook tab said "Something unexpected went wrong. Try again in a moment." with a <strong>Try again</strong> button (measured; the underlying error is the one in <a href="#web">SQLite in the Web Preview</a>). It is a web-preview limit (the browser's file storage allows one writer per file), not a bug in your code: close one tab.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Settings and a Logbook</h2>
+                <p>You install AsyncStorage and expo-sqlite, give the web preview what SQLite needs, write a small settings store, let <code>useTheme</code> read the choice, add it to Profile, and build the logbook: a client function for the API's logs, the SQLite storage module, a query and a mutation, and the Logbook screen. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal (with <code>--host</code> when you test on your phone, as in Lesson 5.1).</p>
+
+                <div class="card">
+                    <h3>Step 1: Install the two stores, and teach Metro about .wasm <span class="step-time">(10 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac) and install both with Expo's installer, which picks the versions built into Expo Go for SDK 58:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install @react-native-async-storage/async-storage expo-sqlite</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 2 SDK 58.0.0 compatible native modules using npm
+&gt; npm install
+
+added 5 packages, and audited 804 packages in 5s
+...
+8 moderate severity vulnerabilities
+...
+› Added config plugin: expo-sqlite</code></pre>
+                    </div>
+                    <p>Both are native modules ("2 SDK 58.0.0 compatible native modules"), and the vulnerabilities line is npm's audit of the whole project, as in Lesson 5.2: the install worked. <code>package.json</code> now lists <code>"@react-native-async-storage/async-storage": "2.2.0"</code> and <code>"expo-sqlite": "~58.0.17"</code>, and the last line says Expo also added expo-sqlite's <strong>config plugin</strong> to <code>app.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">       ],
+-      "expo-secure-store"
++      "expo-secure-store",
++      "expo-sqlite"
+     ],</code></pre>
+                    </div>
+                    <p>Like SecureStore's plugin in Lesson 4.3, it only matters for your own builds (Module 9); Expo Go already contains SQLite. Then create <code>metro.config.js</code> in the project folder (next to <code>package.json</code>), so the web preview can bundle SQLite's WebAssembly file:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/metro.config.js</div>
+                        <pre data-src="shoreline-crew/metro.config.js"><code class="language-js">// Metro, the bundler, with one addition: expo-sqlite runs in the web preview as a WebAssembly
+// file (.wasm), and Metro only bundles the file types it has been told about
+const { getDefaultConfig } = require('expo/metro-config');
+
+const config = getDefaultConfig(__dirname);
+
+config.resolver.assetExts.push('wasm');
+
+module.exports = config;</code></pre>
+                    </div>
+                    <p>It starts from Expo's own configuration (<code>getDefaultConfig</code>) and adds one file type, so everything Expo set up stays. Metro reads this file only when it starts: run <code>npx expo start --clear</code>.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The settings store <span class="step-time">(10 min)</span></h3>
+                    <p>Create the folder <code>src/state</code> and, in it, <code>settings.ts</code>. It is the same small-store shape as <code>useSession</code> (Lesson 4.3) and <code>ended.ts</code> (Lesson 5.2): a module variable, listeners, and <code>useSyncExternalStore</code>, plus a load and a save:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/settings.ts</div>
+                        <pre data-src="shoreline-crew/src/state/settings.ts"><code class="language-ts">// The volunteer's settings, kept on the phone with AsyncStorage (new). Small, not secret, and read
+// once at startup; every change is saved at once. Lesson 6.4 adds the reminders switch here.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSyncExternalStore } from 'react';
+
+/** 'system' follows the phone's own light or dark setting */
+export type ThemeChoice = 'system' | 'light' | 'dark';
+
+export type Settings = {
+  theme: ThemeChoice;
+};
+
+// The key the settings are saved under, as one JSON string
+const settingsKey = 'shoreline-crew-settings';
+
+const defaults: Settings = { theme: 'system' };
+const themeChoices: ThemeChoice[] = ['system', 'light', 'dark'];
+
+let current: Settings = defaults;
+const listeners = new Set&lt;() =&gt; void&gt;();
+
+function setCurrent(settings: Settings) {
+  current = settings;
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+// What was saved is checked like API data: an older version of the app (or a bug) may have
+// written something else. Anything unknown falls back to the default.
+function fromSaved(saved: string | null): Settings {
+  const value: unknown = saved === null ? null : JSON.parse(saved);
+  if (typeof value !== 'object' || value === null || !('theme' in value)) {
+    return defaults;
+  }
+  const theme = themeChoices.find((choice) =&gt; choice === value.theme);
+  return { theme: theme ?? defaults.theme };
+}
+
+/** Read the saved settings. Call it once, when the app starts. It never fails. */
+export async function loadSettings(): Promise&lt;void&gt; {
+  try {
+    setCurrent(fromSaved(await AsyncStorage.getItem(settingsKey)));
+  } catch (error) {
+    console.warn('Could not read the saved settings', error);
+  }
+}
+
+/** Change some settings: screens update at once, and the phone saves the new values */
+export function changeSettings(changes: Partial&lt;Settings&gt;): void {
+  setCurrent({ ...current, ...changes });
+  AsyncStorage.setItem(settingsKey, JSON.stringify(current)).catch((error: unknown) =&gt;
+    console.warn('Could not save the settings', error),
+  );
+}
+
+function subscribe(listener: () =&gt; void) {
+  listeners.add(listener);
+  return () =&gt; {
+    listeners.delete(listener);
+  };
+}
+
+/** The current settings; the component draws again when they change */
+export function useSettings(): Settings {
+  // The third function is for the web preview's server, which has no saved settings
+  return useSyncExternalStore(subscribe, () =&gt; current, () =&gt; defaults);
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>fromSaved</code></strong> checks the saved text like API data: anything it does not recognize becomes the default. If <code>JSON.parse</code> throws, <code>loadSettings</code> catches it and keeps the defaults.</li>
+                        <li><strong><code>changeSettings</code></strong> updates the screens first and saves second, without waiting: the volunteer sees the new theme at once, and a failed save only means the old choice comes back next launch.</li>
+                        <li><strong>The server snapshot</strong> (<code>() =&gt; defaults</code>) is for the web preview's server render, the same reason as in Lesson 4.3.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The theme follows the choice <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/hooks/useTheme.ts</code>, the one place that decides light or dark, read the choice too:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useTheme.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useTheme.ts" data-match="diff"><code class="language-diff-ts"> import { useColorScheme } from '@/hooks/useColorScheme';
++import { useSettings } from '@/state/settings';
+ import { type Theme, themes } from '@/theme/theme';
+ 
+-// The theme for the phone's current setting: light, or dark when the phone is in dark mode
++// The theme the volunteer chose on Profile: light, dark, or the phone's own setting
+ export function useTheme(): Theme {
+-  const scheme = useColorScheme();
++  const phoneScheme = useColorScheme();
++  const { theme } = useSettings();
++  const scheme = theme === 'system' ? phoneScheme : theme;
+   return themes[scheme === 'dark' ? 'dark' : 'light'];</code></pre>
+                    </div>
+                    <p>"Phone setting" keeps Lesson 2.5's behavior; Light and Dark override it. Every component that calls <code>useTheme()</code> or a <code>createThemedStyles</code> Hook redraws when the choice changes, because <code>useSettings</code> subscribes them. Then, in <code>src/app/_layout.tsx</code>, load the settings while the splash screen is up, together with the session:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useTheme } from '@/hooks/useTheme';
++import { loadSettings } from '@/state/settings';
+ import { fontFiles, fonts } from '@/theme/typography';
+ 
+-// Keep the splash screen up while the fonts and the saved session load (runs once, at startup)
++// Keep the splash screen up while the fonts, the session and the settings load (once, at startup)
+ SplashScreen.preventAutoHideAsync();
+ // ...
+   const [fontsLoaded, fontError] = useFonts(fontFiles);
+-  // Reading secure storage is async: until it answers, the app cannot know who is signed in
+-  const [sessionLoaded, setSessionLoaded] = useState(false);
++  // Reading the phone's storage is async: until it answers, the app cannot know who is signed in,
++  // or which theme to draw the first screen in
++  const [savedLoaded, setSavedLoaded] = useState(false);
+   const session = useSession();
+   // If a font fails to load, carry on with the system font rather than a splash screen forever
+-  const ready = (fontsLoaded || fontError !== null) &amp;&amp; sessionLoaded;
++  const ready = (fontsLoaded || fontError !== null) &amp;&amp; savedLoaded;
+   const { scheme, colors } = useTheme();
+ // ...
+   useEffect(() =&gt; {
+-    loadSession().finally(() =&gt; setSessionLoaded(true));
++    Promise.all([loadSession(), loadSettings()]).finally(() =&gt; setSavedLoaded(true));
+   }, []);</code></pre>
+                    </div>
+                    <p><code>Promise.all</code> runs both reads at the same time, and <code>finally</code> lets the app start even if one fails (both functions catch their own errors anyway). The renamed flag says what it waits for now: everything saved on the phone.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A Theme choice on Profile <span class="step-time">(10 min)</span></h3>
+                    <p>Three choices, one selected, is a <strong>radio group</strong>, not three switches. Create a small reusable component, <code>src/components/ChoiceGroup.tsx</code>, built from the <code>Button</code> you already have:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/ChoiceGroup.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/ChoiceGroup.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { spacing } from '@/theme/spacing';
+
+export type Choice&lt;T extends string&gt; = {
+  value: T;
+  label: string;
+};
+
+type ChoiceGroupProps&lt;T extends string&gt; = {
+  label: string;
+  choices: Choice&lt;T&gt;[];
+  value: T;
+  onChange: (value: T) =&gt; void;
+};
+
+// One of a few choices, as a row of buttons: the chosen one is filled in. A screen reader hears
+// a group of radio buttons ("Light, radio button, selected").
+export function ChoiceGroup&lt;T extends string&gt;({
+  label,
+  choices,
+  value,
+  onChange,
+}: ChoiceGroupProps&lt;T&gt;) {
+  return (
+    &lt;View style={styles.group}&gt;
+      &lt;AppText style={styles.label}&gt;{label}&lt;/AppText&gt;
+      &lt;View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.row}&gt;
+        {choices.map((choice) =&gt; (
+          &lt;Button
+            key={choice.value}
+            label={choice.label}
+            variant={choice.value === value ? 'primary' : 'secondary'}
+            accessibilityRole="radio"
+            aria-checked={choice.value === value}
+            onPress={() =&gt; onChange(choice.value)}
+          /&gt;
+        ))}
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  group: {
+    gap: spacing.xs,
+  },
+  label: {
+    fontWeight: '600',
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap', // with large text, the buttons wrap instead of running off the screen
+    gap: spacing.sm,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>A generic component</strong> (<code>&lt;T extends string&gt;</code>): with <code>Choice&lt;ThemeChoice&gt;[]</code>, <code>onChange</code> receives a <code>ThemeChoice</code>, and a typo such as <code>'drak'</code> in the list is a <code>tsc</code> error.</li>
+                        <li><strong>Accessibility:</strong> <code>accessibilityRole="radiogroup"</code> with a label on the row, <code>"radio"</code> and <code>aria-checked</code> on each button (Lesson 2.4: state goes in <code>aria-*</code> props). In the web preview they became <code>role="radiogroup"</code>, <code>role="radio"</code> and <code>aria-checked="true"</code> (measured), and the automated accessibility check passed in light and dark.</li>
+                    </ul>
+                    <p>Now use it in <code>src/app/(tabs)/profile.tsx</code>. Imports and the list of choices first:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { Button } from '@/components/Button';
++import { type Choice, ChoiceGroup } from '@/components/ChoiceGroup';
+ import { ConnectionCheck } from '@/components/ConnectionCheck';
+ // ...
+ import { useSession } from '@/hooks/useSession';
++import { changeSettings, type ThemeChoice, useSettings } from '@/state/settings';
+ 
+-// Profile: who you are, signing in and out, and the beach safety guide
++const themeChoices: Choice&lt;ThemeChoice&gt;[] = [
++  { value: 'system', label: 'Phone setting' },
++  { value: 'light', label: 'Light' },
++  { value: 'dark', label: 'Dark' },
++];
++
++// Profile: who you are, signing in and out, how the app looks, and the beach safety guide
+ export default function ProfileScreen() {
+   const session = useSession();
++  const settings = useSettings();
+   // true when the API said this phone's sign-in has ended (any screen's request can find out)</code></pre>
+                    </div>
+                    <p>then an Appearance section above "Before every cleanup", for guests and volunteers alike:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx">       &lt;AppText variant="heading" accessibilityRole="header"&gt;
++        Appearance
++      &lt;/AppText&gt;
++      {/* Saved on this phone: the app opens in the same theme next time */}
++      &lt;ChoiceGroup
++        label="Theme"
++        choices={themeChoices}
++        value={settings.theme}
++        onChange={(theme) =&gt; changeSettings({ theme })}
++      /&gt;
++      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+         Before every cleanup</code></pre>
+                    </div>
+                    <p>Open Profile in the web preview and press <strong>Dark</strong>: the whole app turns dark, including the header and the tab bar, even though your computer is in light mode. Reload the page: it opens dark (measured; the saved value is in DevTools, <strong>Application</strong>, <strong>Local storage</strong>, under <code>shoreline-crew-settings</code>). Press <strong>Phone setting</strong> to follow the system again.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_17/17-appearance.png" alt="The Profile tab in the web preview, drawn in the dark theme: Not signed in with a Sign in button, then the Appearance heading and the Theme choice, outlined in red, with three buttons Phone setting, Light and Dark, Dark filled in, then Before every cleanup." width="420" height="814" loading="lazy">
+    <figcaption>The phone is in light mode, but the volunteer chose <strong>Dark</strong>: <code>useTheme()</code> reads the choice, so every screen, the tab bar and the status bar follow. The choice is saved with AsyncStorage and comes back on the next launch. (The web preview; the address under Connection is the course's test copy of the API, yours says port 4000. The tab bar gets the bottom inset a notched iPhone would give it.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Read your logs from the API <span class="step-time">(5 min)</span></h3>
+                    <p>shoreline-api has had <code>GET /api/events/:id/logs</code> since the HQ course: a volunteer gets their own logs for a cleanup, an organizer everyone's. The sample data has one log of Theo's, from the Sunset Stairs cleanup. In <code>src/api/client.ts</code>, import two more types, add a check for a log (the spine's planned <code>isCleanupLog</code>; Lesson 5.4 uses it again for the API's answer to a sent log):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   CleanupEventDetail,
++  CleanupLog,
+   DateString,
++  DebrisCount,
+   ErrorCode,
+ // ...
+   return isSignup(value) &amp;&amp; 'event' in value &amp;&amp; isCleanupEvent(value.event);
++}
++
++const logTextFields: (keyof CleanupLog)[] = [
++  'id',
++  'clientId',
++  'eventId',
++  'volunteerId',
++  'note',
++  'recordedAt',
++  'createdAt',
++];
++
++function isDebrisCount(value: unknown): value is DebrisCount {
++  return isRecord(value) &amp;&amp; typeof value.category === 'string' &amp;&amp; typeof value.count === 'number';
++}
++
++/** One debris log, as GET /api/events/:id/logs lists them (new: the HQ never read logs) */
++export function isCleanupLog(value: unknown): value is CleanupLog {
++  return (
++    isRecord(value) &amp;&amp;
++    logTextFields.every((key) =&gt; typeof value[key] === 'string') &amp;&amp;
++    Array.isArray(value.items) &amp;&amp;
++    value.items.every(isDebrisCount) &amp;&amp;
++    typeof value.bags === 'number' &amp;&amp;
++    typeof value.weightKg === 'number' &amp;&amp;
++    isStringArray(value.photoIds)
++  );
+ }</code></pre>
+                    </div>
+                    <p>and the request, next to the other sign-up functions:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts"> 
++/** GET /api/events/:id/logs: your debris logs for one cleanup (an organizer gets everyone's) */
++export function getEventLogs(eventId: string, signal?: AbortSignal): Promise&lt;CleanupLog[]&gt; {
++  return getJSON(`/events/${encodeURIComponent(eventId)}/logs`, isListOf(isCleanupLog), signal);
++}
++
+ /** POST /api/events/:id/signups: sign up for a cleanup. The API decides: a spot, or the waiting list. */</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The logbook database <span class="step-time">(20 min)</span></h3>
+                    <p>This is the heart of the lesson. Create the folder <code>src/storage</code> and, in it, <code>logbook.ts</code>. Read it top to bottom with the <a href="#sqlite">SQLite</a> and <a href="#migrations">migrations</a> sections open; every statement is one from those tables:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/storage/logbook.ts</div>
+                        <pre data-src="shoreline-crew/src/storage/logbook.ts"><code class="language-ts">// The logbook: the debris logs this phone knows were sent, in a SQLite database (new). SQLite, not
+// AsyncStorage: these are many records with the same fields, and the app asks questions across
+// all of them (newest first, totals). Lesson 5.5 adds each log the phone sends itself.
+import * as SQLite from 'expo-sqlite';
+
+import type { CleanupEvent, CleanupLog } from '@/api/types';
+
+/** A log the API has, with the cleanup it belongs to */
+export type SentLog = { log: CleanupLog; event: CleanupEvent };
+
+/** One row of the logbook, as the Logbook screen shows it */
+export type LogbookEntry = {
+  clientId: string;
+  eventTitle: string;
+  eventDate: string;
+  pieces: number;
+  bags: number;
+  weightKg: number;
+  note: string;
+};
+
+export type LogbookTotals = { logs: number; pieces: number; bags: number; weightKg: number };
+
+export type Logbook = { entries: LogbookEntry[]; totals: LogbookTotals };
+
+// The version of the tables below. A later change to them gets a new number and a new step
+const schemaVersion = 1;
+
+let opening: Promise&lt;SQLite.SQLiteDatabase&gt; | null = null;
+
+// One connection for the whole app, opened and brought up to date the first time it is needed
+function database(): Promise&lt;SQLite.SQLiteDatabase&gt; {
+  opening ??= openLogbook().catch((error: unknown) =&gt; {
+    opening = null; // try again next time instead of keeping the failure
+    throw error;
+  });
+  return opening;
+}
+
+async function openLogbook() {
+  const db = await SQLite.openDatabaseAsync('logbook.db');
+  await migrate(db);
+  return db;
+}
+
+// SQLite keeps a number in every database file, user_version (0 in a new one): which version
+// of the tables this file has. Each step brings an older file one version further.
+async function migrate(db: SQLite.SQLiteDatabase) {
+  const row = await db.getFirstAsync&lt;{ user_version: number }&gt;('PRAGMA user_version');
+  const version = row?.user_version ?? 0;
+  if (version &gt;= schemaVersion) {
+    return;
+  }
+  // All or nothing: if a step fails, the file keeps its old tables and its old number
+  await db.withTransactionAsync(async () =&gt; {
+    if (version &lt; 1) {
+      await db.execAsync(`
+        CREATE TABLE sent_logs (
+          volunteer_id TEXT NOT NULL,
+          client_id TEXT NOT NULL,
+          event_id TEXT NOT NULL,
+          event_title TEXT NOT NULL,
+          event_date TEXT NOT NULL,
+          pieces INTEGER NOT NULL,
+          bags INTEGER NOT NULL,
+          weight_kg REAL NOT NULL,
+          note TEXT NOT NULL,
+          recorded_at TEXT NOT NULL,
+          PRIMARY KEY (volunteer_id, client_id)
+        );
+      `);
+    }
+    // A PRAGMA takes no ? values; schemaVersion is our own number, never user input
+    await db.execAsync(`PRAGMA user_version = ${schemaVersion}`);
+  });
+}
+
+/** Save logs the API has. One the logbook already has (same person, same clientId) is replaced. */
+export async function saveSentLogs(sent: SentLog[]): Promise&lt;void&gt; {
+  const db = await database();
+  await db.withTransactionAsync(async () =&gt; {
+    for (const { log, event } of sent) {
+      const pieces = log.items.reduce((sum, item) =&gt; sum + item.count, 0);
+      // Every ? is filled in by SQLite with the value in the same place: never build SQL from data
+      await db.runAsync(
+        `INSERT OR REPLACE INTO sent_logs
+           (volunteer_id, client_id, event_id, event_title, event_date,
+            pieces, bags, weight_kg, note, recorded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        log.volunteerId,
+        log.clientId,
+        event.id,
+        event.title,
+        event.date,
+        pieces,
+        log.bags,
+        log.weightKg,
+        log.note,
+        log.recordedAt,
+      );
+    }
+  });
+}
+
+/** One volunteer's logbook: the newest log first, and the totals over all of them */
+export async function readLogbook(volunteerId: string): Promise&lt;Logbook&gt; {
+  const db = await database();
+  const entries = await db.getAllAsync&lt;LogbookEntry&gt;(
+    `SELECT client_id AS clientId, event_title AS eventTitle, event_date AS eventDate,
+            pieces, bags, weight_kg AS weightKg, note
+       FROM sent_logs
+      WHERE volunteer_id = ?
+      ORDER BY recorded_at DESC`,
+    volunteerId,
+  );
+  const totals = await db.getFirstAsync&lt;LogbookTotals&gt;(
+    `SELECT COUNT(*) AS logs, COALESCE(SUM(pieces), 0) AS pieces,
+            COALESCE(SUM(bags), 0) AS bags, COALESCE(SUM(weight_kg), 0) AS weightKg
+       FROM sent_logs
+      WHERE volunteer_id = ?`,
+    volunteerId,
+  );
+  return { entries, totals: totals ?? { logs: 0, pieces: 0, bags: 0, weightKg: 0 } };
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>database()</code></strong> opens the file once and shares the promise. If opening fails, it forgets the failure, so the next call tries again instead of failing forever.</li>
+                        <li><strong><code>migrate()</code></strong> is the version check from <a href="#migrations">Tables That Change Later</a>, in a transaction. <code>PRAGMA</code> statements take no <code>?</code> values, which is why the one place with <code>${…}</code> in SQL uses a number from the code itself.</li>
+                        <li><strong><code>saveSentLogs()</code></strong> writes every log in one transaction (one log fails, none are half-saved) and stores the cleanup's title and date with it, so the logbook can show them with no signal. <code>pieces</code> is the sum of the counts per category: the logbook keeps what it shows.</li>
+                        <li><strong><code>readLogbook()</code></strong> asks two questions: the rows, newest first, and the totals. <code>COALESCE(SUM(…), 0)</code> turns "no rows to add up" (SQL's <code>NULL</code>) into 0.</li>
+                    </ul>
+                    <p>Nothing calls it yet, so the app looks the same. Run <code>npx tsc --noEmit</code>: it should print nothing.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: The logbook in the cache <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/api/queries.ts</code>, import <code>readLogbook</code> and add the query at the end, with the two options from <a href="#cache">Phone Data in the Query Cache</a>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/queries.ts</div>
+                        <pre data-src="shoreline-crew/src/api/queries.ts" data-match="diff"><code class="language-diff-ts"> import { markSignInEnded } from '@/auth/ended';
++import { readLogbook } from '@/storage/logbook';
+ 
+ // ...
+ }
++
++/** The logbook kept on this phone (new): read from the phone's SQLite database, not the network */
++export function logbookQuery(viewer: string) {
++  return queryOptions({
++    queryKey: ['logbook', viewer],
++    queryFn: () =&gt; readLogbook(viewer),
++    // The answer is on the phone: no reason to wait for a connection ('online' would pause it)
++    networkMode: 'always',
++    // Only this app changes it, and every change invalidates it: never stale by itself
++    staleTime: Infinity,
++  });
++}</code></pre>
+                    </div>
+                    <p>In <code>src/api/mutations.ts</code>, the bring-in. It reuses the sign-ups from the cache (<code>fetchQuery</code> asks the API only if the cached answer is older than 30 seconds), asks for the logs of every cleanup you held a spot at, saves them, and invalidates the logbook:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/mutations.ts</div>
+                        <pre data-src="shoreline-crew/src/api/mutations.ts" data-match="diff"><code class="language-diff-ts"> 
+-import { cancelSignup, postSignup } from '@/api/client';
+-import { queryClient } from '@/api/queries';
++import { cancelSignup, getEventLogs, postSignup } from '@/api/client';
++import { mySignupsQuery, queryClient } from '@/api/queries';
++import { saveSentLogs } from '@/storage/logbook';
++import { toDateString } from '@/utils/format';
+ 
+ // ...
+ }
++
++/**
++ * Copy the debris logs you sent from past cleanups into the logbook on this phone (new).
++ * It asks the API and writes the phone's database, so it waits for a connection like any mutation.
++ */
++export function bringInSentLogsMutation(viewer: string) {
++  return mutationOptions({
++    mutationFn: async () =&gt; {
++      // The cleanups you held a spot at, up to today: the only ones you can have logged for
++      const today = toDateString(new Date());
++      const signups = await queryClient.fetchQuery(mySignupsQuery(viewer));
++      const held = signups.filter(
++        ({ status, event }) =&gt;
++          (status === 'attended' || status === 'confirmed') &amp;&amp; event.date &lt;= today,
++      );
++      // One request per cleanup, all at once; each log keeps its cleanup for the logbook
++      const lists = await Promise.all(
++        held.map(async ({ event }) =&gt; {
++          const logs = await getEventLogs(event.id);
++          return logs.map((log) =&gt; ({ log, event }));
++        }),
++      );
++      const sent = lists.flat();
++      await saveSentLogs(sent);
++      return sent.length;
++    },
++    onSuccess: () =&gt; queryClient.invalidateQueries({ queryKey: ['logbook'] }),
++  });
++}</code></pre>
+                    </div>
+                    <p>For Theo, measured in the web preview, one press sent <code>GET /api/me/signups</code>, then five <code>GET /api/events/…/logs</code> requests (today's cleanup and the four he attended), and saved the one log the server has. Pressed again, the same log was replaced, not doubled: the primary key at work.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 8: The Logbook screen <span class="step-time">(15 min)</span></h3>
+                    <p>Replace <code>src/app/(tabs)/logbook.tsx</code>, the placeholder from Lesson 4.2:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx"><code class="language-tsx">import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { describeError } from '@/api/client';
+import { bringInSentLogsMutation } from '@/api/mutations';
+import { logbookQuery, viewerId } from '@/api/queries';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { ErrorView } from '@/components/ErrorView';
+import { LoadingView } from '@/components/LoadingView';
+import { Screen } from '@/components/Screen';
+import { useSession } from '@/hooks/useSession';
+import { createThemedStyles } from '@/hooks/useTheme';
+import type { LogbookEntry, LogbookTotals } from '@/storage/logbook';
+import { radius, spacing } from '@/theme/spacing';
+import { formatDate } from '@/utils/format';
+
+// The logbook: the debris logs you sent, kept in a database on this phone. It opens with no signal.
+export default function LogbookScreen() {
+  const session = useSession();
+
+  if (session === null) {
+    return (
+      &lt;Screen scroll edges={['left', 'right']}&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          Sign in to keep a logbook
+        &lt;/AppText&gt;
+        &lt;AppText&gt;
+          Your logbook keeps the debris logs you send from cleanups on this phone: what you
+          collected, bag by bag, even with no signal.
+        &lt;/AppText&gt;
+        &lt;Link href="/sign-in" asChild&gt;
+          &lt;Button label="Sign in" variant="primary" /&gt;
+        &lt;/Link&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  // A component of its own: signing out unmounts it, so on a shared phone the next person starts
+  // with a fresh screen (not the last person's "Done" line)
+  return &lt;MyLogbook viewer={viewerId(session)} /&gt;;
+}
+
+function MyLogbook({ viewer }: { viewer: string }) {
+  const logbook = useQuery(logbookQuery(viewer));
+  const bringIn = useMutation(bringInSentLogsMutation(viewer));
+  const styles = useStyles();
+
+  if (logbook.data === undefined) {
+    return (
+      &lt;Screen edges={['left', 'right']}&gt;
+        {logbook.isError ? (
+          &lt;ErrorView message={describeError(logbook.error)} onRetry={() =&gt; logbook.refetch()} /&gt;
+        ) : (
+          &lt;LoadingView label="Opening your logbook…" /&gt;
+        )}
+      &lt;/Screen&gt;
+    );
+  }
+
+  const { entries, totals } = logbook.data;
+
+  function entry(item: LogbookEntry) {
+    return (
+      &lt;View key={item.clientId} style={styles.card}&gt;
+        &lt;AppText variant="heading"&gt;{item.eventTitle}&lt;/AppText&gt;
+        &lt;AppText variant="muted"&gt;{formatDate(item.eventDate)}&lt;/AppText&gt;
+        &lt;AppText&gt;{amounts(item)}&lt;/AppText&gt;
+        {item.note !== '' &amp;&amp; &lt;AppText variant="muted"&gt;{item.note}&lt;/AppText&gt;}
+      &lt;/View&gt;
+    );
+  }
+
+  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        {entries.length === 0 ? 'Your logbook is empty' : 'Your logbook'}
+      &lt;/AppText&gt;
+      {entries.length === 0 ? (
+        &lt;AppText&gt;
+          At a cleanup, you will record what the crew collected: counts, bags and weight. Every log
+          you send is kept here, on this phone.
+        &lt;/AppText&gt;
+      ) : (
+        &lt;AppText&gt;
+          {totals.logs} {totals.logs === 1 ? 'log' : 'logs'} in all: {amounts(totals)}.
+        &lt;/AppText&gt;
+      )}
+      {entries.map(entry)}
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Logs from before
+      &lt;/AppText&gt;
+      &lt;AppText&gt;Logs you sent earlier, or from another phone, are on the server.&lt;/AppText&gt;
+      &lt;Button
+        label={bringIn.isPending ? 'Bringing in…' : 'Bring in my sent logs'}
+        disabled={bringIn.isPending}
+        onPress={() =&gt; bringIn.mutate()}
+      /&gt;
+      {bringIn.isPaused &amp;&amp; (
+        &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+          No connection: your logs come in when you are back online.
+        &lt;/AppText&gt;
+      )}
+      {bringIn.isSuccess &amp;&amp; (
+        &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+          Done: the server has {bringIn.data} {bringIn.data === 1 ? 'log' : 'logs'} of yours, and
+          your logbook has them all.
+        &lt;/AppText&gt;
+      )}
+      {bringIn.isError &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {describeError(bringIn.error)}
+        &lt;/AppText&gt;
+      )}
+    &lt;/Screen&gt;
+  );
+}
+
+// "42 pieces, 1 bag, 2.5 kg" for one log or for the totals
+function amounts({ pieces, bags, weightKg }: Pick&lt;LogbookTotals, 'pieces' | 'bags' | 'weightKg'&gt;) {
+  const weight = Math.round(weightKg * 10) / 10; // sums of decimals can end in ...0000001
+  const words = [pieces === 1 ? 'piece' : 'pieces', bags === 1 ? 'bag' : 'bags'];
+  return `${pieces} ${words[0]}, ${bags} ${words[1]}, ${weight} kg`;
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  card: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+}));</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Two components:</strong> the screen decides between the guest face and <code>MyLogbook</code>, which holds the Hooks. Signing out unmounts <code>MyLogbook</code>, so the next person on the phone never sees the last person's "Done" line (<a href="#mistakes">Common Mistakes</a>).</li>
+                        <li><strong>The states</strong> are the ones you know: loading ("Opening your logbook…", usually too quick to see), an error with Try again, empty, and the list with its totals.</li>
+                        <li><strong><code>amounts()</code></strong> rounds the weight to one decimal: adding up decimals in a computer can end in <code>…0000001</code>.</li>
+                    </ul>
+                    <p>In the web preview, sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>), open the Logbook tab and press <strong>Bring in my sent logs</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_17/17-logbook.png" alt="The Logbook tab in the web preview, signed in as Theo: Your logbook, the line 1 log in all: 42 pieces, 1 bag, 2.5 kg, and a card for Sunset Stairs Cleanup with its date, 42 pieces, 1 bag, 2.5 kg and the note Lots of wrappers by the stairs, both outlined in red, then Logs from before with the Bring in my sent logs button and a Done line." width="420" height="814" loading="lazy">
+    <figcaption>The logbook after <strong>Bring in my sent logs</strong>: the log came from shoreline-api, went into the phone's SQLite database, and the screen reads it back from there, with the totals worked out by SQL. (The web preview, where SQLite runs as WebAssembly; the tab bar gets a simulated bottom inset.)</figcaption>
+</figure>
+                    <p>Now switch the browser offline (DevTools, <strong>Network</strong>, the throttling menu, <strong>Offline</strong>) and press the button again:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_17/17-logbook-offline.png" alt="The Logbook tab in the web preview with no connection: the Sunset Stairs Cleanup entry is still there, the button says Bringing in, and the line No connection: your logs come in when you are back online, outlined in red, is below it." width="420" height="814" loading="lazy">
+    <figcaption>With no connection, the logbook still opens and shows its entries: they come from the phone, and its query does not wait for a network. Bringing logs in from the server does wait, and finishes by itself when the connection is back. (The web preview, with the browser switched offline.)</figcaption>
+</figure>
+                    <p>Switch back online and the bring-in finishes by itself. Last, reload the page: the web preview forgets the session (Lesson 4.3), so sign in again and open the Logbook: the log is still there, read from the database, before you press anything (measured).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 9: Try it on your phone, then check and commit <span class="step-time">(10 min)</span></h3>
+                    <p>With the API running <code>--host</code> and <code>.env.local</code> on your computer's network address (Lesson 5.1), open the app in Expo Go:</p>
+                    <ol>
+                        <li><strong>The theme survives a restart:</strong> choose <strong>Dark</strong> on Profile, force-quit Expo Go (swipe it away in the app switcher) and open the project again. The splash screen should give way to a dark app, with no light flash first.</li>
+                        <li><strong>The logbook survives a restart:</strong> sign in, bring in your logs, force-quit and reopen. The Logbook tab should show them straight away.</li>
+                        <li><strong>The logbook opens offline:</strong> turn on airplane mode (on iPhone, also turn Wi-Fi off) and open the Logbook tab. The entries should be there; <strong>Bring in my sent logs</strong> should wait with "No connection…".</li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The course measured all three in the web preview, where AsyncStorage is the browser's <code>localStorage</code> and SQLite is the WebAssembly version. On a phone, AsyncStorage writes to the app's private storage and expo-sqlite to a database file in the app's folder, according to their documentation; the code is the same. While you develop in Expo Go, the data lives in Expo Go's storage on the phone, so uninstalling Expo Go removes it too. If the theme flashes light before turning dark, check that <code>loadSettings()</code> is inside the <code>Promise.all</code> the splash screen waits for.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, make the three-column table from this lesson for your own data: every piece of data the app keeps, where it lives (memory, AsyncStorage, SecureStore, SQLite, the server), and what happens to it on a restart, an update and a sign-out. Anything secret goes in SecureStore; anything you search, sort or total goes in SQLite; anything that matters goes to the server too.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ AsyncStorage and expo-sqlite installed with <code>npx expo install</code>; <code>metro.config.js</code> adds <code>wasm</code>, and the web preview loads</li>
+                        <li>☐ <code>src/state/settings.ts</code> loads at startup (behind the splash screen), checks what it reads, and saves every change</li>
+                        <li>☐ <code>useTheme()</code> follows the Theme choice on Profile; the choice survives a reload or a restart</li>
+                        <li>☐ <code>src/storage/logbook.ts</code> creates its table through a version-numbered migration and uses <code>?</code> values for every piece of data</li>
+                        <li>☐ The Logbook tab brings in your sent logs, shows them with totals, and opens with no connection</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 9 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Where would it live?</h3>
+                    <p>For each piece of data, pick memory (the query cache), AsyncStorage, SecureStore, SQLite or "only the server", and say why: (a) the list of upcoming cleanups; (b) "the volunteer has seen the Before you go briefing"; (c) a crew leader's API token; (d) every bag weighed at every cleanup this year, for a chart; (e) Theo's password.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask three questions each time: is it secret? Is it many records you search or total? Can the server give it back at any time?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(a) Memory: the server has it and it changes; the cache refetches (Lesson 5.2's FAQ shows how a persister could keep it too). (b) AsyncStorage: a small flag, not secret, one key. (c) SecureStore: a secret. (d) SQLite: many rows you add up and group (with the server keeping the real records). (e) Nowhere: the app sends it once to sign in and forgets it (Lesson 4.3).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Clear my logbook</h3>
+                    <p>Add a <strong>Clear my logbook</strong> button under the entries. It deletes this volunteer's rows from the phone (the server keeps the logs: <strong>Bring in my sent logs</strong> gets them back). Think about one option before you write it: should clearing wait for a connection?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>SQL's delete is <code>DELETE FROM sent_logs WHERE volunteer_id = ?</code>, run with <code>runAsync</code>. As a mutation, it touches only the phone, which is the same reasoning as the logbook query's <code>networkMode</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>src/storage/logbook.ts</code> (type-checked and linted in a copy of the project):</p>
+                        <pre data-snippet><code class="language-ts">/** Forget one volunteer's logbook on this phone (the server keeps the logs) */
+export async function clearLogbook(volunteerId: string): Promise&lt;void&gt; {
+  const db = await database();
+  await db.runAsync('DELETE FROM sent_logs WHERE volunteer_id = ?', volunteerId);
+}</code></pre>
+                        <p>In <code>src/api/mutations.ts</code> (import <code>clearLogbook</code>):</p>
+                        <pre data-snippet><code class="language-ts">/** Empty the logbook on this phone: only the phone is involved, so no connection is needed */
+export function clearLogbookMutation(viewer: string) {
+  return mutationOptions({
+    mutationFn: () =&gt; clearLogbook(viewer),
+    networkMode: 'always',
+    onSuccess: () =&gt; queryClient.invalidateQueries({ queryKey: ['logbook'] }),
+  });
+}</code></pre>
+                        <p>In <code>MyLogbook</code>: <code>const clear = useMutation(clearLogbookMutation(viewer));</code> and, after the entries, <code>{entries.length &gt; 0 &amp;&amp; (&lt;Button label="Clear my logbook" disabled={clear.isPending} onPress={() =&gt; clear.mutate()} /&gt;)}</code>. Without <code>networkMode: 'always'</code>, pressing it offline would wait for a connection it does not need. A real app would also ask "Clear your logbook?" first (Lesson 4.3's Exercise 3 showed <code>Alert.alert</code>).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Totals per cleanup</h3>
+                    <p>Write <code>totalsByCleanup(volunteerId)</code> in <code>logbook.ts</code>: one row per cleanup with its title, the number of logs and the total weight, heaviest first. You do not need to show it on screen; <code>tsc</code> passing is enough.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>GROUP BY event_id</code> makes one answer row per cleanup, and <code>COUNT(*)</code> and <code>SUM(…)</code> then add up within each group.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">export type CleanupTotals = { eventTitle: string; logs: number; weightKg: number };
+
+/** One line per cleanup: how many logs, and how much weight, the heaviest first */
+export async function totalsByCleanup(volunteerId: string): Promise&lt;CleanupTotals[]&gt; {
+  const db = await database();
+  return db.getAllAsync&lt;CleanupTotals&gt;(
+    `SELECT event_title AS eventTitle, COUNT(*) AS logs, SUM(weight_kg) AS weightKg
+       FROM sent_logs
+      WHERE volunteer_id = ?
+      GROUP BY event_id
+      ORDER BY weightKg DESC`,
+    volunteerId,
+  );
+}</code></pre>
+                        <p>This is the kind of question that makes SQLite worth it: with AsyncStorage you would load every log and group them in JavaScript.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Version 2 of the logbook (Stretch)</h3>
+                    <p>Lesson 6.2 adds photos to logs. Prepare the database: a version 2 that adds a <code>photos</code> column (how many photos a log has), with old rows getting 0, and <code>saveSentLogs</code> filling it from <code>log.photoIds.length</code>. Then prove it on an existing version 1 database, not a fresh one.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Raise <code>schemaVersion</code> to 2 and add a second step to <code>migrate()</code>: <code>if (version &lt; 2) { … }</code> with <code>ALTER TABLE sent_logs ADD COLUMN …</code>. Do not change the version 1 step. To test, bring in your logs with today's code first, then change the code and reload.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>migrate()</code>, after the version 1 step:</p>
+                        <pre data-snippet><code class="language-ts">if (version &lt; 2) {
+  // How many photos a log has (Lesson 6.2). Old rows get 0.
+  await db.execAsync('ALTER TABLE sent_logs ADD COLUMN photos INTEGER NOT NULL DEFAULT 0');
+}</code></pre>
+                        <p>with <code>const schemaVersion = 2;</code>, an eleventh column and <code>?</code> in the <code>INSERT</code>, and <code>log.photoIds.length</code> as the eleventh value. The course tested it in the web preview with one browser profile: the version 1 app brought in Theo's log, then the version 2 app opened the same database, still showed the log, and brought it in again with the new column, with no errors (measured). A fresh install runs both steps in one go. <code>DEFAULT 0</code> matters: SQLite cannot add a <code>NOT NULL</code> column to existing rows without a value for them.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate wants to keep the crew leader's API token in AsyncStorage "because it is simpler". Where should it go?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is a SQLite database file encrypted?">
+                                A) SQLite, in its own table
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Think about the sign-in surviving a restart.">
+                                B) Only in memory, so it is never on the phone
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Tokens are secrets. SecureStore keeps them in the iOS Keychain or encrypted with the Android Keystore; AsyncStorage and SQLite files are not encrypted.">
+                                C) SecureStore
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Why does the root layout load the settings before it hides the splash screen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Reading AsyncStorage is async. If the app drew first, a volunteer who chose Dark would see a light screen until the setting arrived. Waiting behind the splash screen means the first screen is already in the right colors.">
+                                A) So the first screen is drawn in the chosen theme, with no light flash
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does AsyncStorage stop working once the app is showing?">
+                                B) Because AsyncStorage can only be read while the splash screen is up
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The settings never leave the phone.">
+                                C) So the API knows the theme before the first request
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> The phone is in airplane mode. Theo opens the Logbook tab for the first time since launching the app. What should he see?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which network mode does logbookQuery use, and why?">
+                                A) "Opening your logbook…" until the connection returns
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The logbook query never asks the API.">
+                                B) "Could not reach the server at …"
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The rows are in a database file on the phone, which a restart does not remove.">
+                                C) An empty logbook, because the cache was lost when the app closed
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The logbook query reads SQLite on the phone with networkMode always, so TanStack Query does not pause it offline. The rows saved earlier are there; only bringing in new logs waits for a connection.">
+                                D) His logs and totals, read from the database on the phone
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Version 2 of the app needs a new column in <code>sent_logs</code>. Theo's phone still has a version 1 database with his logs. What should the new code do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would Theo's logbook survive that?">
+                                A) Delete the database file and create it again with the new table
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="PRAGMA user_version says the file is at version 1, so migrate runs only the new step, an ALTER TABLE that adds the column, and sets version 2 in the same transaction. The rows stay.">
+                                B) See user_version 1 and run only the step that adds the column, then set version 2
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The table already exists on Theo's phone. What would IF NOT EXISTS do?">
+                                C) Run CREATE TABLE IF NOT EXISTS with the new column
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Which line saves a note safely in SQLite?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What happens to the SQL when the note contains an apostrophe?">
+                                A) <code>db.execAsync(`INSERT INTO notes (note) VALUES ('${note}')`)</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Escaping by hand is easy to get wrong, and SQLite already does it for you.">
+                                B) <code>db.execAsync(`INSERT INTO notes (note) VALUES ('${note.replace(&quot;'&quot;, &quot;&quot;)}')`)</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The question mark is a placeholder: SQLite receives the note as a value, never as SQL, so apostrophes and anything else in it are stored as written.">
+                                C) <code>db.runAsync('INSERT INTO notes (note) VALUES (?)', note)</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Why does the keyboard (or an alert) stay light when I choose Dark?</summary>
+                    <p>The app's theme colors everything Shoreline Crew draws. Some things the system draws, such as the keyboard, alerts and date pickers, follow the phone's own setting, according to React Native's documentation. React Native has <code>Appearance.setColorScheme()</code> to override the whole app's scheme, but the web preview's react-native-web does not support it (Lesson 2.5), so the course keeps the choice in its own theme. A <code>TextInput</code> can follow it with <code>keyboardAppearance</code> on iOS (Lesson 2.5's Exercise 3).</p>
+                </details>
+                <details>
+                    <summary>Could the TanStack Query cache be saved too, so lists show at once after a restart?</summary>
+                    <p>Yes: TanStack Query has persisters that save the cache to storage and restore it at startup (<code>@tanstack/query-async-storage-persister</code> with AsyncStorage), according to its documentation. Shoreline Crew does not, on purpose: the cleanups list changes and refetches in a second, and a persisted cache needs care with signed-in data on a shared phone. The logbook is different: it is the volunteer's own history, which is why it has its own table.</p>
+                </details>
+                <details>
+                    <summary>What about MMKV, Realm, WatermelonDB or Drizzle?</summary>
+                    <p>You will meet them in real projects. MMKV is a very fast key-value store (synchronous, so it can be read during the first render); according to its documentation it needs a development build, not Expo Go. WatermelonDB and Realm are databases with their own sync ideas; Drizzle is a TypeScript layer over SQLite that writes the SQL and migrations for you, and its documentation lists expo-sqlite as a supported driver. The concepts from today (key-value vs tables, migrations, values never in the SQL text) carry over to all of them.</p>
+                </details>
+                <details>
+                    <summary>Should signing out delete the logbook?</summary>
+                    <p>Today it filters by volunteer, so the next person on a shared phone sees only their own logs, and the rows stay for when you sign in again. If the data were sensitive, signing out should delete them (Exercise 2's <code>DELETE</code>) as well as clearing the cache (Lesson 5.2's FAQ). Debris counts are not sensitive, so Shoreline Crew keeps them.</p>
+                </details>
+                <details>
+                    <summary>How do I look inside the database while developing?</summary>
+                    <p>The expo-sqlite documentation describes a development tool: press <kbd>Shift</kbd>+<kbd>M</kbd> in the terminal running <code>npx expo start</code> and choose the expo-sqlite inspector, which shows the tables and runs queries against the app's real database (the course did not run it here). In the web preview, Chrome's DevTools show <code>localStorage</code> under <strong>Application</strong>; the SQLite file is inside the browser's private file storage, which DevTools does not open as a table.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Give the logbook a season summary: "This year: 6 logs, 3 beaches, 14.5 kg". Write the SQL (you will need <code>COUNT(DISTINCT event_id)</code> and a <code>WHERE</code> on <code>event_date</code>), decide which column the year comes from and why (<code>event_date</code> or <code>recorded_at</code>, and what about a log recorded just after midnight on New Year's Day?), and add it above the entries. Then ask yourself the migration question: does this need a new column, or only a new query?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Shoreline Crew now keeps data in four places: memory, AsyncStorage, SecureStore and SQLite. Draw them as boxes and write in each one what lives there and what would happen if it were lost. Which loss would a volunteer notice first? Which one would worry you most as the developer, and why?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>AsyncStorage for small, non-secret settings (strings, JSON); SecureStore for secrets; SQLite for many records you search, sort or total. All three are async</li>
+                        <li>The phone keeps copies, the server keeps the truth: storage survives restarts and updates, not uninstalls or a new phone</li>
+                        <li>Check saved data like API data, and load what the first screen needs behind the splash screen</li>
+                        <li>SQL values always go in <code>?</code> placeholders; only your own fixed text goes in the SQL</li>
+                        <li>A database on a phone needs a version number and migrations from day one, run in a transaction</li>
+                        <li>Data on the phone can live in the TanStack Query cache too, with <code>networkMode: 'always'</code> so it is never paused offline</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up expo-sqlite's methods and web setup</td><td><a href="https://docs.expo.dev/versions/latest/sdk/sqlite/" target="_blank" rel="noopener">Expo: SQLite</a></td></tr>
+                            <tr><td>Look up AsyncStorage</td><td><a href="https://docs.expo.dev/versions/latest/sdk/async-storage/" target="_blank" rel="noopener">Expo: AsyncStorage</a></td></tr>
+                            <tr><td>Compare it with SecureStore again</td><td><a href="https://docs.expo.dev/versions/latest/sdk/securestore/" target="_blank" rel="noopener">Expo: SecureStore</a></td></tr>
+                            <tr><td>Learn more SQL, one statement at a time</td><td><a href="https://www.sqlite.org/lang.html" target="_blank" rel="noopener">SQLite: SQL as understood by SQLite</a></td></tr>
+                            <tr><td>Look up the logs endpoint</td><td><a href="api.html#endpoints">API reference: endpoints</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew remembers the volunteer's theme and opens in it, with no flash</li>
+                        <li>The Logbook tab is real: a SQLite database with a migration, totals worked out by SQL, and a screen that opens with no signal</li>
+                        <li>Your storage layer is ready for Lesson 5.5's offline queue</li>
+                        <li>You can explain, for any piece of data, where a phone app should keep it and what happens when it is lost</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>The logbook shows logs that already reached the server. Next, volunteers write their own. In <a href="lesson_18.html">Lesson 5.4: Mobile Forms</a>, you rebuild the sign-in form with React Hook Form and Zod and build the debris-log form, with the phone's keyboard in mind: the right keyboard for each field, a return key that moves to the next field, and a form the keyboard never covers. Each log it sends goes into this logbook, and Lesson 5.5 then queues those logs offline so none is lost.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the theme choice and the logbook survive a force-quit on your phone (or the emulator), and commit your work</li>
+                    <li>Fill in a form on your phone in any app you use and notice the keyboard: which key is at the bottom right, and does the screen move so you can see what you type?</li>
+                    <li>Write today's journal entry, with your four boxes</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today you wrote SQL, a migration and a storage layer, which is more database work than many front-end developers do in their first year. If the SQL still feels foreign, that is fine: you read every statement, you know what <code>?</code> protects you from, and you know where to look up the rest. The next time someone on a team asks "where should this live?", you will have an answer, and a reason.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_16.html" class="prev-lesson">← Previous: TanStack Query on Mobile</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_18.html" class="next-lesson">Next: Mobile Forms →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

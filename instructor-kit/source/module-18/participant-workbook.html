@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 18</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 18: Animation and Gestures</h1>
+    <p class="sub">Your workbook for Session 18, the first of Part 3: a catch-up check and a refresher, then Shoreline Crew starts to move (tallies that count on the UI thread and step aside for Reduce Motion) and a waiting log can be swiped, with a button for everyone.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>18</b></span>
+      <span class="chip">Lessons <b>7.1</b> and <b>7.2</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Start Part 3 on a course folder at the end of Lesson 6.5 that the environment check calls READY.</li>
+  <li>Explain why phone animations run on the UI thread, and animate with shared values, timing, springs and CSS-style transitions.</li>
+  <li>Respect Reduce Motion: know what Reanimated does by itself and what is left to you.</li>
+  <li>Build a swipe with Gesture Handler that follows the finger, shares the screen with scrolling and springs into place.</li>
+  <li>Give every gesture another way, and decide what a swipe may do to data that is only on the phone.</li>
+</ul>
+
+  <div class="sec"><h2>Start Here: Starting with Part 3</h2><span class="rule"></span></div>
+<div class="blk lab"><div class="h">Catch-up checklist (everyone runs the check)</div>
+<ul class="tick">
+  <li>☐ My course folder holds <code class="inline">shoreline-api</code>, <code class="inline">shoreline-crew</code> and <code class="inline">labs/</code> at the end of Lesson 6.5 (my own code, or <code class="inline">lesson-25-start.zip</code> unzipped into a NEW folder)</li>
+  <li>☐ From the download only: <code class="inline">.env.example</code> copied to <code class="inline">.env.local</code> in <code class="inline">shoreline-crew</code>, then <code class="inline">npm ci</code> there</li>
+  <li>☐ Terminal 1, in <code class="inline">shoreline-api</code>: <code class="inline">node server.ts</code> (left running)</li>
+  <li>☐ Terminal 2, in the course folder: <code class="inline">node labs/module-18/l7_0-catch-up/check_environment.mjs</code> ends with <code class="inline">READY for React Native &amp; Expo: Build and Ship a Mobile App</code></li>
+  <li>☐ In <code class="inline">shoreline-crew</code>: <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> print nothing but lint's two <code class="inline">env:</code> lines</li>
+  <li>☐ The web preview: signed in as theo.nakamura@example.com, the Logbook's Bring in my sent logs shows 1 log, 42 pieces, 1 bag, 2.5 kg</li>
+</ul>
+<p><b>Starting here?</b> Today's code leans on five things from Parts 1 and 2. Read each section with your code open: the theme and <code class="inline">createThemedStyles</code> (Lesson 2.5) · FlashList recycling (Lesson 3.2) · <code class="inline">useFocusEffect</code> (Lesson 4.3) · the logbook and the log queue (Lessons 5.3 and 5.5) · the settings store and <code class="inline">feel()</code> (Lesson 6.5).</p>
+</div>
+<div class="blk"><div class="h">Refresher: from memory</div>
+<ol class="steps">
+  <li>Lesson 5.5's queue: a debris log is saved with no signal. Where does it wait, and what sends it later?<div class="write"></div></li>
+  <li>Lesson 4.3's <code class="inline">useFocusEffect</code>: when does its function run, compared with <code class="inline">useEffect</code>?<div class="write"></div></li>
+  <li>Lesson 2.5's <code class="inline">createThemedStyles</code>: what does it give a component?<div class="write"></div></li>
+  <li>Lesson 3.2's FlashList: what does it do with a row that scrolls off the screen?<div class="write"></div></li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Lessons</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">7.1</span><h3>Animation with Reanimated 4</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Explain why phone animations run on the UI thread, and what shared values and worklets do about it</li>
+  <li>Animate with shared values: useSharedValue, useAnimatedStyle, withTiming, withSpring and withSequence, read and written with get() and set()</li>
+  <li>Hand a value from the UI thread back to React with useAnimatedReaction and scheduleOnRN, without drawing the screen 60 times a second</li>
+  <li>Use Reanimated 4's CSS-style transitions and keyframe animations, and choose between them and shared values</li>
+  <li>Respect the phone's Reduce Motion setting: know what Reanimated does about it by itself, and what it leaves to you</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>Two threads, one frame:</b> the JavaScript thread runs React, queries and the queue; the UI thread draws and reads touches. A frame has 16.7 ms (8.3 at 120 Hz). Animating with setState per frame is only as smooth as the busiest thing on the JavaScript thread.</li>
+  <li><b>Shared values and worklets:</b> <code class="inline">useSharedValue</code>, read with <code class="inline">get()</code> and written with <code class="inline">set()</code> (never <code class="inline">.value</code> with the React Compiler, never while rendering); <code class="inline">useAnimatedStyle</code> runs on the UI thread; <code class="inline">useAnimatedReaction</code> + <code class="inline">scheduleOnRN</code> hand a value back to React, as rarely as possible.</li>
+  <li><b>Timing or spring:</b> <code class="inline">withTiming</code> lands exactly (numbers, bars, opacity); <code class="inline">withSpring</code> moves like an object and may overshoot (a bounce); <code class="inline">withSequence</code>, <code class="inline">withDelay</code>, <code class="inline">withRepeat</code> chain them; the finished callback runs on the UI thread.</li>
+  <li><b>CSS-style transitions and keyframes</b> live in an Animated view's style: <code class="inline">transitionProperty</code>/<code class="inline">transitionDuration</code> for a style that changes, <code class="inline">animationName</code> (the keyframes object itself) for a loop.</li>
+  <li><b>Reduce Motion:</b> Reanimated's functions jump to the end by default (<code class="inline">ReduceMotion.System</code>); CSS-style ones do not, so check <code class="inline">useReducedMotion()</code>. Both read the setting once, at start.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the skipper and the helm, in code</div>
+<p>The heart of Tally.tsx, from the finished code. Read it as the skipper and the helm: React sets the destination once (<code class="inline">count.set(withTiming(value, ...))</code>), the UI thread moves <code class="inline">count</code> every frame, and the reaction calls React back only when the number reaches a new whole step:</p>
+<div class="codefile">shoreline-crew/src/components/Tally.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/components/Tally.tsx" data-stage="lesson_25" data-match="excerpt">  <span class="c">// On the UI thread, every frame: has the count reached a new step? Then tell React (JS thread).</span>
+  useAnimatedReaction(
+    () =&gt; Math.round(count.get() * steps),
+    (step, previous) =&gt; {
+      <span class="k">if</span> (step !== previous) {
+        scheduleOnRN(setShown, step / steps);
+      }
+    },
+  );
+
+  <span class="c">// Count when the screen comes into view, and when the value changes while it is in view</span>
+  useFocusEffect(
+    useCallback(() =&gt; {
+      <span class="k">if</span> (count.get() === value) {
+        <span class="k">return</span>;
+      }
+      setCounting(<span class="k">true</span>);
+      <span class="k">const</span> counted = {
+        duration: <span class="s">900</span>,
+        easing: Easing.out(Easing.cubic), <span class="c">// fast at first, slowing down at the end</span>
+        reduceMotion: ReduceMotion.System, <span class="c">// the default, written out: Reduce Motion on = jump to the end</span>
+      };
+      count.set(
+        withTiming(value, counted, (finished) =&gt; {
+          <span class="c">// Runs on the UI thread when the count stops (finished is false if something interrupted it)</span>
+          <span class="k">if</span> (finished) {
+            scheduleOnRN(setCounting, <span class="k">false</span>);
+            <span class="c">// A bounce: grow quickly, then spring back. dampingRatio below 1 lets it overshoot a little.</span>
+            scale.set(
+              withSequence(
+                withTiming(<span class="s">1.2</span>, { duration: <span class="s">120</span> }),
+                withSpring(<span class="s">1</span>, { dampingRatio: <span class="s">0.35</span>, duration: <span class="s">500</span> }),
+              ),
+            );
+          }
+        }),
+      );
+    }, [count, scale, value]),</pre><p>Two shared values (<code class="inline">count</code> on its way, <code class="inline">scale</code> resting at 1), one state for the number shown. <code class="inline">steps</code> is 10 for kilograms (one decimal), 1 for pieces. With Reduce Motion on, <code class="inline">withTiming</code> jumps to the end by itself (<code class="inline">ReduceMotion.System</code>, written out in <code class="inline">counted</code>).</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-18/l7_1-animation-with-reanimated-4/TASKS.md</code>. A terminal in <code class="inline">starter</code> (nothing to install). <code class="inline">npm test</code>: five of eight fail.</li>
+  <li>Task 1: a bar that glides (a percentage that stays between 0 and 100, then a CSS-style transition). Task 2: a dot that holds still for Reduce Motion and hides from screen readers. Task 3: a counter with <code class="inline">.value</code> and a bouncy spring.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which component turns transition props into motion: <code class="inline">View</code> or <code class="inline">Animated.View</code>?</td><td></td></tr>
+<tr><td>Why does the dot need <code class="inline">useReducedMotion()</code> when the tally did not?</td><td></td></tr>
+<tr><td>Task 3: what would a volunteer see during a spring count from 0 to 7?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       8 passed, 8 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines. Then <code class="inline">npm run web</code>.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<div class="q"><div class="qn">P1</div><div class="qt">Tally.tsx with <code class="inline">count.value = withTiming(...)</code> in place of <code class="inline">count.set(withTiming(...))</code>: does tsc complain? does the linter? Predict, then check (the answer key has the real output).</div><pre class="code">npx tsc --noEmit
+npx expo lint</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>A Tally That Counts</b> (lesson page, "Project: A Tally That Counts"), from <code class="inline">lesson-25-start</code>. In class: Steps 1 to 3. At home: Steps 4 to 7.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npm ls react-native-reanimated react-native-worklets</code>: 4.7.1 and 0.13.0, nothing to install</li>
+  <li>☐ Step 2: <code class="inline">src/components/Tally.tsx</code> typed (count, bounce, reaction, highlight, one accessible label)</li>
+  <li>☐ Step 3: four tallies replace the totals sentence; <code class="inline">tenths()</code></li>
+  <li>☐ Step 4: watched it count after Bring in, and after sending a log</li>
+  <li>☐ Step 5: the knobs tried (duration 3000, dampingRatio 1 and 0.15, the bouncy spring) and put back</li>
+  <li>☐ Steps 6 and 7: reduced motion in Chrome (totals at once); the phone, with Reduce Motion and a screen reader; <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> clean</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">While the tally counts from 42 to 44, TanStack Query parses a long logbook answer. Which version stays smooth on a phone, and why?</div><div class="opts"><div class="opt">A) A <code class="inline">setInterval</code> that calls <code class="inline">setShown</code> 30 times a second: timers run on their own thread</div><div class="opt">B) A shared value animated with <code class="inline">withTiming</code>: the UI thread works out every frame without the JavaScript thread</div><div class="opt">C) A <code class="inline">useEffect</code> that calls <code class="inline">setShown</code> once per frame: React batches the updates</div><div class="opt">D) Neither: animations on a phone always stutter while data loads</div></div></div>
+<div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">A teammate writes <code class="inline">count.value = withTiming(...)</code> in Tally.tsx. <code class="inline">npx expo lint</code> prints this. Which change fixes it?</div><pre class="code">~/shoreline/shoreline-crew/src/components/Tally.tsx
+  63:7  error  Error: This value cannot be modified
+&gt; 63 |       count.value = withTiming(value, counted, (finished) =&gt; {
+     |       ^^^^^ `count` cannot be modified
+  ...  react-hooks/immutability
+✖ 1 problem (1 error, 0 warnings)</pre><div class="opts"><div class="opt">A) Add <code class="inline">// eslint-disable-next-line</code> above the line</div><div class="opt">B) Make <code class="inline">count</code> a <code class="inline">let</code> instead of a <code class="inline">const</code></div><div class="opt">C) Write <code class="inline">count.set(withTiming(...))</code>, and read with <code class="inline">count.get()</code></div><div class="opt">D) Switch the React Compiler off in app.json</div></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">A progress number counts from 0 to 42 pieces. Which animation fits it?</div><div class="opts"><div class="opt">A) <code class="inline">withTiming(42, { duration: 900, easing: Easing.out(Easing.cubic) })</code></div><div class="opt">B) <code class="inline">withSpring(42, { mass: 1, stiffness: 100, damping: 10 })</code></div><div class="opt">C) <code class="inline">withSpring(42, { dampingRatio: 0.35, duration: 500 })</code></div><div class="opt">D) <code class="inline">withRepeat(withTiming(42), -1)</code></div></div></div>
+<div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">Reduce Motion is on and the app was restarted. Which of these still moves in the web preview, as the lesson measured?</div><div class="opts"><div class="opt">A) The tally's count (<code class="inline">withTiming</code>)</div><div class="opt">B) The tally's bounce (<code class="inline">withSequence</code> of a timing and a spring)</div><div class="opt">C) FadeIn's opacity (<code class="inline">withTiming</code>)</div><div class="opt">D) A breathing dot with a CSS-style keyframe animation and no <code class="inline">useReducedMotion()</code> check</div></div></div>
+<div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Inside <code class="inline">useAnimatedReaction</code>, why does Tally call <code class="inline">scheduleOnRN(setShown, step / steps)</code>, and only when the rounded step changes? Two reasons.</div><div class="write"></div></div>
+<div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Maya turns on Reduce Motion while Shoreline Crew (at the end of Lesson 7.1) is open, and opens her Logbook. What happens?</div><div class="opts"><div class="opt">A) The tallies stop counting at once</div><div class="opt">B) The tallies still count: the setting was read when the app started</div><div class="opt">C) The app crashes: the setting changed underneath it</div><div class="opt">D) Only the background highlight stops</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>Lesson 7.1's prompt: Reduce Motion on your phone for a day. Which apps dropped movement, swapped it for fades, or ignored the setting? Which Shoreline Crew animation would you keep with the setting on, and which would you drop?</p>
+</div>
+    </div>
+  </section>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">7.2</span><h3>Gestures</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Explain why React Native apps read gestures with React Native Gesture Handler, on the UI thread, and set it up with GestureHandlerRootView</li>
+  <li>Build a drag with usePanGesture and GestureDetector that moves a view through Reanimated shared values and springs it into place when the finger lets go</li>
+  <li>Make a sideways swipe share the screen with vertical scrolling (activeOffsetX, failOffsetY) and combine gestures on one view</li>
+  <li>Give every gesture a way that needs no gesture, and keep swipe rows correct in a recycled FlashList</li>
+  <li>Decide what a swipe may do to data that has not reached the server yet</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>Gesture Handler reads touches on the UI thread;</b> its callbacks are worklets that write shared values, so a view follows the finger with no React render; <code class="inline">scheduleOnRN</code> tells React the result.</li>
+  <li><b>One <code class="inline">GestureHandlerRootView</code></b> (with <code class="inline">flex: 1</code>) around the whole app, in the root layout. Without it, a phone in development stops with a red screen; the web preview carries on.</li>
+  <li><b>Gesture Handler 3 Hooks:</b> <code class="inline">usePanGesture({ ... })</code> + <code class="inline">&lt;GestureDetector&gt;</code>; callbacks onBegin, onActivate, onUpdate, onDeactivate, onFinalize (not onStart/onEnd). The finger drives, a spring finishes.</li>
+  <li><b>Sharing the finger:</b> <code class="inline">activeOffsetX</code> and <code class="inline">failOffsetY</code> let a swipe and a scroll share a touch; <code class="inline">useExclusiveGestures</code>, <code class="inline">useCompetingGestures</code> and <code class="inline">useSimultaneousGestures</code> combine gestures on one view.</li>
+  <li><b>Another way, and the data rule:</b> every gesture has a visible button (WCAG 2.5.1); phone-only data is never removed without asking, never while sending; in a recycled list, swipe state lives in the parent, keyed by id.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the deckhand on the line, in code</div>
+<p>SwipeToRemove's pan, from the finished code. The config says when the gesture may start (the two offsets), what the finger does while it moves (<code class="inline">onUpdate</code>) and what letting go means (<code class="inline">onDeactivate</code>):</p>
+<div class="codefile">shoreline-crew/src/components/SwipeToRemove.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/components/SwipeToRemove.tsx" data-stage="lesson_26" data-match="excerpt">  <span class="k">const</span> pan = usePanGesture({
+    enabled,
+    activeOffsetX: [-<span class="s">12</span>, <span class="s">12</span>], <span class="c">// 12 points sideways first: this is a swipe...</span>
+    failOffsetY: [-<span class="s">10</span>, <span class="s">10</span>], <span class="c">// ...10 points up or down first: a scroll, so the swipe lets go</span>
+    <span class="c">// These run on the UI thread, many times a second, while the finger moves</span>
+    onUpdate: (event) =&gt; {
+      offset.set(Math.min(<span class="s">0</span>, event.translationX)); <span class="c">// follow the finger, leftwards only</span>
+    },
+    onDeactivate: (event) =&gt; {
+      <span class="k">if</span> (offset.get() &lt; -reach || event.velocityX &lt; flick) {
+        scheduleOnRN(onSwipe); <span class="c">// React decides what a swipe means</span>
+      }
+      offset.set(withSpring(<span class="s">0</span>)); <span class="c">// back into place, from wherever the finger let go</span>
+    },
+  });</pre><p>Both callbacks are worklets: they run on the UI thread, many times a second. <code class="inline">Math.min(0, ...)</code> lets the row go left only. Far OR fast asks; <code class="inline">scheduleOnRN(onSwipe)</code> tells React, which shows the question. <code class="inline">withSpring(0)</code> brings the row home either way (instantly with Reduce Motion on).</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-18/l7_2-gestures/TASKS.md</code>. A terminal in <code class="inline">starter</code>. <code class="inline">npm test</code> (four of six fail), then <code class="inline">npm run typecheck</code>.</li>
+  <li>Task 1: far OR fast. Task 2: the callback that never ran (read tsc's first error). Task 3: a Return button, the way that needs no gesture.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Why does <code class="inline">shouldAsk</code> carry a <code class="inline">'worklet'</code> line?</td><td></td></tr>
+<tr><td>With <code class="inline">onEnd</code>, what would a phone do when the finger lets go?</td><td></td></tr>
+<tr><td>Who can mark a loan returned once Task 3 is done?</td><td></td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<div class="q"><div class="qn">P2</div><div class="qt">Lab 7.2's gear-loan list rendered in a test WITHOUT <code class="inline">GestureHandlerRootView</code> around it: pass or fail? Would the web preview mind? Predict, then check (the answer key has the real output).</div><pre class="code">npm test -- src/noroot.test.tsx</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Swipe a Log Away</b> (lesson page, "Project: Swipe a Log Away"), from the end of 7.1 (or <code class="inline">lesson-26-start</code>). In class: Steps 1 to 3. At home: Steps 4 to 6.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npm ls react-native-gesture-handler</code>; the whole app inside <code class="inline">GestureHandlerRootView</code> with <code class="inline">flex: 1</code></li>
+  <li>☐ Step 2: the <code class="inline">remove</code> icon; <code class="inline">src/components/SwipeToRemove.tsx</code> typed</li>
+  <li>☐ Step 3: <code class="inline">asking</code> in MyLogbook; every waiting card swipes and has Remove; Yes, remove it / Keep it</li>
+  <li>☐ Step 4: swiped in the web preview; reach, the bouncy spring and the right-hand drag tried and put back</li>
+  <li>☐ Step 5: removed with the keyboard only; swiped with reduced motion; no swipe while sending</li>
+  <li>☐ Step 6: the phone (thumb, scroll, screen reader); <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">A pan copied from a Gesture Handler 2 tutorial. <code class="inline">npx tsc --noEmit</code> prints this. What is the fix?</div><pre class="code">src/components/SwipeToRemove.tsx:42:5 - error TS2353: Object literal may only specify known properties, and 'onEnd' does not exist in type 'PanGestureConfig'.
+src/components/SwipeToRemove.tsx:42:13 - error TS7006: Parameter 'event' implicitly has an 'any' type.
+Found 2 errors in the same file, starting at: src/components/SwipeToRemove.tsx:42</pre><div class="opts"><div class="opt">A) Rename <code class="inline">onEnd</code> to <code class="inline">onDeactivate</code> (Gesture Handler 3's name); the second error goes with it</div><div class="opt">B) Type the parameter: <code class="inline">(event: any) =&gt;</code></div><div class="opt">C) Use <code class="inline">Gesture.Pan().onEnd(...)</code> instead of the Hook</div><div class="opt">D) Install Gesture Handler 2</div></div></div>
+<div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">The root layout's <code class="inline">GestureHandlerRootView</code> is taken out. Where does the missing root view show up?</div><div class="opts"><div class="opt">A) In <code class="inline">npx tsc --noEmit</code></div><div class="opt">B) In the web preview, as soon as a card is dragged</div><div class="opt">C) Nowhere: gestures just stop working everywhere</div><div class="opt">D) On a phone in development (a red screen), and in Jest, which renders as iOS; not in the web preview</div></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">In SwipeToRemove, what do <code class="inline">activeOffsetX: [-12, 12]</code> and <code class="inline">failOffsetY: [-10, 10]</code> do together?</div><div class="opts"><div class="opt">A) Limit how far the card can move: 12 points sideways, 10 up or down</div><div class="opt">B) Make the swipe win only after 12 points sideways, and give up if the finger first moves 10 points up or down</div><div class="opt">C) Slow the card down to 12 points per frame</div><div class="opt">D) Make the swipe and the scroll run at the same time</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">SwipeToRemove asks when <code class="inline">offset.get() &lt; -reach || event.velocityX &lt; flick</code> (reach 120, flick -800). Theo flicks a card 70 points to the left at 1,200 points per second. What happens?</div><div class="opts"><div class="opt">A) Nothing: 70 points is short of the reach</div><div class="opt">B) It asks: a quick flick counts even when it is short</div><div class="opt">C) The card is removed at once</div><div class="opt">D) The card stays where he left it</div></div></div>
+<div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">Why does every waiting card also have a visible Remove button, and when would <code class="inline">accessibilityActions</code> be the better choice?</div><div class="write"></div></div>
+<div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">In a FlashList of 300 swipe rows, each row keeps <code class="inline">const [asking, setAsking] = useState(false)</code>. Item 2 is swiped, then the list is scrolled far down. What can happen?</div><div class="opts"><div class="opt">A) Nothing: every row has its own state</div><div class="opt">B) The app crashes when the row is recycled</div><div class="opt">C) FlashList refuses to recycle rows that have state</div><div class="opt">D) A row nobody touched asks "Item 95: remove it?": the recycled row kept Item 2's state</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>Lesson 7.2's prompt: one app that relies on a swipe or a drag, used with a screen reader or with taps only. Could you do the same thing? How did the app tell you how?</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>Why `withTiming` for the tally's number but a spring for its bounce?<div class="write"></div></li>
+  <li>A gesture callback calls `setAsking(id)` directly and it works in the web preview. What happens on a phone, and what is the fix?<div class="write"></div></li>
+  <li>Name the two ways to remove a waiting log, and the one moment neither works.<div class="write"></div></li>
+</ol>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 18 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

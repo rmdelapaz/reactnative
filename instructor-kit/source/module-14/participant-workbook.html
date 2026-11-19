@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 14</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 14: Offline First and Permissions</h1>
+    <p class="sub">Your workbook for Session 14: the warm-up, the key ideas of Lessons 5.5 and 6.1, worked examples, the guided labs, predict-then-check practice, a self-check for each lesson, and your exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Lessons <b>5.5–6.1</b></span>
+      <span class="chip">Session <b>14</b> · 3 hours</span>
+      <span class="chip">Name: ____________________</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Explain offline first as an outbox, and what a paused mutation from Lesson 5.2 cannot do.</li>
+  <li>Persist a Zustand store on a phone (persist, AsyncStorage, loading behind the splash) and say what differs from the web.</li>
+  <li>Sort every answer a queue meets: done, refused, signed out, try later; and keep volunteers' work apart on a shared phone.</li>
+  <li>Describe the life of a permission on an iPhone, an Android phone and the web preview, and ask at the right moment, with a reason, ready for a no.</li>
+  <li>Use Expo's permission tools and a config plugin's words, and say what Expo Go, a development build and the web preview each show.</li>
+</ul>
+
+  <div class="sec"><h2>Start Here: Warm-up</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Where does it live? (Session 13)</div>
+<p>Answer alone (5 minutes), then compare with a neighbor. Nobody collects this.</p>
+<div class="q"><div class="qn">W1</div><div class="qt">Where does each one live with the Session 13 code: the session token, the theme choice, the logbook of sent logs, a debris log sent with no signal? (memory, AsyncStorage, SecureStore, SQLite)</div><div class="write"></div></div>
+<div class="q"><div class="qn">W2</div><div class="qt">Lesson 5.4's Before the Next Lesson: you sent a log in airplane mode and force-quit Expo Go. What happened to the log, and why?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W3</div><div class="qt">The debris-log form makes a clientId. When, where, and what is it for?</div><div class="write"></div></div>
+</div>
+
+  <div class="sec"><h2>Lessons</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">5.5</span><h3>Offline First</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Explain "offline first" as an outbox: write on the device first, send when you can, and say what a paused mutation from Lesson 5.2 cannot do</li>
+  <li>Persist a Zustand store on a phone with persist and AsyncStorage, load it behind the splash screen, and say what differs from the web course's localStorage store</li>
+  <li>Send a queue safely: one log at a time, the same clientId on every try, and a different reaction to each kind of answer (sent, refused, signed out, no answer)</li>
+  <li>Choose the moments to send (start, sign-in, back online, back in the foreground) with the online and focus managers you already have</li>
+  <li>Keep each volunteer's unsent work apart on a shared phone</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>Offline first is an outbox:</b> write on the device first, send when you can. Lesson 5.4's paused mutation waits in memory, which ends when the app does; today's queue is saved in AsyncStorage the moment Send is pressed.</li>
+  <li><b>Two rules:</b> save before sending; leave the queue only after the server and the logbook both have it. Queue what a person creates (a log); let what the server decides (a sign-up) wait for the server.</li>
+  <li><b>Zustand on a phone:</b> persist comes across from the web, with three differences: name the storage (<code class="inline">createJSONStorage(() =&gt; AsyncStorage)</code>), load it yourself behind the splash (<code class="inline">skipHydration</code> + <code class="inline">rehydrate()</code>), save only what should survive (<code class="inline">partialize</code>). <code class="inline">merge</code> checks saved data, as in the HQ.</li>
+  <li><b>Every answer means something:</b> 201 and 200 done; other 4xx refused (kept with the server's words); 401 stop and sign in; no answer or 5xx: keep, count, stop. The clientId makes "no answer: send again" safe (200 with the saved log).</li>
+  <li><b>When to send:</b> Send, start or sign-in, back online (onlineManager), back in the foreground (focusManager), Send now. The sender does nothing when it should not run, so calling it often is harmless. Not while the app is closed.</li>
+  <li><b>A shared phone:</b> every queued log names its volunteer; only that volunteer's sign-in sends it (checked before each request); sign-out keeps the queue.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: persist with no storage</div>
+<p>The web course's persisted store, copied to the phone with no <code class="inline">storage</code> option. tsc and the linter say nothing, and the web preview works (it has localStorage). Run the way the lesson ran it (Node, a window without localStorage, as on a phone):</p>
+<pre class="code"><span class="c">// The web course's persisted store, copied as it was: no storage option</span>
+globalThis.window = {}; <span class="c">// a window without localStorage, as on a phone</span>
+<span class="k">const</span> { create } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand'</span>);
+<span class="k">const</span> { persist } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand/middleware'</span>);
+
+<span class="k">const</span> useLogQueue = create()(
+  persist((set) =&gt; ({ logs: [], add: (log) =&gt; set(({ logs }) =&gt; ({ logs: [...logs, log] })) }), {
+    name: <span class="s">'shoreline-crew-log-queue'</span>,
+  }),
+);
+<span class="k">try</span> {
+  useLogQueue.getState().add({ clientId: <span class="s">'c3a0f6b2'</span> });
+  console.log(<span class="s">'add worked'</span>);
+} <span class="k">catch</span> (error) {
+  console.log(<span class="s">'add threw: '</span> + error);
+}</pre><pre class="out">add threw: TypeError: Cannot read properties of undefined (reading 'setItem')</pre><p>Read it from the top: a TypeError, reading <code class="inline">setItem</code> of something undefined: persist reached for a storage that is not there. On a phone, the same moment is the red screen when Send is pressed. The fix is one option: <code class="inline">storage: createJSONStorage(() =&gt; AsyncStorage)</code>, and with it the two other phone differences: <code class="inline">skipHydration</code> with <code class="inline">loadLogQueue()</code> behind the splash (AsyncStorage answers later), and <code class="inline">partialize</code> (save the logs only: <code class="inline">sending</code> must end with the app).</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-14/l5_5-offline-first/TASKS.md</code> and <code class="inline">src/lab.test.tsx</code>: the test names say the rules.</li>
+  <li>A terminal in <code class="inline">starter</code>: <code class="inline">npm test</code> (eight failures, nearly all the same message). Where did you see that message today?</li>
+  <li>Task 1: name the storage, save only the reports. Then Task 2: sort the answers.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Why did <code class="inline">npm run typecheck</code> print nothing for the starter?</td><td></td></tr>
+<tr><td>Which beach in the tests plays "the answer was lost", and what does the server answer there?</td><td></td></tr>
+<tr><td>Task 2: for which answers does the sender stop, and for which does it go on?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       8 passed, 8 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines (Task 3 can go home).</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the instructor runs it, and the Answer Key has the real run.</p>
+<div class="q"><div class="qn">P1</div><div class="qt">The same debris log is sent to shoreline-api four times: as Theo (who has a spot), as Theo again with the same clientId (the first answer was lost), as Amara (no spot at this cleanup), and with no sign-in. Predict each status code and what the queue would do with it.</div><pre class="code">node answers.mjs</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>The Debris Log Queue</b> (lesson page, "Project: The Debris Log Queue"). In class: Steps 1 and 2. At home: Steps 3 to 9.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npx expo install zustand</code></li>
+  <li>☐ Step 2: <code class="inline">src/state/logQueue.ts</code>: the store, persist with AsyncStorage, partialize, merge, skipHydration, loadLogQueue</li>
+  <li>☐ Step 3: <code class="inline">src/state/sendLogs.ts</code> (and sendLogMutation deleted)</li>
+  <li>☐ Step 4: useSendWaitingLogs; the queue loads behind the splash</li>
+  <li>☐ Step 5: the form hands its log to the queue (LogHandedOver)</li>
+  <li>☐ Steps 6 and 7: Not sent yet on the Logbook; the tab badge with its accessibility label</li>
+  <li>☐ Step 8: experiments A (offline) and B (no answer, then a reload) in the web preview</li>
+  <li>☐ Step 9: airplane mode, force-quit, reconnect on a phone (if you have one); tsc and expo lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">With Lesson 5.4's code, Theo sends a debris log in airplane mode, then force-quits Expo Go. What happens to the log?</div><div class="opts"><div class="opt">A) It is sent the next time Theo opens the app</div><div class="opt">B) It waits in AsyncStorage until the phone is online</div><div class="opt">C) It is gone: a paused mutation waits in memory, and memory ends with the app</div><div class="opt">D) The server receives it twice</div></div></div>
+<div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The web course's persisted store, copied with no <code class="inline">storage</code> option, run in Node with a window that has no localStorage (as on a phone). What does it print? (The kit ran it.)</div><pre class="code"><span class="c">// The web course's persisted store, copied as it was: no storage option</span>
+globalThis.window = {}; <span class="c">// a window without localStorage, as on a phone</span>
+<span class="k">const</span> { create } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand'</span>);
+<span class="k">const</span> { persist } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand/middleware'</span>);
+
+<span class="k">const</span> useLogQueue = create()(
+  persist((set) =&gt; ({ logs: [], add: (log) =&gt; set(({ logs }) =&gt; ({ logs: [...logs, log] })) }), {
+    name: <span class="s">'shoreline-crew-log-queue'</span>,
+  }),
+);
+<span class="k">try</span> {
+  useLogQueue.getState().add({ clientId: <span class="s">'c3a0f6b2'</span> });
+  console.log(<span class="s">'add worked'</span>);
+} <span class="k">catch</span> (error) {
+  console.log(<span class="s">'add threw: '</span> + error);
+}</pre><div class="opts"><div class="opt">A) <code class="inline">add worked</code></div><div class="opt">B) <code class="inline">add threw: TypeError: Cannot read properties of undefined (reading 'setItem')</code></div><div class="opt">C) Nothing: tsc stops it with a missing-option error first</div><div class="opt">D) <code class="inline">add threw: ReferenceError: AsyncStorage is not defined</code></div></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Why does the queue save its state with <code class="inline">partialize: ({ logs }) =&gt; ({ logs })</code> instead of everything?</div><div class="opts"><div class="opt">A) So <code class="inline">sending</code> always starts as false: an app killed during a send would otherwise never send again</div><div class="opt">B) Because AsyncStorage cannot store booleans</div><div class="opt">C) To make the saved JSON smaller than 1 KB</div><div class="opt">D) Because persist cannot save functions without it</div></div></div>
+<div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">Theo's first POST reached shoreline-api and was saved, but the answer never reached the phone. The queue sends the same log again with the same clientId. What does the API answer? (The kit ran it against the course API.)</div><div class="opts"><div class="opt">A) 201 and a second saved log</div><div class="opt">B) 409, so the log is marked refused</div><div class="opt">C) 400: the clientId is already used</div><div class="opt">D) 200 with the log it already has, and the server holds one log</div></div></div>
+<div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Sort these answers to a queued log into what the queue does: 201, 200, 403, 401, no answer, 503.</div><div class="write"></div></div>
+<div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">A screen selects <code class="inline">useLogQueue((state) =&gt; state.logs.filter((item) =&gt; item.volunteerId === viewer))</code>. What happens, and what is the fix?</div><div class="opts"><div class="opt">A) It works: Zustand compares arrays by their items</div><div class="opt">B) tsc reports that filter returns a new array</div><div class="opt">C) It renders forever (<code class="inline">Maximum update depth exceeded</code>): wrap the selector in <code class="inline">useShallow</code></div><div class="opt">D) It shows every volunteer's logs: add a second filter</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: draw a timeline of one debris log (Send pressed, the app closed, a night, the app opened, a dead first try, the signal back, the logbook). Under each moment, write where the log is (memory, AsyncStorage, the server, SQLite) and what would happen if the battery died right then. Is there any moment where it could be lost, or saved twice?</p>
+</div>
+    </div>
+  </section>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">6.1</span><h3>Permissions Done Right</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Describe the life of a permission on an iPhone, an Android phone and the web preview: not asked, granted, denied, and blocked (plus the one-time and approximate answers)</li>
+  <li>Ask at the moment a feature needs it, explain why first, and handle "no" and "don't ask again" without trapping the person</li>
+  <li>Use Expo's permission model: the permission Hooks, get…PermissionsAsync versus request…PermissionsAsync, the PermissionResponse object, and what the Hooks leave to you</li>
+  <li>Write the words on the phone's question with a config plugin in app.json, ask only for what you use, and check what reaches the native projects</li>
+  <li>Say what Expo Go, a development build and the web preview each show you about permissions</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>The life of a permission:</b> not asked, granted (one-time and approximate answers count), denied (Android may ask once more), blocked (iPhone after one no, Android after two, Chrome after Never allow). Answers change in Settings at any time: check before every use.</li>
+  <li><b>Five rules (the farm gate):</b> ask in context; explain first, with Continue (the real Allow is the phone's) and Not now; a no is an answer (everything else keeps working); say when only Settings can help; check before every use.</li>
+  <li><b>Expo's model:</b> <code class="inline">get…PermissionsAsync</code> reads, <code class="inline">request…PermissionsAsync</code> asks if it still may, the Hook returns <code class="inline">[response, request, get]</code>; every answer is a <code class="inline">PermissionResponse</code> (status, granted, canAskAgain, expires). The Hook never asks by itself and never re-reads after Settings.</li>
+  <li><b>The project's step:</b> <code class="inline">permissionStep</code> turns an answer into checking, not-asked, denied, blocked or granted (a web no is blocked); <code class="inline">usePermission</code> re-reads on focus; <code class="inline">PermissionGate</code> has one face per step and renders the feature only after a yes.</li>
+  <li><b>The words on the question:</b> an iPhone shows the purpose string from Info.plist; Android lists permissions in its manifest. Config plugins in app.json write both; expo-location's plugin runs with default words even when unlisted: list it to use your words and <code class="inline">false</code> for what you do not use. <code class="inline">npx expo config --type introspect</code> shows the result.</li>
+  <li><b>Where you see what:</b> Expo Go asks as itself, with its own words, and remembers answers across projects; a development build asks as Shoreline Crew, with your words (Module 9); the web preview asks as the browser, per address.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the Hook passed uncalled</div>
+<p>One missing pair of parentheses in <code class="inline">DistancePanel.tsx</code>, <code class="inline">usePermission(Location.useForegroundPermissions)</code>. The type checker stops it:</p>
+<pre class="code">npx tsc --noEmit</pre>
+<pre class="out">src/components/DistancePanel.tsx:43:34 - error TS2345: Argument of type '(options?: PermissionHookOptions&lt;object&gt; | undefined) =&gt; [LocationPermissionResponse | null, () =&gt; Promise&lt;LocationPermissionResponse&gt;, () =&gt; Promise&lt;...&gt;]' is not assignable to parameter of type 'PermissionHookResult'.
+
+43   const location = usePermission(Location.useForegroundPermissions);
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/components/DistancePanel.tsx:43:34
+    43   const location = usePermission(Location.useForegroundPermissions);
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Did you mean to call this expression?
+
+
+Found 1 error in src/components/DistancePanel.tsx:43</pre><p>Read it from the <b>bottom</b>: "Did you mean to call this expression?" is the whole answer. The long type in the first line is the Hook itself (a function that takes options and returns a three-item tuple); <code class="inline">PermissionHookResult</code> is the tuple. <code class="inline">usePermission(Location.useForegroundPermissions())</code> passes what the Hook returns. Without tsc, the mistake would reach the screen as a crash: Lab 6.1's starter shows it in Jest.</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-14/l6_1-permissions-done-right/TASKS.md</code>. A terminal in <code class="inline">starter</code>: <code class="inline">npm test</code> and <code class="inline">npm run typecheck</code>.</li>
+  <li>Task 1: <code class="inline">permissionStep</code> for six answers. Task 2: the ask-first gate.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which two rows of the table did the starter get wrong, and why does each matter?</td><td></td></tr>
+<tr><td>What did <code class="inline">npm run lint</code> say about the starter's useEffect, and is that the real problem?</td><td></td></tr>
+<tr><td>Task 3: read the TS2345 from the bottom. What is the fix?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       12 passed, 12 total</code>, and the type check and the linter print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the instructor runs it, and the Answer Key has the real run.</p>
+<div class="q"><div class="qn">P2</div><div class="qt">You delete the expo-location entry from app.json's plugins (keeping the package) and run the command below. Predict which iPhone purpose strings it shows, and in whose words.</div><pre class="code">npx expo config --type introspect</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Location, Asked Politely</b> (lesson page, "Project: Location, Asked Politely"). In class: Steps 1 and 2. At home: Steps 3 to 6.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npx expo install expo-location</code>; app.json plugin entry with Shoreline Crew's sentence and four <code class="inline">false</code></li>
+  <li>☐ Step 2: <code class="inline">src/hooks/usePermission.ts</code> (permissionStep and the focus re-read)</li>
+  <li>☐ Step 3: <code class="inline">src/components/PermissionGate.tsx</code> (one face per step)</li>
+  <li>☐ Step 4: <code class="inline">src/utils/distance.ts</code> and <code class="inline">src/components/DistancePanel.tsx</code></li>
+  <li>☐ Step 5: the panel on the cleanup screen; every face in the web preview</li>
+  <li>☐ Step 6: the real questions in Expo Go (if you have a phone); tsc and expo lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">A "Photo of the haul" feature needs the camera. Where should the app call <code class="inline">requestCameraPermissionsAsync()</code>?</div><div class="opts"><div class="opt">A) In the root layout's useEffect, so it is out of the way</div><div class="opt">B) Right after the volunteer signs in</div><div class="opt">C) In a useEffect of the photo screen, the moment it appears</div><div class="opt">D) From Continue, on a one-sentence explanation shown after the volunteer presses Take a photo</div></div></div>
+<div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">On an Android phone, the volunteer tapped "Don't allow" once. The Hook's answer is <code class="inline">{ status: 'denied', canAskAgain: true, granted: false }</code>. Which step does <code class="inline">permissionStep</code> return, and what does the gate show?</div><div class="opts"><div class="opt">A) 'blocked': Open Settings</div><div class="opt">B) 'denied': "that is fine", the reason again, and Ask me again</div><div class="opt">C) 'not-asked': the explanation with Continue</div><div class="opt">D) 'checking': Checking…</div></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this in shoreline-crew after an edit to DistancePanel.tsx. Which change fixes it?</div><pre class="code">src/components/DistancePanel.tsx:43:34 - error TS2345: Argument of type '(options?: PermissionHookOptions&lt;object&gt; | undefined) =&gt; [LocationPermissionResponse | null, () =&gt; Promise&lt;LocationPermissionResponse&gt;, () =&gt; Promise&lt;...&gt;]' is not assignable to parameter of type 'PermissionHookResult'.
+
+43   const location = usePermission(Location.useForegroundPermissions);
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/components/DistancePanel.tsx:43:34
+    43   const location = usePermission(Location.useForegroundPermissions);
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Did you mean to call this expression?
+
+
+Found 1 error in src/components/DistancePanel.tsx:43</pre><div class="opts"><div class="opt">A) Call the Hook: <code class="inline">usePermission(Location.useForegroundPermissions())</code></div><div class="opt">B) Widen PermissionHookResult to accept a function</div><div class="opt">C) Add <code class="inline">as PermissionHookResult</code> after the argument</div><div class="opt">D) Run <code class="inline">npx expo install expo-location</code> again</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">You remove the whole expo-location entry from app.json's plugins and run <code class="inline">npx expo config --type introspect</code>. What do the iPhone's location strings look like? (The kit ran it.)</div><div class="opts"><div class="opt">A) There are none: no entry, no plugin</div><div class="opt">B) Only Shoreline Crew's own sentence</div><div class="opt">C) Five location and motion strings in the plugin's default words, Always location included</div><div class="opt">D) The command fails: the plugin is missing</div></div></div>
+<div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">Name two things Expo's permission Hook does NOT do for you, and how usePermission or the gate covers each.</div><div class="write"></div></div>
+<div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">Which of these needs NO runtime permission on a phone?</div><div class="opts"><div class="opt">A) The share sheet (Lesson 4.4)</div><div class="opt">B) The camera</div><div class="opt">C) Notifications on an iPhone</div><div class="opt">D) The phone's location</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: open your phone's Settings and find the list of apps that can use your location. Pick three: for each, try to remember when it first asked, whether it explained why, and whether you would say yes again today. Then write the purpose string you would give each of them, in one honest sentence. What made a reason convincing to you?</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<p>Three questions, no notes. Write your answers, hand them in or keep them: they tell you and your instructor what to revisit.</p>
+<div class="q"><div class="qn">E1</div><div class="qt">Name the two rules that make the queue safe.</div><div class="write"></div></div>
+<div class="q"><div class="qn">E2</div><div class="qt">A queued log comes back 403. What does the queue do, and why not try again later?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E3</div><div class="qt">Why does the explanation's button say Continue, and what happens after an iPhone's first "Don't Allow"?</div><div class="write"></div></div>
+
+  <div class="sec"><h2>Notes</h2><span class="rule"></span></div>
+<div class="notes-lines"></div>
+
+  <div class="sec"><h2>Homework Checklist</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ Finish The Debris Log Queue (Steps 3 to 9, the commit)</li>
+  <li>☐ Finish Location, Asked Politely (Steps 3 to 6, the commit)</li>
+  <li>☐ Lesson 5.5 Hands-on Exercises 1 and 2 (Exercise 3 is a stretch)</li>
+  <li>☐ Lesson 6.1 Hands-on Exercises 1 and 2 (Exercise 3 is a stretch)</li>
+  <li>☐ Both Quick Quizzes on the lesson pages</li>
+  <li>☐ Lab 5.5 Task 3; Lab 6.1 Task 3</li>
+  <li>☐ Both journal entries</li>
+  <li>☐ Two photos taken with my phone's camera, their file sizes noted</li>
+  <li>☐ Bring to Session 15: the finished Lesson 6.1 code, my phone with Expo Go (or the web preview), this workbook</li>
+</ul>
+
+  <div class="sec"><h2>Glossary</h2><span class="rule"></span></div>
+<table class="timing">
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>offline first / outbox</td><td>Write on the device first, send when the network allows; the record survives the app closing</td></tr>
+<tr><td>queue</td><td>The saved list of records on their way to the server (here: debris logs in AsyncStorage)</td></tr>
+<tr><td><code class="inline">persist</code> (Zustand)</td><td>Middleware that saves a store after every change and reads it back</td></tr>
+<tr><td><code class="inline">createJSONStorage(() =&gt; AsyncStorage)</code></td><td>Tells persist where to save on a phone (there is no localStorage)</td></tr>
+<tr><td>hydration / <code class="inline">rehydrate()</code></td><td>Reading the saved state back into the store; on a phone it is async, so the app waits behind the splash</td></tr>
+<tr><td><code class="inline">partialize</code></td><td>persist's option for saving only part of the state</td></tr>
+<tr><td>idempotent retry</td><td>A resend that changes nothing: the clientId makes the server answer 200 with what it already has</td></tr>
+<tr><td><code class="inline">useShallow</code></td><td>Compares a selector's items, so a filtered list does not render forever</td></tr>
+<tr><td>runtime permission</td><td>The phone's own question before an app may use location, the camera, the microphone, notifications…</td></tr>
+<tr><td><code class="inline">PermissionResponse</code></td><td>Every Expo permission answer: status, granted, canAskAgain, expires</td></tr>
+<tr><td><code class="inline">canAskAgain</code></td><td>false: the phone will not ask again; only Settings can change the answer (always true on the web)</td></tr>
+<tr><td>pre-permission explanation</td><td>The app's own sentence before the phone's question, with Continue and Not now</td></tr>
+<tr><td>purpose string</td><td>The iPhone's usage description in Info.plist, printed in its question</td></tr>
+<tr><td>config plugin</td><td>Code in app.json's plugins that writes the native projects' settings at prebuild</td></tr>
+<tr><td><code class="inline">npx expo config --type introspect</code></td><td>Prints what the plugins will write, without creating ios/ or android/</td></tr>
+<tr><td>haversine</td><td>The formula for the straight-line distance between two latitude/longitude points</td></tr>
+</tbody>
+</table>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 14 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

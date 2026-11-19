@@ -1,187 +1,81 @@
 /**
- * Copy to Clipboard functionality for code blocks
- * Adds a copy button to all code blocks and handles the copy action
+ * Copy to Clipboard — dark/light aware via CSS variables
  */
-
 (function() {
     'use strict';
-    
-    // Wait for DOM to be fully loaded
+
     document.addEventListener('DOMContentLoaded', function() {
-        
-        // Find all code blocks
-        const codeBlocks = document.querySelectorAll('pre code');
-        
-        codeBlocks.forEach(function(codeBlock) {
-            // Create wrapper div for positioning
+        document.querySelectorAll('pre code').forEach(function(codeBlock) {
             const wrapper = document.createElement('div');
             wrapper.className = 'code-block-wrapper';
-            wrapper.style.position = 'relative';
-            
-            // Wrap the pre element
-            const preElement = codeBlock.parentElement;
-            preElement.parentNode.insertBefore(wrapper, preElement);
-            wrapper.appendChild(preElement);
-            
-            // Create copy button
-            const copyButton = document.createElement('button');
-            copyButton.className = 'copy-button';
-            copyButton.textContent = 'Copy';
-            copyButton.setAttribute('aria-label', 'Copy code to clipboard');
-            
-            // Style the button
-            copyButton.style.cssText = `
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                padding: 6px 12px;
-                background-color: #4a5568;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                font-size: 12px;
-                cursor: pointer;
-                opacity: 0.8;
-                transition: opacity 0.2s, background-color 0.2s;
-                z-index: 10;
-            `;
-            
-            // Add hover effect
-            copyButton.addEventListener('mouseenter', function() {
-                this.style.opacity = '1';
-                this.style.backgroundColor = '#2d3748';
-            });
-            
-            copyButton.addEventListener('mouseleave', function() {
-                this.style.opacity = '0.8';
-                this.style.backgroundColor = '#4a5568';
-            });
-            
-            // Add copy functionality
-            copyButton.addEventListener('click', function() {
-                const textToCopy = codeBlock.textContent || codeBlock.innerText;
-                
-                // Modern clipboard API
+            const pre = codeBlock.parentElement;
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+
+            const btn = document.createElement('button');
+            btn.className = 'copy-button';
+            btn.textContent = 'Copy';
+            btn.setAttribute('aria-label', 'Copy code to clipboard');
+            wrapper.appendChild(btn);
+
+            btn.addEventListener('click', function() {
+                const text = codeBlock.textContent || codeBlock.innerText;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(textToCopy).then(function() {
-                        // Success feedback
-                        showCopyFeedback(copyButton, true);
-                    }).catch(function(err) {
-                        // Fallback to older method
-                        fallbackCopyTextToClipboard(textToCopy, copyButton);
-                    });
+                    navigator.clipboard.writeText(text)
+                        .then(() => feedback(btn, true))
+                        .catch(() => fallback(text, btn));
                 } else {
-                    // Fallback for older browsers
-                    fallbackCopyTextToClipboard(textToCopy, copyButton);
+                    fallback(text, btn);
                 }
             });
-            
-            // Add button to wrapper
-            wrapper.appendChild(copyButton);
         });
     });
-    
-    // Fallback copy method for older browsers
-    function fallbackCopyTextToClipboard(text, button) {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        
-        // Avoid scrolling to bottom
-        textArea.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 2em;
-            height: 2em;
-            padding: 0;
-            border: none;
-            outline: none;
-            box-shadow: none;
-            background: transparent;
-        `;
-        
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        try {
-            const successful = document.execCommand('copy');
-            showCopyFeedback(button, successful);
-        } catch (err) {
-            showCopyFeedback(button, false);
-        }
-        
-        document.body.removeChild(textArea);
+
+    function fallback(text, btn) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { feedback(btn, document.execCommand('copy')); }
+        catch (_) { feedback(btn, false); }
+        document.body.removeChild(ta);
     }
-    
-    // Show feedback when copy is complete
-    function showCopyFeedback(button, success) {
-        const originalText = button.textContent;
-        
-        if (success) {
-            button.textContent = '✓ Copied!';
-            button.style.backgroundColor = '#48bb78';
-        } else {
-            button.textContent = '✗ Failed';
-            button.style.backgroundColor = '#f56565';
-        }
-        
-        // Reset button after 2 seconds
-        setTimeout(function() {
-            button.textContent = originalText;
-            button.style.backgroundColor = '#4a5568';
+
+    function feedback(btn, ok) {
+        const orig = btn.textContent;
+        btn.textContent = ok ? '✓ Copied!' : '✗ Failed';
+        btn.classList.add(ok ? 'copy-ok' : 'copy-fail');
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('copy-ok', 'copy-fail');
         }, 2000);
     }
-    
-    // Add CSS for code blocks if not already present
-    const style = document.createElement('style');
-    style.textContent = `
-        .code-block-wrapper {
-            position: relative;
-            margin: 1em 0;
+
+    // Inject styles using CSS variables
+    const s = document.createElement('style');
+    s.textContent = `
+        .code-block-wrapper { position: relative; margin: 1em 0; }
+        .code-block-wrapper pre { padding-right: 70px; margin: 0; }
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            background: var(--text-light, #64748b);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s, background-color 0.2s;
+            z-index: 10;
         }
-        
-        .code-block-wrapper pre {
-            padding-right: 60px; /* Make room for copy button */
-            margin: 0;
-        }
-        
-        /* Ensure code blocks have appropriate styling */
-        pre code {
-            display: block;
-            overflow-x: auto;
-            padding: 1em;
-            background-color: #f6f8fa;
-            border-radius: 6px;
-        }
-        
-        /* Hide button on print */
-        @media print {
-            .copy-button {
-                display: none;
-            }
-        }
-        
-        /* Accessibility improvements */
-        .copy-button:focus {
-            outline: 2px solid #4299e1;
-            outline-offset: 2px;
-        }
-        
-        /* Dark mode support if page has dark class */
-        .dark pre code {
-            background-color: #1a202c;
-            color: #e2e8f0;
-        }
-        
-        .dark .copy-button {
-            background-color: #2d3748;
-        }
-        
-        .dark .copy-button:hover {
-            background-color: #4a5568;
-        }
+        .copy-button:hover { opacity: 1; background: var(--primary-color, #3b82f6); transform: none; box-shadow: none; }
+        .copy-button.copy-ok { background: var(--success-border, #22c55e); opacity: 1; }
+        .copy-button.copy-fail { background: var(--danger-border, #ef4444); opacity: 1; }
+        @media print { .copy-button { display: none; } }
     `;
-    document.head.appendChild(style);
-    
+    document.head.appendChild(s);
 })();

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Publishing an Expo app on Google Play and the App Store: developer accounts and their real costs, app ids and technical requirements, privacy details (App Privacy labels and the Data safety form) answered from the code, account deletion rules, store listings, review and common rejections, internal testing and TestFlight, eas submit and a release checklist. React Native &amp; Expo: Build and Ship a Mobile App Lesson 9.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>The App Stores - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+        <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🏪 Lesson 9.4: The App Stores</h1>
+                <p class="lead">Everything you have built so far runs on phones you control. The stores are the last door between your app and every volunteer with a phone, and they ask hard, fair questions: who are you, what does the app do with people's data, can people leave, and does it really work? Today you learn what each store asks for and what it really costs, answer the privacy questions for Shoreline Crew from its own code, give the app an honest Your data screen, and finish with the checklist you will use for every release you ever make.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Name what Google Play and the App Store require before an app can be published: developer accounts and their real costs, permanent app ids, and the technical rules builds must meet</li>
+                        <li>Build a data inventory from an app's own code and use it to answer Apple's App Privacy details and Google Play's Data safety form</li>
+                        <li>Explain both stores' rules for privacy policies and account deletion, and give an app an honest in-app path to both</li>
+                        <li>Prepare a store listing within the stores' limits, and avoid the most common reasons apps are rejected in review</li>
+                        <li>Configure <code>eas submit</code> for a testing track, and work through a release checklist from code to production</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_34.html">Lesson 9.3: Updates and Monitoring</a>. No store account is needed: every step works without one, and nothing in this lesson costs money</li>
+                    <li><span class="meta-label">🛠️ You will build</span> a data inventory and privacy answers for Shoreline Crew, a Your data screen (what leaves the phone, the privacy policy, account deletion), store-ready config (the encryption answer, no overlay permission in the store build), a submit profile for Google Play's internal testing track, and a release checklist (58 tests)</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88), EAS CLI 27.10 through <code>npx eas-cli@latest</code> (the versions this lesson was checked with); Google Play Console and App Store Connect to read about, not to sign up for</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your editor and terminal, and the web preview for the new Your data screen; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-35-start.zip">lesson-35-start.zip</a> · Finished code: <a href="downloads/lesson-35-end.zip">lesson-35-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: The Last Door</a></li>
+                        <li><a href="#accounts" class="toc-link">Two Stores, Two Accounts, Real Costs</a></li>
+                        <li><a href="#identity" class="toc-link">Ids and Technical Requirements</a></li>
+                        <li><a href="#privacy" class="toc-link">Privacy Details: What Leaves the Phone</a></li>
+                        <li><a href="#deletion" class="toc-link">Privacy Policy and Account Deletion</a></li>
+                        <li><a href="#listing" class="toc-link">The Store Listing</a></li>
+                        <li><a href="#review" class="toc-link">Review and Common Rejections</a></li>
+                        <li><a href="#testing" class="toc-link">Testing Tracks and eas submit</a></li>
+                        <li><a href="#checklist" class="toc-link">The Release Checklist</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew, Store-Ready</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: The Last Door</h2>
+                <p>Shoreline Crew now builds in the cloud (Lesson 9.2), takes updates and reports crashes (Lesson 9.3). It could be a store app tomorrow, except for everything the stores ask that has nothing to do with code: an account in your name, a listing with screenshots, a privacy policy, honest answers about every piece of data the app sends, a way for people to delete their account, and a reviewer at Apple who has to be able to sign in.</p>
+                <p>By the end of this lesson:</p>
+                <ul>
+                    <li><strong>You know the real costs and rules</strong> of both stores, as their official pages state them, and where to check them again, because they change.</li>
+                    <li><strong>You can answer the privacy forms from the code.</strong> You will follow every piece of data in Shoreline Crew to where it goes, and turn that into the answers Apple and Google ask for.</li>
+                    <li><strong>The app tells its users the same thing.</strong> A new Your data screen says what leaves the phone, links to the privacy policy, and starts an account deletion request, honestly, with the API the course has.</li>
+                    <li><strong>You have a release checklist</strong> that covers code, config, privacy, listing, testing and submission.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> on a mobile team, "can we ship on Friday?" is rarely a question about code. It is about whether the privacy answers still match the app after a new library, whether the demo account still works, and whether anyone remembered the screenshots. Developers who can answer those questions are the ones trusted with releases. And for the volunteer deciding whether to install your app, the privacy label on the store page is often the first thing they read about you.</p>
+
+                <div class="card card-accent">
+                    <h4>🌱 A rejection is a review comment, not a verdict</h4>
+                    <p>Most first apps get at least one rejection or a request for more information. Apple says on its review page that over 40% of unresolved issues come from one guideline, app completeness: crashes, placeholder content, missing information. Those are fixable in an afternoon. Read the message the way you read a red screen: it names the guideline, the screen and what is missing. Fix it, reply, resubmit. Every developer with an app in a store has been there.</p>
+                </div>
+            </section>
+
+            <section id="accounts" class="lesson-section">
+                <h2>💳 Two Stores, Two Accounts, Real Costs</h2>
+                <p>Each store needs a developer account of its own, in the name of a person or an organization. Here is what the official pages said while this lesson was written:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Apple Developer Program (App Store)</th><th>Google Play Console</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Fee</td><td>"99 USD per membership year, or in local currency where available"</td><td>A "US$25 one-time registration fee"</td></tr>
+                            <tr><td>As a person</td><td>An Apple Account with two-factor authentication; "Your name will be displayed as the seller name of your apps on the App Store"</td><td>A personal account; Google may ask for a government ID and a credit card in your legal name, and checks your contact details</td></tr>
+                            <tr><td>As an organization</td><td>A D-U-N-S Number (a free company identifier from Dun &amp; Bradstreet), a public website and a work email on its domain</td><td>A D-U-N-S number and documents for the organization</td></tr>
+                            <tr><td>Before your first release</td><td>Nothing extra</td><td>Newer personal accounts must run a closed test "with a minimum of 12 testers who have been opted in continuously for at least 14 days" and then apply for production access</td></tr>
+                            <tr><td>Discounts</td><td>Eligible nonprofits, accredited schools and government bodies can ask for a fee waiver (not individuals)</td><td>None listed</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The fees are only part of the cost of a real store app. Shoreline Crew would also need:</p>
+                <ul>
+                    <li><strong>An https server for the API.</strong> The volunteers' phones cannot reach shoreline-api on your laptop, and Lesson 9.1's guard refuses a production build without an <code>https://</code> address. Hosting costs money every month, for as long as the app exists.</li>
+                    <li><strong>A domain and two web pages</strong>: a privacy policy and an account deletion page. Static pages can be hosted for free (the way this course itself is hosted), but the domain usually costs a little each year.</li>
+                    <li><strong>Twelve testers for two weeks</strong>, if you publish on Google Play from a new personal account. Plan that time before you promise anyone a launch date.</li>
+                    <li><strong>Expo.</strong> The Free plan covered the builds in Lesson 9.2 and the updates in Lesson 9.3, with limits; check Expo's pricing page before a real launch.</li>
+                </ul>
+                <p>A real Shoreline Crew would be published by the crew itself, as an organization: volunteers would see the crew's name as the seller, not a developer's, and as a nonprofit it could ask Apple for the fee waiver. That is a common setup when you build an app for a client: the client owns the store accounts and invites you to them (both consoles have team roles for that), so the app stays theirs when your contract ends.</p>
+
+                <div class="card card-info">
+                    <h4>🧩 Version note: fees and rules change</h4>
+                    <p>Every price, limit and rule in this lesson is quoted from Apple's, Google's and Expo's official pages as they read when the lesson was written, and each section names the page. Stores change these without asking anyone. Before you pay, plan a launch date or answer a form, open the page and read the current wording: that is a habit, not a sign of distrust in the lesson.</p>
+                </div>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: the harbor master</h4>
+                    <p>A boat can sail anywhere in its own bay. To use the public harbor, it checks in with the harbor master, who wants three things: papers that say who owns the boat (the developer account), a crew list and a cargo manifest that match what is really on board (the listing and the privacy answers), and a boat that floats (a build that works when the reviewer tries it). The harbor master does not care how nice the paint is. Most boats turned away had papers that did not match the cargo.</p>
+                </div>
+            </section>
+
+            <section id="identity" class="lesson-section">
+                <h2>🪪 Ids and Technical Requirements</h2>
+                <p>Lesson 9.1 gave Shoreline Crew three app ids under <code>com.example</code>, and warned that they must change before a store. Now it matters:</p>
+                <ul>
+                    <li><strong>The id is permanent.</strong> Once a build with an id is uploaded, the store knows the app by it forever. You cannot rename it later; you can only publish a different app.</li>
+                    <li><strong><code>com.example</code> is refused.</strong> Google Play does not accept package names that start with it (Lesson 9.1), and it is not yours to use anyway.</li>
+                    <li><strong>Use a domain you control, reversed.</strong> If the crew owned <code>marisolcrew.org</code>, the ids would be <code>org.marisolcrew.shorelinecrew</code>, <code>org.marisolcrew.shorelinecrew.preview</code> and <code>.dev</code>. No domain yet? Use your own name in reverse-domain form (<code>io.github.yourname</code> if you have a GitHub account), but decide before the first upload.</li>
+                </ul>
+                <p>The course's code keeps <code>com.example</code>, because the course cannot know your domain. Your copy should change it (Step 3), and Lesson 9.2's profile tests will tell you exactly which lines expect the old ids.</p>
+                <p>Each store also has technical rules for the build itself. They move every year; here is what they said, and how Shoreline Crew measures against them:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Rule (official page)</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Google Play: new apps and updates must target Android 16 (API level 36) or higher (Play Console Help: target API level requirements)</td><td>React Native 0.88, in SDK 58, sets <code>targetSdk = "36"</code> in its Gradle versions file (measured in <code>node_modules/react-native/gradle/libs.versions.toml</code>). A new SDK each year keeps you current; staying on an old SDK eventually blocks updates</td></tr>
+                            <tr><td>Google Play: new apps upload an Android App Bundle (<code>.aab</code>), not an APK</td><td>The production profile's builds are store builds: EAS makes an <code>.aab</code> (Lesson 9.2: <code>distribution: internal</code> was what made APKs)</td></tr>
+                            <tr><td>App Store: uploads must be built with a recent Xcode and iOS SDK (Apple's "Upcoming requirements" news page named Xcode 26 and the iOS 26 SDK)</td><td>EAS Build picks the Xcode image for your SDK version; Expo's docs list which. Again, a current SDK keeps you inside the rule</td></tr>
+                            <tr><td>App Store: every build answers an export compliance (encryption) question, or waits as "Missing Compliance" (Expo's TestFlight guide)</td><td>Shoreline Crew only uses the encryption the phone provides (https, the Keychain), which Apple treats as exempt. Step 3 answers once, in <code>app.config.ts</code>, with <code>ios.config.usesNonExemptEncryption: false</code>. For your own app, read the question yourself: an app with its own encryption answers differently</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Last, the permissions. A store page lists what the app may ask for, and reviewers compare it with what the app does. Lesson 9.1's introspect shows the store build's list (Step 3 runs it). Two lines deserve a decision:</p>
+                <ul>
+                    <li><code>SYSTEM_ALERT_WINDOW</code> ("draw over other apps") comes from the template, for development tools. A volunteer's app has no use for it, so the production variant blocks it (Lesson 9.1's Exercise 2 showed <code>blockedPermissions</code>). Development builds keep it, in case the tools need it.</li>
+                    <li><code>READ_EXTERNAL_STORAGE</code> and <code>WRITE_EXTERNAL_STORAGE</code> carry <code>maxSdkVersion 32</code>: they apply only to Android 12 and older, where some libraries still need them. They stay.</li>
+                </ul>
+                <p>On iPhone, introspect shows one sentence Shoreline Crew did not write: <code>NSLocalNetworkUsageDescription</code> from Expo Dev Launcher, part of <code>expo-dev-client</code> (Lesson 9.2). Expo's docs say the development client is meant for development builds; whether a store build ever shows that question is something to check on a real iPhone before you submit, and to explain in the review notes if a reviewer asks.</p>
+            </section>
+            <section id="privacy" class="lesson-section">
+                <h2>🔎 Privacy Details: What Leaves the Phone</h2>
+                <p>Both stores show a privacy summary on the app's page, built from a form you fill in: Apple's <strong>App Privacy details</strong> (people call them privacy "nutrition labels") and Google Play's <strong>Data safety</strong> section. Google's help page is blunt: "Even developers with apps that do not collect any user data must complete this form." Both forms ask about the data your app <em>collects</em>, and both define the word the same way:</p>
+                <ul>
+                    <li>Apple: "'Collect' refers to transmitting data off the device in a way that allows you and/or your third-party partners to access it for a period longer than what is necessary to service the transmitted request in real time." And: "Data that is processed only on device is not 'collected'."</li>
+                    <li>Google: "'Collect' means transmitting data from your app off a user's device." Data "only processed locally on the user's device" is exempt, and so is data processed "ephemerally" (only in memory, for the request).</li>
+                    <li>Google also asks about <em>sharing</em>, "transferring user data collected from your app to a third party", with exceptions such as a service provider working for you, or a transfer the user starts themselves (the share sheet).</li>
+                    <li>Both count the code you add: Apple asks you to disclose "the practices of third-party partners whose code you integrate into your app", which includes SDKs.</li>
+                </ul>
+                <p>So the question for every piece of data is not "does the app touch it?" but "does it leave the phone, and is it kept?" You cannot answer that from memory. You answer it from the code, the way Lesson 5.1 found the single API address: every request in Shoreline Crew goes through one <code>fetch</code> call in <code>src/api/client.ts</code> (Step 1 proves it), to one server, the crew's. Following each function that calls it, and each native module, gives this inventory:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Data</th><th>In the code</th><th>Leaves the phone?</th><th>Where it goes</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Email address and password</td><td><code>sign-in.tsx</code> → <code>postSignIn</code></td><td>Yes, at sign-in</td><td>The crew's server, which keeps the email with the account</td></tr>
+                            <tr><td>Sign-in token</td><td><code>auth/session.ts</code> (SecureStore), sent with every request</td><td>Sent, not kept by anyone new</td><td>Back to the server that made it</td></tr>
+                            <tr><td>Sign-ups, cancellations, check-ins</td><td><code>postSignup</code>, <code>cancelSignup</code>, <code>checkIn</code></td><td>Yes</td><td>The crew's server, with your account</td></tr>
+                            <tr><td>Debris logs (counts, bags, weight, note, time)</td><td>the queue → <code>postLog</code></td><td>Yes</td><td>The crew's server, with your account</td></tr>
+                            <tr><td>Photos added to a log</td><td>the queue → <code>postPhoto</code></td><td>Yes, only the ones you add</td><td>The crew's server</td></tr>
+                            <tr><td>Location</td><td><code>DistancePanel</code>, <code>SiteMap</code> (blue dot)</td><td>No: the distance is worked out on the phone</td><td>Nowhere (but see the map SDKs below)</td></tr>
+                            <tr><td>Settings, logbook, unsent logs, reminders</td><td><code>settings.ts</code>, <code>storage/logbook.ts</code>, <code>state/logQueue.ts</code>, <code>reminders.ts</code></td><td>No</td><td>AsyncStorage, SQLite, files, the phone's own scheduler</td></tr>
+                            <tr><td>Crash reports</td><td><code>monitoring/reportError.ts</code></td><td>No: it prints in development and does nothing in a build (Lesson 9.3)</td><td>Nowhere, until you plug in a service</td></tr>
+                            <tr><td>A logbook CSV</td><td><code>ShareLogbook</code> (Lesson 6.5)</td><td>Only where the volunteer sends it</td><td>The volunteer's choice in the share sheet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two things the app's own code does not show, and which still count:</p>
+                <ul>
+                    <li><strong>The map SDKs.</strong> On Android, <code>react-native-maps</code> draws with Google's Maps SDK, and Google's own page on Play disclosures says that SDK collects device and request details, crash traces from its own code, the IP address and a pseudonymous id, and that "you are solely responsible for deciding how to respond" in the form. On iPhone the map is Apple's; Apple's page says "You are not responsible for disclosing data collected by Apple." (The <code>react-native-maps</code> package also ships an iOS privacy manifest that declares precise location, conservatively.)</li>
+                    <li><strong>Expo's update check</strong>, once Lesson 9.3's project id is in place. Expo's privacy explainer says update requests "do not contain identifying information such as unique device identifiers"; they carry the platform, the project id and a random installation id, which Expo's docs say to "treat as pseudonymous data".</li>
+                </ul>
+                <p>Photos have one more question: can a photo carry where it was taken? Lesson 6.2 asked the picker for no EXIF data and re-encoded the image, which should leave no location in the uploaded file. Check one uploaded photo from a real phone before you answer "no location": if it still had GPS data, location would leave the phone after all.</p>
+                <p>From the inventory, Shoreline Crew's answers. Where a form leaves room for judgment, the table says so:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Data</th><th>App Store: App Privacy</th><th>Google Play: Data safety</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Email address</td><td>Contact Info › Email Address, linked to the user, App Functionality</td><td>Personal info › Email address, collected, required, App functionality and Account management</td></tr>
+                            <tr><td>Account id on logs and sign-ups</td><td>Identifiers › User ID, linked, App Functionality</td><td>Personal info › User IDs, collected, App functionality</td></tr>
+                            <tr><td>Debris logs</td><td>User Content › Other User Content, linked, App Functionality</td><td>App activity › Other user-generated content, collected, App functionality</td></tr>
+                            <tr><td>Sign-ups and check-ins</td><td>User Content › Other User Content (judgment: these are records the volunteer makes)</td><td>App activity › Other actions, collected, App functionality</td></tr>
+                            <tr><td>Photos</td><td>User Content › Photos or Videos, linked, App Functionality</td><td>Photos and videos › Photos, collected, optional, App functionality</td></tr>
+                            <tr><td>Location</td><td>Not collected (processed only on the device)</td><td>Not collected (processed only on the device)</td></tr>
+                            <tr><td>Maps SDK on Android</td><td>Not applicable (Apple Maps on iPhone)</td><td>Judgment: Google's page lists what the SDK collects; App info and performance › Crash logs and Device or other IDs are the cautious answers</td></tr>
+                            <tr><td>Update checks</td><td colspan="2">Judgment: a random id per installation, not linked to the account, used only to deliver updates. Read Expo's explainer and decide; if unsure, disclose</td></tr>
+                            <tr><td>Tracking, ads, analytics</td><td>No tracking; no data used for advertising or analytics</td><td>No data shared; none used for advertising or analytics</td></tr>
+                            <tr><td>Encryption in transit</td><td>(not asked)</td><td>Yes, only because the production build must use an <code>https://</code> server (Lesson 9.1's guard)</td></tr>
+                            <tr><td>Deletion requests</td><td>(asked in review, see the next section)</td><td>Yes, with the web page's address</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>"Linked to the user" is the honest answer for almost everything a signed-in app sends: Apple counts data as not linked only if it is stripped of identifiers before it is collected, and Shoreline Crew's logs are stored with the volunteer's account on purpose. Note also what the app does <em>not</em> send: it never sends a name or phone number. The organizers type those into their own HQ, so they are the crew's data, not the app's collection. An app with its own sign-up form would collect them and say so.</p>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: the cargo manifest</h4>
+                    <p>The privacy form is a cargo manifest: a list of what the boat carries off the beach. You write it by walking the deck with a clipboard (reading the code), not by remembering what you loaded last month. Every time someone brings a new crate on board, a library, a new field in a form, a crash reporter, the manifest changes. Step 1's searches are the walk around the deck, and <code>src/utils/privacy.ts</code> (Step 2) is the clipboard everyone on the team can read.</p>
+                </div>
+
+                <div class="card card-danger">
+                    <h4>🛑 Wrong answers are a policy problem, not a typo</h4>
+                    <p>Both stores treat privacy answers that do not match the app as a violation, and the answers are public: volunteers decide whether to trust you from them. When you add a library, run Step 1's searches again and read the library's own privacy notes (on iPhone, its <code>PrivacyInfo.xcprivacy</code> file in <code>node_modules</code>). When you add crash reporting (Lesson 9.3), add Diagnostics › Crash Data on Apple's form and App info and performance › Crash logs on Google's, and name the service in your privacy policy.</p>
+                </div>
+            </section>
+
+            <section id="deletion" class="lesson-section">
+                <h2>🗑️ Privacy Policy and Account Deletion</h2>
+                <p>Two more rules apply to Shoreline Crew, both about leaving: knowing what happens to your data, and taking it with you when you go.</p>
+                <p><strong>A privacy policy, inside the app.</strong> Apple's App Store Review Guideline 5.1.1(i): "All apps must include a link to their privacy policy in the App Store Connect metadata field and within the app in an easily accessible manner." The policy must say what is collected, how and why, that third parties protect it equally, how long it is kept, and "how a user can revoke consent and/or request deletion of the user's data". Google Play asks for a privacy policy link in the Play Console too. The inventory above is most of a privacy policy already, in plain words.</p>
+                <p><strong>Account deletion.</strong> Both stores have a rule, and both start with the same condition:</p>
+                <ul>
+                    <li>Apple, guideline 5.1.1(v): "If your app supports account creation, you must also offer account deletion within the app." Apple's support page adds: delete "the entire account record, along with associated personal data"; "only offering to temporarily deactivate or disable an account is insufficient"; "If people need to visit a website to finish deleting their account, include a link directly to the page"; a manual process is fine if you tell people how long it takes; and apps outside highly regulated industries "should not require people to make a phone call, send an email" or go through support.</li>
+                    <li>Google Play: "If your app allows users to create an account from within your app", it must "provide users with an in-app path to delete their app accounts and associated data" and "a web link resource where users can request app account deletion and associated data deletion", entered in the Data safety form.</li>
+                </ul>
+                <p>Shoreline Crew does not create accounts: the organizers make them, and the app only signs in. So, read to the letter, neither deletion rule may apply. Build it anyway. The privacy policy has to explain deletion regardless, reviewers judge the spirit of the rules, volunteers expect it, and the first time the crew adds "Join the crew" to the app, the rule applies in full.</p>
+                <p>Here the course has to be honest about its API. shoreline-api is fixed for this course, and it has no endpoint that deletes an account. So the Your data screen (Step 2) does what Apple's page allows when deletion finishes elsewhere: the button starts the request in the app and opens a web page where the organizers receive it. A real app does more, and this is the work to plan for your own:</p>
+<div class="mermaid">
+graph TD
+    A["Delete my account"] --> B["Confirm: this is final"]
+    B --> C["DELETE /api/me"]
+    C --> D["Server deletes data"]
+    D --> E["Phone signs out, clears"]
+    E --> F["Confirmation shown"]
+</div>
+                <ul>
+                    <li><strong>The server deletes or anonymizes.</strong> The account, the email, the sign-ups, the photos; the debris logs either deleted or kept without the person (the crew's total of 312 bags can stay true without saying who carried them). Google allows keeping some data "for legitimate reasons" if you tell people. Every session token of that account stops working.</li>
+                    <li><strong>The phone forgets.</strong> The session in SecureStore, the unsent logs and their photo files, the logbook rows in SQLite, the scheduled reminders. Each of those already has its own code in Shoreline Crew; deletion calls all of them.</li>
+                    <li><strong>The person is told</strong> how long it takes, and when it is done.</li>
+                </ul>
+            </section>
+
+            <section id="listing" class="lesson-section">
+                <h2>🖼️ The Store Listing</h2>
+                <p>A listing is the page people see before they install. <code>eas submit</code> uploads a build; it does not touch the listing (Expo's docs: it "does not manage store listing metadata, screenshots, or release notes"). You fill the listing in each console. What each one asked for:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>App Store Connect</th><th>Google Play Console</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Name</td><td>2 to 30 characters</td><td>Up to 30 characters</td></tr>
+                            <tr><td>Short text</td><td>Subtitle, up to 30 characters; promotional text, up to 170</td><td>Short description, up to 80 characters</td></tr>
+                            <tr><td>Description</td><td>Up to 4,000 characters</td><td>Full description, up to 4,000 characters</td></tr>
+                            <tr><td>Keywords</td><td>Up to 100 bytes, comma-separated</td><td>None: Google warns that repeated or irrelevant keywords in the texts can get an app suspended</td></tr>
+                            <tr><td>Icon</td><td>From the build (the 1024 x 1024 <code>icon.png</code> of Lesson 2.3)</td><td>A separate 512 x 512 PNG, up to 1024 KB</td></tr>
+                            <tr><td>Screenshots</td><td>1 to 10 per size, no transparency; at least one for the iPhone size Apple currently requires (the page named "iPhone with Dynamic Island (medium display)", such as 1206 x 2622 pixels); iPad only if the app runs on iPad</td><td>At least 2, up to 8 per device type; 320 to 3,840 pixels per side, the long side at most twice the short one</td></tr>
+                            <tr><td>Other</td><td>Privacy policy URL (required), support URL, category, age rating questions, review notes</td><td>Feature graphic 1024 x 500, privacy policy URL, category, content rating questionnaire, Data safety form</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Screenshots come from the real app on a phone or a simulator, not from the web preview: they must show the app as people will see it ("Inaccurate screenshots" is on Apple's list of common rejections). Pick the four or five screens that tell the story: Cleanups, a cleanup's details, the debris log form, the Logbook's tallies, My cleanups. Shoreline Crew is iPhone-only (Lesson 9.1 left out <code>supportsTablet</code>), so it needs no iPad screenshots.</p>
+                <p>A first draft of Shoreline Crew's texts, within the limits:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Field</th><th>Text</th><th>Length</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Name</td><td>Shoreline Crew</td><td>14</td></tr>
+                            <tr><td>Subtitle (Apple)</td><td>Beach cleanups near you</td><td>23</td></tr>
+                            <tr><td>Short description (Google)</td><td>Join beach cleanups, log what your crew collects, even with no signal.</td><td>70</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="review" class="lesson-section">
+                <h2>🧐 Review and Common Rejections</h2>
+                <p>Both stores review apps before they reach the public. Apple's App Review page says it typically reviews "at least 50% of submissions in less than 24 hours and 90% in less than 48 hours"; Google Play's reviews vary, and first apps from new accounts can take longer. Apple's page lists the problems it sees most. Here they are, with what each would mean for Shoreline Crew:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Common issue (Apple's list)</th><th>The Shoreline Crew version</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Crashes and bugs</td><td>Lesson 9.3's crash screen helps, but the reviewer must never see it: test the exact build you submit</td></tr>
+                            <tr><td>Incomplete information</td><td>The reviewer cannot sign in: guideline 2.1 asks you to "include demo account info (and turn on your back-end service!)". A real server, a reviewer account, and the password in the review notes</td></tr>
+                            <tr><td>Broken links, placeholder content</td><td>The <code>example.org</code> pages in <code>src/utils/privacy.ts</code>: replace them with real pages before you submit</td></tr>
+                            <tr><td>Privacy policy issues</td><td>No link in the app, or a policy that does not match the privacy answers</td></tr>
+                            <tr><td>Unclear data access requests</td><td>Permission sentences that do not say why. Shoreline Crew's (Lesson 6.1) name the feature: "to show how far you are from a cleanup's meeting point"</td></tr>
+                            <tr><td>Inaccurate screenshots</td><td>Screenshots from the web preview, or of screens the app does not have</td></tr>
+                            <tr><td>Not enough lasting value, web clippings</td><td>Guideline 4.2 asks for more than "a repackaged website". Offline logs, the camera, location and reminders make Shoreline Crew a real app</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Some features cannot be tried by a reviewer at a desk. Checking in needs the organizer's code on the day of a cleanup. Guideline 2.1 expects you to provide what review needs ("such as login credentials or a sample QR code"), so the review notes give the reviewer a way: for example, an organizer account on the review server that can see the day's code, and a cleanup scheduled for every day of the review. Writing those notes is Exercise 2.</p>
+            </section>
+
+            <section id="testing" class="lesson-section">
+                <h2>🧪 Testing Tracks and eas submit</h2>
+                <p>Neither store makes you release to everyone at once. Both have tracks for testers, and that is where every upload should land first:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Google Play</th><th>App Store (TestFlight)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Your team</td><td>Internal testing: "up to 100 testers per app", available quickly, and "might not be subject to standard Play policy or security reviews"</td><td>Internal testers: "up to 100 members of your development team" with roles in App Store Connect</td></tr>
+                            <tr><td>Wider testing</td><td>Closed testing (invited testers; the 12-tester, 14-day rule uses this track), then open testing (anyone can join from the store)</td><td>External testers: "up to 10,000", by email or a public link; the first build goes through review</td></tr>
+                            <tr><td>Everyone</td><td>Production, optionally to a percentage of users first</td><td>App Store release, after App Review</td></tr>
+                            <tr><td>Limits</td><td>Apps only on internal testing are exempt from showing a Data safety section</td><td>"You can test a build for up to 90 days"</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>eas submit</code> uploads a finished build to a store, from your computer or CI, so you do not download it and upload it again by hand. EAS CLI 27.10 says what it takes:</p>
+                <pre class="terminal"><code class="language-bash">npx eas-cli@latest submit --help</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output (trimmed)</h4>
+                    <pre><code>submit app binary to App Store and/or Play Store
+
+USAGE
+  $ eas submit [-p android|ios|all] [-e &lt;value&gt;] [--latest | --id &lt;value&gt; | --path &lt;value&gt; | --url &lt;value&gt;] [--what-to-test &lt;value&gt;] [--verbose] [--wait] [--verbose-fastlane] [-g &lt;value&gt;...] [--non-interactive] [--auto-testflight-setup]
+
+FLAGS
+  -e, --profile=&lt;value&gt;             Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
+  -g, --groups=&lt;value&gt;...           Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers
+  -p, --platform=&lt;option&gt;           &lt;options: android|ios|all&gt;
+      --[no-]auto-testflight-setup  Set up an internal TestFlight group for the app (iOS only)
+      --id=&lt;value&gt;                  ID of the build to submit
+      --latest                      Submit the latest build for specified platform
+      --non-interactive             Run command in non-interactive mode
+      --path=&lt;value&gt;                Path to the .apk/.aab/.ipa file
+      --url=&lt;value&gt;                 App archive url
+      --verbose                     Always print logs from EAS Submit
+      --verbose-fastlane            Enable verbose logging for the submission process
+      --[no-]wait                   Wait for submission to complete
+      --what-to-test=&lt;value&gt;        Sets the "What to test" information in TestFlight (iOS only).
+
+DESCRIPTION
+  submit app binary to App Store and/or Play Store
+...</code></pre>
+                </div>
+                <p>With no <code>--profile</code>, it uses the <code>production</code> submit profile in <code>eas.json</code>, the empty one Lesson 9.2 added. Step 6 gives it one setting, so Android uploads land on the internal testing track, never straight in front of the public. What each store needs before the first submission (from Expo's submit guides; this course had no store account to run them with):</p>
+                <ul>
+                    <li><strong>Google Play:</strong> the app created in the Play Console ("Create app"), and a Google Service Account key (a JSON file) that lets EAS upload for you. That key is a password: never commit it; EAS can keep it for you as a credential. Expo's guide says the first <code>eas submit</code> "creates your app's first release on the internal testing track", and the app stays a draft until the listing and setup tasks in the Console are done.</li>
+                    <li><strong>App Store:</strong> a paid Apple Developer Program membership, the app's id in App Store Connect (<code>ascAppId</code> in the submit profile) and an App Store Connect API key for non-interactive runs. After processing, the build appears in TestFlight; releasing it is a separate step: submitting it for review in App Store Connect.</li>
+                </ul>
+                <p>Build and submit can be one command: <code>npx eas-cli@latest build --platform android --profile production --auto-submit</code> submits with the submit profile of the same name when the build finishes. For Shoreline Crew, that command stops before it starts: the production profile refuses to build without an <code>https://</code> API (Lesson 9.1), and the course's API runs on your computer. That is the honest end of this course's road for Shoreline Crew. Your own app in Lesson 10.1, with a real server, can go all the way.</p>
+            </section>
+
+            <section id="checklist" class="lesson-section">
+                <h2>✅ The Release Checklist</h2>
+                <p>Pilots use checklists not because they forget how to fly, but because the cost of forgetting one step is too high. Here is the course's, in the order you meet the steps. Copy it into your project's notes and add to it every time a release teaches you something.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Stage</th><th>Check</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Code</td><td>Type check, lint and tests pass (CI is green, Lesson 9.3); the exact build you will submit was tried on a real Android phone and iPhone</td></tr>
+                            <tr><td>Identity</td><td>App ids on your own domain (permanent); name, icon and splash final; <code>version</code> raised for a release people should notice; build numbers left to EAS (Lesson 9.3)</td></tr>
+                            <tr><td>Config</td><td>Production profile with an <code>https://</code> API; permission sentences say why; permissions list audited (introspect); encryption answer set; secrets only in EAS environment variables, never in the repo</td></tr>
+                            <tr><td>Privacy</td><td>Inventory redone from the code and libraries; App Privacy and Data safety answers match it; privacy policy and deletion pages live; both linked from the app</td></tr>
+                            <tr><td>Listing</td><td>Texts within limits; screenshots from the real app; support URL; category; age and content rating questionnaires</td></tr>
+                            <tr><td>Review</td><td>Server running; demo account and anything else a reviewer needs (codes, a scheduled event) in the review notes</td></tr>
+                            <tr><td>Testing</td><td>Uploaded to internal testing / TestFlight first; testers' feedback read; on a new Google Play personal account, the closed test done</td></tr>
+                            <tr><td>Release</td><td>Production release (Google Play can go to a percentage of users first); watch crash reports and updates (Lesson 9.3); have an update or a rollback ready</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The outputs below were printed by the real tools on this course's project. Store consoles and reviews could not be used for this lesson: their behavior comes from Apple's, Google's and Expo's documentation.</p>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Changing the app ids and forgetting the tests</h4>
+                    <p>You replace <code>com.example</code> with your own domain in <code>app.config.ts</code>, and Lesson 9.2's profile tests fail. That is the tests doing their job: they say exactly which ids they expected.</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false app.config</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed; with the ids changed to org.marisolcrew)</h4>
+                        <pre><code> FAIL  ./app.config.test.ts
+  ✕ builds Shoreline Dev from the development profile (186 ms)
+  ✕ builds Shoreline Preview from the preview profile, with an API address (1 ms)
+  ✕ refuses the production profile until it has an https API address (2 ms)
+  ✓ gives each release profile its own update channel (Lesson 9.3)
+  ✓ sends store uploads to testers first (Lesson 9.4) (1 ms)
+
+  ● builds Shoreline Dev from the development profile
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "com.example.shorelinecrew.dev"
+    Received: "org.marisolcrew.shorelinecrew.dev"
+
+      31 |   const config = configFor(easJson.build.development.env);
+      32 |   expect(config.name).toBe('Shoreline Dev');
+    &gt; 33 |   expect(config.android?.package).toBe('com.example.shorelinecrew.dev');
+         |                                   ^
+      34 | });
+      35 |
+      36 | it('builds Shoreline Preview from the preview profile, with an API address', () =&gt; {
+
+      at Object.toBe (app.config.test.ts:33:35)
+
+...
+Tests:       3 failed, 2 passed, 5 total
+Snapshots:   0 total</code></pre>
+                    </div>
+                    <p>Update the three expected ids in <code>app.config.test.ts</code> to your own, and the five tests pass again. Change the ids once, before the first upload: after it, the store knows the app by them forever.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Trying a production build with the local API</h4>
+                    <p>Lesson 9.1's guard stops a production config that points at plain http. With your <code>.env.local</code> still on the computer's address:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=production npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".
+...</code></pre>
+                    </div>
+                    <p>This is the guard working, not a bug. A store app needs a server every volunteer's phone can reach over https; no setting makes the laptop's API one. (On EAS, <code>.env.local</code> is not used at all: the production profile has no address, so the same guard stops the build there, as Lesson 9.2 showed.)</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Answering the privacy forms from memory</h4>
+                    <p>"We don't collect location" is true of Shoreline Crew's code and possibly false of a library it carries. Answer from Step 1's searches, then read the notes of every SDK that talks to the network (on Android, Google's Maps SDK has its own page about what it collects). Redo it at every release that adds a package.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Submitting with placeholder links</h4>
+                    <p>The Your data screen opens <code>https://shorelinecrew.example.org/…</code>, which goes nowhere. In the course that is fine; in a store build it is the "Broken links" and "Placeholder content" rejections at once. Put real pages up first, change <code>src/utils/privacy.ts</code>, then make the build.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Committing the store keys</h4>
+                    <p>The Google Service Account JSON file and the App Store Connect <code>.p8</code> key can publish apps in your name. If one lands in Git, treat it as leaked: revoke it in the console and make a new one. Keep them out of the project folder (or add their names to <code>.gitignore</code> before you save them there), or let EAS store them as credentials.</p>
+                </div>
+            </section>
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew, Store-Ready</h2>
+                <p>You follow Shoreline Crew's data through its code, give the app a Your data screen, make the store build's config honest, answer both privacy forms, draft the listing, point <code>eas submit</code> at a testing track, and walk the release checklist. Everything runs on your computer, with no store account. In <code>shoreline-crew</code>, with the API running in its second terminal as usual.</p>
+
+                <div class="card">
+                    <h3>Step 1: Follow the data through the code <span class="step-time">(10 min)</span></h3>
+                    <p>First, every place the app talks to the network. On macOS, Linux or Git Bash (in PowerShell, use VS Code's search instead: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (<kbd>⌘ Cmd</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> on a Mac), the word <code>fetch</code>, "Match Whole Word" on):</p>
+                    <pre class="terminal"><code class="language-bash">grep -rnw "fetch" src --include="*.ts*" --exclude-dir=mocks --exclude-dir=test --exclude="*.test.*"</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/hooks/useRefreshOnFocus.ts:6: * Each time this screen comes back into view, fetch its stale answers again: the queries whose
+src/api/client.ts:302:    response = await fetch(url, { ...init, headers });
+src/api/client.ts:304:    // In the browser a failed fetch is a TypeError; on a phone, Expo's fetch throws its own error
+src/components/UpdateStatus.tsx:8:// Which code this app runs, and (in preview and production builds) a way to fetch a new version
+src/utils/photoFiles.web.ts:6:  const photo = await (await fetch(uri)).blob();
+src/utils/photoFiles.web.ts:13:    return await (await fetch(uri)).blob();</code></pre>
+                    </div>
+                    <p>Three lines are comments. <code>photoFiles.web.ts</code> reads a photo the web preview already holds (a local address, not the network). That leaves one real request, <code>client.ts</code> line 302: every byte Shoreline Crew sends goes through it to <code>EXPO_PUBLIC_API_URL</code>. Now the native modules that touch personal data:</p>
+                    <pre class="terminal"><code class="language-bash">grep -rlE "expo-(location|image-picker|notifications|secure-store|sqlite)" src --exclude-dir=mocks --exclude-dir=test --exclude="*.test.*"</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/notifications/reminders.ts
+src/hooks/useReminderTaps.ts
+src/storage/logbook.ts
+src/components/LogPhotos.tsx
+src/components/DistancePanel.tsx
+src/components/SiteMap.tsx
+src/auth/session.ts</code></pre>
+                    </div>
+                    <p>Open each file and ask the one question: does what it reads leave the phone? <code>DistancePanel.tsx</code> reads the location and computes a distance on the phone; <code>LogPhotos.tsx</code> keeps photo files that the queue later uploads; the rest store or schedule on the phone. Compare your answers with the inventory in "Privacy Details". Then do the same for <code>package.json</code>'s dependencies: which of them could send anything by themselves? (For Shoreline Crew: the map SDKs and, once a project id is set, <code>expo-updates</code>.)</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: A Your data screen <span class="step-time">(20 min)</span></h3>
+                    <p>The inventory belongs in the app too, in words a volunteer understands. Put the facts in one file, so the screen and the store forms have a single source:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/privacy.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/privacy.ts"><code class="language-ts">// What Shoreline Crew does with a volunteer's data (Lesson 9.4), in the app's own words. The Your data
+// screen shows it, and the stores' privacy forms are answered from the same facts: when the app
+// changes what it sends, change this file, then the forms.
+
+export type DataFact = { what: string; detail: string };
+
+// Sent to the crew's server (the address in EXPO_PUBLIC_API_URL) and kept there, with your account
+export const sentToServer: DataFact[] = [
+  {
+    what: 'Your email address and password',
+    detail: 'When you sign in. The server answers with your name, your role and a sign-in key.',
+  },
+  {
+    what: 'Your sign-ups',
+    detail: "The cleanups you join or cancel, and the day's code when you check in.",
+  },
+  {
+    what: 'Your debris logs',
+    detail: 'The counts, bags, weight, note and time of each log you send.',
+  },
+  {
+    what: 'Photos you add to a log',
+    detail: 'Only the photos you take or pick for it.',
+  },
+];
+
+// Kept on this phone, never sent
+export const keptOnPhone: DataFact[] = [
+  {
+    what: 'Your location',
+    detail: 'Only while you look at a cleanup, to show how far away it is and where you are.',
+  },
+  {
+    what: 'Your sign-in key',
+    detail: "In the phone's secure storage, until you sign out.",
+  },
+  {
+    what: 'Logs that are not sent yet',
+    detail: 'With their photos, until they reach the server or you remove them.',
+  },
+  {
+    what: 'Your logbook and settings',
+    detail: 'Your sent logs, and your theme, reminder, vibration and motion choices.',
+  },
+  {
+    what: 'Reminders',
+    detail: 'The phone schedules them itself. No server sends them.',
+  },
+];
+
+export const notCollected = 'No ads, no analytics, no tracking, and no crash reports.';
+
+// Both stores ask for these pages on the web, and for a way to reach them from inside the app.
+// Replace them with your own pages before a store release: a link that goes nowhere is a rejection.
+export const privacyPolicyUrl = 'https://shorelinecrew.example.org/privacy';
+export const accountDeletionUrl = 'https://shorelinecrew.example.org/delete-account';</code></pre>
+                    </div>
+                    <p>Then the screen, a modal like Lesson 4.2's Before you go:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/your-data.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/your-data.tsx"><code class="language-tsx">import { router } from 'expo-router';
+import { Linking, StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { spacing } from '@/theme/spacing';
+import {
+  accountDeletionUrl,
+  type DataFact,
+  keptOnPhone,
+  notCollected,
+  privacyPolicyUrl,
+  sentToServer,
+} from '@/utils/privacy';
+
+// Your data (Lesson 9.4): what leaves the phone, what stays, the privacy policy, and how to ask
+// for your account to be deleted. A modal, like Before you go.
+export default function YourDataScreen() {
+  function done() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
+  return (
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText&gt;What Shoreline Crew sends, what stays on your phone, and how to leave.&lt;/AppText&gt;
+      &lt;Facts heading="Sent to your crew's server" facts={sentToServer} /&gt;
+      &lt;Facts heading="Only on this phone" facts={keptOnPhone} /&gt;
+      &lt;AppText variant="muted"&gt;{notCollected}&lt;/AppText&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Your account
+      &lt;/AppText&gt;
+      {/* Honest about the server: shoreline-api has no way to delete an account, so the request
+          goes to the organizers through a web page (a real app would also delete it in the app) */}
+      &lt;AppText&gt;
+        Your crew&amp;apos;s organizers made your account, and they keep it with your sign-ups, logs and
+        photos. To have all of it deleted, ask on the crew&amp;apos;s web page: it says how long it
+        takes.
+      &lt;/AppText&gt;
+      &lt;Button
+        label="Ask to delete my account"
+        accessibilityRole="link"
+        accessibilityHint="Opens a web page"
+        onPress={() =&gt; Linking.openURL(accountDeletionUrl)}
+      /&gt;
+      &lt;Button
+        label="Read the privacy policy"
+        accessibilityRole="link"
+        accessibilityHint="Opens a web page"
+        onPress={() =&gt; Linking.openURL(privacyPolicyUrl)}
+      /&gt;
+      &lt;Button label="Done" variant="primary" onPress={done} /&gt;
+    &lt;/Screen&gt;
+  );
+}
+
+function Facts({ heading, facts }: { heading: string; facts: DataFact[] }) {
+  return (
+    &lt;View style={styles.part}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        {heading}
+      &lt;/AppText&gt;
+      {facts.map(({ what, detail }) =&gt; (
+        // One element for a screen reader: what, then the detail
+        &lt;View key={what} accessible style={styles.fact}&gt;
+          &lt;AppText style={styles.what}&gt;{what}&lt;/AppText&gt;
+          &lt;AppText variant="muted"&gt;{detail}&lt;/AppText&gt;
+        &lt;/View&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  part: {
+    gap: spacing.sm,
+  },
+  fact: {
+    gap: spacing.xs,
+  },
+  what: {
+    fontWeight: '600',
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>accessible</code> on each fact's <code>View</code> makes the two lines one element for VoiceOver and TalkBack (Lesson 8.1), so "Your location" and its explanation are read together.</li>
+                        <li>The two web links are <code>Button</code>s with <code>accessibilityRole="link"</code> and a hint, so a screen reader says they leave the app. <code>Linking.openURL</code> opens the phone's browser (Lesson 6.3 used it for Maps).</li>
+                        <li>The account text says what really happens: the organizers delete the account after a request. It does not promise a button that deletes it, because the API cannot.</li>
+                    </ul>
+                    <p>Register it as a modal in the root layout, next to Before you go:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">             /&gt;
++            {/* What the app sends and keeps, the privacy policy, account deletion (Lesson 9.4) */}
++            &lt;Stack.Screen name="your-data" options={{ presentation: 'modal', title: 'Your data' }} /&gt;
+             {/* The debris log form. Open to everyone, so a link to it always lands: a guest is asked</code></pre>
+                    </div>
+                    <p>And give Profile a way in, after Before you go, so it is easy to find for everyone, signed in or not:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx">       &lt;/Link&gt;
++      &lt;AppText variant="heading" accessibilityRole="header"&gt;
++        Your data
++      &lt;/AppText&gt;
++      &lt;AppText&gt;What the app sends, what stays on your phone, and deleting your account.&lt;/AppText&gt;
++      {/* The stores want the privacy policy and account deletion easy to find (Lesson 9.4) */}
++      &lt;Link href="/your-data" asChild&gt;
++        &lt;Button label="Your data and privacy" /&gt;
++      &lt;/Link&gt;
+       {/* Which API this build talks to: the first thing to check when a phone shows no cleanups */}</code></pre>
+                    </div>
+                    <p>Restart <code>npx expo start</code> if it was running (a new route), open the web preview, go to Profile and press <strong>Your data and privacy</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_35/35-your-data.png" alt="A phone-sized web preview of the Your data modal: under the header Your data, the heading Sent to your crew&#x27;s server lists email address and password, sign-ups, debris logs and photos; the heading Only on this phone starts with Your location, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The new Your data screen, opened from Profile. Every line comes from <code>src/utils/privacy.ts</code>, the same facts you give the stores' privacy forms. Web preview: on a phone the modal slides up with its own header.</figcaption>
+</figure>
+                    <p>Scroll to the end:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_35/35-delete-account.png" alt="The end of the Your data modal in a phone-sized web preview: the line No ads, no analytics, no tracking, and no crash reports., the heading Your account with a sentence about the organizers keeping the account, the button Ask to delete my account outlined in red, then Read the privacy policy and Done." width="420" height="814" loading="lazy">
+    <figcaption>Account deletion starts inside the app, as both stores ask. shoreline-api cannot delete accounts, so the button opens the crew's web page for the request; a real server would get its own delete endpoint.</figcaption>
+</figure>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>In Expo Go or Shoreline Dev, the screen should slide up as a modal with a native header, like Before you go. <strong>Ask to delete my account</strong> and <strong>Read the privacy policy</strong> should open the phone's browser on the <code>example.org</code> addresses, which do not exist: that is expected in the course. With VoiceOver or TalkBack, each fact should be read as one item, and the two buttons announced as links. This could not be checked on a phone for this lesson.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Store-ready config <span class="step-time">(15 min)</span></h3>
+                    <p>Two answers the store build should give by itself: the encryption question, and no "draw over other apps" permission:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.ts</div>
+                        <pre data-src="shoreline-crew/app.config.ts" data-match="diff"><code class="language-diff-ts">     bundleIdentifier: variants[variant].appId,
++    // App Store Connect asks every build about encryption (export rules). Shoreline Crew only uses
++    // what the phone itself provides (https, the Keychain), which is exempt: answer once, here.
++    config: { usesNonExemptEncryption: false },
+   },
+ // ...
+     package: variants[variant].appId,
++    // The template asks for "draw over other apps", which only development tools use. A store
++    // build leaves it out, so the store page and the phone's settings do not list it (Lesson 9.4)
++    blockedPermissions:
++      variant === 'production' ? ['android.permission.SYSTEM_ALERT_WINDOW'] : [],
+     adaptiveIcon: {</code></pre>
+                    </div>
+                    <p>Check what the production build would carry, with a made-up https address for the guard (Lesson 9.1). The second part keeps only the lines about permissions and encryption:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=production EXPO_PUBLIC_API_URL=https://crew-api.example.org npx expo config --type introspect | grep -E "ITSApp|UsageDescription|permission\.|tools:node"</code></pre>
+                    <p>In PowerShell, set the two variables first (<code>$env:APP_VARIANT = "production"</code>, <code>$env:EXPO_PUBLIC_API_URL = "https://crew-api.example.org"</code>), run <code>npx expo config --type introspect | Select-String "ITSApp|UsageDescription|permission\.|tools:node"</code>, then remove them with <code>Remove-Item Env:APP_VARIANT, Env:EXPO_PUBLIC_API_URL</code>.</p>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: the same lines appear again further down)</h4>
+                        <pre><code>          ITSAppUsesNonExemptEncryption: false,
+          NSLocalNetworkUsageDescription: 'Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.',
+          NSCameraUsageDescription: 'Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.',
+          NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+                  'android:name': 'android.permission.INTERNET'
+                  'android:name': 'android.permission.VIBRATE'
+                  'android:name': 'android.permission.READ_EXTERNAL_STORAGE',
+                  'android:name': 'android.permission.WRITE_EXTERNAL_STORAGE',
+                  'android:name': 'android.permission.ACCESS_COARSE_LOCATION'
+                  'android:name': 'android.permission.ACCESS_FINE_LOCATION'
+                  'android:name': 'android.permission.SYSTEM_ALERT_WINDOW',
+                  'tools:node': 'remove'
+                  'android:name': 'android.permission.RECORD_AUDIO',
+                  'tools:node': 'remove'
+...</code></pre>
+                    </div>
+                    <p><code>ITSAppUsesNonExemptEncryption: false</code> is the encryption answer. On Android, <code>SYSTEM_ALERT_WINDOW</code> now has <code>'tools:node': 'remove'</code>, the same way the template already removed <code>RECORD_AUDIO</code>: the store build will not ask for it. Run the same command with <code>APP_VARIANT=preview</code> and it is still there: only production blocks it.</p>
+                    <p>Now your own ids. Choose them (see "Ids and Technical Requirements"), replace <code>com.example.shorelinecrew</code> in <code>variants</code> with yours, and run <code>npm test -- --watchAll=false app.config</code>. Three tests fail, as Common Mistakes shows; update their expected ids and run it again. (The course's download keeps <code>com.example</code>, so its tests stay as they are.)</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Answer the privacy forms <span class="step-time">(20 min)</span></h3>
+                    <p>Without an account you cannot open the real forms, but you can fill them in on paper, which is how teams prepare them anyway. In your notes, make two lists for Shoreline Crew:</p>
+                    <ol>
+                        <li><strong>App Store, App Privacy:</strong> for each data type you collect, its category and name, whether it is linked to the user, whether it is used for tracking, and its purposes. Use the table in "Privacy Details" and check each row against your Step 1 findings.</li>
+                        <li><strong>Google Play, Data safety:</strong> for each data type, collected or shared, required or optional, its purposes; then the security questions: encrypted in transit, and how people can request deletion.</li>
+                    </ol>
+                    <p>Decide the two judgment rows (the Android Maps SDK and the update check) and write one sentence for each: why you answered as you did. A reviewer, a colleague or a future you will ask.</p>
+                    <p>Then draft a one-page privacy policy from the same lists, in plain words: what the app collects and why, who else receives it (the crew's server host; Expo for updates; Google for maps on Android), how long it is kept, and how to ask for deletion. It will become the page behind <code>privacyPolicyUrl</code>.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Draft the listing <span class="step-time">(10 min)</span></h3>
+                    <p>Write Shoreline Crew's listing texts in your notes, checking the limits as you go: the name, Apple's subtitle and promotional text, Google's short description, and a description of three short paragraphs (what it does, offline logging, privacy in one sentence). Then list the five screens you would photograph for screenshots, in order, with one line each for what the screenshot should show. Keep the 1024 x 1024 icon from Lesson 2.3 for Apple and note that Google needs a 512 x 512 copy.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: A submit profile for testers <span class="step-time">(10 min)</span></h3>
+                    <p>Fill in the empty <code>production</code> submit profile from Lesson 9.2, so Android uploads go to internal testing:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/eas.json</div>
+                        <pre data-src="shoreline-crew/eas.json" data-match="diff"><code class="language-diff-json">   "submit": {
+-    "production": {}
++    "production": {
++      "android": {
++        "track": "internal"
++      }
++    }
+   }</code></pre>
+                    </div>
+                    <p>EAS CLI fills in the rest of the Android settings with its defaults (read with EAS CLI's own <code>eas.json</code> reader for this lesson): <code>releaseStatus</code> <code>completed</code> and <code>changesNotSentForReview</code> <code>false</code>. On iOS, there is nothing to set until you have an <code>ascAppId</code>. Guard the store settings with one more test, next to Lesson 9.3's channel test:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.test.ts</div>
+                        <pre data-src="shoreline-crew/app.config.test.ts" data-match="diff"><code class="language-diff-ts"> });
++
++it('sends store uploads to testers first (Lesson 9.4)', () =&gt; {
++  // eas submit uses the "production" submit profile: Android builds land on internal testing
++  expect(easJson.submit.production.android.track).toBe('internal');
++  // ...and every App Store build answers the encryption question by itself
++  const config = configFor({
++    ...easJson.build.production.env,
++    EXPO_PUBLIC_API_URL: 'https://crew-api.example.org',
++  });
++  expect(config.ios?.config?.usesNonExemptEncryption).toBe(false);
++  // ...and the store app does not ask to draw over other apps
++  expect(config.android?.blockedPermissions).toEqual(['android.permission.SYSTEM_ALERT_WINDOW']);
++});</code></pre>
+                    </div>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false app.config</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the course's ids)</h4>
+                        <pre><code> PASS  ./app.config.test.ts
+  ✓ builds Shoreline Dev from the development profile (8 ms)
+  ✓ builds Shoreline Preview from the preview profile, with an API address (1 ms)
+  ✓ refuses the production profile until it has an https API address (8 ms)
+  ✓ gives each release profile its own update channel (Lesson 9.3) (1 ms)
+  ✓ sends store uploads to testers first (Lesson 9.4) (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        0.26 s, estimated 1 s
+Ran all test suites matching app.config.</code></pre>
+                    </div>
+                    <p>Run the whole suite too: 20 files, 58 tests. Then commit and push: CI from Lesson 9.3 checks the same.</p>
+                    <div class="card card-info">
+                        <h4>📱 With store accounts (optional, and not for Shoreline Crew)</h4>
+                        <p>With your own app, a real https server and the accounts, the order from Expo's guides is: create the app in each console; for Google Play, create the service account key and give it access; build with the production profile; then run <code>npx eas-cli@latest submit --platform android --latest</code> (and <code>--platform ios</code> after adding <code>ascAppId</code>). The build should appear on the internal testing track and in TestFlight. None of this was run for this lesson.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Walk the release checklist <span class="step-time">(10 min)</span></h3>
+                    <p>Copy "The Release Checklist" into your notes and mark each line for Shoreline Crew: done, not possible in the course, or to do. You should end with a short, honest list of what stands between Shoreline Crew and a store: an https server, real ids on a real domain, the privacy and deletion pages, the accounts, screenshots from real phones, and a reviewer account. That list is exactly what a client would pay for next, and what your final project will plan from the start.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>Your inventory names every place data leaves Shoreline Crew (one <code>fetch</code> in <code>client.ts</code>) and every native module that touches personal data</li>
+                        <li>Profile opens the Your data screen, which shows what is sent, what stays, and links to the privacy policy and the deletion request</li>
+                        <li>Introspect shows <code>ITSAppUsesNonExemptEncryption: false</code> and a removed <code>SYSTEM_ALERT_WINDOW</code> for production only</li>
+                        <li>You have App Privacy and Data safety answers, with a sentence for each judgment call, and a privacy policy draft</li>
+                        <li><code>eas.json</code> sends Android uploads to internal testing, and 58 tests pass</li>
+                        <li>Your own app: list what it would collect, and whether it creates accounts (then deletion is required in the app)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes ten to twenty minutes. The next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: The manifest changes</h3>
+                    <p>For each change to Shoreline Crew, say what changes in Apple's App Privacy answers and in Google's Data safety answers, if anything.</p>
+                    <ol>
+                        <li>Volunteers can add a phone number on Profile, so leaders can text them on the day</li>
+                        <li>You plug Sentry into Lesson 9.3's <code>setReporter</code></li>
+                        <li>The Cleanups list sorts by distance from where you are, computed on the phone</li>
+                        <li>Check-in also sends your location, so organizers can see you are really at the beach</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>For each one, ask: does something new leave the phone, and is it kept? Then find the category.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>1: new collection: Apple Contact Info › Phone Number, linked, App Functionality; Google Personal info › Phone number, collected, optional. The privacy policy gains a line too. 2: new collection and a new party: Apple Diagnostics › Crash Data (and Performance Data if you send traces), usually linked if reports carry the account; Google App info and performance › Crash logs (and Diagnostics). Sentry works for you, so for Google it is a service provider, not sharing; name it in the policy. 3: nothing: processed only on the device is not collected, in both forms. 4: new collection: Apple Location › Precise Location, linked, App Functionality; Google Location › Precise location, collected. The permission sentence must change too ("…and to confirm you are at the beach when you check in"), and that is a native change: a new build (Lesson 9.3).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Notes for the reviewer</h3>
+                    <p>Write the App Review notes for a real Shoreline Crew (up to 4,000 bytes; aim for a short page). The reviewer has never been to a beach cleanup, is at a desk, and has your build.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>What does each feature need that a reviewer does not have: an account, a cleanup today, a check-in code, a reason for each permission question?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>One possible version: "Shoreline Crew is the volunteer app of a beach-cleanup group. Sign in with reviewer@… and the password … (a volunteer account on our production server). A practice cleanup, Review Beach, is scheduled for every day of the review: open it from Cleanups, press Sign up, then Check in, and enter the code 2468 (the organizer gives volunteers the day's code at the beach). Log debris from the same cleanup; photos are optional. Location is used only to show the distance to a cleanup and is not sent. The camera is used to photograph collected debris. Reminders are local notifications, off until turned on in Profile. Your data on Profile links to our privacy policy and account deletion request." The details (a daily practice event, a fixed review code) need server support that shoreline-api does not have: plan them with whoever runs the real server.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Plan real account deletion (Stretch)</h3>
+                    <p>Suppose the crew's real server gets a <code>DELETE /api/me</code> endpoint. List, for the phone, every piece of Shoreline Crew's code that must forget something after a successful call, and in which order; and for the server, what to delete and what may be kept without the person.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The "Only on this phone" list in <code>privacy.ts</code> is the phone's list. Which of those have their own clean-up code already?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Phone, after the server confirms: remove the person's queued logs with the queue's <code>remove</code> and delete their photo files with <code>forgetPhoto</code> (Lessons 5.5 and 6.2); delete their logbook rows (Lesson 5.3's SQLite table is keyed by volunteer; it needs a new delete function); then sign out, which clears the SecureStore session (Lesson 4.3); clear the Query cache; and call <code>updateReminders</code> (Lesson 6.4), which cancels every reminder once nobody is signed in. Settings such as the theme belong to the phone, not the person, and may stay. Server: delete the account, its sessions, sign-ups and photos; delete the debris logs or keep their counts without the volunteer id, if the crew needs its totals, and say so in the privacy policy. Then tell the person it is done.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Shoreline Crew's distance panel reads the phone's location and works out the distance to the meeting point on the phone. What does Apple's App Privacy form need for this feature?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does the location leave the phone in this feature?">
+                                A) Location, Precise Location, linked to the user
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Apple only counts data that is transmitted off the device and kept: data processed only on the device is not collected. If check-in ever sends the location, that changes.">
+                                B) Nothing: data processed only on the device is not collected
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Being approximate does not change the question. Where does the location go?">
+                                C) Location, Coarse Location, not linked to the user
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Your own app lets people create an account in the app. What do both stores require?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Apple's page says apps outside regulated industries should not make people call or write.">
+                                A) A phone number people can call to have their account deleted
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Apple's page says deactivating alone is not enough.">
+                                B) A switch that deactivates the account
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where must the person be able to start?">
+                                C) An email address in the privacy policy
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Both start in the app: Apple wants account deletion offered within the app (a direct link to a web page is fine when deletion finishes there), and Google wants an in-app path plus a web link entered in the Data safety form.">
+                                D) A way to start deleting the account and its data from inside the app
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> You submit a Shoreline Crew build to App Review that talks to shoreline-api running on your laptop. What is the likely result?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The reviewer's phone cannot reach your laptop, so sign-in and every list fail: an incomplete app under guideline 2.1, which asks for a demo account and a running back end. A store app needs an https server, and the production profile refuses to build without one anyway.">
+                                A) A rejection: the reviewer cannot sign in or see any cleanups
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Who runs the server during review, and can a phone at Apple reach your laptop?">
+                                B) Approval: reviewers run the API from the review notes
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Review looks at the app working, not only at the listing.">
+                                C) Approval, because only the listing and the privacy answers are reviewed
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The submit profile says <code>"track": "internal"</code>, and you run <code>npx eas-cli@latest submit --platform android --latest</code>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which track did the profile name?">
+                                A) Every Google Play user gets the new version
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Expo's docs say what eas submit does not manage.">
+                                B) The build is uploaded and the store listing is updated with new screenshots
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="eas submit uploads the latest Android build to the track the profile names: internal testing, for up to 100 testers you invite. The listing, screenshots and release notes stay as they are in the Play Console.">
+                                C) The latest build goes to internal testing, for the testers you invited; the listing is unchanged
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> You open a new personal Google Play developer account for your first app. According to Google's page when this lesson was written, what must happen before you can release to production?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Newer personal accounts must run a closed test with at least 12 testers opted in continuously for at least 14 days, then apply for production access. Plan those two weeks before promising a launch date, and check the page for the current rule.">
+                                A) A closed test with at least 12 testers opted in for at least 14 days
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="TestFlight is Apple's.">
+                                B) A TestFlight beta with external testers
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Google's registration fee is paid once, not every year.">
+                                C) Paying the registration fee again for the first year of sales
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+                <details>
+                    <summary>Can I publish Shoreline Crew itself?</summary>
+                    <p>No, and it would not work: it is a course project for a fictional crew, its API runs on your computer, and its ids and links are placeholders. Publish your own app (Lesson 10.1) with your own server, ids and pages. You can still show Shoreline Crew to employers: the repository with green CI, a preview build on your phone, and today's privacy answers are good evidence of how you work.</p>
+                </details>
+                <details>
+                    <summary>Can I publish to only one store?</summary>
+                    <p>Yes. Many teams start with Google Play (a one-time fee, internal testing quickly) or with the platform their users have. Expo keeps both open: the same code builds for the other store when you are ready. Without a Mac or the Apple membership, Android only is a perfectly good first release.</p>
+                </details>
+                <details>
+                    <summary>As a person, will my name be public?</summary>
+                    <p>On the App Store, yes: Apple's enrollment page says an individual's name "will be displayed as the seller name". Google Play shows developer contact details on the store page too, and in some regions (such as the EU) traders must show more. If that matters to you, publish through an organization, or publish on the client's account when you build for a client.</p>
+                </details>
+                <details>
+                    <summary>Do I need a separate privacy policy for each store?</summary>
+                    <p>No: one page, linked from both consoles and from the app. What must match is the content: the policy, the App Privacy answers, the Data safety answers and the Your data screen all describe the same app. Keeping the facts in one file such as <code>privacy.ts</code> is a small help with that.</p>
+                </details>
+                <details>
+                    <summary>Can I skip the stores entirely?</summary>
+                    <p>For some audiences, yes. Lesson 9.2's internal distribution installs Android builds from a link (for a team or a pilot), and Expo can deploy the web version of the app as a website. iPhone users outside a company program still get apps only through the App Store or TestFlight, so a public app for volunteers would go through the stores.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make Shoreline Crew's two pages real for your own copy: write the privacy policy from Step 4 and a deletion request page (a short form, or instructions with an expected time), host both as a static site (the way your web course's HQ was deployed), and point <code>privacyPolicyUrl</code> and <code>accountDeletionUrl</code> at them. Then ask a friend who has never seen the app to read the Your data screen and the policy, and tell you in their own words what the app sends. Every difference between their answer and yours is a sentence to rewrite.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Think of an app you use every day. Find its privacy label on the App Store or its Data safety section on Google Play. Does it match what you would expect from using the app? Then write the same summary, honestly, for the app you plan to build in the final project: what it would send, where, and why. Which item would you be least comfortable explaining to a user, and could you design it away?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Each store needs its own developer account: Apple's is a yearly fee, Google Play's a one-time fee, and new personal Play accounts must run a closed test with testers before production. Check the official pages: fees and rules change</li>
+                        <li>App ids are permanent and must be on a domain you control; builds must meet each store's current technical rules, which a current Expo SDK keeps you inside</li>
+                        <li>"Collected" means it leaves the phone and is kept. Answer App Privacy and Data safety from an inventory of the code and every SDK, never from memory, and redo it when the app changes</li>
+                        <li>Apps need an in-app privacy policy link; apps that create accounts need account deletion that starts in the app, with a web link for Google Play. Shoreline Crew's API cannot delete, so its Your data screen says so and sends a request</li>
+                        <li>Listings, screenshots and review notes are your work, not <code>eas submit</code>'s; most rejections are about completeness: crashes, placeholders, no demo account, a server that is off</li>
+                        <li>Upload to internal testing and TestFlight first; <code>eas submit</code> sends builds to the track its profile names; a checklist turns all of this into a routine</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Check Apple's membership and fee</td><td><a href="https://developer.apple.com/programs/whats-included/">Apple Developer Program: What's included</a></td></tr>
+                            <tr><td>Check Google Play's fee and account rules</td><td><a href="https://support.google.com/googleplay/android-developer/answer/6112435">Play Console Help: Get started with Play Console</a></td></tr>
+                            <tr><td>Answer the privacy forms</td><td><a href="https://developer.apple.com/app-store/app-privacy-details/">Apple: App privacy details</a> and <a href="https://support.google.com/googleplay/android-developer/answer/10787469">Play Console Help: Data safety</a></td></tr>
+                            <tr><td>Read the account deletion rules</td><td><a href="https://developer.apple.com/support/offering-account-deletion-in-your-app/">Apple: Offering account deletion</a> and <a href="https://support.google.com/googleplay/android-developer/answer/13327111">Play Console Help: Account deletion</a></td></tr>
+                            <tr><td>Read the review rules</td><td><a href="https://developer.apple.com/app-store/review/guidelines/">App Store Review Guidelines</a> and <a href="https://developer.apple.com/distribute/app-review/">Apple: App Review</a></td></tr>
+                            <tr><td>Submit with EAS</td><td><a href="https://docs.expo.dev/submit/introduction/">Expo: EAS Submit</a></td></tr>
+                            <tr><td>Revisit a question from this lesson</td><td><a href="#faq">Common Questions</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You know what each store asks for and costs, and where to check it</li>
+                        <li>You followed Shoreline Crew's data through its code and answered both privacy forms from it</li>
+                        <li>Shoreline Crew tells volunteers what it sends, links to its privacy policy and starts a deletion request</li>
+                        <li>The store build answers the encryption question and asks for no permission it does not need</li>
+                        <li><code>eas submit</code> is set up to reach testers first, and you have a release checklist for every app you ship</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 9 is done: Shoreline Crew is configured, built, updatable, monitored and as store-ready as a course app can be. In <a href="lesson_36.html">Lesson 10.1: Final Project</a>, you plan, build and ship an app of your own from a client brief, using everything from the course, and today's checklist is where your plan starts: decide the server, the ids, the data and the deletion story before you write the first screen.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code>, commit, and push</li>
+                    <li>Keep your release checklist and privacy notes where you can find them: the final project uses both</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today had little code and a lot of judgment, and that is what senior work looks like. You read official rules carefully, separated what you measured from what you were told, and wrote down where you made a call and why. That is exactly what clients and teams need from the person who presses "release". The stores' questions are not obstacles to get past; they are the questions your users would ask you if they could. You can now answer them.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_34.html" class="prev-lesson">← Previous: Updates and Monitoring</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_36.html" class="next-lesson">Next: Final Project →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

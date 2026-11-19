@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Haptics, sharing and files on a phone: a short buzz with expo-haptics when a sign-up or a debris log goes through (used sparingly, never the only feedback, and switched off when the volunteer says so), a logbook written to a CSV file with expo-file-system, and the share sheet for files with expo-sharing. React Native &amp; Expo: Build and Ship a Mobile App Lesson 6.5.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Haptics, Sharing and Files - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📳 Lesson 6.5: Haptics, Sharing and Files</h1>
+                <p class="lead">A phone is something you hold. When Theo taps <strong>Sign up</strong> on a windy beach road with the screen half in sunshine, a short, crisp tap under his thumb says "done" before his eyes find the words. And at the end of a season, his logbook should not be trapped in the app: it should leave as a real file, a spreadsheet he can send to the crew's coordinator or keep for himself. Today Shoreline Crew learns both: feedback you can feel, used with restraint, and files it writes and hands to the phone's share sheet.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Choose the right haptic for a moment with expo-haptics (or none at all), and say why a buzz is never the only feedback</li>
+                        <li>Respect the people holding the phone: an in-app switch for vibration, and the phone's own settings, on iPhone and Android</li>
+                        <li>Write a file with expo-file-system's <code>File</code> and <code>Directory</code>, in the right folder, without breaking the web preview</li>
+                        <li>Turn app data into a CSV file a spreadsheet opens correctly, with quoting, a byte order mark and a guard against formulas</li>
+                        <li>Hand a file to the share sheet with expo-sharing, and explain how that differs from Lesson 4.4's text sharing on each platform</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 135 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_23.html">Lesson 6.4: Notifications</a> (and the files from <a href="lesson_21.html">Lesson 6.2</a>, the logbook from <a href="lesson_17.html">Lesson 5.3</a>, the share button from <a href="lesson_14.html">Lesson 4.4</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A short buzz when a sign-up or a debris log goes through (with a switch to turn it off), and a <strong>Share my logbook</strong> button that writes your logbook to a spreadsheet file and opens the share sheet</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), expo-haptics 58.0, expo-sharing 58.0, expo-file-system 58.0, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the buzz and the share sheet; the web preview for the switch, the button and the file's contents; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-24-start.zip">lesson-24-start.zip</a> · Finished code: <a href="downloads/lesson-24-end.zip">lesson-24-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: An App You Hold</a></li>
+                        <li><a href="#haptics" class="toc-link">Feedback You Can Feel</a></li>
+                        <li><a href="#respect" class="toc-link">Sparingly, and Never Alone</a></li>
+                        <li><a href="#files" class="toc-link">Writing a File</a></li>
+                        <li><a href="#csv" class="toc-link">A File a Spreadsheet Trusts</a></li>
+                        <li><a href="#sharing" class="toc-link">The Share Sheet, for Files</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: A Buzz and a Logbook File</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: An App You Hold</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you paid attention to where your phone vibrates under your thumb. Most of it you never noticed: the keyboard's tiny ticks, a switch that clicks into place, the firm double tap when a payment goes through. The best haptics are like that. They confirm, quietly, that the thing you did has happened, and they disappear when nothing needs saying. The worst ones buzz at everything, and you turn them off.</p>
+                <p>Web pages almost never do this; phone apps are expected to. The second half of today is something web pages do all the time and phones make strange: files. In the browser, "download a CSV" is a link. On a phone there is no Downloads folder in sight, the app lives in its own sealed set of folders, and getting a file out means handing it to the <strong>share sheet</strong>, the panel of apps and actions the phone offers. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>Two moments buzz.</strong> A sign-up that went through, and a debris log saved on the phone, each with a "success" feel; a sign-up the API refused or a log form with mistakes gets an "error" feel. Nothing else buzzes.</li>
+                    <li><strong>The volunteer decides.</strong> A <strong>Vibrate when a sign-up or a log goes through</strong> switch on the Profile tab, on by default, saved with the other settings; the phone's own settings still have the last word.</li>
+                    <li><strong>The logbook leaves as a file.</strong> <strong>Share my logbook</strong> on the Logbook tab writes a CSV file (one row per log) into the app's cache with the expo-file-system you met in Lesson 6.2, and opens the share sheet with expo-sharing: Mail, Drive, Files, Messages, whatever the phone offers.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "can we export this?" is one of the most common requests any app gets, and "it feels cheap" is one of the most common complaints about cross-platform apps. Both are about the phone as an object: what it feels like in the hand, and how your app's data joins the rest of someone's life. Teams that do these two things well get reviews that say "polished" without anyone being able to say why.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Feeling it is part of testing it</h3>
+                    <p>The web preview cannot vibrate and has no share sheet for files, so you will check the code there (the switch, the button, the file's rows) and the experience on your phone. That is not a weakness of your setup; it is how mobile work goes. A haptic you have only read about is a guess. Press the button on your phone ten times and you will know whether it feels right, and whether it is one too many.</p>
+                </div>
+            </section>
+
+            <section id="haptics" class="lesson-section">
+                <h2>📳 Feedback You Can Feel</h2>
+                <p>Every iPhone since the iPhone 7 and most Android phones have a small, precise motor that can play a short "tap" instead of the long rattle of an old vibration. <strong>expo-haptics</strong> plays those taps. Its three cross-platform functions match the three kinds of moment Apple describes in its design guidelines:</p>
+                <pre data-snippet><code class="language-ts">import * as Haptics from 'expo-haptics';
+
+export async function tour() {
+  // "It worked", "careful", "it did not work": three short patterns
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  // A tap with weight: Light, Medium, Heavy, Soft or Rigid
+  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  // The faintest tick, for a value that changes under a finger (a picker, a slider)
+  await Haptics.selectionAsync();
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Function</th><th>Says</th><th>A good moment</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>notificationAsync(Success / Warning / Error)</code></td><td>The result of something you did</td><td>A payment went through; a form was refused</td><td>Sign-up and debris log: Success or Error</td></tr>
+                            <tr><td><code>impactAsync(Light … Rigid)</code></td><td>Something touched something</td><td>A dragged card snaps into place; a pull to refresh reaches its point</td><td>Not used (Module 7's gestures could)</td></tr>
+                            <tr><td><code>selectionAsync()</code></td><td>A value changed under your finger</td><td>Each step of a picker wheel</td><td>Not used (a stepper could: Exercise 1 asks whether it should)</td></tr>
+                            <tr><td><code>performAndroidHapticsAsync(…)</code></td><td>Android's own effects: <code>Confirm</code>, <code>Reject</code>, <code>Toggle_On</code>, <code>Keyboard_Tap</code> and more</td><td>On Android, instead of the three above</td><td>On Android: <code>Confirm</code> and <code>Reject</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Why a fourth function for Android? Reading expo-haptics' Android code answers it. The three cross-platform functions drive Android's vibration motor directly with short timed patterns (it is the <code>Vibrator</code> service, and the library's manifest adds the <code>VIBRATE</code> permission for it, one that never asks). Expo's own documentation for <code>impactAsync</code> says that is "not recommended for implementing haptics feedback" on Android and points to <code>performAndroidHapticsAsync</code>, which asks the screen's view to play one of Android's built-in effects, the same ones the system's keyboard and switches use. Those are tuned for each phone, and they are played the way the phone's touch feedback setting allows. So Shoreline Crew uses the system's <code>Confirm</code> and <code>Reject</code> on Android and Apple's <code>Success</code> and <code>Error</code> on iPhone: each platform's own words for the same two moments.</p>
+                <h3>What the web preview does</h3>
+                <p>expo-haptics has a web version, and reading it (then watching it, measured) shows what happens when you press a buzzing button in the web preview:</p>
+                <ul>
+                    <li>Where the browser has <code>navigator.vibrate</code>, expo-haptics calls it with a short pattern: <code>[40, 100, 40]</code> (40 ms on, 100 off, 40 on) for Success, <code>[60, 100, 60, 100, 60]</code> for Error. Desktop Chrome has the function but no motor, so nothing happens; Chrome on an Android phone would really vibrate.</li>
+                    <li>Safari on an iPhone has no <code>navigator.vibrate</code>; the library then plays the tap Safari makes for a switch control, a small trick its source credits to an open-source project.</li>
+                    <li>No error, no warning. You can check that your code <em>asked</em> for a buzz (this course's checks record the calls to <code>navigator.vibrate</code>), but only a phone shows whether it feels right.</li>
+                </ul>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the tap on the shoulder</h3>
+                    <p>At a cleanup, the organizer does not shout "well done" across the beach every time someone fills a bag. When it matters (your bag is full, the tide has turned, the van is leaving), a quick tap on the shoulder says it without a word, and you look up to see what is going on. A haptic is that tap. It does not replace the words; it makes you look at them. And an organizer who tapped everyone's shoulder every minute would soon be ignored, or avoided.</p>
+                </div>
+            </section>
+
+            <section id="respect" class="lesson-section">
+                <h2>🤝 Sparingly, and Never Alone</h2>
+                <p>Apple's Human Interface Guidelines and Android's haptics guidance agree on a handful of rules (from their documentation), and Shoreline Crew follows all of them:</p>
+                <ol>
+                    <li><strong>Buzz for outcomes, not for presses.</strong> The button's own pressed look (Lesson 2.4) answers the press. The buzz comes when the result is known: the API said yes, the log is safe on the phone. A sign-up that is still waiting for a connection does not buzz yet.</li>
+                    <li><strong>Mean the same thing every time.</strong> Success always feels like Success; Error is only for something that did not work. If a buzz could mean either, it means nothing.</li>
+                    <li><strong>Never the only feedback.</strong> Some people cannot feel haptics (no motor, a case, a hand in a glove, a disability), and many turn them off. Every buzz in Shoreline Crew comes with words on the screen that a screen reader announces: "You are signed up. See you on the beach!", "Log sent. Thank you!", the message under a field. If you deleted every haptic, nobody would miss information, only a little pleasure.</li>
+                    <li><strong>Less is more.</strong> Two moments in the whole app. A stepper that ticks on every press, a tab bar that thumps on every tab, a list that rattles while it scrolls: each feels fun for a minute and tiring for a season.</li>
+                    <li><strong>Make it optional.</strong> Apple's guidelines say it directly: make haptics optional, so people can turn them off and still enjoy the app. Hence the switch.</li>
+                </ol>
+                <h3>Two layers of "off"</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>Who changes it</th><th>What it stops</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Shoreline Crew's <strong>Vibrate when a sign-up or a log goes through</strong> (new, on by default)</td><td>The volunteer, on the Profile tab</td><td>Every buzz from Shoreline Crew, on every platform. Your code checks it before each call.</td></tr>
+                            <tr><td>iPhone: <strong>Settings &gt; Sounds &amp; Haptics &gt; System Haptics</strong></td><td>The person, for the whole phone</td><td>Haptics from UIKit's feedback generators, which expo-haptics uses on iPhone (Apple's documentation: they do not play when the person turned them off)</td></tr>
+                            <tr><td>Android: <strong>Settings &gt; Sound &amp; vibration &gt; Vibration &amp; haptics</strong> (names vary by maker)</td><td>The person, for the whole phone</td><td>The system's touch feedback, which <code>performAndroidHapticsAsync</code> follows; a "use vibration and haptics" main switch on recent versions stops vibration altogether</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The two layers do different jobs. The phone's settings are all or nothing for every app; the in-app switch lets someone keep the keyboard's ticks and lose Shoreline Crew's. It is also the only switch you can test: the phone's own settings and how each model honors them are written here from Apple's and Google's documentation, and Step 7 has you check them on your phone.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Expo's documentation says expo-haptics works in Expo Go on both platforms, with no development build and no permission question. iPhones play haptics only while the app is in the foreground and only on models with a Taptic Engine; an iPad plays none (Apple's documentation). Android phones differ a lot: a high-end phone's <code>Confirm</code> is a crisp click, a budget phone's may be a short buzz, and a few play nothing for some effects. None of this could be felt on this course's machine (no phone, no emulator): Step 7 is where you find out how yours feels.</p>
+                </div>
+            </section>
+
+            <section id="files" class="lesson-section">
+                <h2>📄 Writing a File</h2>
+                <p>Lesson 6.2 introduced expo-file-system to move photos out of the picker's cache: <code>File</code>, <code>Directory</code>, <code>Paths.cache</code> and <code>Paths.document</code>, and the rule "cache for things the phone may throw away, documents for things the volunteer would miss". Today you <em>write</em> a file: text you made, not a photo someone else made. The same classes do it:</p>
+                <pre data-snippet><code class="language-ts">import { File, Paths } from 'expo-file-system';
+
+export async function tryAFile() {
+  const file = new File(Paths.cache, 'hello.txt'); // only an address so far
+  file.create({ overwrite: true }); // now an empty file (replacing an old one)
+  await file.write('Many hands, cleaner sands.\n');
+  console.log(file.uri); // file:///…/Caches/hello.txt (iPhone) or file:///data/…/cache/hello.txt
+  console.log(await file.text(), file.size, file.exists); // the text, 27, true
+  file.delete();
+}</code></pre>
+                <ul>
+                    <li><code>new File(…)</code> is only an address. Nothing exists on the phone until <code>create()</code> (or a write) makes it; <code>exists</code> tells you which.</li>
+                    <li><code>create({ overwrite: true })</code> replaces a file that is already there. Without it, <code>create()</code> throws when the file exists, which is what you want when overwriting by accident would lose something.</li>
+                    <li><code>write()</code> and <code>text()</code> return Promises in SDK 58; <code>writeSync()</code> and <code>textSync()</code> are their synchronous twins. For a file of a few kilobytes either is fine; the async ones never hold up the screen.</li>
+                </ul>
+                <p>Which folder? A file made only to be shared goes in <strong>the cache</strong>. The share sheet hands it to another app, which makes its own copy (an attachment, a file in Drive); Shoreline Crew does not need it afterwards, and if the phone clears the cache to save space, nothing is lost: the logbook is still in SQLite, and the next press writes the file again. Shoreline Crew keeps its exports in a folder of their own, <code>exports/</code>, and empties it before writing a new one, so there is never more than one.</p>
+                <h3>The web has no files</h3>
+                <p>One trap is worth learning before it bites. expo-file-system's web version is a stand-in that warns "expo-file-system is not supported on web" and does nothing useful, and reading <code>Paths.cache</code> or <code>Paths.document</code> on the web <strong>throws</strong>. Lesson 6.2 met this and gave <code>photoFiles.ts</code> a <code>.web.ts</code> twin. Today's file takes a different, smaller route: it never touches <code>Paths</code> on the web at all. Two habits make that work:</p>
+                <ol>
+                    <li><strong>No <code>File</code>, <code>Directory</code> or <code>Paths</code> at the top level of a module.</strong> Create them inside the function that uses them. A top-level <code>new Directory(Paths.cache, 'exports')</code> runs when the module is imported, which on the web means the whole Logbook screen fails to load (measured: see <a href="#mistakes">Common Mistakes</a>).</li>
+                    <li><strong>Check the platform before the first file call</strong>, like Lesson 6.4's <code>remindersWork</code>, and give the web preview something honest to show instead.</li>
+                </ol>
+            </section>
+
+            <section id="csv" class="lesson-section">
+                <h2>📊 A File a Spreadsheet Trusts</h2>
+                <p>Which format? For people who will open the logbook in a spreadsheet (a coordinator adding up a season, a volunteer keeping a record), <strong>CSV</strong>: comma-separated values, plain text that Numbers, Excel, Google Sheets and LibreOffice all open. It looks too simple to get wrong, and that is exactly how it goes wrong. A volunteer's note is free text, typed on a phone keyboard, and it can contain anything:</p>
+                <div class="card card-output">
+                    <h4>A note from the debris-log form</h4>
+                    <pre><code>Bottles, cans and 2 "lost" flip-flops.
+Café cups too.</code></pre>
+                </div>
+                <p>A comma, quotes, a line break and an accented letter. Joining the fields with commas, the obvious first try, gives this (measured: the course ran both versions and read them back with a CSV parser, as a spreadsheet would):</p>
+                <div class="card card-output">
+                    <h4>Expected output (the naive version)</h4>
+                    <pre><code>Cleanup,Date,Pieces,Bags,Weight (kg),Note
+Sunset Stairs Cleanup,2026-11-07,42,1,2.5,Lots of wrappers by the stairs.
+Weekend Cove Cleanup,2026-11-14,63,2,4.1,Bottles, cans and 2 "lost" flip-flops.
+Café cups too.
+Tide Pool Morning Cleanup,2026-11-15,12,1,0.8,=HYPERLINK("http://example.com","Open")</code></pre>
+                </div>
+                <p>The parser saw 6 cells in the heading and 7, 1 and 7 in the rows: the comma in the note started a new column, the line break started a new row, and the last note split in two. The fix is the format's own rule (RFC 4180, the CSV standard): put text in double quotes, write a quote inside it as two quotes, and a comma or a line break inside quotes is just text. Shoreline Crew's version adds two more things:</p>
+                <div class="card card-output">
+                    <h4>Expected output (Shoreline Crew's version)</h4>
+                    <pre><code>"Cleanup","Date","Pieces","Bags","Weight (kg)","Note"
+"Sunset Stairs Cleanup","2026-11-07",42,1,2.5,"Lots of wrappers by the stairs."
+"Weekend Cove Cleanup","2026-11-14",63,2,4.1,"Bottles, cans and 2 ""lost"" flip-flops.
+Café cups too."
+"Tide Pool Morning Cleanup","2026-11-15",12,1,0.8,"'=HYPERLINK(""http://example.com"",""Open"")"</code></pre>
+                </div>
+                <ul>
+                    <li><strong>Every row has 6 cells</strong> (measured), the note keeps its comma, its quotes and its line break, and numbers stay numbers (no quotes), so a spreadsheet can add them up.</li>
+                    <li><strong>A byte order mark first.</strong> The file starts with an invisible character, <code>\uFEFF</code>, that tells spreadsheet apps the text is UTF-8. Without it, Excel in particular may open "Café" as "CafÃ©". (You cannot see it in the box above; it is there in the file.)</li>
+                    <li><strong>A guard against formulas.</strong> Look at the last note: it starts with <code>=</code>. A spreadsheet treats a cell that starts with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code> as a formula, and formulas can fetch web pages or worse: this is called <strong>CSV injection</strong> (or formula injection), and OWASP, the web security project, lists it. Notes are typed by people, so Shoreline Crew puts a <code>'</code> in front of text that starts like that, and the spreadsheet shows it as text.</li>
+                    <li><strong>Lines end with <code>\r\n</code></strong>, as the standard says; every spreadsheet also reads plain <code>\n</code>, but the standard is the safe bet for files that travel.</li>
+                </ul>
+                <div class="card card-danger">
+                    <h4>🛑 What leaves the phone</h4>
+                    <p>A shared file goes wherever the volunteer sends it, and you cannot call it back. Put in only what the person expects to share: the logbook's cleanups, dates, amounts and notes. No volunteer ids, no session token, no email addresses of other people. Lesson 9.4's privacy details will ask what data your app shares and with whom; "the volunteer shares their own logbook, by choice" is an easy answer to give.</p>
+                </div>
+            </section>
+
+            <section id="sharing" class="lesson-section">
+                <h2>📤 The Share Sheet, for Files</h2>
+                <p>Lesson 4.4 shared a cleanup's link with React Native's own <code>Share.share</code>: text, with the link inside it. That is the right tool for words. For a file, React Native's <code>Share</code> is not enough (on Android it takes a message and a title, no file), and this is where <strong>expo-sharing</strong> comes in:</p>
+                <pre data-snippet><code class="language-ts">import * as Sharing from 'expo-sharing';
+import { Share } from 'react-native';
+
+export async function compare(message: string, fileUri: string) {
+  // Lesson 4.4: words (and a link inside them), from React Native itself
+  await Share.share({ message });
+  // Today: a file on this phone, by its file:// address, with expo-sharing
+  await Sharing.shareAsync(fileUri, { mimeType: 'text/csv' });
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>React Native <code>Share.share</code> (Lesson 4.4)</th><th>expo-sharing <code>shareAsync</code> (today)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Shares</td><td>Text (and, on iPhone, a URL)</td><td>One file on this phone, by its <code>file:</code> address</td></tr>
+                            <tr><td>Tells you what happened</td><td>On iPhone, shared or dismissed</td><td>Nothing: the Promise resolves when the sheet closes, whether or not an app was picked</td></tr>
+                            <tr><td>File type</td><td></td><td><code>mimeType</code> (Android: which apps to offer) and <code>UTI</code> (iPhone, Apple's name for a type)</td></tr>
+                            <tr><td>Web preview</td><td><code>navigator.share</code> with text, where the browser has it</td><td><code>navigator.share</code> with a <em>web address</em>, never a file</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Reading the library's code fills in the details. On Android, <code>shareAsync</code> accepts only <code>file:</code> addresses inside the app's own folders (cache, documents), turns the file into a <code>content://</code> address through its own file provider, grants the receiving app permission to read it, and opens Android's chooser with <code>dialogTitle</code> as its title. On iPhone, it opens the standard share sheet with the file, whose list includes <strong>Save to Files</strong>. On both, it resolves once the sheet closes and says nothing about what the person chose: there is no "shared!" to show, so Shoreline Crew does not pretend there is.</p>
+<div class="mermaid">
+graph TD
+    A["Share my logbook"] --> B["Rows from SQLite"]
+    B --> C["CSV text"]
+    C --> D["File in cache/exports"]
+    D --> E["expo-sharing"]
+    E --> F["Share sheet"]
+    F --> G["Mail, Drive, Files…"]
+</div>
+                <p>The logbook comes from the phone's own SQLite database (Lesson 5.3), so the whole export works with no signal on the beach. Only logs the logbook holds are in it: logs still waiting in the queue (Lesson 5.5) are not sent yet, so they are not in the record yet either.</p>
+                <h3>The plugin you did not ask for</h3>
+                <p>Installing expo-sharing prints "Added config plugin: expo-sharing" and adds <code>"expo-sharing"</code> to <code>app.json</code>'s plugins. Reading the plugin shows what it is for: the opposite direction, letting <em>other</em> apps share files and links <em>into</em> yours (a share extension on iPhone, intent filters on Android), an experimental feature that needs a development build. Both halves are off unless you set <code>ios.enabled</code> or <code>android.enabled</code> in its options, so with no options it changes nothing. Shoreline Crew leaves it that way; the FAQ says more.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>expo-sharing works in Expo Go on both platforms (Expo's documentation). On an iPhone, the sheet slides up with the file's name and icon at the top and apps and actions below, including Mail, Messages and Save to Files; on an Android phone, a chooser titled "Share your logbook" lists the apps that accept a CSV file (Gmail, Drive, Messages, a file manager). Which apps appear depends on what is installed. This could not be run here (no phone, no emulator): Step 7 has you share the file to yourself and open it in a spreadsheet.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The first two were made on purpose in a copy of the finished project and measured in the web preview; the others come from reading the libraries' code and the platforms' guidelines, because only a phone can show them.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A <code>File</code> or <code>Directory</code> at the top of a module</h3>
+                    <p>It reads naturally to put the folder next to the other constants, as <code>photoFiles.ts</code> does:</p>
+                    <pre data-snippet data-legacy><code class="language-ts">// Don't (in a file the web preview also loads): this runs the moment the module is imported
+const exportsFolder = new Directory(Paths.cache, 'exports');</code></pre>
+                    <p>On a phone it works. In the web preview, the Logbook tab turns into a blank page, the browser's console says <code>this.validatePath is not a function</code>, and Metro's terminal shows where it came from (your line number may differ):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>expo-file-system is not supported on web
+expo-file-system is not supported on web
+
+Metro error: this.validatePath is not a function
+
+Code: Directory.js
+  26 |    */ constructor(...uris){
+  27 |         super(Paths.join(...uris));
+&gt; 28 |         this.validatePath();
+     |              ^
+  29 |     }
+  30 |     /*
+  31 |    * Directory containing the file.
+Call Stack
+  constructor (node_modules/expo-file-system/build/Directory.js:28:14)
+  get__cache (node_modules/expo-file-system/build/Paths.js:8:16)
+  &lt;global&gt; (src/storage/logbookExport.ts:41:41)
+  &lt;global&gt; (src/components/ShareLogbook.tsx:6)</code></pre>
+                    </div>
+                    <p>Read the call stack from the bottom: <code>ShareLogbook.tsx</code> imported <code>logbookExport.ts</code>, whose line 41 read <code>Paths.cache</code>, which built a <code>Directory</code>, whose web stand-in has no <code>validatePath</code>. Nobody pressed anything: importing was enough, and because the Logbook screen imports the component, the whole tab fails (measured: the exported web preview answers <code>/logbook</code> with a 500 error, a blank page when you tap the tab). <code>photoFiles.ts</code> gets away with it only because the web never loads it: it has a <code>.web.ts</code> twin. Create files and folders inside the functions that use them, as Step 5 does.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Asking only <code>isAvailableAsync()</code></h3>
+                    <p>A tidy-looking <code>shareLogbook</code> checks <code>if (!(await Sharing.isAvailableAsync()))</code> and nothing else. In this course's Chromium (on Linux) the web preview still shows the fallback, by luck: there is no <code>navigator.share</code>, so the answer is <code>false</code>. Chrome on Windows and macOS, and Safari, <em>do</em> have <code>navigator.share</code>. Measured by giving Chromium one: <code>isAvailableAsync()</code> said yes, the app went on to write the file, and the volunteer saw "Could not share your logbook. Try again in a moment." while the console said:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (browser console)</h4>
+                        <pre><code>expo-file-system is not supported on web
+expo-file-system is not supported on web
+Could not share the logbook TypeError: this.validatePath is not a function</code></pre>
+                    </div>
+                    <p><code>isAvailableAsync()</code> answers "is there a share sheet?", not "can this app write a file?". On the web the first can be yes while the second is always no, so the platform check comes first.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Sharing a link (or text) with expo-sharing</h3>
+                    <p><code>Sharing.shareAsync('https://…')</code> type-checks: the first argument is a <code>string</code>. Reading the library's Android code, it then refuses with "Only local file URLs are supported (expected scheme to be 'file', got 'https')", and a <code>file:</code> address outside the app's own folders gets "Not allowed to read file under given URL." Words and links go through React Native's <code>Share.share</code> (Lesson 4.4); files through expo-sharing.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Deleting the file as soon as <code>shareAsync</code> resolves</h3>
+                    <p>It looks tidy: share, then <code>file.delete()</code>. But <code>shareAsync</code> resolves when the sheet closes, and on Android that is when the chooser hands over (read in its code), while the receiving app may read the file a little later: a mail app attaching it, a cloud app uploading it in the background. Delete it then and the attachment may arrive empty or not at all. That is why Shoreline Crew deletes the <em>previous</em> export before writing the next one, and lets the cache take care of the last one.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Buzzing on the press</h3>
+                    <p><code>onPress={() =&gt; { feel('success'); signUp.mutate(event.id); }}</code> buzzes "done" before anything is done. Offline, the sign-up waits for a connection (Lesson 5.2) while the volunteer's thumb has already been told it worked; if the API then says the cleanup is closed, the phone has lied. No tool catches this one: it is a design mistake. Put the buzz where the result is, in <code>onSuccess</code> and <code>onError</code>, and let the button's pressed look answer the press.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: A Buzz and a Logbook File</h2>
+                <p>You install expo-haptics and expo-sharing, give the volunteer a vibration switch, write one small <code>feel()</code> function and use it in exactly two places, then turn the logbook into a CSV file and hand it to the share sheet. Then you check the code in the web preview and the experience on your phone.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install expo-haptics and expo-sharing <span class="step-time">(5 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac), then install both in one command. expo-file-system is already a dependency since Lesson 6.2.</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-haptics expo-sharing</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 2 SDK 58.0.0 compatible native modules using npm
+&gt; npm install
+
+added 2 packages, and audited 823 packages in 3s
+...
+› Added config plugin: expo-sharing</code></pre>
+                    </div>
+                    <p>Version 58.0 of each, the ones SDK 58 expects. The last line added an entry to <code>app.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">         }
+-      ]
++      ],
++      "expo-sharing"
+     ],</code></pre>
+                    </div>
+                    <p>As <a href="#sharing">The Share Sheet, for Files</a> said, this plugin is for files shared <em>into</em> an app, and without options it changes nothing; leave it. expo-haptics needs no entry: its Android manifest brings the <code>VIBRATE</code> permission, which phones grant without a question, and iPhones need nothing.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: A vibration setting <span class="step-time">(10 min)</span></h3>
+                    <p>The settings store from Lesson 5.3 gets its third setting, exactly the way Lesson 6.4 added <code>remindersOn</code>: the type, the default, and a check of what was saved. In <code>src/state/settings.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/settings.ts</div>
+                        <pre data-src="shoreline-crew/src/state/settings.ts" data-match="diff"><code class="language-diff-ts">   remindersOn: boolean;
++  /** A short buzz when a sign-up or a debris log goes through (on until the volunteer says no) */
++  hapticsOn: boolean;
+ };
+ // ...
+ 
+-const defaults: Settings = { theme: 'system', remindersOn: false };
++const defaults: Settings = { theme: 'system', remindersOn: false, hapticsOn: true };
+ const themeChoices: ThemeChoice[] = ['system', 'light', 'dark'];
+ // ...
+     'remindersOn' in value &amp;&amp; typeof value.remindersOn === 'boolean' ? value.remindersOn : undefined;
++  const hapticsOn =
++    'hapticsOn' in value &amp;&amp; typeof value.hapticsOn === 'boolean' ? value.hapticsOn : undefined;
+   return {
+ // ...
+     remindersOn: remindersOn ?? defaults.remindersOn,
++    hapticsOn: hapticsOn ?? defaults.hapticsOn,
+   };</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>On by default.</strong> A buzz is not a question that needs a yes (unlike a notification), and both platforms play haptics without a permission. The default only decides who has to act: people who dislike it turn it off once.</li>
+                        <li><strong>Settings saved before this lesson</strong> have no <code>hapticsOn</code>, and get the default; anything that is not a boolean does too. Lesson 6.4's "each setting on its own" pays off: one more line, and old phones are safe.</li>
+                    </ul>
+                    <p>Then the switch, on the Profile tab under the theme choice, with the <code>SwitchRow</code> from Lesson 2.4. In <code>src/app/(tabs)/profile.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { Screen } from '@/components/Screen';
++import { SwitchRow } from '@/components/SwitchRow';
+ import { signOut } from '@/auth/session';
+ // ...
+       /&gt;
++      {/* On by default; the phone's own vibration settings still have the last word */}
++      &lt;SwitchRow
++        label="Vibrate when a sign-up or a log goes through"
++        value={settings.hapticsOn}
++        onValueChange={(hapticsOn) =&gt; changeSettings({ hapticsOn })}
++      /&gt;
+       {/* Off until the volunteer turns it on: only then does the phone ask about notifications */}</code></pre>
+                    </div>
+                    <p>The label says what the switch does in the volunteer's words ("when a sign-up or a log goes through"), not in the developer's ("haptics"). It is also the switch's accessible name, so a screen reader reads the same sentence.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_24/24-vibrate-switch.png" alt="The Profile tab in the web preview, signed in as Theo: the Appearance heading, the Theme choice with Phone setting, Light and Dark, then the switch Vibrate when a sign-up or a log goes through, turned on and outlined in red, then the Reminders heading." width="420" height="814" loading="lazy">
+    <figcaption>The vibration switch sits with the other settings and starts on. Turned off, Shoreline Crew never buzzes; turned on, the phone's own vibration settings still have the last word. (The web preview, which cannot vibrate: a phone feels it. The tab bar gets the bottom inset a notched iPhone would give it.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: One <code>feel()</code>, in two places <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/utils/haptics.ts</code>. Every buzz in the app goes through it, so the setting and the platform choice live in one place:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/haptics.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/haptics.ts"><code class="language-ts">// Feedback you can feel (new): a short buzz when something the volunteer did has gone through, or
+// has not. Never the only feedback: every buzz comes with words on the screen.
+import {
+  AndroidHaptics,
+  NotificationFeedbackType,
+  notificationAsync,
+  performAndroidHapticsAsync,
+} from 'expo-haptics';
+import { Platform } from 'react-native';
+
+import { readSettings } from '@/state/settings';
+
+export type Feeling = 'success' | 'error';
+
+/** A short buzz that says "done" or "that did not work"; nothing when the volunteer turned it off */
+export function feel(feeling: Feeling): void {
+  if (!readSettings().hapticsOn) {
+    return;
+  }
+  const buzz =
+    Platform.OS === 'android'
+      ? // Android's own haptic effects, played the way the phone's touch feedback setting allows
+        performAndroidHapticsAsync(
+          feeling === 'success' ? AndroidHaptics.Confirm : AndroidHaptics.Reject,
+        )
+      : // The iPhone's Taptic Engine (in a browser: navigator.vibrate, where there is one)
+        notificationAsync(
+          feeling === 'success'
+            ? NotificationFeedbackType.Success
+            : NotificationFeedbackType.Error,
+        );
+  // A buzz that could not play is never worth an error: the words on the screen say it all
+  buzz.catch(() =&gt; {});
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>Feeling</code> has two values on purpose. A third ("warning") would need a moment that is neither success nor failure, and Shoreline Crew has none yet. Adding one later is a one-line change, and TypeScript will show every <code>feel()</code> call that should think about it.</li>
+                        <li><code>readSettings()</code> (Lesson 6.4) reads the switch outside a component, at the moment of the buzz, so a change on Profile counts at once.</li>
+                        <li>Android plays its own <code>Confirm</code> and <code>Reject</code>; everything else (iPhone, and the web preview) plays Apple's <code>Success</code> and <code>Error</code> notification patterns.</li>
+                        <li><code>feel()</code> does not return the Promise, and it swallows failures. A buzz that did not play (an old phone, an iPad, the web) is not something the volunteer can do anything about, and the words on the screen already said what happened.</li>
+                    </ul>
+                    <p>Now the two moments. A sign-up buzzes when the API has answered. TanStack Query's <code>mutate</code> takes callbacks for one call as its second argument, next to the screen's own (Lesson 5.2). In <code>src/components/SignupPanel.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SignupPanel.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SignupPanel.tsx" data-match="diff"><code class="language-diff-tsx"> import { toDateString } from '@/utils/format';
++import { feel } from '@/utils/haptics';
+ 
+ // ...
+             cancel.reset();
+-            signUp.mutate(event.id);
++            // A buzz when the API has answered, next to the words that change on screen
++            signUp.mutate(event.id, {
++              onSuccess: () =&gt; feel('success'),
++              onError: () =&gt; feel('error'),
++            });
+           }}</code></pre>
+                    </div>
+                    <p>A full cleanup's <strong>Join the waiting list</strong> is the same button and buzzes Success too: the request went through, and the words say "You are on the waiting list". <strong>Cancel my sign-up</strong> stays quiet: cancelling is not a moment to celebrate, and its words are enough. Callbacks passed to <code>mutate</code> run only while the panel is on screen, which is what a buzz needs: a volunteer who left the screen should not feel a sign-up they cannot see.</p>
+                    <p>The debris log buzzes when the form hands the log to the queue, and when the form has mistakes. <code>handleSubmit</code> from React Hook Form takes a second function for the invalid case (as in the web course). In <code>src/app/log/[id].tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/log/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/log/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { formatDate, toDateString } from '@/utils/format';
++import { feel } from '@/utils/haptics';
+ 
+ // ...
+   // The log goes into the queue (saved on the phone at once), and the queue sends it if it can.
+-  const send = handleSubmit((data) =&gt; {
+-    const log = toNewLog(data, clientId, new Date());
+-    addLog(viewer, { event, log }, photos);
+-    setHandedOver(log);
+-    void sendWaitingLogs(viewer);
+-  });
++  // A buzz says "saved" or "look at the form", while the screen says what happened.
++  const send = handleSubmit(
++    (data) =&gt; {
++      const log = toNewLog(data, clientId, new Date());
++      addLog(viewer, { event, log }, photos);
++      setHandedOver(log);
++      feel('success');
++      void sendWaitingLogs(viewer);
++    },
++    () =&gt; feel('error'),
++  );
+ </code></pre>
+                    </div>
+                    <p>Why Success when the log is only <em>saved</em>, perhaps with no signal? Because that is the volunteer's moment: the log is safe on the phone and will be sent by itself (Lesson 5.5), and the screen says which ("Log sent. Thank you!" or "Saved on this phone"). The queue sending it later, in the background, does not buzz: the volunteer may be driving home.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: The logbook as CSV <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/storage/logbookExport.ts</code>, next to the logbook it reads. Start with the imports (the next step uses the rest) and the CSV text:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/storage/logbookExport.ts</div>
+                        <pre data-src="shoreline-crew/src/storage/logbookExport.ts" data-match="excerpt"><code class="language-ts">// The logbook as a file (new): a spreadsheet file (CSV) the volunteer can send to the crew's
+// coordinator, keep in a Files app, or open in a spreadsheet. Written to the app's cache, then
+// handed to the phone's share sheet.
+import { Directory, File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
+
+import type { LogbookEntry } from '@/storage/logbook';
+import { toDateString } from '@/utils/format';
+
+const columns = ['Cleanup', 'Date', 'Pieces', 'Bags', 'Weight (kg)', 'Note'];
+
+// One cell. Numbers as they are; text in quotes with every quote doubled, so a comma, a quote or a
+// line break in a note stays inside its cell. Text that starts like a formula (= + - @) gets a '
+// in front: a spreadsheet would otherwise run it as one.
+function cell(value: string | number): string {
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  const text = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+/** The logbook as CSV text: a row of column names, then one row per log */
+export function logbookCsv(entries: LogbookEntry[]): string {
+  const rows = entries.map((entry) =&gt; [
+    entry.eventTitle,
+    entry.eventDate,
+    entry.pieces,
+    entry.bags,
+    entry.weightKg,
+    entry.note,
+  ]);
+  const lines = [columns, ...rows].map((row) =&gt; row.map(cell).join(','));
+  // A byte order mark (\uFEFF) first tells spreadsheet apps the text is UTF-8: without it,
+  // "Café" may open as "CafÃ©"
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>cell</code> is the whole of <a href="#csv">A File a Spreadsheet Trusts</a> in a few lines: numbers bare, text quoted with quotes doubled, a <code>'</code> before text that starts like a formula. The regular expression <code>/^[=+\-@\t\r]/</code> matches those first characters (and a tab or carriage return, which some spreadsheets also treat specially).</li>
+                        <li><code>logbookCsv</code> takes the <code>LogbookEntry</code> rows that <code>readLogbook</code> already gives the Logbook screen (Lesson 5.3), so it needs no SQL of its own. It is a plain function of its input: easy to test in Lesson 8.2, and it runs anywhere, the web preview included.</li>
+                        <li><code>replaceAll</code> needs no import: it is part of JavaScript, and Hermes has it.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Write the file and share it <span class="step-time">(15 min)</span></h3>
+                    <p>At the end of the same file, add the two functions that touch the phone:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/storage/logbookExport.ts</div>
+                        <pre data-src="shoreline-crew/src/storage/logbookExport.ts" data-match="excerpt"><code class="language-ts">/** Write the logbook to a new file, named with today's date: shoreline-logbook-YYYY-MM-DD.csv */
+export async function writeLogbookFile(entries: LogbookEntry[]): Promise&lt;File&gt; {
+  // Files made only to be shared go in the cache: the phone may empty it, and that is fine.
+  // Made here, not at the top of the file: on the web, Paths.cache throws as soon as it is read.
+  const folder = new Directory(Paths.cache, 'exports');
+  // One export at a time: the last one is deleted now, not right after sharing it, because the
+  // app it went to may still be reading it
+  if (folder.exists) {
+    folder.delete();
+  }
+  folder.create();
+  const file = new File(folder, `shoreline-logbook-${toDateString(new Date())}.csv`);
+  file.create();
+  await file.write(logbookCsv(entries));
+  return file;
+}
+
+/**
+ * Write the logbook file and open the share sheet with it. Resolves once the sheet has closed:
+ * 'done' (whether or not the volunteer picked an app: the phone does not say), or 'unavailable'
+ * where files cannot be shared (always in the web preview).
+ */
+export async function shareLogbook(entries: LogbookEntry[]): Promise&lt;'done' | 'unavailable'&gt; {
+  // The web has no files for the app to write, and expo-sharing shares web addresses there
+  if (Platform.OS === 'web' || !(await Sharing.isAvailableAsync())) {
+    return 'unavailable';
+  }
+  const file = await writeLogbookFile(entries);
+  await Sharing.shareAsync(file.uri, {
+    mimeType: 'text/csv', // Android: which apps to offer; iPhone: the file's type
+    UTI: 'public.comma-separated-values-text', // the same type, in Apple's words
+    dialogTitle: 'Share your logbook', // the title of Android's share sheet
+  });
+  return 'done';
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>writeLogbookFile</code> makes the <code>exports</code> folder inside the function (the first <a href="#mistakes">mistake</a>), empties it, and writes one file named with today's date, so the person who receives it sees <code>shoreline-logbook-…csv</code> with a date in its name, not <code>export(3).csv</code>. <code>toDateString</code> is the helper Lesson 1.3 copied from the web course.</li>
+                        <li><code>shareLogbook</code> checks the platform before anything else, then whether a share sheet exists (expo-sharing's documentation keeps <code>isAvailableAsync</code> for that), then writes and shares. It returns what the screen needs to know, and nothing it cannot know: "done" means the sheet closed.</li>
+                        <li><code>mimeType: 'text/csv'</code> tells Android which apps to offer; on an iPhone, the type comes from <code>UTI</code>, here <code>public.comma-separated-values-text</code>, Apple's identifier for CSV. <code>dialogTitle</code> is the title of Android's chooser (an iPhone's sheet has none).</li>
+                        <li>Errors are not caught here: a full disk or a second press while a sheet is open (Android's code refuses it: "Another share request is being processed now.") rejects the Promise, and the component decides what to say.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Share my logbook <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/components/ShareLogbook.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/ShareLogbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/ShareLogbook.tsx"><code class="language-tsx">import { useState } from 'react';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import type { LogbookEntry } from '@/storage/logbook';
+import { logbookCsv, shareLogbook } from '@/storage/logbookExport';
+
+type ShareLogbookProps = {
+  entries: LogbookEntry[];
+};
+
+type ShareStep =
+  | { step: 'ready' }
+  | { step: 'working' }
+  | { step: 'no-sheet'; csv: string }
+  | { step: 'failed' };
+
+// Share the logbook as a spreadsheet file (new). Where files cannot be shared, the volunteer
+// still gets the same rows, as text to copy.
+export function ShareLogbook({ entries }: ShareLogbookProps) {
+  const [state, setState] = useState&lt;ShareStep&gt;({ step: 'ready' });
+
+  async function share() {
+    setState({ step: 'working' });
+    try {
+      const result = await shareLogbook(entries);
+      setState(
+        result === 'done' ? { step: 'ready' } : { step: 'no-sheet', csv: logbookCsv(entries) },
+      );
+    } catch (error) {
+      console.warn('Could not share the logbook', error);
+      setState({ step: 'failed' });
+    }
+  }
+
+  return (
+    &lt;&gt;
+      &lt;AppText&gt;
+        Share your logbook as a spreadsheet file, one row per log: with your crew coordinator, or
+        with yourself.
+      &lt;/AppText&gt;
+      &lt;Button
+        label={state.step === 'working' ? 'Preparing the file…' : 'Share my logbook'}
+        disabled={state.step === 'working'}
+        onPress={share}
+      /&gt;
+      {state.step === 'no-sheet' &amp;&amp; (
+        &lt;&gt;
+          &lt;AppText accessibilityLiveRegion="polite"&gt;
+            Files cannot be shared here (the web preview never can). On your phone, this button
+            opens the share sheet with the file. These are its rows, ready to copy:
+          &lt;/AppText&gt;
+          {/* The same text as the file, without the mark at its start that only spreadsheets need */}
+          &lt;AppText variant="muted" selectable&gt;
+            {state.csv.replace('\uFEFF', '').trim()}
+          &lt;/AppText&gt;
+        &lt;/&gt;
+      )}
+      {state.step === 'failed' &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          Could not share your logbook. Try again in a moment.
+        &lt;/AppText&gt;
+      )}
+    &lt;/&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>Four steps in one union type, as in Lesson 6.1's permission steps: ready, working (the button says <strong>Preparing the file…</strong> and cannot be pressed twice), no sheet, failed.</li>
+                        <li>Where there is no share sheet, the volunteer is not left with nothing: the same rows, as <code>selectable</code> text to copy, like Lesson 4.4's link fallback. The byte order mark is for spreadsheets only, so it is removed from the text on screen.</li>
+                        <li>A failure gets a plain sentence for the volunteer and the details in the console for you (<code>console.warn</code>, as <code>loadSettings</code> does).</li>
+                    </ul>
+                    <p>Show it in the logbook, under the totals, only when there is something to share. In <code>src/app/(tabs)/logbook.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { Screen } from '@/components/Screen';
++import { ShareLogbook } from '@/components/ShareLogbook';
+ import { useSession } from '@/hooks/useSession';
+ // ...
+       )}
++      {entries.length &gt; 0 &amp;&amp; &lt;ShareLogbook entries={entries} /&gt;}
+       {entries.map(entry)}</code></pre>
+                    </div>
+                    <figure class="screenshot">
+    <img src="images/lesson_24/24-share-button.png" alt="The Logbook tab in the web preview, signed in as Theo: Your logbook, 1 log in all: 42 pieces, 1 bag, 2.5 kg, then Share your logbook as a spreadsheet file, one row per log: with your crew coordinator, or with yourself, and the Share my logbook button, both outlined in red, then the Sunset Stairs Cleanup entry." width="420" height="814" loading="lazy">
+    <figcaption>The logbook can leave the phone as a file now. On a phone, <strong>Share my logbook</strong> writes a CSV file and opens the share sheet with it. (The web preview; the tab bar gets a simulated bottom inset.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check it, then feel it <span class="step-time">(15 min)</span></h3>
+                    <p>Start shoreline-api in one terminal and <code>npx expo start</code> in another. Run <code>npx tsc --noEmit</code> and <code>npx expo lint</code>: both should print nothing but the <code>env:</code> lines. Then, in the web preview (<kbd>w</kbd>):</p>
+                    <ol>
+                        <li>Profile: the new switch is on. Turn it off, reload the page: still off (saved). Turn it on again.</li>
+                        <li>Sign in as <code>theo.nakamura@example.com</code> (password <code>shoreline-demo</code>), open the Logbook tab and press <strong>Bring in my sent logs</strong>. <strong>Share my logbook</strong> appears under the totals.</li>
+                        <li>Press it: the web preview says files cannot be shared here and shows the file's rows.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_24/24-share-web.png" alt="The Logbook tab in the web preview, dark theme, after Share my logbook: Files cannot be shared here (the web preview never can). On your phone, this button opens the share sheet with the file. These are its rows, ready to copy:, then two lines of CSV, the column names Cleanup, Date, Pieces, Bags, Weight (kg), Note in quotes and the Sunset Stairs Cleanup row, all outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>In the web preview there are no files to write and no share sheet for them, so the button says so and shows the same rows the file would hold, ready to copy. (The web preview, dark theme.)</figcaption>
+</figure>
+                    <p>Now on your phone, in Expo Go (with your computer's address in <code>.env.local</code>, Lesson 5.1):</p>
+                    <ol>
+                        <li><strong>Sign up</strong> for a cleanup with open spots: one short "success" tap as "You are signed up" appears. Cancel, and sign up again: the same. Turn the Profile switch off and sign up once more: nothing, and the words still say it all.</li>
+                        <li>Open the debris log for today's cleanup (in the sample data, Theo has a spot at it: <strong>Log what you collected</strong> on its screen), type <code>lots</code> as the weight and press <strong>Send the log</strong>: an "error" feel next to the field message. Fix it and send: success.</li>
+                        <li>Turn off haptics for the whole phone (iPhone: <strong>Settings &gt; Sounds &amp; Haptics &gt; System Haptics</strong>; Android: <strong>Settings &gt; Sound &amp; vibration &gt; Vibration &amp; haptics</strong>, names vary) and sign up again: per the platforms' documentation, nothing plays even with Shoreline Crew's switch on. Turn it back on.</li>
+                        <li>Logbook &gt; <strong>Share my logbook</strong>: the share sheet opens with <code>shoreline-logbook-</code> and today's date. Mail it to yourself, or on an iPhone choose <strong>Save to Files</strong>, and open it in a spreadsheet app: one row per log, a column per field.</li>
+                        <li>The real test: send a debris log whose note has a comma, "quotes" and a second line, share the logbook again and open it. The note should sit in one cell.</li>
+                    </ol>
+                    <p>If something differs on your phone (a buzz you cannot feel, an app missing from the sheet), write down the model and what you saw: haptics and share sheets are where phones differ most, and noticing that is part of the job.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>expo-haptics and expo-sharing are installed with <code>npx expo install</code>, and <code>app.json</code> lists <code>expo-sharing</code></li>
+                        <li>Profile has a <strong>Vibrate when a sign-up or a log goes through</strong> switch, on by default and saved with the other settings</li>
+                        <li>A sign-up and a saved debris log buzz Success, a refused sign-up and a form with mistakes buzz Error, and nothing else buzzes; each comes with words on the screen</li>
+                        <li><strong>Share my logbook</strong> writes <code>exports/shoreline-logbook-…csv</code> in the cache and opens the share sheet on your phone; the web preview shows the rows instead</li>
+                        <li>A note with a comma, quotes and a line break stays in one cell when the file is opened in a spreadsheet</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> list the two or three moments in your final project's app that deserve a buzz, and the one thing a user would want to take out of it as a file (a CSV, a JSON backup, a PDF receipt). You will reuse <code>feel()</code> and the export pattern there.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Buzz or no buzz?</h3>
+                    <p>Theo has the vibration switch on. Without running anything, say whether each of these buzzes, and which feel:</p>
+                    <ol>
+                        <li>He presses <strong>Join the waiting list</strong> on a full cleanup, and the API puts him on the list.</li>
+                        <li>He presses <strong>Sign up</strong> with no signal, puts the phone in his pocket, and the sign-up goes through ten minutes later while the cleanup's screen is still open.</li>
+                        <li>He presses <strong>Cancel my sign-up</strong>.</li>
+                        <li>He presses the plus button of a debris counter five times.</li>
+                        <li>His saved log is sent by the queue when the phone finds a signal on the drive home.</li>
+                        <li>Should the stepper in item 4 buzz with <code>selectionAsync()</code>? Argue both sides.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Find every <code>feel(</code> in the project (your editor's search, or <code>grep -rn "feel(" src</code>). Then ask, for each case, whether that line runs, and when.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) Success: the request went through, and the words say "You are on the waiting list". (2) Success, ten minutes later: the paused mutation runs when the connection is back, and its <code>onSuccess</code> runs because the panel is still on screen, at the same moment the words change. Had he left the screen, no buzz, and the words would be waiting for him. (3) Nothing: cancelling has no <code>feel()</code>. (4) Nothing: the stepper has none. (5) Nothing: <code>sendWaitingLogs</code> runs in the background and never buzzes; the Logbook tab's badge (Lesson 5.5) tells the story when he looks. (6) For: a tick per step helps when counting without looking, gloves on, eyes on the sand. Against: the counters are pressed dozens of times per log, and Apple's guidance is to avoid haptics that become noise; the number on screen already changes. A fair compromise is a tick only when a counter reaches zero or a round number. Whatever you choose, it must still respect the switch, which it does if it goes through <code>feel()</code> (with a new <code>Feeling</code>).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Feel the check-in</h3>
+                    <p>The check-in form from Lesson 6.3 is a moment that deserves the same treatment: the organizer reads out the code, the volunteer types it, and a tap in the hand says "you are in". Add a Success feel when the check-in goes through and an Error feel when the API refuses the code, without changing anything the screen says.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The form's <code>submit</code> in <code>src/app/check-in/[id].tsx</code> already awaits <code>mutateAsync</code> inside <code>try</code>/<code>catch</code>. Each branch is one outcome.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Import <code>feel</code> from <code>@/utils/haptics</code>, then add one line in each branch of <code>submit</code>:</p>
+                        <pre data-snippet><code class="language-tsx">try {
+  await checkInNow.mutateAsync(code);
+  feel('success'); // with "You are checked in" on the screen
+} catch (error) {
+  feel('error'); // with the message under the code field
+  // ... the setError lines from Lesson 6.3, unchanged
+}</code></pre>
+                        <p>Offline, <code>mutateAsync</code> waits for the connection like the sign-up in Exercise 1, so the buzz comes when the check-in really went through, not when the button was pressed. One more design question: should a wrong code buzz Error when the field message already appears in red? Yes, here: the volunteer is looking at the organizer, not the screen, and the buzz makes them look down.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A JSON backup (Stretch)</h3>
+                    <p>CSV is for people with spreadsheets. A program (a future version of Shoreline Crew HQ, a script of your own) would rather have JSON. Add a second button, <strong>Share as JSON</strong>, that shares the same entries as a <code>.json</code> file. Then decide: should JSON and CSV share the <code>exports</code> folder?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>JSON.stringify</code> does all the escaping CSV needed by hand. The iPhone's identifier for JSON is <code>public.json</code>; the MIME type is <code>application/json</code>. Put a version number in the file, as Lesson 5.5 did for the saved queue.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+
+import type { LogbookEntry } from '@/storage/logbook';
+
+/** Exercise 3: the same entries as JSON, for a program rather than a spreadsheet */
+export async function shareLogbookJson(entries: LogbookEntry[]): Promise&lt;void&gt; {
+  const file = new File(Paths.cache, 'shoreline-logbook.json');
+  file.create({ overwrite: true });
+  await file.write(JSON.stringify({ app: 'Shoreline Crew', version: 1, entries }, null, 2));
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json' });
+}</code></pre>
+                        <p>Add the platform check from <code>shareLogbook</code> before it (or reuse <code>shareLogbook</code>'s shape with a format parameter), and a second button in <code>ShareLogbook</code>. This version writes to the cache's top level with <code>overwrite: true</code>, so there is only ever one JSON file; putting it in <code>exports</code> instead would mean the CSV export deletes it (and the other way round), which is fine as long as only one is shared at a time. The <code>version: 1</code> lets a program that reads the file know what shape to expect, the same idea as Lesson 5.3's <code>user_version</code>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Why does every buzz in Shoreline Crew come with words on the screen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Did any haptic function ask the volunteer for permission?">
+                                A) expo-haptics needs the words to get permission to vibrate
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the web preview vibrate at all?">
+                                B) The words are only there for the web preview, where nothing vibrates
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Some people cannot feel haptics or turn them off, some phones have no suitable motor, and screen readers announce words, not buzzes. A haptic confirms what the screen already says; it never carries information alone.">
+                                C) Many people cannot feel or have turned off haptics, so a buzz may confirm something but must never be the only way to learn it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What do Apple's guidelines say about the order?">
+                                D) The buzz has to come first, and the words explain it afterwards
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Why does Shoreline Crew write the logbook file to the cache rather than to the documents folder?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The file exists only to be handed to the share sheet. The receiving app keeps its own copy, the logbook itself stays in SQLite, and the next press writes the file again, so losing it to a cache cleanup costs nothing.">
+                                A) The file is only made to be shared, and if the phone clears it, the logbook in SQLite can write it again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which folders does expo-sharing's Android code accept?">
+                                B) expo-sharing can only share files from the cache
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the web preview able to use either folder?">
+                                C) The cache is the only folder the web preview can write
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the file ever sent to shoreline-api?">
+                                D) Files in the cache are uploaded to the API automatically
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> In the web preview, Theo presses <strong>Share my logbook</strong>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does expo-sharing share on the web, a file or an address?">
+                                A) Chrome downloads the CSV file
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the first line of shareLogbook.">
+                                B) The browser's share button opens with the file attached
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where is the File created, at the top of the module or inside a function?">
+                                C) The Logbook tab goes blank with a validatePath error
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="shareLogbook checks Platform.OS first and returns unavailable on the web, without touching expo-file-system. ShareLogbook then explains that files cannot be shared there and shows the CSV rows as selectable text.">
+                                D) The screen says files cannot be shared here and shows the file's rows as text to copy
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> A volunteer's note says <code>Bottles, cans and 2 "lost" flip-flops.</code> What does <code>cell()</code> turn it into?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What happens to a comma that is not inside quotes?">
+                                A) The text unchanged, because it does not start with = + - or @
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Text cells are wrapped in double quotes and every quote inside is doubled, so the comma and the quotes stay inside one cell when a spreadsheet reads the file.">
+                                B) <code>"Bottles, cans and 2 ""lost"" flip-flops."</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the formula guard apply to this text?">
+                                C) <code>'Bottles, cans and 2 "lost" flip-flops.</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is anything removed from the volunteer's words?">
+                                D) <code>Bottles cans and 2 lost flip-flops.</code>, with the commas and quotes removed
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Maya turned off <strong>Vibrate when a sign-up or a log goes through</strong> on the Profile tab. She signs up for a cleanup. What does she get?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="feel() reads the setting with readSettings() at the moment of the buzz and returns at once when it is off. The words You are signed up. See you on the beach! still appear, as they do for everyone.">
+                                A) No buzz, and the words "You are signed up. See you on the beach!" as usual
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which setting does feel() read first?">
+                                B) A buzz anyway, because the phone's own haptics are on
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the switch change anything the screen shows?">
+                                C) No buzz and no words: the switch turns off all feedback
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the switch read once at startup, or at each buzz?">
+                                D) A buzz until she restarts the app
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>React Native has a <code>Vibration</code> API. Why not use it?</summary>
+                    <p>React Native's <code>Vibration.vibrate()</code> runs the motor for a time or a pattern: a buzz, not a haptic. Its documentation says Android needs the <code>VIBRATE</code> permission for it, and an iPhone ignores the durations and vibrates for a fixed time of about 400 ms. That suits an alarm, not a quiet "done". expo-haptics plays the platforms' tuned effects instead, the ones their own controls use.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can I share a photo, or several files at once?</summary>
+                    <p>A photo, yes: it is a file too. A debris photo from Lesson 6.2 is already in <code>documents/log-photos</code>, so <code>Sharing.shareAsync(photo.uri, { mimeType: 'image/jpeg' })</code> would share it. Several at once, no: <code>shareAsync</code> takes one address. The usual answers are one file that holds everything (the CSV), or a zip made with a library. Share each photo from its own button if you need to.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can the app save the file to the phone without the share sheet?</summary>
+                    <p>Not quietly, and that is by design: an app's folders are its own, and the shared places (Files, Downloads) belong to the person. On an iPhone, <strong>Save to Files</strong> in the share sheet is the standard way. On Android, expo-file-system 58 has <code>Directory.pickDirectoryAsync()</code>, which lets the person choose a folder through Android's own picker and gives the app access to it (its documentation; not used in this course). Either way, the person decides where the file goes.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Could other apps share files into Shoreline Crew?</summary>
+                    <p>That is what the expo-sharing config plugin is for: with <code>ios.enabled</code> and <code>android.enabled</code> in its options, a development build gets a share extension on iPhone and intent filters on Android, and the app reads what arrived with <code>getSharedPayloads()</code> or the <code>useIncomingShare</code> Hook. Expo marks it experimental, it needs a development build (Module 9) and, on iPhone, an app group. "Share a beach photo from the Photos app straight into a debris log" would be a good use one day.</p>
+                </details>
+
+                <details class="card">
+                    <summary>What about a PDF report instead of CSV?</summary>
+                    <p>For a report to print or read (a certificate of volunteer hours, a season summary with a picture), a PDF is the right file. Expo's expo-print makes one from HTML with <code>printToFileAsync</code>, which returns a file address you would hand to <code>shareAsync</code> exactly as today. CSV stays the right choice for data someone will add up.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Lesson 6.2's Bonus Challenge tidied <code>documents/log-photos</code> at startup; today's export adds a second place nobody empties, the <code>exports</code> folder in the cache. Write <code>tidyFiles()</code>, run once at startup after the queue has loaded: do 6.2's tidy (list the folder with <code>Directory.list()</code>, keep every file a queued log still points to, and delete the rest; skip it if you already built it), then delete the <code>exports</code> folder in the cache too. Mind the platform (the web has no files) and the order (never before <code>loadLogQueue()</code> has finished, or you will delete photos that are waiting to be sent). Measure it the way this course does: count the files before and after, in a development build or with logs.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Pick an app you use every day and count its haptics for ten minutes: when does it buzz, what kind of buzz, and would you miss each one? Then export something from it (a playlist, a statement, a contact): how did the file leave the app, and what did it look like when it arrived? Write down one thing you will copy and one you will avoid.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Haptics confirm outcomes, not presses: Success or Error when the result is known, in very few places, always next to words on the screen</li>
+                        <li>Respect two layers of "off": an in-app switch the volunteer controls, and the phone's own haptics settings, which iPhone's feedback generators and Android's built-in effects follow</li>
+                        <li>On Android, <code>performAndroidHapticsAsync</code> plays the system's own effects; the cross-platform functions drive the vibration motor directly, which Expo's documentation itself discourages there</li>
+                        <li>A file made to be shared belongs in the cache; <code>File</code>, <code>Directory</code> and <code>Paths</code> are created inside functions and never reached on the web, where they throw</li>
+                        <li>CSV that survives real data quotes every text cell, doubles quotes, starts with a byte order mark and guards cells that start like formulas</li>
+                        <li>expo-sharing shares one local file with a type for each platform, and only says that the sheet closed; React Native's <code>Share</code> stays the tool for text and links</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up every expo-haptics function and effect</td><td><a href="https://docs.expo.dev/versions/latest/sdk/haptics/">Expo: Haptics</a></td></tr>
+                            <tr><td>Share files, and the experimental share-into-app feature</td><td><a href="https://docs.expo.dev/versions/latest/sdk/sharing/">Expo: Sharing</a></td></tr>
+                            <tr><td>Read, write, pick and preview files</td><td><a href="https://docs.expo.dev/versions/latest/sdk/filesystem/">Expo: FileSystem</a></td></tr>
+                            <tr><td>Read Apple's guidance on haptics</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/playing-haptics">Apple Human Interface Guidelines: Playing haptics</a></td></tr>
+                            <tr><td>Read Android's haptics design principles</td><td><a href="https://developer.android.com/develop/ui/views/haptics/haptics-principles">Android Developers: Haptics design principles</a></td></tr>
+                            <tr><td>Understand CSV injection</td><td><a href="https://owasp.org/www-community/attacks/CSV_Injection">OWASP: CSV Injection</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Sign-ups and debris logs now answer in the hand, with each platform's own feel, and only there</li>
+                        <li>Volunteers can turn the buzz off, and the phone's settings are respected too</li>
+                        <li>The logbook leaves the phone as a spreadsheet file through the share sheet, even with no signal</li>
+                        <li>Free text from a phone keyboard survives the trip into a spreadsheet, formulas included</li>
+                        <li>You know which file code may run on the web, and how to keep the web preview working when it may not</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 6 is done: Shoreline Crew asks for permissions at the right moment, takes photos, finds the beach, reminds, buzzes and shares. In <a href="lesson_25.html">Lesson 7.1: Animation with Reanimated 4</a>, it starts to move: shared values that live on the UI thread, timing and springs, an animated tally that counts up when a log is saved, and CSS-style transitions that make changes on screen easy to follow. Today's restraint carries over: motion, like haptics, is there to explain, and some people turn it off.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone (the buzz with the switch on and off, the share sheet, the file in a spreadsheet) and commit your work</li>
+                    <li>Watch an app you like for movement: when something appears, moves or changes, how does it get there? Which animations help you follow what happened, and which only slow you down?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's code was short; the judgment around it was not. When to buzz, when to stay quiet, which folder a file belongs in, what a spreadsheet will do with a volunteer's note: none of that is in an API reference, and all of it is what separates an app people tolerate from one they enjoy. If you caught yourself thinking "this is small stuff", that is the right instinct turned the right way: polish is a pile of small things done carefully, and you just did several.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_23.html" class="prev-lesson">← Previous: Notifications</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_25.html" class="next-lesson">Next: Animation with Reanimated 4 →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

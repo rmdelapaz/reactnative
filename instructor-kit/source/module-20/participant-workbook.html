@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 20</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 20: Testing the App's Logic</h1>
+    <p class="sub">Your workbook for Session 20: the goals, the key ideas of Lesson 8.2, a worked example, the guided lab, two predictions on the real test suite, the project checklist, twelve self-check items and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>20</b> of 26 · Part 3</span>
+      <span class="chip">Lesson <b>8.2</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Set up Jest with jest-expo in Shoreline Crew and say what changes from the HQ's Vitest.</li>
+  <li>Explain the two things between MSW and the phone app's requests (Expo's fetch, MSW 3 as an ES module) and how the setup handles each.</li>
+  <li>Choose a stand-in for a native module: jest-expo's automatic one, the library's own Jest mock, or your own jest.mock() (automatic or a factory).</li>
+  <li>Keep tests apart: reset what lives in modules before each test.</li>
+  <li>Read a red run and say first: is the app wrong, or the test setup?</li>
+</ul>
+
+  <div class="sec"><h2>Warm-up</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Three questions from Session 19</div>
+<ol class="steps">
+  <li>Which name does a screen reader read for the Logbook tab when one log is waiting?</li>
+  <li>What does <code class="inline">accessibilityRole</code> tell a test, and what does it tell a person?</li>
+  <li>Which setting did Lesson 7.3 add for motion, and where is it kept?</li>
+</ol>
+<div class="write"></div>
+</div>
+
+  <div class="sec"><h2>Lesson</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">8.2</span><h3>Testing the App's Logic</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Set up Jest with jest-expo in an Expo SDK 58 project and explain what changes from the web course's Vitest</li>
+  <li>Make the HQ's MSW handlers answer a phone app's requests in Node, and explain the two things that stand in the way (Expo's own fetch, and MSW 3 being an ES module)</li>
+  <li>Replace native modules in tests in three ways: jest-expo's automatic stand-ins, a library's own Jest mock, and your own jest.mock()</li>
+  <li>Test Shoreline Crew's logic where it matters most: rules (address checks, schemas), files (the CSV export), the offline queue, the log sender's five outcomes and the reminders</li>
+  <li>Read a failing Jest run in the terminal and tell a broken test setup from a broken app</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>A dry run on the dock:</b> jest-expo makes Node look like an iPhone (Babel with Expo's preset, React Native's Jest setup, a stand-in for every Expo native module, Platform.OS 'ios'). The app's decisions are real; the world around them is pretend.</li>
+  <li><b>From Vitest:</b> globals instead of imports, <code class="inline">jest.fn()</code> / <code class="inline">jest.mock()</code> / <code class="inline">jest.mocked()</code>, settings in package.json, <code class="inline">npm test</code> watches (<code class="inline">npm test -- --watchAll=false</code> runs once), never a test inside <code class="inline">src/app/</code>.</li>
+  <li><b>Requests:</b> SDK 58's global fetch is Expo's; <code class="inline">jest.environment.js</code> keeps Node's and <code class="inline">jest.setup.ts</code> puts it back (twice). MSW 3 is ES modules only: the test script starts Node with <code class="inline">--experimental-vm-modules</code>.</li>
+  <li><b>Three stand-ins:</b> automatic (jest-expo), the library's own mock (AsyncStorage), your own <code class="inline">jest.mock()</code>. An empty <code class="inline">jest.fn()</code> answers undefined.</li>
+  <li><b>What to test:</b> what is invisible and costly (the queue, the sender's five outcomes, the reminders, the CSV file). Reset module state in beforeEach. Assert on ids, titles and messages, not dates.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the sender's five outcomes</div>
+<p>The lesson's Step 5 file, run once in a copy of the finished app. Jest lists every test of a single file:</p>
+<pre class="code">npm test -- --watchAll=false src/state/sendLogs.test.ts</pre>
+<pre class="out"> PASS  src/state/sendLogs.test.ts
+  ✓ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✓ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✓ keeps the log for the next sign-in when the sign-in has ended
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total</pre><p>Now the same file with the setup broken: no custom environment and no <code class="inline">useNodeFetch</code> lines. The app is unchanged:</p>
+<pre class="out"> FAIL  src/state/sendLogs.test.ts
+  ✕ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✕ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✕ keeps the log for the next sign-in when the sign-in has ended
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 2 passed, 5 total</pre><p>Read the shape, not just the first line. The two tests that pass are the two where no answer was expected (offline, and the dropped connection); every failure shows <code class="inline">"attempts": 1</code>. Every request "got no answer" although MSW was listening: the requests went to Expo's fetch. Setup, not app.</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-20/l8_2-testing-the-apps-logic/TASKS.md</code>. A terminal in <code class="inline">starter</code> (the shared lab install; nothing to install), then <code class="inline">npm test</code>: <code class="inline">Tests:       7 failed, 3 passed, 10 total</code>.</li>
+  <li>Task 1: run <code class="inline">npm test -- -t refuses</code> first. Then one <code class="inline">beforeEach</code> in <code class="inline">gearShed.test.ts</code>.</li>
+  <li>Task 2: read both failures in <code class="inline">draft.test.ts</code> from the top. Then a <code class="inline">beforeEach</code> with two <code class="inline">mockResolvedValue</code> calls.</li>
+  <li>Task 3: three <code class="inline">server.use(...)</code> overrides in <code class="inline">signUp.test.ts</code>; delete <code class="inline">todo</code>.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Task 1: what did the first test leave behind for the others?</td><td></td></tr>
+<tr><td>Task 2: which failure pointed into the app's code? Was the app wrong?</td><td></td></tr>
+<tr><td>Task 3: why replay the API's real answers instead of inventing them?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       10 passed, 10 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Both run in the finished app (<code class="inline">lesson-29-end</code>, or your own after the project), in <code class="inline">shoreline-crew</code>. Write your prediction first; undo the change afterwards.</p>
+<div class="q"><div class="qn">P1</div><div class="qt">In <code class="inline">sendLogs.test.ts</code>, take <code class="inline">onlineManager.setOnline(true);</code> out of the beforeEach. Which of the five tests fail, and does <code class="inline">-t "refuses"</code> alone pass?</div><pre class="code">npm test -- --watchAll=false src/state/sendLogs.test.ts</pre><div class="write"></div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">In <code class="inline">session.test.ts</code>, take <code class="inline">secureStore.isAvailableAsync.mockResolvedValue(true);</code> out of the beforeEach. Which test fails, and with what?</div><pre class="code">npm test -- --watchAll=false src/auth/session.test.ts</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Shoreline Crew's First Test Suite</b> (lesson page, "Project: Shoreline Crew's First Test Suite"). In class: Steps 1 to 3. At home: Steps 4 to 6 and the checklist.</p>
+<ul class="tick">
+  <li>☐ Step 1: the five test packages installed with <code class="inline">npx expo install --dev</code>; the test script and the jest section; <code class="inline">jest.environment.js</code>, <code class="inline">jest.setup.ts</code>; tsconfig <code class="inline">types</code> and <code class="inline">exclude</code>; eslint ignores <code class="inline">src/mocks/*</code></li>
+  <li>☐ Step 2: shoreline-api's <code class="inline">core</code> and <code class="inline">msw</code> copied into <code class="inline">src/mocks/</code>; <code class="inline">src/test/server.ts</code> and <code class="inline">factories.ts</code>; the address test; <code class="inline">npm test</code> watching: 5 passed</li>
+  <li>☐ Step 3: the schema test and the CSV test (the BOM typed as the escape)</li>
+  <li>☐ Step 4: the queue, the saved session, the buzz</li>
+  <li>☐ Step 5: the sender's five outcomes against the mock API</li>
+  <li>☐ Step 6: the reminders; then <code class="inline">npm test -- --watchAll=false</code> (28 passed), <code class="inline">npx tsc --noEmit</code>, <code class="inline">npx expo lint</code> clean; committed</li>
+  <li>☐ Your own app: three pieces of logic whose failure a user could not see, with test names written first</li>
+</ul>
+<div class="write tall"></div>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">The HQ's test files began with <code class="inline">import { describe, it, expect, vi } from 'vitest'</code>. What does a Shoreline Crew test file import instead?</div><div class="opts"><div class="opt">A) <code class="inline">import { describe, it, expect, jest } from 'jest-expo'</code></div><div class="opt">B) Nothing: <code class="inline">describe</code>, <code class="inline">it</code>, <code class="inline">expect</code> and <code class="inline">jest</code> are globals, typed by <code class="inline">@types/jest</code> through <code class="inline">"types": ["jest"]</code></div><div class="opt">C) <code class="inline">import { describe, it, expect } from '@testing-library/react-native'</code></div><div class="opt">D) <code class="inline">import * as vi from 'jest'</code>, so the HQ's <code class="inline">vi.fn()</code> keeps working</div></div></div>
+<div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">A learner types <code class="inline">npx jest src/state/sendLogs.test.ts</code> and gets this. What do you tell them?</div><pre class="code"> FAIL  src/state/sendLogs.test.ts
+  ● Test suite failed to run
+
+    Must use import to load ES Module: ~/shoreline/shoreline-crew/node_modules/msw/lib/core/index.js</pre><div class="opts"><div class="opt">A) Add msw to transformIgnorePatterns, as the message suggests</div><div class="opt">B) Upgrade Node to the newest version</div><div class="opt">C) Run <code class="inline">npm test -- --watchAll=false src/state/sendLogs.test.ts</code>: the script starts Node with <code class="inline">--experimental-vm-modules</code></div><div class="opt">D) Reinstall MSW with <code class="inline">npm install msw@2</code></div></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">After someone tidied package.json and jest.setup.ts, the sender's tests print this (each failure shows <code class="inline">"attempts": 1</code>). Where do you look first?</div><pre class="code"> FAIL  src/state/sendLogs.test.ts
+  ✕ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✕ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✕ keeps the log for the next sign-in when the sign-in has ended
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 2 passed, 5 total</pre><div class="opts"><div class="opt">A) At <code class="inline">testEnvironment</code> in package.json, <code class="inline">jest.environment.js</code> and the <code class="inline">useNodeFetch</code> lines: requests are going to Expo's fetch</div><div class="opt">B) At <code class="inline">sendWaitingLogs</code>: its retry rule has a new bug</div><div class="opt">C) At shoreline-api: it must be running in another terminal</div><div class="opt">D) At AsyncStorage's mock in jest.setup.ts</div></div></div>
+<div class="q" data-sc="4" data-kind="short"><div class="qn">Q4</div><div class="qt"><code class="inline">npm test -- --watchAll=false src/utils/haptics.test.ts</code> fails like this, and the stack points into <code class="inline">src/utils/haptics.ts:33</code>. Is the app broken? What do you change?</div><pre class="code">● buzzes "success" when something went through
+  TypeError: Cannot read properties of undefined (reading 'catch')</pre><div class="write"></div></div>
+<div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt">A test file that loads the log queue stops before any test runs with the line below. Which kind of stand-in fixes it?</div><pre class="code">[@RNC/AsyncStorage]: NativeModule: AsyncStorage is null.</pre><div class="opts"><div class="opt">A) Nothing to write: jest-expo's automatic stand-ins cover it</div><div class="opt">B) The library's own Jest mock, once, in jest.setup.ts (<code class="inline">jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock')</code>)</div><div class="opt">C) A factory <code class="inline">jest.mock()</code> in every test file that saves anything</div><div class="opt">D) Running the tests on a phone, where AsyncStorage exists</div></div></div>
+<div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Why does <code class="inline">reminders.test.ts</code> replace expo-notifications with a factory listing seven names, instead of <code class="inline">jest.mock('expo-notifications')</code> alone?</div><div class="opts"><div class="opt">A) A factory is faster to type</div><div class="opt">B) jest-expo forbids automatic mocks of Expo modules</div><div class="opt">C) The test needs the real scheduler for the soonest-first order</div><div class="opt">D) The real module cannot even load under Jest (its <code class="inline">setNotificationHandler</code> fails), and an automatic mock loads it to build itself</div></div></div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">All 28 tests pass, and <code class="inline">npx tsc --noEmit</code> prints 113 errors starting with this line. Which change fixes it?</div><pre class="code">src/api/address.test.ts:3:1 - error TS2593: Cannot find name 'describe'.
+...
+Found 113 errors in 10 files.</pre><div class="opts"><div class="opt">A) Add <code class="inline">import { describe } from '@jest/globals'</code> to every test file</div><div class="opt">B) Delete the test files from the type check</div><div class="opt">C) Put <code class="inline">"types": ["jest"]</code> back in tsconfig.json's compilerOptions</div><div class="opt">D) Run the tests with <code class="inline">--coverage</code></div></div></div>
+<div class="q" data-sc="8" data-kind="short"><div class="qn">Q8</div><div class="qt">Jest is green and <code class="inline">npx tsc --noEmit</code> is red on the same files. How can both be true, and which one decides that a task is done?</div><div class="write"></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt"><code class="inline">npm test -- --watchAll=false -t "refuses"</code> passes, and the same test fails in the full run. What is the most likely cause?</div><div class="opts"><div class="opt">A) Something an earlier test changed in a module (a store, the session, a setting) was never reset in a beforeEach</div><div class="opt">B) Jest runs the tests in a random order</div><div class="opt">C) -t switches the mocks off</div><div class="opt">D) The mock API's sample data changed between the two runs</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">Which of these is most worth a test in Shoreline Crew, by the lesson's rule (invisible and costly)?</div><div class="opts"><div class="opt">A) That Zustand stores the value <code class="inline">add()</code> sets</div><div class="opt">B) That Zod rejects a number where a string belongs</div><div class="opt">C) That the Cleanups screen looks right in dark mode</div><div class="opt">D) That a note starting with <code class="inline">=</code> cannot run as a formula in the exported CSV</div></div></div>
+<div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">shoreline-api builds its sample data around today's date, in the mock API too. Which assertion stays true tomorrow?</div><div class="opts"><div class="opt">A) <code class="inline">expect(first.content.body).toContain('July 4')</code></div><div class="opt">B) <code class="inline">expect(scheduledIds()).toEqual(['reminder-e08', 'reminder-e10', 'reminder-e11', 'reminder-e13'])</code></div><div class="opt">C) <code class="inline">expect(event.date).toBe(new Date().toISOString().slice(0, 10))</code></div><div class="opt">D) <code class="inline">expect(new Date(event.date).getDay()).toBe(6)</code></div></div></div>
+<div class="q" data-sc="12" data-kind="short"><div class="qn">Q12</div><div class="qt">Name one thing the haptics tests can never tell you, and who or what does.</div><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: pick one stand-in you wrote today (SecureStore, haptics, notifications or the logbook). Write down what it pretends, and one way the real module on a phone could behave differently that your tests would never notice. Who or what catches that difference in your process?</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>Why does the test script start <code class="inline">node --experimental-vm-modules</code> instead of <code class="inline">jest</code>?</li>
+  <li>A test fails inside <code class="inline">haptics.ts</code>, which works on your phone. What do you check first?</li>
+  <li>Name one thing the tests you wrote today can never prove.</li>
+</ol>
+<div class="write"></div>
+
+  <div class="sec"><h2>Homework</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Finish the project: Steps 4 to 6 and the checklist.</li>
+  <li>Exercises 1 and 2 (3 and the Bonus are stretches); the Quick Quiz; the journal.</li>
+  <li>Before the Next Lesson: one screen and three things its test should check. Bring it to Session 21.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 20 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

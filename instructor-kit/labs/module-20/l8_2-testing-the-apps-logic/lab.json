@@ -1,0 +1,93 @@
+{
+  "title": "Testing the app's logic: tests kept apart, stand-ins that answer, MSW with the API's own words",
+  "lesson": "8.2",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter",
+      "dir": "starter",
+      "cmd": "npm test",
+      "exit": "nonzero",
+      "expect": [
+        "Cannot read properties of undefined (reading 'catch')",
+        "TODO 3a:",
+        "TODO 3c:",
+        "Tests:       7 failed, 3 passed, 10 total"
+      ]
+    },
+    {
+      "name": "starter-alone",
+      "dir": "starter",
+      "cmd": "npm test -- -t refuses",
+      "exit": 0,
+      "expect": [
+        "Tests:       9 skipped, 1 passed, 10 total"
+      ]
+    },
+    {
+      "name": "starter-types",
+      "dir": "starter",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "expect": [
+        "> tsc --noEmit"
+      ],
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution",
+      "dir": "solution",
+      "cmd": "npm test",
+      "exit": 0,
+      "expect": [
+        "Tests:       11 passed, 11 total"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-lint",
+      "dir": "solution",
+      "cmd": "npm run lint",
+      "exit": 0,
+      "absent": [
+        "problem"
+      ]
+    },
+    {
+      "name": "solution-course-suite",
+      "dir": ".",
+      "course": "lesson-29-end",
+      "cmd": "cd shoreline/shoreline-crew && npm test -- --watchAll=false",
+      "exit": 0,
+      "timeout": 300,
+      "expect": [
+        "Test Suites: 8 passed, 8 total",
+        "Tests:       28 passed, 28 total"
+      ]
+    },
+    {
+      "name": "debug-setup",
+      "dir": ".",
+      "course": "lesson-29-end",
+      "files": {
+        "shoreline/shoreline-crew/jest.setup.ts": "// Runs before every test file (package.json \"jest\" > \"setupFilesAfterEnv\")\n\n// 1. Requests go through Node's fetch (kept by jest.environment.js), where MSW can answer them.\n// Loading the expo package installs Expo's fetch again (jest.mock() can load it a second time),\n// so put Node's back now and once more before the file's tests start\nfunction useNodeFetch() {\n  const nodeFetch = (globalThis as { __nodeFetch?: typeof fetch }).__nodeFetch;\n  Object.defineProperty(globalThis, 'fetch', { value: nodeFetch, writable: true, configurable: true });\n}\nuseNodeFetch();\nbeforeAll(useNodeFetch);\n\n// 2. The API address the tests use. .env.local is Metro's: Jest never reads it\nprocess.env.EXPO_PUBLIC_API_URL = 'http://localhost:4000';\n\n"
+      },
+      "cmd": "cd shoreline/shoreline-crew && npm test -- --watchAll=false",
+      "exit": "nonzero",
+      "timeout": 300,
+      "expect": [
+        "[@RNC/AsyncStorage]: NativeModule: AsyncStorage is null."
+      ]
+    }
+  ]
+}

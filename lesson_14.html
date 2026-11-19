@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Deep links in an Expo app: the shorelinecrew:// scheme, how Expo Router turns a link into a screen, the three forms of a link (a build, Expo Go, the web preview) and expo-linking's createURL, the unstable_settings anchor that puts the tabs under a linked screen, links to guarded screens, sharing a link to a cleanup with React Native's Share, and opening links on an emulator, a simulator or a phone. React Native &amp; Expo: Build and Ship a Mobile App Lesson 4.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Deep Links - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🔗 Lesson 4.4: Deep Links</h1>
+                <p class="lead">On Thursday evening a crew leader texts the volunteers: "Weekend Cove needs four more pairs of hands on Saturday." Below the message is a link. Tapping it should not drop people on the app's first screen to go hunting; it should open Weekend Cove itself, with the meeting point and the tide notes, and a back button that leads somewhere sensible. Today Shoreline Crew learns to be opened like that, and to send such links itself.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Read a deep link such as <code>shorelinecrew://cleanups/e08</code>: its scheme, its path, and the file in <code>src/app</code> that answers it</li>
+                        <li>Say which form of a link opens the app in a build, in Expo Go and in the web preview, and let <code>Linking.createURL</code> make the right one</li>
+                        <li>Put the tabs underneath a screen opened by a link with <code>unstable_settings.anchor</code>, and predict where a link to a guarded screen goes</li>
+                        <li>Share a link to a cleanup through the phone's share sheet with React Native's <code>Share</code>, with a fallback where there is none</li>
+                        <li>Open links on an Android emulator, an iOS Simulator or a phone, and treat every incoming link as input from outside</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 135 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_13.html">Lesson 4.3: Sign-In Flows and Protected Routes</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Links into Shoreline Crew: the tabs underneath any screen a link opens, a link maker for cleanups, and a <strong>Share this cleanup</strong> button that sends what, when, where to meet and the link through the phone's share sheet</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58.0.31, expo-linking 58.0.17 (already in the project), uri-scheme 2.3.2 through <code>npx</code> (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; opening a link from outside the app needs an emulator, a simulator or a phone</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-14-start.zip">lesson-14-start.zip</a> · Finished code: <a href="downloads/lesson-14-end.zip">lesson-14-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: A Link in a Text Message</a></li>
+                        <li><a href="#anatomy" class="toc-link">What a Deep Link Is</a></li>
+                        <li><a href="#forms" class="toc-link">One Screen, Three Kinds of Link</a></li>
+                        <li><a href="#underneath" class="toc-link">What Is Underneath a Linked Screen</a></li>
+                        <li><a href="#guards" class="toc-link">Links to Guarded Screens, and Links You Did Not Write</a></li>
+                        <li><a href="#sharing" class="toc-link">Sharing a Link</a></li>
+                        <li><a href="#devices" class="toc-link">Opening Links on a Device</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Links Into Shoreline Crew</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: A Link in a Text Message</h2>
+                <p>In the HQ web app, links were free. Every page had an address, the browser showed it, and pasting it into a message brought anyone straight back to the same page. A phone app has no address bar. For a link to open a screen inside Shoreline Crew, two things have to happen: the <strong>phone</strong> must know which app a link belongs to, and the <strong>app</strong> must turn the link into a screen.</p>
+                <p>The second half is mostly done already. Since Lesson 4.1, every screen in <code>src/app</code> has an address (<code>/cleanups/e08</code>, <code>/profile</code>, <code>/sign-in</code>), and Expo Router uses exactly those addresses for links from outside. By the end of today:</p>
+                <ul>
+                    <li><strong>You can read any link into the app</strong> and say which file answers it, including the odd-looking form Expo Go uses during development.</li>
+                    <li><strong>A cleanup opened from a link has the tabs underneath it</strong>, so its back button leads to the Cleanups tab instead of out of the app.</li>
+                    <li><strong>You know where links to guarded screens go</strong>, and why a link can never do more than open a screen.</li>
+                    <li><strong>A Share this cleanup button</strong> sends the cleanup's name, time, meeting point and a link through the phone's share sheet.</li>
+                    <li><strong>You can open links on a device</strong> from your terminal, the way you will test notifications later.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> deep links are how notifications, emails, QR codes and "share" buttons bring people back into an app, and "the link opened the app but not the right screen" is one of the most common bugs reported against real apps. Teams care because links are measurable: a link that lands in the right place is a volunteer who signs up.</p>
+                <p><strong>Why it matters for the volunteers:</strong> someone reading a crew leader's message on the bus has a minute, not five. One tap to the right cleanup is the difference between "I'll come" and "I'll look later".</p>
+            </section>
+
+            <section id="anatomy" class="lesson-section">
+                <h2>🧭 What a Deep Link Is</h2>
+                <p>A <strong>deep link</strong> is a link that opens a particular screen inside an app, not just the app. Here is the one this lesson is about:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Part</th><th>In <code>shorelinecrew://cleanups/e08</code></th><th>What it means</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Scheme</td><td><code>shorelinecrew</code></td><td>Which app: the phone gives every link with this scheme to the app that registered it</td></tr>
+                            <tr><td>Path</td><td><code>cleanups/e08</code></td><td>Which screen: Expo Router reads it like the address in the web preview, <code>/cleanups/e08</code></td></tr>
+                            <tr><td>Search params (optional)</td><td><code>?from=text</code></td><td>Extra values, read with <code>useLocalSearchParams</code> like the route's own params (Lesson 4.1)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The scheme is already in your project. <code>create-expo-app</code> wrote it into <code>app.json</code> in Lesson 1.2, from the project's name:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/app.json</div>
+                    <pre data-src="shoreline-crew/app.json" data-match="excerpt"><code class="language-json">{
+  "expo": {
+    "name": "Shoreline Crew",
+    "slug": "shoreline-crew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "shorelinecrew",
+...</code></pre>
+                </div>
+                <p>A scheme is letters (digits, <code>+</code>, <code>-</code> and <code>.</code> are allowed too), and by custom it is the app's name in lowercase. When the app is <em>built</em>, the scheme is written into the iOS and Android projects, and installing the app tells the phone "links that start with <code>shorelinecrew://</code> are mine". That is also why changing it later needs a new build: the phone learned it at install time.</p>
+                <p>Then Expo Router does what it does for every address. Each path below was opened in the web preview (the same paths, with <code>http://localhost:8081</code> in front):</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Link</th><th>File that answers</th><th>What the volunteer sees (measured in the web preview)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>shorelinecrew://cleanups/e08</code></td><td><code>src/app/cleanups/[id].tsx</code>, <code>id</code> = <code>"e08"</code></td><td>Weekend Cove Cleanup</td></tr>
+                            <tr><td><code>shorelinecrew://profile</code></td><td><code>src/app/(tabs)/profile.tsx</code> (the group adds nothing to the address)</td><td>The Profile tab</td></tr>
+                            <tr><td><code>shorelinecrew://cleanups/e99</code></td><td><code>src/app/cleanups/[id].tsx</code>, <code>id</code> = <code>"e99"</code></td><td>"Nothing was found at this address. Check the link." (the API's 404, Lesson 4.1)</td></tr>
+                            <tr><td><code>shorelinecrew://nowhere/e08</code></td><td><code>src/app/+not-found.tsx</code></td><td>"This page is not on the map"</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So the work you did in Lesson 4.1, typed params and a screen that handles an id the API does not know, is exactly what makes links safe to follow. A link is just an address that arrives from outside.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the grid reference on the crew map</h4>
+                    <p>Crew leaders mark the beach on a printed map with a grid: "C4, the north rocks". Anyone holding that map can walk straight to C4 without starting at the car park. A deep link is a grid reference. The scheme says <em>which</em> map (Shoreline Crew's, not some other app's), and the path says where on it. If the reference points at a square that does not exist, a good map says so instead of leaving you lost: that is your not-found screen.</p>
+                </div>
+            </section>
+
+            <section id="forms" class="lesson-section">
+                <h2>🔀 One Screen, Three Kinds of Link</h2>
+                <p>During this course the app runs in three different places, and a link to Weekend Cove looks different in each. The forms below come from <code>expo-linking</code>'s source and the Expo documentation; the web preview's form was measured.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The app runs in</th><th>A link to Weekend Cove</th><th>Why</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A build of your app (a development build in Module 9, or the store version)</td><td><code>shorelinecrew://cleanups/e08</code></td><td>The build registered your scheme with the phone</td></tr>
+                            <tr><td>Expo Go, during development</td><td><code>exp://192.168.1.42:8081/--/cleanups/e08</code></td><td>Expo Go is one app that runs many projects. It owns the <code>exp</code> scheme, not yours; the address says which development server to load, and <code>/--/</code> separates it from the path inside your app</td></tr>
+                            <tr><td>The web preview</td><td><code>http://localhost:8081/cleanups/e08</code></td><td>A browser, so an ordinary web address (measured)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The <code>192.168.1.42:8081</code> part is the same address that <code>npx expo start</code> prints under its QR code (<code>› Metro: exp://192.168.1.42:8081</code>, Lesson 1.2); yours will differ. That is also the catch with Expo Go links: they work only on a phone that has Expo Go and can reach <em>your</em> computer. They are for testing, not for texting to volunteers.</p>
+                <p>You do not have to choose. <code>expo-linking</code> (installed with the template, so nothing to add) has <code>createURL</code>, which looks at where the app is running and builds the right form:</p>
+                <pre data-snippet><code class="language-ts">import * as Linking from 'expo-linking';
+
+// The same screen, the right link for wherever the app is running right now
+const link = Linking.createURL('/cleanups/e08');
+// A build:        shorelinecrew://cleanups/e08
+// Expo Go:        exp://192.168.1.42:8081/--/cleanups/e08
+// Web preview:    http://localhost:8081/cleanups/e08
+console.log(link);</code></pre>
+                <p>In the web preview that gave <code>http://localhost:8081/cleanups/e08</code> (measured with the course's own ports, then shown with yours). In Expo Go and in a build, the documentation and the library's source say you get the other two forms. Shoreline Crew never writes <code>shorelinecrew://</code> by hand; Step 4 of the project puts <code>createURL</code> in one small function.</p>
+<div class="mermaid">
+graph TD
+    A["A link is tapped"] --> B{"Which scheme?"}
+    B -->|"shorelinecrew"| C["Your build opens"]
+    B -->|"exp"| D["Expo Go opens"]
+    D --> E["Loads your project"]
+    C --> F["Expo Router reads the path"]
+    E --> F
+    F --> G["cleanups/[id] with id e08"]
+</div>
+            </section>
+
+            <section id="underneath" class="lesson-section">
+                <h2>🗂️ What Is Underneath a Linked Screen</h2>
+                <p>When you tap <strong>Open</strong> on a card, the cleanup screen is pushed on top of the tabs, and back returns to the list. A link is different: the app may not even be running, and it starts directly at <code>/cleanups/e08</code>. What is underneath it then? The course measured it in the web preview, opening each address directly:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Opened directly</th><th>Without an anchor (the Lesson 4.3 code)</th><th>With <code>anchor: '(tabs)'</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>/cleanups/e08</code></td><td>The cleanup alone: no back button, no tabs anywhere</td><td>The tabs underneath; a back button that opens the Cleanups tab</td></tr>
+                            <tr><td><code>/before-you-go</code></td><td>The modal alone; <strong>Done</strong> has nothing to go back to, so it replaces itself with the Cleanups tab</td><td>The tabs underneath; a back button, and <strong>Done</strong> goes back to them</td></tr>
+                            <tr><td><code>/sign-in</code> (signed out)</td><td>The sign-in modal alone</td><td>The tabs underneath; after signing in, the modal closes back to them</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Without an anchor, the root stack holds only the screen the link named. On an Android phone, back would leave the app; the web preview shows no back button at all. Lesson 4.1's <code>leave()</code> already copes with that for the "not found" button (<code>router.canGoBack()</code> is <code>false</code>, so it replaces the screen with <code>/</code>), but the header's own back button cannot appear when there is nothing to go back to.</p>
+                <p>The fix is one export in a layout. <code>unstable_settings.anchor</code> names the screen that is always at the bottom of that layout's stack, whatever address the app opens at:</p>
+                <pre data-snippet><code class="language-ts">// In src/app/_layout.tsx, next to the root layout: the screen that is always at the bottom
+// of this stack. A screen opened by a link then has something to go back to.
+export const unstable_settings = {
+  anchor: '(tabs)',
+};</code></pre>
+                <p>Why <code>'(tabs)'</code> and not <code>'index'</code>? The anchor must be the name of a screen <em>in that layout</em>. The root stack's screens are <code>(tabs)</code>, <code>cleanups/[id]</code>, <code>before-you-go</code>, <code>sign-in</code> and <code>+not-found</code>; <code>index</code> lives one level down, inside the tabs. The first Common Mistake shows what Expo Router says if you name it anyway. With the tabs as the anchor, the Cleanups tab (their first tab) is what you see when you go back.</p>
+                <p>The tabs underneath are real screens, not a picture. The course counted the requests the web preview made when it opened <code>/cleanups/e08</code> directly: without the anchor, one (<code>GET /api/events/e08</code>); with it, three, because the Cleanups tab underneath also loaded its first page of cleanups and the sites. That is the price of a back button that leads somewhere, and on a phone with one bar of signal it is worth knowing. The cleanup's own request comes first, so the screen the volunteer asked for is not kept waiting.</p>
+                <p>An anchor also changes what "replace" means. Lesson 4.1's not-found screen sent volunteers home with <code>&lt;Link href="/" replace&gt;</code>. With the tabs already underneath, replacing the not-found screen with <code>/</code> put a <em>second</em> copy of the tabs on top of the first (measured: two tab bars in the page). Step 3 switches it to <code>dismissTo</code>, which closes screens until it reaches <code>/</code> and only replaces when there is nothing to go back to.</p>
+<div class="mermaid">
+graph TD
+    A["Link: cleanups/e08"] --> B["Root stack"]
+    B --> C["Top: cleanup screen"]
+    B --> D["Bottom: the anchor, (tabs)"]
+    D --> E["Cleanups tab shows first"]
+</div>
+                <div class="card card-info">
+                    <h4>🧩 Version note: "unstable_" in the name</h4>
+                    <p>The <code>unstable_</code> prefix is Expo Router's way of saying the name may change; it has been there for several SDKs, and the Expo Router documentation for SDK 58 still uses it. Expo Router 58 also uses the anchor as the default target of <code>Stack.Protected</code>'s redirect (its type says "Defaults to the containing navigator's anchor"). If a future SDK renames it, the release notes will say so, and <code>tsc</code> will not warn you, because the export is a plain object: check the router's docs when you upgrade.</p>
+                </div>
+            </section>
+
+            <section id="guards" class="lesson-section">
+                <h2>🚧 Links to Guarded Screens, and Links You Did Not Write</h2>
+                <p>Lesson 4.3 measured what happens when someone reaches a screen whose <code>Stack.Protected</code> guard is <code>false</code>: Expo Router redirects to the stack's anchor. A link from outside is just another way to arrive, and the course measured it again with the anchor in place:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Link</th><th>Who follows it</th><th>What happens (measured in the web preview)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>/sign-in</code></td><td>A guest</td><td>The sign-in modal, with the tabs underneath; signing in closes it back to the Cleanups tab</td></tr>
+                            <tr><td><code>/sign-in</code></td><td>Theo, signed in</td><td>The route does not exist for him, so Expo Router redirects to the anchor: the Cleanups tab</td></tr>
+                            <tr><td><code>/cleanups/e08</code></td><td>Anyone</td><td>The cleanup, with the tabs underneath: cleanup screens are for everyone</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Lesson 5.4 adds a screen for signed-in volunteers only, the debris log. If a guard took it out, a guest who follows a link to it would land on the Cleanups tab by the same rule, without being told why; when you build it in Lesson 5.4, you will decide what such a guest should see instead.</p>
+                <div class="card card-danger">
+                    <h4>🛑 A link only opens a screen</h4>
+                    <p>Anyone can write a link: a crew leader, a confused volunteer, or someone hoping to trick people. <code>shorelinecrew://cleanups/anything</code> reaches your screen with <code>id</code> = <code>"anything"</code>. Treat every link like form input. Shoreline Crew does three things right already: the id goes to the API inside <code>encodeURIComponent</code>, an id the API does not know shows "Nothing was found", and an unknown path shows the not-found screen. And keep one rule for every screen you add: <strong>a link never acts on its own</strong>. It may open the cleanup; the volunteer presses Sign up. A link that signed someone up, cancelled a sign-up or deleted a log just by being opened could be sent to anyone. Never put a token or a password in a link either: links end up in message histories and screenshots.</p>
+                </div>
+            </section>
+
+            <section id="sharing" class="lesson-section">
+                <h2>📤 Sharing a Link</h2>
+                <p>Volunteers bring friends. The phone's <strong>share sheet</strong> is the panel that slides up with Messages, email, chat apps and "Copy", and React Native has a built-in way to open it, the <code>Share</code> API. Nothing to install: it is part of <code>react-native</code>. (Lesson 6.5 covers sharing <em>files</em>, such as a log summary, with <code>expo-sharing</code>.)</p>
+                <pre data-snippet><code class="language-ts">import * as Linking from 'expo-linking';
+import { Share } from 'react-native';
+
+// Opens the phone's share sheet. The volunteer picks the app (Messages, email, a chat) and who gets it.
+export async function shareWeekendCove() {
+  const result = await Share.share({
+    title: 'Weekend Cove Cleanup',
+    message: `Join me at Weekend Cove Cleanup!\n${Linking.createURL('/cleanups/e08')}`,
+  });
+  // iPhone: 'sharedAction' or 'dismissedAction'. Android: always 'sharedAction'.
+  return result.action;
+}</code></pre>
+                <p><code>Share.share()</code> takes a <code>message</code>, a <code>url</code> and a <code>title</code>, and the platforms use them differently. Reading React Native's and react-native-web's source:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Platform</th><th>What it shares</th><th>When the Promise settles</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Android</td><td>The <code>title</code> and the <code>message</code>. <strong>The <code>url</code> is dropped</strong></td><td>Always resolves with <code>sharedAction</code>: Android does not report whether anything was sent</td></tr>
+                            <tr><td>iOS</td><td>The <code>message</code> and the <code>url</code></td><td>Resolves with <code>sharedAction</code> or, if the volunteer closed the sheet, <code>dismissedAction</code></td></tr>
+                            <tr><td>Web preview</td><td>Uses the browser's <code>navigator.share()</code> if it has one</td><td>Rejects with "Share is not supported in this browser" when it has none (measured: Chromium on a desktop has none)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two decisions follow. The link goes <em>inside the message</em>, so it reaches Android too. And the app catches the rejection: where there is no share sheet, Shoreline Crew shows the link on screen so it can be copied. React Native's <code>Text</code> has a <code>selectable</code> prop for exactly that.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Where a <code>shorelinecrew://</code> link works, honestly</h4>
+                    <p>A custom-scheme link opens the app only on a phone that has a build of Shoreline Crew installed. On a phone without it, nothing opens, and some messaging apps show such links as plain text rather than something to tap (it depends on the app). During this course you run in Expo Go, so the shared link is an <code>exp://</code> link that only works for you and your test phones. Real apps share <strong>https</strong> links instead (universal links on iOS, App Links on Android) that open the app when it is installed and a web page when it is not. That needs a website you control and your own builds, so it waits for the FAQ and Module 9.</p>
+                </div>
+            </section>
+
+            <section id="devices" class="lesson-section">
+                <h2>📲 Opening Links on a Device</h2>
+                <p>Following a link inside the web preview is just typing an address. Testing a link from <em>outside</em> the app, the way a volunteer taps it, needs an emulator, a simulator or a phone. The course could not run these here (no Android emulator, and the iOS Simulator only runs on a Mac), so the commands below come from the Expo documentation and the tools' own source, with what the tools printed on a computer without an emulator.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Where</th><th>Command (Expo Go form; with a development build use <code>shorelinecrew://cleanups/e08</code>)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Android emulator</td><td><code>npx uri-scheme open "exp://192.168.1.42:8081/--/cleanups/e08" --android</code></td></tr>
+                            <tr><td>Android, without the helper</td><td><code>adb shell am start -a android.intent.action.VIEW -d "exp://192.168.1.42:8081/--/cleanups/e08"</code></td></tr>
+                            <tr><td>iOS Simulator (Mac)</td><td><code>npx uri-scheme open "exp://127.0.0.1:8081/--/cleanups/e08" --ios</code></td></tr>
+                            <tr><td>iOS, without the helper</td><td><code>xcrun simctl openurl booted "exp://127.0.0.1:8081/--/cleanups/e08"</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>uri-scheme</code> is a small tool from the Expo team that you run with <code>npx</code> (the first run asks to install it). Its source shows it is a shortcut for the two "without the helper" commands: on Android it runs <code>adb shell am start</code> with a "view this address" intent, and on iOS <code>xcrun simctl openurl booted</code>, which opens the address in the simulator that is running. Put the address in quotes: a <code>?</code> or <code>&amp;</code> in a link means something to your shell. The iOS Simulator runs on the same Mac as Metro, so <code>127.0.0.1</code> reaches it; an Android emulator uses the address Expo printed. On a computer without Xcode (here run with the development-build form of the link), the iOS command fails in a way that tells you exactly that:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>› iOS: Opening URI "shorelinecrew://cleanups/e08" in simulator
+
+Aborting run
+An unexpected error was encountered. Report it: https://github.com/expo/expo/issues
+Error: spawn xcrun ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:316:19)
+    at onErrorNT (node:internal/child_process:554:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'spawn xcrun',
+  path: 'xcrun',
+  spawnargs: [ 'simctl', 'openurl', 'booted', 'shorelinecrew://cleanups/e08' ],
+...</code></pre>
+                </div>
+                <p><code>spawn xcrun ENOENT</code> means "I tried to run a program called <code>xcrun</code> and there is no such program": the Xcode tools are missing. The Android command, with no <code>adb</code> on the computer and no emulator running, printed its first line and stopped with an error code. Neither is a problem with your app.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>A real phone has no terminal, so you open the link the way a volunteer would: send it to yourself (a note, an email, a chat with yourself) and tap it. The documentation describes what to expect: tapping an <code>exp://</code> link opens Expo Go, which loads your project from Metro and shows Weekend Cove, as long as Metro is running and the phone can reach your computer (Lesson 5.1 covers the network side). If Shoreline Crew is already open, the link opens the cleanup on top of where you were. A <code>shorelinecrew://</code> link does nothing in Expo Go: that scheme only exists once you have your own build.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Link bugs are sneaky because the code that builds a link and the place where it is tapped are far apart: an error may show up on a different phone, a day later. Each mistake below was made on purpose in the finished project (or read in the libraries' source, where a phone is needed) and is quoted the way the tools printed it.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ An anchor that is not in the layout</h4>
+                    <p>Write <code>anchor: 'index'</code> in the root layout, because the Cleanups screen is <code>index.tsx</code>. <code>tsc</code> and ESLint say nothing (the setting is a plain object), the web preview shows a blank page, and Metro's terminal says:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+λ  ERROR  SSR streaming render error: Error: The initial route name "index" was not found in the layout at "./_layout.tsx". Available routes are: "+not-found", "before-you-go", "sign-in", "(tabs)", "cleanups/[id]". Set `unstable_settings.anchor` to the name of a route in this layout.
+...
+Metro error: The initial route name "index" was not found in the layout at "./_layout.tsx". Available routes are: "+not-found", "before-you-go", "sign-in", "(tabs)", "cleanups/[id]". Set `unstable_settings.anchor` to the name of a route in this layout.
+...</code></pre>
+                    </div>
+                    <p>Read the list it gives you: those are the root layout's screens, and <code>index</code> is not one of them, because it lives inside <code>(tabs)</code>. The anchor names a screen of the layout it is written in. On a phone, the same error appears as a red screen.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Two tab bars after "Back to the cleanups"</h4>
+                    <p>Add the anchor and keep the not-found screen's <code>&lt;Link href="/" replace&gt;</code>. Open a mistyped address and press <strong>Back to the cleanups</strong>: the list looks right, but the page now holds two tab bars (measured), because the tabs that were already underneath got a copy on top. Nothing prints a warning. A plain <code>&lt;Link href="/"&gt;</code> is no better: it pushed the copy and added a back button to it. <code>dismissTo</code> closes screens back to the existing tabs instead (Step 3).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ "Property 'message' is missing"</h4>
+                    <p><code>Share.share()</code> needs something to share. Pass only a title, <code>Share.share({ title: event.title })</code>, and <code>npx tsc --noEmit</code> prints:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/cleanups/[id].tsx:97:25 - error TS2345: Argument of type '{ title: string; }' is not assignable to parameter of type 'ShareContent'.
+  Property 'message' is missing in type '{ title: string; }' but required in type '{ title?: string | undefined; url?: string | undefined; message: string; }'.
+
+97       await Share.share({ title: event.title });
+                           ~~~~~~~~~~~~~~~~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/Share/Share.d.ts:21:3
+    21   message: string;
+         ~~~~~~~
+    'message' is declared here.
+
+
+Found 1 error in src/app/cleanups/[id].tsx:97</code></pre>
+                    </div>
+                    <p>React Native's type for the content is "a <code>url</code>, or a <code>message</code>, or both", written as two object types joined by <code>|</code>. TypeScript picked the one with <code>message</code> to complain about and showed you where <code>message: string</code> is declared. The fix is what the type asks for: give it a message.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The link only in <code>url</code></h4>
+                    <p><code>Share.share({ message: 'Join me!', url: link })</code> type-checks and looks fine on an iPhone. On Android the link is gone: React Native's Android code passes only <code>title</code> and <code>message</code> to the share sheet (read in its source; the Android emulator could not be run here). Put the link inside the message, as Shoreline Crew does.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Writing <code>shorelinecrew://</code> by hand</h4>
+                    <p>A shared message with a hand-written <code>shorelinecrew://cleanups/e08</code> opens nothing while you develop in Expo Go: that scheme belongs to a build of your app, and Expo Go answers <code>exp://</code> links (the documentation and <code>expo-linking</code>'s source agree). Changing <code>scheme</code> in <code>app.json</code> does not help either: the phone learns a scheme when a build is installed. Build links with <code>Linking.createURL</code>, and the right form comes out in each place.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Links Into Shoreline Crew</h2>
+                <p>You read the app's address, follow links in the web preview, give linked screens the tabs underneath, make links to cleanups, add a <strong>Share this cleanup</strong> button, and try a link from outside the app if you have an emulator, a simulator or a phone. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd>). Work in the <code>shoreline-crew</code> folder. No packages to install today: <code>expo-linking</code> came with the template, and <code>Share</code> is part of React Native.</p>
+
+                <div class="card">
+                    <h3>Step 1: Your app's address <span class="step-time">(5 min)</span></h3>
+                    <p>Open <code>app.json</code> and find <code>"scheme": "shorelinecrew"</code> (shown in What a Deep Link Is). Then ask the <code>uri-scheme</code> tool which schemes the project has. The first time, <code>npx</code> asks <code>Ok to proceed? (y)</code>: press <kbd>Enter</kbd>.</p>
+                    <pre class="terminal"><code class="language-bash">npx uri-scheme list</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>Could not find any native URI schemes to list.</code></pre>
+                    </div>
+                    <p>That is not a problem with your app. <code>uri-scheme</code> reads the native iOS and Android projects, and an Expo project has none yet: there are no <code>ios/</code> or <code>android/</code> folders. Expo creates them from <code>app.json</code> when you make a build (Module 9), and that is when your scheme is written into them. Until then, <code>app.json</code> is the one place it lives.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Follow links in the web preview <span class="step-time">(10 min)</span></h3>
+                    <p>The web preview's address bar is the quickest way to try a link. Type each address into it (yours may use a different port if Metro printed one) and note what you see, and whether there is a back arrow:</p>
+                    <ol>
+                        <li><code>http://localhost:8081/cleanups/e08</code>: Weekend Cove, with no back arrow and no tab bar. This is what a volunteer would get from a link today.</li>
+                        <li><code>http://localhost:8081/cleanups/e99</code>: "Nothing was found at this address. Check the link."</li>
+                        <li><code>http://localhost:8081/nowhere/e08</code>: the not-found screen.</li>
+                        <li><code>http://localhost:8081/before-you-go</code>: the safety briefing on its own; <strong>Done</strong> takes you to the Cleanups tab.</li>
+                        <li><code>http://localhost:8081/sign-in</code>: the sign-in modal, with nothing underneath.</li>
+                    </ol>
+                    <p>Each of these is exactly what <code>shorelinecrew://</code> plus the same path would open on a phone. Pressing <kbd>Enter</kbd> in the address bar reloads the page, so you start signed out each time (Lesson 4.3: the web preview keeps the session in memory only).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The tabs underneath every link <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/app/_layout.tsx</code>, add the anchor below the splash-screen line, outside the component (Expo Router reads it from the module, not from a render):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> // Keep the splash screen up while the fonts and the saved session load (runs once, at startup)
+ SplashScreen.preventAutoHideAsync();
++
++// Whatever address the app opens at, the tabs are underneath it. A link straight to a cleanup
++// then has a back button, and back leads to the Cleanups tab instead of out of the app.
++export const unstable_settings = {
++  anchor: '(tabs)',
++};
+
+ export default function RootLayout() {</code></pre>
+                    </div>
+                    <p>Then make the not-found screen's button close screens instead of replacing one, so it lands on the tabs that are now underneath. In <code>src/app/+not-found.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/+not-found.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/+not-found.tsx" data-match="diff"><code class="language-diff-tsx">       &lt;AppText&gt;The link may be old, or mistyped. The cleanups are all on the first screen.&lt;/AppText&gt;
+-      {/* replace: the Cleanups screen takes this screen's place, so Back does not return to a dead end */}
+-      &lt;Link href="/" replace asChild&gt;
++      {/* dismissTo: close screens back to the tabs underneath (the anchor), or take this screen's
++          place when there is nothing underneath. Back never returns to a dead end. */}
++      &lt;Link href="/" dismissTo asChild&gt;
+         &lt;Button label="Back to the cleanups" variant="primary" /&gt;</code></pre>
+                    </div>
+                    <p>Now open <code>http://localhost:8081/cleanups/e08</code> again. The header has a back arrow, and pressing it opens the Cleanups tab:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_14/14-linked.png" alt="The Weekend Cove Cleanup screen in the web preview, opened directly at its address: a header with a back arrow, outlined in red, and the title Weekend Cove Cleanup, the Driftwood Cove picture, the Scheduled badge, When, Where and Meet at rows, and a Share this cleanup button." width="420" height="814" loading="lazy">
+    <figcaption>Opened straight from its address, like a link from a message. With <code>anchor: '(tabs)'</code> the tabs are underneath, so the header has a back arrow, and it leads to the Cleanups tab. On a phone the header and its back button look like the platform's own.</figcaption>
+</figure>
+                    <p>Try the other addresses from Step 2 too. <code>/before-you-go</code> and <code>/sign-in</code> now have a back arrow as well, and <strong>Back to the cleanups</strong> on <code>/nowhere/e08</code> leaves exactly one tab bar on the page. The cleanup screen's own <code>leave()</code> and the modal's <strong>Done</strong> needed no change: <code>router.canGoBack()</code> is now <code>true</code>, so they go back to the tabs.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A link maker for cleanups <span class="step-time">(10 min)</span></h3>
+                    <p>Links are built in one place, so that if the address of a cleanup ever changes, one function changes with it. Create <code>src/utils/links.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/links.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/links.ts"><code class="language-ts">import * as Linking from 'expo-linking';
+
+import type { CleanupEvent } from '@/api/types';
+import { formatDate } from '@/utils/format';
+
+/**
+ * A link that opens one cleanup in Shoreline Crew. Linking.createURL builds it for wherever the
+ * app is running: shorelinecrew://cleanups/e08 in a build of the app, exp://…/--/cleanups/e08 in
+ * Expo Go, and http://localhost:8081/cleanups/e08 in the web preview.
+ */
+export function cleanupLink(id: string): string {
+  return Linking.createURL(`/cleanups/${id}`);
+}
+
+/** The words a volunteer shares: what, when, where to meet, and the link */
+export function cleanupMessage(event: CleanupEvent, link: string): string {
+  return [
+    `Join me at ${event.title}!`,
+    `${formatDate(event.date)}, ${event.startTime} to ${event.endTime}. Meet at ${event.meetingPoint}.`,
+    link,
+  ].join('\n');
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>cleanupLink(id)</code></strong> is the only place in the app that knows a cleanup's address in a link. <code>createURL</code> adds the right beginning for a build, Expo Go or the web preview (One Screen, Three Kinds of Link).</li>
+                        <li><strong><code>cleanupMessage(event, link)</code></strong> writes what a friend needs to decide: what, when, and where to meet, then the link on its own line, where it is easy to see and to tap. It reuses <code>formatDate</code>, so the date reads the same as on the cards. It takes a <code>CleanupEvent</code>, so it works with the list's data as well as the detail screen's.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Share this cleanup <span class="step-time">(20 min)</span></h3>
+                    <p>The cleanup screen gets the button. In <code>src/app/cleanups/[id].tsx</code>, import <code>Share</code> and the link maker:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">-import { StyleSheet, Text, View } from 'react-native';
++import { Share, StyleSheet, Text, View } from 'react-native';
+
+ import { ApiError, describeError, getEvent } from '@/api/client';
+ // ...
+ import { formatDate, toDateString } from '@/utils/format';
++import { cleanupLink, cleanupMessage } from '@/utils/links';</code></pre>
+                    </div>
+                    <p>Next to the other state, a place for the link when there is no share sheet. It must sit with the other hooks, above the early <code>return</code> for the loading screen (hooks always run in the same order):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">   const [attempt, setAttempt] = useState(0);
++  // The link to copy, when this device has no share sheet to send it with
++  const [linkToCopy, setLinkToCopy] = useState&lt;string | null&gt;(null);
+   const styles = useStyles();</code></pre>
+                    </div>
+                    <p>Then the function that shares, after the cleanup has loaded (it needs <code>event</code>):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">   const availability = getAvailability(event);
++
++  // The phone's share sheet, with a message and a link that opens this screen
++  async function share() {
++    const link = cleanupLink(event.id);
++    try {
++      // Android shares the title and the message only, so the link goes inside the message
++      await Share.share({ title: event.title, message: cleanupMessage(event, link) });
++    } catch {
++      // No share sheet here (the web preview in most desktop browsers): show the link instead
++      setLinkToCopy(link);
++    }
++  }
+
+   return (</code></pre>
+                    </div>
+                    <p>And the button, under the spots line, where a volunteer deciding whether to bring a friend is looking:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">         &lt;AppText style={styles.strong}&gt;Full: new sign-ups join the waiting list&lt;/AppText&gt;
+       )}
++      &lt;Button label="Share this cleanup" onPress={share} /&gt;
++      {linkToCopy !== null &amp;&amp; (
++        &lt;AppText selectable accessibilityLiveRegion="polite"&gt;
++          Sharing is not available here. Copy this link instead: {linkToCopy}
++        &lt;/AppText&gt;
++      )}
+       &lt;AppText variant="heading" accessibilityRole="header"&gt;
+         About this cleanup</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>await Share.share(…)</code> inside <code>try</code>.</strong> On a phone, the share sheet opens and the Promise resolves when it closes; nothing else to do. Where there is no share sheet, it rejects, and the screen shows the link instead.</li>
+                        <li><strong><code>selectable</code></strong> lets the volunteer press and hold (or drag the mouse over it in the web preview) to copy the text. Plain <code>Text</code> in React Native is not selectable unless you say so.</li>
+                        <li><strong><code>accessibilityLiveRegion="polite"</code></strong>, as on the sign-in form's errors: TalkBack announces the message when it appears.</li>
+                        <li><strong>The button's label says what it does.</strong> "Share this cleanup" needs no extra <code>accessibilityLabel</code>: the screen's title says which cleanup.</li>
+                    </ul>
+                    <p>Press <strong>Share this cleanup</strong> in the web preview. A desktop Chromium has no share sheet, so you see the fallback with the web preview's link:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_14/14-share.png" alt="The Tide Pool Morning Cleanup screen in dark mode in the web preview, after pressing Share this cleanup: under the button, the text Sharing is not available here. Copy this link instead, followed by the web preview&#x27;s link to this cleanup, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>In the web preview, a desktop browser has no share sheet, so the app shows the link to copy instead (port 4381 is the course's checking server; yours shows 8081). On a phone, the same button opens the share sheet with the message and the link.</figcaption>
+</figure>
+                    <p>Some browsers do have one (Safari, and Chrome on some systems): there you get the system's share panel instead, and closing it without sharing also shows the link, because the browser's <code>navigator.share()</code> rejects when it is cancelled. The course also checked what the app hands to a browser's share sheet, by giving the page a stand-in <code>navigator.share</code> that records its argument: the title "Weekend Cove Cleanup", and as the text the three lines from <code>cleanupMessage</code>, ending with the link.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: A link from outside the app <span class="step-time">(15 min)</span></h3>
+                    <p>If you have an Android emulator, the iOS Simulator (on a Mac) or a phone running the project in Expo Go, open a link the way a volunteer would. Start Metro as usual and note the <code>› Metro: exp://…</code> address it prints. Then, for the Android emulator:</p>
+                    <pre class="terminal"><code class="language-bash">npx uri-scheme open "exp://192.168.1.42:8081/--/cleanups/e08" --android</code></pre>
+                    <p>For the iOS Simulator:</p>
+                    <pre class="terminal"><code class="language-bash">npx uri-scheme open "exp://127.0.0.1:8081/--/cleanups/e08" --ios</code></pre>
+                    <p>Use your own address in place of <code>192.168.1.42</code>. The Expo documentation describes what should happen: Expo Go comes to the front and shows Weekend Cove, with the back arrow you added in Step 3. Try it twice, once with the app closed and once while it is open on the Profile tab, and notice what back does each time. On a phone, send yourself the link in a note or a message and tap it (the 📱 card in Opening Links on a Device).</p>
+                    <p>No emulator, simulator or phone yet? Then read the commands once, and make sure you could say which form of the link each one needs. Lesson 6.4 uses the same commands to test what a reminder opens.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check, walk every path, commit <span class="step-time">(10 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Then walk the paths in the web preview:</p>
+                    <ol>
+                        <li><code>/cleanups/e08</code> typed into the address bar: a back arrow; back opens the Cleanups tab.</li>
+                        <li>Open a cleanup from the list with <strong>Open</strong>: back still returns to the list, as before.</li>
+                        <li><code>/nowhere/e08</code> → <strong>Back to the cleanups</strong>: the Cleanups tab, one tab bar.</li>
+                        <li><code>/sign-in</code>: sign in as Theo; you land on the Cleanups tab.</li>
+                        <li>On a cleanup, <strong>Share this cleanup</strong>: the link to copy (or your browser's share panel).</li>
+                    </ol>
+                    <p>Then commit.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, write down your app's scheme and the three or four screens most worth linking to (the "Weekend Cove" of your app: a product, a booking, a recipe, a match). For each one, decide what should be underneath it when a link opens it, what it shows for an id that does not exist, and whether it is for everyone or only for signed-in people. Then check that no link in your app <em>does</em> something on its own.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ You can read <code>shorelinecrew://cleanups/e08</code> and its Expo Go and web preview forms, and name the file that answers each path</li>
+                        <li>☐ The root layout exports <code>unstable_settings</code> with <code>anchor: '(tabs)'</code>, and a cleanup opened by its address has a back arrow that opens the Cleanups tab</li>
+                        <li>☐ The not-found screen's button uses <code>dismissTo</code>, and leaves exactly one tab bar</li>
+                        <li>☐ <code>src/utils/links.ts</code> makes cleanup links with <code>Linking.createURL</code> and the message to share</li>
+                        <li>☐ <strong>Share this cleanup</strong> opens the share sheet with the link inside the message, and shows the link to copy where there is no share sheet</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo the code changes afterwards; the course's next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict, then follow</h3>
+                    <p>Without running anything, write down what each address shows and whether the header has a back arrow. Then type each one into the web preview and compare: <code>/my-cleanups</code>, <code>/cleanups/e17?from=text</code>, <code>/logbook</code>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Two of the three are tabs. Is a tab a screen <em>on top of</em> the anchor, or part of it? And what does a search param the screen never reads change?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Measured in the web preview: <code>/my-cleanups</code> opens the My cleanups tab with its guest face ("Sign in to see your cleanups") and no back arrow, because the tabs <em>are</em> the anchor: there is nothing below them to go back to. <code>/logbook</code> is the same, on the Logbook tab. <code>/cleanups/e17?from=text</code> opens Tide Pool Morning Cleanup with a back arrow; <code>from</code> arrives in <code>useLocalSearchParams</code> but nothing reads it, so it changes nothing. (Lesson 4.1's stretch exercise showed how to read one.)</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: How many spots are left?</h3>
+                    <p>A friend deciding whether to come wants to know if there is room. Add a line to the shared message: "6 spots left." when the cleanup is open, a note about the waiting list when it is full, and nothing when sign-ups are closed.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>getAvailability(event)</code> from <code>src/utils/availability.ts</code> already answers with a <code>kind</code> of <code>'open'</code> (with <code>spotsLeft</code>), <code>'full'</code> or <code>'closed'</code>. The message is an array of lines, so a line that may be missing can be spread in.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>src/utils/links.ts</code> (type-checked and linted in the project):</p>
+                        <pre data-snippet><code class="language-ts">import * as Linking from 'expo-linking';
+
+import type { CleanupEvent } from '@/api/types';
+import { getAvailability } from '@/utils/availability';
+import { formatDate } from '@/utils/format';
+
+export function cleanupLink(id: string): string {
+  return Linking.createURL(`/cleanups/${id}`);
+}
+
+/** The words a volunteer shares: what, when, where to meet, how many spots are left, and the link */
+export function cleanupMessage(event: CleanupEvent, link: string): string {
+  const availability = getAvailability(event);
+  const spots =
+    availability.kind === 'open'
+      ? [`${availability.spotsLeft} spots left.`]
+      : availability.kind === 'full'
+        ? ['It is full, but you can join the waiting list.']
+        : []; // closed: nothing to say about spots
+  return [
+    `Join me at ${event.title}!`,
+    `${formatDate(event.date)}, ${event.startTime} to ${event.endTime}. Meet at ${event.meetingPoint}.`,
+    ...spots,
+    link,
+  ].join('\n');
+}</code></pre>
+                        <p>The empty array for <code>'closed'</code> adds no line at all, rather than an empty one. TypeScript knows <code>spotsLeft</code> exists only when <code>kind</code> is <code>'open'</code>, as in the event cards.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Links out of the app</h3>
+                    <p>Links work in the other direction too. Add an <strong>Email the crew</strong> button to Profile that opens the phone's email app with <code>crew@example.org</code> and a subject filled in.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A <code>mailto:</code> address is a link with its own scheme, and <code>expo-linking</code> has <code>openURL</code>. The subject goes after <code>?subject=</code>, encoded like any value in an address.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>A small component (here <code>src/components/EmailTheCrew.tsx</code>), placed under <strong>Before you go</strong> on Profile:</p>
+                        <pre data-snippet><code class="language-tsx">import * as Linking from 'expo-linking';
+
+import { Button } from '@/components/Button';
+
+// A mailto: link opens the phone's email app with the address and subject filled in
+const crewEmail = 'mailto:crew@example.org?subject=' + encodeURIComponent('A question about a cleanup');
+
+export function EmailTheCrew() {
+  return &lt;Button label="Email the crew" onPress={() =&gt; Linking.openURL(crewEmail)} /&gt;;
+}</code></pre>
+                        <p>On a phone, the documentation says the email app opens with the address and subject filled in (<code>tel:</code> and <code>sms:</code> links work the same way). In the web preview, <code>expo-linking</code>'s source simply sets the page's address to the <code>mailto:</code> link, and the browser hands it to your computer's email program if one is set up; the course's test browser had none, so nothing visible happened. <code>Linking.canOpenURL()</code> answers "can this phone open that kind of link?"; on iOS it only works for schemes the app declares in its build, so check the documentation before relying on it.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Old flyers, new addresses (Stretch)</h3>
+                    <p>Imagine last year's flyers printed a QR code for <code>shorelinecrew://event/e08</code>, and cleanups now live at <code>/cleanups/e08</code>. Without moving any screen, make old links open the right cleanup. Look up Expo Router's <code>+native-intent.tsx</code> file.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A file named <code>src/app/+native-intent.tsx</code> can export <code>redirectSystemPath({ path, initial })</code>, which receives every incoming link before Expo Router reads it, and returns the path to open instead. Then try <code>/event/e08</code> in the web preview, and read the file's name again.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">// src/app/+native-intent.tsx: every link from outside passes through here first (phones only)
+export function redirectSystemPath({ path }: { path: string; initial: boolean }) {
+  try {
+    // Last year's flyers printed shorelinecrew://event/e08; cleanups now live at /cleanups/e08
+    const old = /^\/?event\/([^/?#]+)/.exec(path);
+    return old === null ? path : `/cleanups/${old[1]}`;
+  } catch {
+    return '/'; // never let a strange link crash the app
+  }
+}</code></pre>
+                        <p>It type-checks and lints in the project. In the web preview, <code>/event/e08</code> still shows the not-found screen (measured): the file is for links the <em>phone</em> hands to the app, which is what "native intent" means, and the web preview is a browser. On a phone, the Expo Router documentation describes the rewrite happening before any screen opens. The <code>try</code>/<code>catch</code> follows the documentation's advice: an error thrown here can crash the app, because it runs before your screens can show an error. For the web preview, the same rewrite would be a redirect on the server, which this course does not need.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> You are developing in Expo Go, and Metro printed <code>› Metro: exp://192.168.1.42:8081</code>. Which link opens Weekend Cove on your test phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which app on the phone registered the shorelinecrew scheme? Is it Expo Go?">
+                                A) <code>shorelinecrew://cleanups/e08</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="That is the web preview's address. On the phone, localhost is the phone itself.">
+                                B) <code>http://localhost:8081/cleanups/e08</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Expo Go needs to know which development server to load before it can find a screen.">
+                                C) <code>exp://cleanups/e08</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo Go owns the exp scheme. The address says which development server to load, and everything after /--/ is the path inside your app. Linking.createURL builds exactly this in Expo Go.">
+                                D) <code>exp://192.168.1.42:8081/--/cleanups/e08</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Shoreline Crew is closed. A volunteer taps a link to Weekend Cove, reads it, and presses back. With <code>anchor: '(tabs)'</code> in the root layout, what happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That is what happened before the anchor, when the cleanup was alone in the stack.">
+                                A) The app closes, because the cleanup was the only screen
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The anchor is always at the bottom of the root stack, so the linked cleanup opens on top of the tabs, and back shows the Cleanups tab.">
+                                B) The Cleanups tab appears, because the tabs were underneath the cleanup
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is anything in the stack under the cleanup now?">
+                                C) Nothing: a screen opened by a link has no back button
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Theo is signed in. A friend sends him <code>shorelinecrew://sign-in</code> and he taps it. What does he see?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does the guard on the sign-in route say while someone is signed in?">
+                                A) The sign-in form, ready for another account
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The route exists in the project. What does Expo Router do with a guarded route that is switched off?">
+                                B) The not-found screen
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The sign-in route does not exist while someone is signed in, so Expo Router redirects to the stack's anchor, the tabs, which show Cleanups. A link from outside follows the same rule as a link inside the app.">
+                                C) The Cleanups tab, because the guarded route redirects to the anchor
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is there a redirectTo on the guard in Shoreline Crew?">
+                                D) His Profile tab
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> A teammate writes <code>Share.share({ message: 'Join me at Weekend Cove!', url: link })</code>. A volunteer shares from an Android phone. What does the friend receive?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="React Native's Android code passes only the title and the message to the share sheet, so the link in url is dropped. Put the link inside the message.">
+                                A) "Join me at Weekend Cove!" without the link
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the Sharing a Link table: which fields does Android use?">
+                                B) The message and the link, as on an iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The code type-checks: url and message are both allowed. What happens at run time on Android?">
+                                C) Nothing: TypeScript refuses to compile it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Which of these should a link into Shoreline Crew never do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Opening a cleanup is exactly what links are for.">
+                                A) Open a cleanup's screen
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Anyone can write and send a link, so a link only opens a screen. Signing up, cancelling or deleting happens when the volunteer presses a button on that screen.">
+                                B) Sign the volunteer up for the cleanup as soon as it opens
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A guest opening the sign-in screen is harmless: they still have to type their password.">
+                                C) Open the sign-in modal for a guest
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Do I need <code>Linking.addEventListener</code> or <code>useURL</code> to receive links?</summary>
+                    <p>Not with Expo Router. It reads the link the app was opened with and listens for links that arrive while it is running, then turns them into screens; that is why today's project added no listener. <code>expo-linking</code> is for the other jobs: making links (<code>createURL</code>), opening other apps (<code>openURL</code>), and reading a link yourself in the rare case you need its raw text (<code>useURL</code>).</p>
+                </details>
+                <details>
+                    <summary>What are universal links and App Links, and should Shoreline Crew have them?</summary>
+                    <p>They are ordinary <code>https://</code> links that the phone hands to your app instead of the browser, when the app is installed. To prove the website and the app belong together, the site serves a small file (<code>apple-app-site-association</code> for iOS, <code>assetlinks.json</code> for Android) and your build lists the domain (<code>ios.associatedDomains</code> and <code>android.intentFilters</code> in the app config, per the Expo documentation). Without the app, the same link opens the web page. For a real Shoreline Crew they would be the right links to share; they need a domain, a website and your own builds, so they belong after Module 9.</p>
+                </details>
+                <details>
+                    <summary>What happens if the app is already open when a link arrives?</summary>
+                    <p>According to the Expo Router documentation, the app comes to the front and the linked screen opens on top of where the volunteer was, rather than starting over. The anchor matters most when the app was closed, because then there is nothing else underneath. Step 6 asks you to try both, if you have a device.</p>
+                </details>
+                <details>
+                    <summary>Why does the not-found screen in the web preview count as an error?</summary>
+                    <p>If you watch the browser's console on <code>/nowhere/e08</code>, you will see a 404 for the page itself: the web preview's server answers unknown addresses with the HTTP status for "not found" while still sending your not-found screen. That is correct for a website (search engines should not index it) and has no effect on a phone, where there is no server in between.</p>
+                </details>
+                <details>
+                    <summary>Can a link carry a sign-in, a code or a secret?</summary>
+                    <p>It should not. Links are saved in message histories, notification logs and screenshots, and passed on. Shoreline Crew's links carry only a cleanup id that is public anyway. Real apps that must sign people in by email (a "magic link") use short-lived, single-use codes checked by the server; shoreline-api has no such thing, so neither does the app.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Plan universal links and App Links for Shoreline Crew on paper. Pick a fictional domain such as <code>crew.example.org</code>, decide which paths should open the app (only <code>/cleanups/*</code>? the profile?), and read the Expo documentation's pages on iOS universal links and Android App Links. Write down which two files your website would serve, where, what goes in <code>app.json</code>, and what a volunteer without the app should see at <code>https://crew.example.org/cleanups/e08</code>. Then decide whether <code>cleanupLink</code> should change, and how.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Follow one link on its whole journey: a crew leader taps <strong>Share this cleanup</strong>, a friend receives the message and taps the link while the app is closed, reads the cleanup, and presses back. Write each step and the piece of code (or the part of the phone) responsible for it. Then write the same journey for the web preview, and mark where the two differ.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>A deep link is a scheme plus a path; Expo Router answers <code>shorelinecrew://cleanups/e08</code> with the same file as the address <code>/cleanups/e08</code></li>
+                        <li>The same link has three forms: <code>shorelinecrew://…</code> in a build, <code>exp://ADDRESS/--/…</code> in Expo Go, <code>http://localhost:8081/…</code> in the web preview; <code>Linking.createURL</code> picks the right one</li>
+                        <li><code>unstable_settings = { anchor: '(tabs)' }</code> keeps the tabs underneath any screen a link opens, so back leads somewhere; the anchor must be a screen of that layout, and it loads that screen's data too</li>
+                        <li>With an anchor, send people "home" with <code>dismissTo</code>, not <code>replace</code> or a plain push</li>
+                        <li>Links to guarded screens follow the guard: redirected to the anchor. Every link is input from outside, and a link only ever opens a screen</li>
+                        <li><code>Share.share()</code> opens the share sheet; Android shares only the title and message, so the link goes in the message; where there is no share sheet, show the link to copy</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up a term (deep link, scheme, anchor, share sheet)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read Expo's guide to links into your app</td><td><a href="https://docs.expo.dev/linking/into-your-app/" target="_blank" rel="noopener">Expo: Linking into your app</a></td></tr>
+                            <tr><td>Read how Expo Router handles links, anchors and <code>+native-intent</code></td><td><a href="https://docs.expo.dev/router/advanced/native-intent/" target="_blank" rel="noopener">Expo Router: Customizing links</a></td></tr>
+                            <tr><td>Read every option of the share sheet</td><td><a href="https://reactnative.dev/docs/share" target="_blank" rel="noopener">React Native: Share</a></td></tr>
+                            <tr><td>Fix an error you met today</td><td><a href="troubleshooting.html">Troubleshooting</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew can be opened straight at any cleanup, and a linked cleanup always has a way back to the list</li>
+                        <li>Volunteers can share a cleanup with a message and a link, on every platform, with an honest fallback</li>
+                        <li>You found and fixed a bug no tool warned about: two tab bars after "Back to the cleanups"</li>
+                        <li>You can read a link in any of its forms, and test it on an emulator, a simulator or a phone</li>
+                        <li>You read a Metro error's list of routes, and a TypeScript error about a union type, back to their causes</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>That completes Module 4: Shoreline Crew has screens, tabs, modals, sign-in and links. Module 5 is about data. In <a href="lesson_15.html">Lesson 5.1: Reaching the API from a Phone</a>, Expo Go on your phone finally talks to shoreline-api: you start the API with <code>--host</code>, learn which address a phone, an emulator and the web preview each need, and sign in as Theo on a real device. After that, the links you made today open real cleanups on your phone too.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Walk the five paths from Step 7 once more and commit</li>
+                    <li>Find your computer's address on your Wi-Fi network (it is the one Expo prints under the QR code) and write it down</li>
+                    <li>If you are on Windows with WSL, read the <a href="troubleshooting.html#wsl">WSL notes</a> in Troubleshooting before Lesson 5.1</li>
+                    <li>Write today's journal entry, with your link's journey</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's biggest lesson was not a line of code: it was a page that looked perfect and was quietly wrong, with a second tab bar hiding underneath. Nothing printed an error; you found it because you asked "what is actually on the stack?" That habit of checking what is really there, not only what is on the screen, is what separates code that seems to work from code you can trust. If links still feel slippery, that is normal: they cross the boundary between your app and the rest of the phone, which you cannot see all of yet. Every lesson in Module 6 will make that boundary clearer.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_13.html" class="prev-lesson">← Previous: Sign-In Flows and Protected Routes</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_15.html" class="next-lesson">Next: Reaching the API from a Phone →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

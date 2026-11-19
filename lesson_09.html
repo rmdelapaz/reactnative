@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FlatList and SectionList in an Expo app: why a list component draws only what is near the screen, keys and typed renderItem, a header, loading, error and empty states, pull to refresh, columns with numColumns, and cleanups grouped under sticky headings in Shoreline Crew. React Native &amp; Expo: Build and Ship a Mobile App Lesson 3.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>FlatList and SectionList - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📜 Lesson 3.1: FlatList and SectionList</h1>
+                <p class="lead">Every app you love is mostly lists: messages, songs, photos, orders. On a phone, a list has to scroll smoothly under a thumb, start fast on a slow network, say something useful when it is empty, and refresh with a pull. In this lesson Shoreline Crew's Cleanups screen stops being a long page of cards and becomes a real list: one that only draws what is near the screen, knows when it is loading, failed or empty, refreshes when a volunteer pulls it down, and can group the cleanups under headings.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain why a <code>FlatList</code> beats a <code>ScrollView</code> with <code>map</code> for lists, and what "drawing only what is near the screen" means</li>
+                        <li>Build a typed <code>FlatList</code>: <code>data</code>, <code>renderItem</code>, a stable <code>keyExtractor</code>, a header, and columns with <code>numColumns</code></li>
+                        <li>Show the right thing when a list has no items: loading, a failed load with a retry button, or "nothing matches"</li>
+                        <li>Add pull to refresh with <code>refreshing</code> and <code>onRefresh</code>, and know what each platform (and the web preview) does with it</li>
+                        <li>Group items under headings with <code>SectionList</code> and sticky section headers</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_08.html">Lesson 2.5: Responsive, Platform-Specific and Themed UI</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> the Cleanups screen as a <code>FlatList</code> in one or two columns, a loading view, an error view with Try again and an empty state, pull to refresh, and a "Group by date" view built with <code>SectionList</code></li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone for the pull-to-refresh gesture</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-09-start.zip">lesson-09-start.zip</a> · Finished code: <a href="downloads/lesson-09-end.zip">lesson-09-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: From a Page of Cards to a List</a></li>
+                        <li><a href="#why" class="toc-link">Why a List Component</a></li>
+                        <li><a href="#flatlist" class="toc-link">FlatList, Prop by Prop</a></li>
+                        <li><a href="#states" class="toc-link">Empty, Loading, Failed and Refreshing</a></li>
+                        <li><a href="#sections" class="toc-link">SectionList: Items Under Headings</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: The Cleanups List</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: From a Page of Cards to a List</h2>
+                <p>Since Lesson 1.3, the Cleanups screen has been a <code>ScrollView</code> with every card inside it, made with <code>map</code>, exactly like a <code>&lt;ul&gt;</code> of <code>&lt;li&gt;</code>s on the web. With eight cleanups that works. But "Before the Next Lesson" asked you to notice something: every card is drawn when the screen opens, including the ones far below the bottom of the phone. The web has the same problem with long pages and solves it with libraries; React Native solves it in the box, with list components.</p>
+                <p>This lesson uses two of them:</p>
+                <ul>
+                    <li><strong><code>FlatList</code></strong>: one long list of items (here, cleanups), in one column or several.</li>
+                    <li><strong><code>SectionList</code></strong>: the same, but with the items grouped under headings ("Today", "Within a week", ...).</li>
+                </ul>
+                <p>Both come with the parts every real list needs: a header above the items, something to show when there are no items, and pull to refresh.</p>
+                <p><strong>Why it matters for your work:</strong> lists are where mobile apps feel fast or slow. A list that stutters, forgets which item was open, or shows a blank screen while it loads is the first thing testers and reviewers write down. Knowing how a list draws its items, and what its keys are for, is everyday knowledge on any React Native team.</p>
+                <p><strong>Why it matters for the volunteers:</strong> a crew leader on the beach with one bar of signal opens the app. They should see a spinner, not a blank screen; a clear "could not reach the server" with a button to try again, not nothing; and a way to pull down for the latest spots left before they head out.</p>
+            </section>
+
+            <section id="why" class="lesson-section">
+                <h2>🧮 Why a List Component</h2>
+                <p>A <code>ScrollView</code> draws every child you give it, right away. Here are two tiny screens with 1,000 rows each, the first with a <code>ScrollView</code> and <code>map</code>, the second with a <code>FlatList</code>:</p>
+                <pre data-snippet><code class="language-tsx">import { ScrollView } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+
+const rows = Array.from({ length: 1000 }, (_, index) =&gt; `Row ${index + 1}`);
+
+// A ScrollView draws every child it is given: all 1,000 rows, right away
+export default function AllAtOnce() {
+  return (
+    &lt;ScrollView&gt;
+      {rows.map((row) =&gt; (
+        &lt;AppText key={row}&gt;{row}&lt;/AppText&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+}</code></pre>
+                <pre data-snippet><code class="language-tsx">import { FlatList } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+
+const rows = Array.from({ length: 1000 }, (_, index) =&gt; `Row ${index + 1}`);
+
+// A FlatList draws the rows near the screen, and more as you scroll
+export default function OnlyWhatShows() {
+  return (
+    &lt;FlatList
+      data={rows}
+      keyExtractor={(row) =&gt; row}
+      renderItem={({ item }) =&gt; &lt;AppText&gt;{item}&lt;/AppText&gt;}
+    /&gt;
+  );
+}</code></pre>
+                <p>The course opened both in the web preview at phone size and counted the rows in the page, at the start and after scrolling to the very end:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Screen</th><th>Rows drawn when it opens</th><th>Rows drawn at the end of the list</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>ScrollView</code> + <code>map</code></td><td>1,000</td><td>1,000</td></tr>
+                            <tr><td><code>FlatList</code></td><td>358</td><td>400</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The <code>FlatList</code> drew the rows near the screen, generously: by default it keeps about ten screens' worth above and ten below what you see (its <code>windowSize</code> is 21 screens). As you scroll, it draws rows ahead of you and throws away rows far behind you. This is called <strong>virtualization</strong>, and it is why a list of 1,000 (or 100,000) items opens as fast as a list of 20. A row thrown away is drawn again, from <code>data</code>, when you scroll back to it.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the sign-in table at a big cleanup day</h4>
+                    <p>On Coastal Cleanup Day, 400 volunteers are on the roster. The crew at the sign-in table does not write 400 name tags at dawn and pile them up; they write tags for the people in line and the next few walking up the beach, and they put away the clipboard pages of people who already went down to the water. The roster (your <code>data</code>) is complete the whole time; only the tags (the drawn rows) come and go. And because tags come and go, each volunteer needs an ID that does not depend on where they stand in line. That ID is the list's <strong>key</strong>.</p>
+                </div>
+                <p>Eight cleanups would scroll fine either way, so why switch now? Because the list grows: Lesson 3.2 loads cleanups page by page as you scroll, and the list components also give you the header, the empty state and pull to refresh for free. A <code>ScrollView</code> is still the right tool for a screen with a known, small amount of content, such as a form or a detail page (Lesson 4.1).</p>
+                <div class="card card-success">
+                    <h4>✅ What carries over</h4>
+                    <p>From the web course: lists come from data, each item needs a stable <code>key</code>, derived data (filtered cards) is worked out on every render. What is new: the list itself decides which items exist on screen, so your item must be drawable from its data alone, at any moment.</p>
+                </div>
+            </section>
+
+            <section id="flatlist" class="lesson-section">
+                <h2>📋 FlatList, Prop by Prop</h2>
+                <p>A <code>FlatList</code> needs two props and works much better with a third:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Prop</th><th>What it is</th><th>In Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>data</code></td><td>The items: any array</td><td>The filtered cards: <code>{ event, site }</code> pairs</td></tr>
+                            <tr><td><code>renderItem</code></td><td>A function that draws one item; it receives <code>{ item, index }</code></td><td>An <code>EventCard</code> in a cell</td></tr>
+                            <tr><td><code>keyExtractor</code></td><td>A function from an item to its key, a <strong>string</strong></td><td>The cleanup's id: <code>card.event.id</code></td></tr>
+                            <tr><td><code>ListHeaderComponent</code></td><td>What scrolls above the items</td><td>Banner, search field, switches, heading</td></tr>
+                            <tr><td><code>ListEmptyComponent</code></td><td>What shows when <code>data</code> is empty</td><td>Loading, error or "nothing matches"</td></tr>
+                            <tr><td><code>numColumns</code></td><td>Items side by side, in rows</td><td>1 on a phone, 2 at 700 wide (Lesson 2.5's <code>useColumns</code>)</td></tr>
+                            <tr><td><code>refreshing</code>, <code>onRefresh</code></td><td>Pull to refresh</td><td>Load the cleanups again</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Other props you will meet: <code>ListFooterComponent</code> (below the items, Exercise 1), <code>ItemSeparatorComponent</code> (between items; Shoreline Crew uses the content's <code>gap</code> instead), <code>horizontal</code> (a sideways list, such as a row of photos), and performance settings such as <code>initialNumToRender</code> and <code>windowSize</code>, which Lesson 3.2 measures.</p>
+
+                <h3>TypeScript knows the item type</h3>
+                <p><code>FlatList</code> is generic: <code>FlatList&lt;ItemT&gt;</code>. You rarely write the type yourself, because TypeScript reads it from <code>data</code>. If <code>data</code> is <code>Card[]</code>, then <code>item</code> in <code>renderItem</code> is a <code>Card</code>, and <code>keyExtractor</code> must be a function from a <code>Card</code> to a string. When you write <code>renderItem</code> as a separate function, type its argument with React Native's <code>ListRenderItemInfo&lt;Card&gt;</code> (it holds <code>item</code>, <code>index</code> and a few helpers).</p>
+
+                <h3>Keys: an ID, not a place in line</h3>
+                <p>A list's key tells React which drawn row belongs to which item, so it can keep each row's state (an open "Show details", a half-typed note) with the right item when the list changes. FlatList asks <code>keyExtractor</code> for it. Without one, React Native 0.88 quietly uses <code>item.key</code>, then <code>item.id</code>, and otherwise the item's <em>position</em> (its index), with no warning. Shoreline Crew's cards have neither <code>key</code> nor <code>id</code> at the top level, so positions it would be.</p>
+                <p>The course tried exactly that: <code>keyExtractor={(card, index) =&gt; String(index)}</code>. It opened the details of the second card, Weekend Cove Cleanup, then typed <code>calder</code> in the search field. Weekend Cove disappeared from the list, as it should, but the details panel stayed open on the card that was now second: <strong>Jetty Rocks Deep Clean</strong>. With <code>card.event.id</code> as the key, no card was left open, because the open one was gone. A key from the data (an id from the API) is always the right choice.</p>
+
+                <h3>Columns with numColumns</h3>
+                <p>Lesson 2.5 built rows of cards by hand. <code>numColumns={2}</code> does the same job: FlatList puts the items in rows of two. Two details matter:</p>
+                <ul>
+                    <li><strong>A list cannot change its number of columns.</strong> When the window gets wider and <code>numColumns</code> changes from 1 to 2, the same FlatList throws an error (Common Mistakes shows it). Give it a <code>key</code> that changes with the number of columns: <code>key={columns}</code>. A new key tells React "this is a different list", so it builds a new one.</li>
+                    <li><strong><code>columnWrapperStyle</code></strong> styles each row (only when there is more than one column). Each item decides its own width; Shoreline Crew gives every card exactly its share of the row, so a lone card in the last row stays as wide as the others.</li>
+                </ul>
+            </section>
+
+            <section id="states" class="lesson-section">
+                <h2>⏳ Empty, Loading, Failed and Refreshing</h2>
+                <p>A list with no items is not one state but several, and each deserves its own words. Shoreline Crew's list uses <code>ListEmptyComponent</code> for all of them, picked by the load state you have had since Lesson 1.3:</p>
+<div class="mermaid">
+graph TD
+    A["The list has no cards"] --> B{"Still loading?"}
+    B -->|"yes"| C["LoadingView"]
+    B -->|"no"| D{"Did it fail?"}
+    D -->|"yes"| E["ErrorView: Try again"]
+    D -->|"no"| F["EmptyState: Show all"]
+</div>
+                <p>When there are cards, the list shows them and none of these. And because the banner, search field and switches are the list's <em>header</em>, they show in every state: a volunteer can type a search while the cleanups are still loading.</p>
+                <ul>
+                    <li><strong>Loading</strong> uses <code>ActivityIndicator</code>, React Native's spinner: the platform's own (iOS's ring of spokes, Android's circular Material indicator, a turning circle in the web preview), in the color you give it. Words next to it say what is loading.</li>
+                    <li><strong>Failed</strong> shows <code>describeError</code>'s message (Lesson 1.3) and a <strong>Try again</strong> button, the most important button in a mobile app on a weak network.</li>
+                    <li><strong>Nothing matches</strong> keeps Lesson 2.4's message and its <strong>Show all cleanups</strong> button.</li>
+                </ul>
+
+                <h3>Pull to refresh</h3>
+                <p>Give a FlatList (or SectionList, or ScrollView) two props and it supports the pull-down gesture:</p>
+                <ul>
+                    <li><code>onRefresh</code>: called when someone pulls the list down past the top and lets go.</li>
+                    <li><code>refreshing</code>: <code>true</code> while your refresh is running. The list shows the platform's refresh spinner for as long as it is <code>true</code>, so set it back to <code>false</code> when the data arrives (or the request fails), or it spins forever.</li>
+                </ul>
+                <p>Behind the scenes the list adds a <code>RefreshControl</code>, the native pull-to-refresh control: on iOS the spinner appears above the list as you pull; on Android a round arrow slides down from the top. You can pass your own <code>refreshControl={&lt;RefreshControl … /&gt;}</code> to change its colors (<code>tintColor</code> on iOS, <code>colors</code> on Android).</p>
+                <div class="card card-warning">
+                    <h4>⚠️ The web preview has no pull to refresh</h4>
+                    <p>A browser has no pull-down gesture for a list, and react-native-web's <code>RefreshControl</code> draws nothing at all (the course read its source: it renders a plain <code>View</code> and ignores <code>onRefresh</code>). So the web preview cannot show this feature. Shoreline Crew adds a small <strong>Refresh</strong> button that only appears on the web (<code>Platform.OS === 'web'</code>, Lesson 2.5): a real platform difference, which is exactly what <code>Platform</code> is for. The pull itself you test in Expo Go.</p>
+                </div>
+            </section>
+
+            <section id="sections" class="lesson-section">
+                <h2>🗂️ SectionList: Items Under Headings</h2>
+                <p>A <code>SectionList</code> takes <code>sections</code> instead of <code>data</code>: an array of groups, each with its own <code>data</code> array plus anything else you want to know about the group, usually a title:</p>
+                <pre data-snippet><code class="language-ts">const sections = [
+  { title: 'Today', data: [tidePoolMorning] },
+  { title: 'Within a week', data: [weekendCove] },
+  { title: 'Within a month', data: [boardwalk, familyBeach, jettyRocks, creekMouth] },
+];</code></pre>
+                <p>It draws each item with <code>renderItem</code>, like FlatList, and each group's heading with <code>renderSectionHeader</code>, which receives <code>{ section }</code>. Header, empty component and pull to refresh work exactly as in FlatList. Two differences matter for Shoreline Crew:</p>
+                <ul>
+                    <li><strong>Sticky headings.</strong> With <code>stickySectionHeadersEnabled</code>, the current group's heading stays pinned at the top while its items scroll under it, like the letters in a phone's contact list. The default differs by platform: React Native's source turns it on for iOS and off everywhere else, so Shoreline Crew sets it explicitly to get the same behavior everywhere. A sticky heading needs a background color, or the cards show through it.</li>
+                    <li><strong>No columns.</strong> SectionList has no <code>numColumns</code>. The grouped view is one column, even on a tablet (the Bonus Challenge shows what you could do about it).</li>
+                </ul>
+                <p>Grouping is plain TypeScript: a function that turns a list into sections. You will write it as a small generic helper, <code>groupByWhen</code>, so the screen only says "group these cards by their date".</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tide table</h4>
+                    <p>A printed tide table lists every tide of the year, but under month headings, and when you fold it to this month the heading stays on top of the fold. The tides are the same data as before; the headings are just a way to find your place. A SectionList adds headings to your data without changing the items or how each one is drawn.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ A header component made inside the screen</h4>
+                    <p><code>ListHeaderComponent</code> accepts a component <em>or</em> an element. The tempting version passes a little arrow function:</p>
+                    <pre data-snippet data-legacy><code class="language-tsx">import { useState } from 'react';
+import { FlatList } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { SearchField } from '@/components/SearchField';
+
+const beaches = ['Driftwood Cove', 'Otter Creek Mouth', 'Long Strand', 'Jetty Rocks'];
+
+// Don't: a new header component on every render
+export default function InlineHeader() {
+  const [query, setQuery] = useState('');
+  return (
+    &lt;FlatList
+      data={beaches.filter((beach) =&gt; beach.toLowerCase().includes(query.toLowerCase()))}
+      keyExtractor={(beach) =&gt; beach}
+      renderItem={({ item }) =&gt; &lt;AppText&gt;{item}&lt;/AppText&gt;}
+      ListHeaderComponent={() =&gt; (
+        &lt;SearchField value={query} onChangeText={setQuery} label="Search beaches" /&gt;
+      )}
+    /&gt;
+  );
+}</code></pre>
+                    <p>Every render creates a brand-new function, so React sees a different component each time, throws the old header away and builds a new one, including a new text field. The course typed <code>lo</code> into this screen in the web preview: the field ended up holding only <code>l</code>, and nothing had focus any more. On a phone, the keyboard would close after every letter. Neither tsc nor <code>npx expo lint</code> says anything. Build the header as an <strong>element</strong> (<code>const header = ( … )</code>) and pass that: Shoreline Crew's search field kept its focus through <code>cove</code>, letter by letter.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Changing numColumns without a new key</h4>
+                    <pre data-snippet data-legacy><code class="language-tsx">import { FlatList } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { useColumns } from '@/hooks/useColumns';
+
+const beaches = ['Driftwood Cove', 'Otter Creek Mouth', 'Long Strand', 'Jetty Rocks'];
+
+// Don't: the number of columns changes, but the FlatList is the same one
+export default function NoKey() {
+  const columns = useColumns();
+  return (
+    &lt;FlatList
+      data={beaches}
+      keyExtractor={(beach) =&gt; beach}
+      numColumns={columns}
+      renderItem={({ item }) =&gt; &lt;AppText&gt;{item}&lt;/AppText&gt;}
+    /&gt;
+  );
+}</code></pre>
+                    <p>The course opened this at 390 wide and then widened the window to 1024. The page went blank, and the browser's console showed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (browser console)</h4>
+                        <pre><code>Changing numColumns on the fly is not supported. Change the key prop on FlatList when changing the number of columns to force a fresh render of the component.</code></pre>
+                    </div>
+                    <p>On a phone, the same message should appear on the red error screen (a tablet turning, a foldable opening). The message tells you the fix: <code>key={columns}</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A row style for a list with one column</h4>
+                    <p><code>columnWrapperStyle={{ gap: 16 }}</code> with <code>numColumns={1}</code> stops the screen with <code>columnWrapperStyle not supported for single column lists</code> (measured in the web preview). One column has no rows to style. Pass it only when there are columns: <code>columnWrapperStyle={grid ? styles.row : undefined}</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A key that is not a string</h4>
+                    <p>Keys are strings. Using a number, such as the cleanup's capacity (which is not unique anyway), is caught by tsc:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/index.tsx:178:7 - error TS2322: Type '(card: Card) =&gt; number' is not assignable to type '(item: Card, index: number) =&gt; string'.
+  Type 'number' is not assignable to type 'string'.
+
+178       keyExtractor={(card) =&gt; card.event.capacity}
+          ~~~~~~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/Lists/FlatList.d.ts:107:3
+    107   keyExtractor?: ((item: ItemT, index: number) =&gt; string) | undefined;
+          ~~~~~~~~~~~~
+    The expected type comes from property 'keyExtractor' which is declared here on type 'IntrinsicAttributes &amp; IntrinsicClassAttributes&lt;FlatList&lt;Card&gt;&gt; &amp; Readonly&lt;FlatListProps&lt;Card&gt;&gt;'
+
+
+Found 1 error in src/app/index.tsx:178</code></pre>
+                    </div>
+                    <p>Read it from the top: "Type 'number' is not assignable to type 'string'" in <code>keyExtractor</code>. The indented part below points into React Native's own type definitions to show where the rule comes from; the fix is always in your file. If an id really is a number, convert it: <code>String(item.id)</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A list inside a scroll view</h4>
+                    <p>Putting a FlatList inside <code>&lt;Screen scroll&gt;</code> (a ScrollView) breaks virtualization: the outer ScrollView gives the list all the height it asks for, so the list draws every item again. React Native warns in development with "VirtualizedLists should never be nested inside plain ScrollViews with the same orientation because it can break windowing and other functionality - use another VirtualizedList-backed container instead." (the course read this in React Native's source; the web preview does not print it). The fix is the one in this lesson's project: the list <em>is</em> the screen's scroll view, and everything else goes in its header or footer.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: The Cleanups List</h2>
+                <p>You make the screen's scroll settings reusable, build three small components for the empty list, turn the Cleanups screen into a FlatList in one or two columns, try every state, add pull to refresh, and finally a "Group by date" view with SectionList. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Scroll settings for any list <span class="step-time">(10 min)</span></h3>
+                    <p>A FlatList is a ScrollView underneath: it takes all of ScrollView's props. So instead of wrapping the list in <code>Screen</code> (the nested-list mistake), the list will take <code>Screen</code>'s scroll settings itself: the page color, the safe-area edges, the padding, and Lesson 2.4's two keyboard props. Move them into a hook that both can use. Replace <code>src/components/Screen.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Screen.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { ScrollView, type ScrollViewProps, StyleSheet, View } from 'react-native';
+import { type Edge, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { createThemedStyles } from '@/hooks/useTheme';
+import { layout, spacing } from '@/theme/spacing';
+
+type ScreenProps = {
+  children: ReactNode;
+  // true: the content scrolls when it is taller than the screen
+  scroll?: boolean;
+  // The edges of the phone this screen touches. Leave out an edge that a header or a tab bar covers.
+  edges?: readonly Edge[];
+};
+
+const allEdges: readonly Edge[] = ['top', 'right', 'bottom', 'left'];
+
+// Every screen starts here: the page color from edge to edge, the same padding and gaps,
+// and content kept clear of the status bar, the notch and the home indicator.
+export function Screen({ children, scroll = false, edges = allEdges }: ScreenProps) {
+  const screen = useScreenScroll(edges);
+
+  if (scroll) {
+    return &lt;ScrollView {...screen}&gt;{children}&lt;/ScrollView&gt;;
+  }
+  return (
+    &lt;View style={screen.style}&gt;
+      &lt;View style={[fill.fill, screen.contentContainerStyle]}&gt;{children}&lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// The props that turn any scrolling view into a whole screen: a ScrollView, and also a FlatList or
+// a SectionList, which are scroll views too. Spread them in: &lt;FlatList {...screen} data={...} /&gt;
+export function useScreenScroll(edges: readonly Edge[] = allEdges) {
+  const styles = useStyles();
+  const insets = useSafeAreaInsets();
+  // How much of each edge the phone covers (0 where it covers nothing, or the edge is left out)
+  const clear = (edge: Edge) =&gt; (edges.includes(edge) ? insets[edge] : 0);
+
+  // The frame stays out from under the status bar and the notch (and the sides in landscape)...
+  const frame = { paddingTop: clear('top'), paddingRight: clear('right'), paddingLeft: clear('left') };
+  // ...and the content ends above the home indicator, so the last card can scroll clear of it
+  const end = { paddingBottom: spacing.md + clear('bottom') };
+
+  return {
+    style: [styles.screen, frame],
+    contentContainerStyle: [styles.content, end],
+    // A tap on a button while the keyboard is open presses the button (and keeps the keyboard)
+    keyboardShouldPersistTaps: 'handled',
+    // Starting to scroll puts the keyboard away
+    keyboardDismissMode: 'on-drag',
+  } satisfies ScrollViewProps;
+}
+
+const fill = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  screen: {
+    flex: 1, // fill the space the navigator gives the screen, not just the content's height
+    backgroundColor: colors.page,
+  },
+  content: {
+    gap: spacing.md,
+    padding: spacing.md,
+    // On a tablet or a wide browser, the content stops growing and sits in the middle
+    width: '100%',
+    maxWidth: layout.maxContentWidth,
+    alignSelf: 'center',
+  },
+}));</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>useScreenScroll(edges)</code> returns four props: <code>style</code> (page color and the safe-area frame), <code>contentContainerStyle</code> (padding, gaps, the 960 maximum width, and room above the home indicator), <code>keyboardShouldPersistTaps</code> and <code>keyboardDismissMode</code>. Spread them into any scroll view: <code>&lt;FlatList {...screen} … /&gt;</code>. The keyboard rules from Lesson 2.4 now live in one place for every scrolling screen, list or not.</li>
+                        <li><code>satisfies ScrollViewProps</code> checks the object against ScrollView's props (a misspelled <code>keyboardDismisMode</code> is an error) while keeping the exact values, so <code>'handled'</code> stays the literal <code>'handled'</code> that the prop wants, not any string.</li>
+                        <li><code>Screen</code> itself works as before, now built on the hook. The <code>fill</code> style moved to a small plain sheet, because it has no colors.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Three components for an empty list <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li><code>src/components/LoadingView.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/LoadingView.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/LoadingView.tsx"><code class="language-tsx">import { ActivityIndicator, StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { useTheme } from '@/hooks/useTheme';
+import { spacing } from '@/theme/spacing';
+
+type LoadingViewProps = {
+  // What is loading, in words: "Loading cleanups…"
+  label: string;
+};
+
+// The phone's own spinner with words under it, for the first load of a screen
+export function LoadingView({ label }: LoadingViewProps) {
+  const { colors } = useTheme();
+  return (
+    &lt;View style={styles.box}&gt;
+      {/* A screen reader reads the words below, so the spinner itself stays silent */}
+      &lt;ActivityIndicator size="large" color={colors.action} aria-hidden /&gt;
+      &lt;AppText variant="muted"&gt;{label}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+});</code></pre>
+                            </div>
+                            <p><code>ActivityIndicator</code> takes a <code>size</code> (<code>"small"</code> or <code>"large"</code>) and a <code>color</code>. A screen reader would announce the spinner and then read the words; <code>aria-hidden</code> keeps it silent so the words are read once (the web preview marks it <code>aria-hidden="true"</code>: measured).</p>
+                        </li>
+                        <li><code>src/components/ErrorView.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/ErrorView.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/ErrorView.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { spacing } from '@/theme/spacing';
+
+type ErrorViewProps = {
+  // What went wrong, in words a volunteer understands (describeError's)
+  message: string;
+  onRetry: () =&gt; void;
+};
+
+// A failed load: what happened, and one button to try again
+export function ErrorView({ message, onRetry }: ErrorViewProps) {
+  return (
+    &lt;View style={styles.box}&gt;
+      &lt;AppText variant="error" accessibilityRole="alert"&gt;
+        {message}
+      &lt;/AppText&gt;
+      &lt;Button label="Try again" variant="primary" onPress={onRetry} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+});</code></pre>
+                            </div>
+                        </li>
+                        <li><code>src/components/EmptyState.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/EmptyState.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/EmptyState.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { spacing } from '@/theme/spacing';
+
+type EmptyStateProps = {
+  // Why the list is empty: "No cleanups match your search."
+  message: string;
+  // A way out, when there is one: a label and what pressing it does
+  action?: { label: string; onPress: () =&gt; void };
+};
+
+// What a list shows when it has nothing to show
+export function EmptyState({ message, action }: EmptyStateProps) {
+  return (
+    &lt;View style={styles.box}&gt;
+      &lt;AppText&gt;{message}&lt;/AppText&gt;
+      {action &amp;&amp; &lt;Button label={action.label} variant="primary" onPress={action.onPress} /&gt;}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+});</code></pre>
+                            </div>
+                            <p><code>action</code> is optional and comes as one object, so a caller cannot give a label without saying what it does. None of these three uses theme colors in a style sheet, so their sheets are plain <code>StyleSheet.create</code>; <code>LoadingView</code> takes its spinner color from <code>useTheme()</code>, the Lesson 2.5 rule for colors in props.</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The Cleanups screen as a FlatList <span class="step-time">(25 min)</span></h3>
+                    <p>Now <code>src/app/index.tsx</code>. Take it in four parts; tsc will complain in between, and that is fine until the last part.</p>
+                    <ol>
+                        <li>The imports. <code>FlatList</code> and the item type helper come from React Native (the import gets long, so it goes on several lines), the three new components replace the inline texts, <code>useScreenScroll</code> replaces <code>Screen</code>, and <code>Button</code> and <code>toRows</code> go (the empty state has its own button now). Delete the file <code>src/utils/rows.ts</code> too: <code>numColumns</code> makes the rows.
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx"> import { useEffect, useState } from 'react';
+-import { StyleSheet, View } from 'react-native';
++import {
++  FlatList,
++  type ListRenderItemInfo,
+ // ...
++  StyleSheet,
++  View,
++} from 'react-native';
+
+ import { describeError, getEvents, getSites } from '@/api/client';
+ import type { CleanupEvent, Site } from '@/api/types';
+ import { AppText } from '@/components/AppText';
+-import { Button } from '@/components/Button';
+ // ...
++import { EmptyState } from '@/components/EmptyState';
++import { ErrorView } from '@/components/ErrorView';
+ import { EventCard } from '@/components/EventCard';
+-import { Screen } from '@/components/Screen';
++import { LoadingView } from '@/components/LoadingView';
++import { useScreenScroll } from '@/components/Screen';
+ import { SearchField } from '@/components/SearchField';
+ // ...
+ import { getAvailability } from '@/utils/availability';
+-import { toRows } from '@/utils/rows';
+ // ...
+ import { matchesSearch } from '@/utils/search';</code></pre>
+                            </div>
+                            <p>(Lines marked <code>// ...</code> stay as they are; Steps 5 and 6 add a few more imports.)</p>
+                        </li>
+                        <li>A name for the item type, the scroll settings, and a way to load again. <code>attempt</code> is a number the effect depends on: changing it runs the effect again, which loads the cleanups again.
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">   | { status: 'loaded'; events: CleanupEvent[]; sites: Site[] };
+
+-// The Cleanups screen: the crew's banner, then one card per upcoming cleanup
++// One item of the list: a cleanup and the beach it happens at
++type Card = { event: CleanupEvent; site: Site | undefined };
++
++// The Cleanups screen: the crew's banner and filters, then a list of the upcoming cleanups
+ export default function Index() {
+   const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
++  const [attempt, setAttempt] = useState(0); // a new number loads the cleanups again
+ // ...
+   const styles = useStyles();
++  const screen = useScreenScroll();
+   const columns = useColumns();
+ // ...
+     return () =&gt; controller.abort();
+-  }, []);
++  }, [attempt]);
+
+   // Each cleanup with its beach, then only the ones that pass both filters (worked out on every render)
+-  const cards =
++  const cards: Card[] =
+     load.status === 'loaded'
+ // ...
+       : [];
+-  // The cards in rows: one card per row on a phone, two side by side on a wider screen
+-  const rows = toRows(cards, columns);
+
+   function showAll() {
+     setQuery('');
+     setOnlyOpen(false);
+   }
++
++  // After an error: back to the spinner, then load again
++  function retry() {
++    setLoad({ status: 'loading' });
++    setAttempt((count) =&gt; count + 1);
++  }</code></pre>
+                            </div>
+                            <p>The linter's hooks rule is happy with <code>[attempt]</code> even though the effect never reads it: an effect may list extra values that should make it run again. <code>retry</code> puts the screen back to <code>loading</code> first, so the volunteer sees the spinner instead of the old error while the request runs.</p>
+                        </li>
+                        <li>The header and the empty list. Everything that was above the cards becomes one element, <code>header</code>; the loading text, the error text and the empty message become one element, <code>empty</code>, chosen by the load state; and the old <code>return</code> with its <code>rows.map</code> goes:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-  return (
+-    &lt;Screen scroll&gt;
++  // Everything above the cards. An element, not a component: the search field keeps its focus.
++  const header = (
++    &lt;View style={styles.header}&gt;
+       &lt;View style={styles.banner}&gt;
+ // ...
+       &lt;SwitchRow label="Only cleanups with spots left" value={onlyOpen} onValueChange={setOnlyOpen} /&gt;
+ // ...
+       {/* The heading on the left, the count pushed to the right edge */}
+       &lt;View style={styles.sectionHeader}&gt;
+ // ...
+       &lt;/View&gt;
+-      {load.status === 'loading' &amp;&amp; &lt;AppText variant="muted"&gt;Loading cleanups…&lt;/AppText&gt;}
+-      {load.status === 'failed' &amp;&amp; (
+-        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+-          {load.message}
+-        &lt;/AppText&gt;
+-      )}
+-      {rows.map((row) =&gt; (
+-        &lt;View key={row[0].event.id} style={styles.row}&gt;
+-          {row.map(({ event, site }) =&gt; (
+-            &lt;EventCard key={event.id} event={event} site={site} style={styles.cell} /&gt;
+-          ))}
+-          {/* A last row with one card keeps an empty cell, so the card is as wide as the others */}
+-          {row.length &lt; columns &amp;&amp; &lt;View style={styles.cell} /&gt;}
+-        &lt;/View&gt;
+-      ))}
+-      {load.status === 'loaded' &amp;&amp; cards.length === 0 &amp;&amp; (
+-        &lt;View style={styles.empty}&gt;
+-          &lt;AppText&gt;No cleanups match your search.&lt;/AppText&gt;
+-          &lt;Button label="Show all cleanups" variant="primary" onPress={showAll} /&gt;
+-        &lt;/View&gt;
+-      )}
+-    &lt;/Screen&gt;
+-  );
+-}
+ // ...
++    &lt;/View&gt;
++  );
++
++  // What the list shows when it has no cards: still loading, a failed load, or nothing matches
++  const empty =
++    load.status === 'loading' ? (
++      &lt;LoadingView label="Loading cleanups…" /&gt;
++    ) : load.status === 'failed' ? (
++      &lt;ErrorView message={load.message} onRetry={retry} /&gt;
++    ) : (
++      &lt;EmptyState
++        message="No cleanups match your search."
++        action={{ label: 'Show all cleanups', onPress: showAll }}
++      /&gt;
++    );</code></pre>
+                            </div>
+                            <p>The header's contents are the same JSX as before, only the outer <code>View</code> is new. <code>header</code> and <code>empty</code> are elements: values made during this render and handed to the list, which is why the search field keeps its focus (Common Mistakes).</p>
+                        </li>
+                        <li>The list itself, in columns, and its styles:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  // Several columns: each card gets an equal share of its row (100% on a phone, 50% when wider),
++  // and the cells' padding makes the gap between cards
++  const grid = columns &gt; 1;
++  const cellWidth = `${100 / columns}%`;
++  const renderCard = ({ item }: ListRenderItemInfo&lt;Card&gt;) =&gt; (
++    &lt;View style={[{ width: cellWidth }, grid &amp;&amp; styles.cell]}&gt;
++      &lt;EventCard event={item.event} site={item.site} style={styles.fill} /&gt;
++    &lt;/View&gt;
++  );
++
++  return (
++    &lt;FlatList
++      {...screen}
++      // A FlatList cannot change its number of columns: a new key makes React build a new one
++      key={columns}
++      data={cards}
++      keyExtractor={(card) =&gt; card.event.id}
++      renderItem={renderCard}
++      numColumns={columns}
++      columnWrapperStyle={grid ? styles.row : undefined}
++      ListHeaderComponent={header}
++      ListEmptyComponent={empty}
+ // ...
++    /&gt;
++  );
++}
+ // ...
+ const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
++  header: {
++    gap: spacing.md,
++  },
+   banner: {
+ // ...
+   sectionTitle: {
+     flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
+   },
+ // ...
+   row: {
+-    flexDirection: 'row',
+-    gap: spacing.md,
++    marginHorizontal: -spacing.sm, // the outer cells' padding lines up with the header's edges
+   },
+   cell: {
+-    flex: 1, // cards in a row share its width equally (and stretch to the tallest one)
++    paddingHorizontal: spacing.sm, // half the gap on each side of a card
+   },
+-  empty: {
+-    gap: spacing.md,
++  fill: {
++    flex: 1, // the card fills its cell, so the cards in a row are as tall as the tallest
+   },
+ }));</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>{...screen}</code> comes first, so the list is a whole screen: page color, safe areas, padding and maximum width, keyboard rules. The content's <code>gap</code> now separates the header and the rows.</li>
+                                <li><code>renderCard</code> is typed with <code>ListRenderItemInfo&lt;Card&gt;</code>; <code>data={cards}</code> tells FlatList the same type, so TypeScript checks that they agree.</li>
+                                <li>The grid: every cell is exactly <code>100 / columns</code> percent wide (a string such as <code>"50%"</code>; React Native's <code>width</code> takes numbers or percentages). In two columns, each cell has 8 padding on each side and the row is pulled out by 8 on each side, so cards are 16 apart and line up with the search field above. With 7 cards, the seventh keeps its 50%: no empty spacer cell needed any more.</li>
+                                <li>Cells in a row stretch to the tallest one, and <code>styles.fill</code> makes each card fill its cell, so two cards side by side are the same height, as in Lesson 2.5.</li>
+                                <li>In one column there is no row, so no <code>columnWrapperStyle</code> and no cell padding.</li>
+                            </ul>
+                            <p>Run <code>npx tsc --noEmit</code>: it prints nothing. The web preview looks exactly as before, which is the point of a refactor. The difference is underneath: a list that draws what is near the screen.</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Try every state <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li><strong>Loading.</strong> Stop shoreline-api (<kbd>Ctrl</kbd>+<kbd>C</kbd> in its terminal; the same keys on a Mac) and start it again with half a second to three seconds of delay on every answer:
+                            <pre class="terminal"><code class="language-bash">node server.ts --latency=500-3000</code></pre>
+                            <p>Reload the web preview (<kbd>r</kbd> in Metro's terminal, or the browser's reload). The spinner and "Loading cleanups…" show under the header until the cards arrive.</p>
+                            <figure class="screenshot">
+    <img src="images/lesson_09/09-loading.png" alt="The web preview of the Cleanups screen while the cleanups load, in a phone frame: the Deep Tide banner, the search field, the switches Only cleanups with spots left and Group by date, the heading Upcoming cleanups, and under it a large Sea Teal spinner with the muted words Loading cleanups below it." width="420" height="814" loading="lazy">
+    <figcaption>While the first answer is on its way, the list is empty, so FlatList shows its <code>ListEmptyComponent</code>: here, the <code>LoadingView</code>. The banner, search and switches are the list's header and show at once.</figcaption>
+</figure>
+                        </li>
+                        <li><strong>Failed.</strong> Stop shoreline-api and reload the app. After a moment, the error view appears with describeError's words.
+                            <figure class="screenshot">
+    <img src="images/lesson_09/09-error.png" alt="The Cleanups screen after a failed load: under the heading Upcoming cleanups, the coral message Could not reach the server. Check that shoreline-api is running, then try again. Below it a filled Sea Teal button Try again, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>When the request fails, the same empty list shows the <code>ErrorView</code>: what happened, in words a volunteer understands, and one button to load again.</figcaption>
+</figure>
+                            Start the API again (<code>node server.ts</code>) and press <strong>Try again</strong>: the spinner, then the cards. That button is the whole difference between "the app is broken" and "the network was down for a moment".</li>
+                        <li><strong>Nothing matches.</strong> Search for <code>volcano</code>: "0 of 8 cleanups", the empty message and <strong>Show all cleanups</strong>, as in Lesson 2.4.</li>
+                        <li><strong>Columns.</strong> Make the browser window wider than 700: the list becomes two columns without an error (that is <code>key={columns}</code> at work). Turn on "Only cleanups with spots left" to get an odd number of cards and scroll to the end.
+                            <figure class="screenshot">
+    <img src="images/lesson_09/09-last-row.png" alt="The web preview in a window 1024 wide with Only cleanups with spots left on: the end of the two-column grid. Creek Mouth Willows and Long Strand Coastal Cleanup Day share a row; below them Night Heron Walk and Clean sits alone in the left column, exactly as wide as the cards above it, with empty Sand to its right." width="1024" height="768" loading="lazy">
+    <figcaption>Seven cards in two columns: every cell is 50% of the row, so the seventh card keeps the same width as the others instead of stretching across both columns.</figcaption>
+</figure>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Pull to refresh <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Add the refresh state next to <code>attempt</code>, and let the effect switch it off when the answer (or the error) arrives:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">   const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
+ // ...
++  const [refreshing, setRefreshing] = useState(false);
+ // ...
+     Promise.all([getEvents('when=upcoming', controller.signal), getSites(controller.signal)])
+-      .then(([page, sites]) =&gt; setLoad({ status: 'loaded', events: page.items, sites }))
++      .then(([page, sites]) =&gt; {
++        setLoad({ status: 'loaded', events: page.items, sites });
++        setRefreshing(false);
++      })
+       .catch((error: unknown) =&gt; {
+         if (!controller.signal.aborted) {
+           setLoad({ status: 'failed', message: describeError(error) });
++          setRefreshing(false);
+         }
+       });</code></pre>
+                            </div>
+                        </li>
+                        <li>Below <code>retry</code>, the function the list calls. Unlike <code>retry</code>, it does not go back to <code>loading</code>: the cards stay on screen and the refresh spinner shows instead.
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  // Pull to refresh: the cards stay on screen while the list loads again
++  function refresh() {
++    setRefreshing(true);
++    setAttempt((count) =&gt; count + 1);
++  }</code></pre>
+                            </div>
+                        </li>
+                        <li>Give the list its two pull-to-refresh props, after <code>ListEmptyComponent</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+      refreshing={refreshing}
++      onRefresh={refresh}</code></pre>
+                            </div>
+                        </li>
+                        <li>And the web preview's button. Add <code>Platform</code> to the <code>react-native</code> import list (between <code>type ListRenderItemInfo</code> and <code>StyleSheet</code>), bring back the <code>Button</code> import (after <code>AppText</code>'s), and put the button at the end of the header, after the heading row:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  Platform,
+ // ...
+ import { AppText } from '@/components/AppText';
++import { Button } from '@/components/Button';
+ // ...
++      {/* A browser has no pull-to-refresh gesture, so the web preview gets a button */}
++      {Platform.OS === 'web' &amp;&amp; load.status === 'loaded' &amp;&amp; (
++        &lt;Button label={refreshing ? 'Refreshing…' : 'Refresh'} disabled={refreshing} onPress={refresh} /&gt;
++      )}
++    &lt;/View&gt;
++  );</code></pre>
+                            </div>
+                            <p>The button only shows once there are cards to refresh, and it is disabled with "Refreshing…" while the request runs, so a double click does not send two. The course clicked it in the web preview with the answer held back: the label said "Refreshing…", all eight cards stayed, and two new requests (cleanups and sites) went out.</p>
+                        </li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>In Expo Go, pull the list down from the top and let go: you should see the platform's refresh spinner (iOS: above the list; Android: a round indicator sliding down from the top), and it should disappear when the cleanups arrive. The cleanups only reach a phone after Lesson 5.1, but you can already try the gesture: with no API reachable, the error view comes back, which proves <code>setRefreshing(false)</code> runs on failure too.</p>
+                    </div>
+                    <p>To see a refresh change something, sign Theo (the API's sample volunteer) up for the Boardwalk and Mudflats cleanup from a third terminal, then refresh: its "spots left" goes down by one.</p>
+                    <pre class="terminal"><code class="language-bash">curl -X POST -H "Authorization: Bearer dev-volunteer" http://localhost:4000/api/events/e09/signups</code></pre>
+                    <p>On Windows, type <code>curl.exe</code> instead of <code>curl</code> in PowerShell (there, <code>curl</code> alone means something else). Restarting shoreline-api puts its data back as it was.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Grouped by date with SectionList <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li>Create <code>src/utils/sections.ts</code>, the grouping as plain TypeScript:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/utils/sections.ts</div>
+                                <pre data-src="shoreline-crew/src/utils/sections.ts"><code class="language-ts">import type { DateString } from '@/api/types';
+
+// The headings of the grouped list, the nearest first
+export const whenGroups = ['Today', 'Within a week', 'Within a month', 'Later'] as const;
+export type WhenGroup = (typeof whenGroups)[number];
+
+// One heading and the items under it: the shape SectionList wants
+export type Section&lt;T&gt; = { title: WhenGroup; data: T[] };
+
+// Whole days from today to a date, both "YYYY-MM-DD": 0 is today, 3 is three days away.
+// A date alone is read as midnight UTC; both are, so the difference is whole days.
+export function daysFrom(today: DateString, date: DateString): number {
+  return Math.round((Date.parse(date) - Date.parse(today)) / 86_400_000);
+}
+
+export function whenGroup(days: number): WhenGroup {
+  if (days &lt;= 0) {
+    return 'Today';
+  }
+  if (days &lt;= 7) {
+    return 'Within a week';
+  }
+  if (days &lt;= 30) {
+    return 'Within a month';
+  }
+  return 'Later';
+}
+
+// The items in sections, nearest first, leaving out headings with nothing under them
+export function groupByWhen&lt;T&gt;(
+  items: T[],
+  dateOf: (item: T) =&gt; DateString,
+  today: DateString,
+): Section&lt;T&gt;[] {
+  return whenGroups
+    .map((title) =&gt; ({
+      title,
+      data: items.filter((item) =&gt; whenGroup(daysFrom(today, dateOf(item))) === title),
+    }))
+    .filter((section) =&gt; section.data.length &gt; 0);
+}</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>whenGroups</code> is <code>as const</code>, so <code>WhenGroup</code> is the union of its four strings, and a section title can only be one of them.</li>
+                                <li><code>daysFrom</code> compares two <code>"YYYY-MM-DD"</code> days. Lesson 1.3's <code>formatDate</code> warned that a date alone is read as midnight UTC; here that is what we want, because both days are read the same way, so the difference is always a whole number of days, even across a daylight-saving change.</li>
+                                <li><code>groupByWhen</code> is generic, like Lesson 2.5's <code>toRows</code>: it does not care what the items are, only how to get a date from one (<code>dateOf</code>). Empty groups are left out, so a search never shows a heading with nothing under it.</li>
+                            </ul>
+                        </li>
+                        <li>In <code>index.tsx</code>, add <code>SectionList</code> to the <code>react-native</code> import list (after <code>Platform</code>) and the two helpers (in alphabetical order with the other <code>@/utils</code> imports):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  SectionList,
+ // ...
++import { toDateString } from '@/utils/format';
+ // ...
++import { groupByWhen } from '@/utils/sections';</code></pre>
+                            </div>
+                        </li>
+                        <li>A switch for it, under the other one:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">   const [onlyOpen, setOnlyOpen] = useState(false);
++  const [grouped, setGrouped] = useState(false);
+ // ...
+       &lt;SwitchRow label="Only cleanups with spots left" value={onlyOpen} onValueChange={setOnlyOpen} /&gt;
++      &lt;SwitchRow label="Group by date" value={grouped} onValueChange={setGrouped} /&gt;</code></pre>
+                            </div>
+                        </li>
+                        <li>When the switch is on, return a SectionList instead. It goes after <code>empty</code> and before the <code>// Several columns</code> comment; it uses the same header, empty element and refresh as the FlatList:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  if (grouped) {
++    // The same cards under headings: Today, Within a week, Within a month, Later
++    const sections = groupByWhen(cards, (card) =&gt; card.event.date, toDateString(new Date()));
++    return (
++      &lt;SectionList
++        {...screen}
++        sections={sections}
++        keyExtractor={(card) =&gt; card.event.id}
++        renderItem={({ item }) =&gt; &lt;EventCard event={item.event} site={item.site} /&gt;}
++        renderSectionHeader={({ section }) =&gt; (
++          &lt;AppText variant="heading" accessibilityRole="header" style={styles.groupTitle}&gt;
++            {section.title}
++          &lt;/AppText&gt;
++        )}
++        stickySectionHeadersEnabled // the heading stays at the top while its cards scroll under it
++        ListHeaderComponent={header}
++        ListEmptyComponent={empty}
++        refreshing={refreshing}
++        onRefresh={refresh}
++      /&gt;
++    );
++  }
+ // ...
+   sectionTitle: {
+     flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
+   },
++  groupTitle: {
++    backgroundColor: colors.page, // a sticky heading covers the cards scrolling under it
++    paddingVertical: spacing.xs,
++  },</code></pre>
+                            </div>
+                            <ul>
+                                <li>TypeScript works out both types from <code>sections</code>: <code>item</code> is a <code>Card</code>, and <code>section.title</code> is a <code>WhenGroup</code>. Hover over them in VS Code to see.</li>
+                                <li>Today's date comes from the device (<code>toDateString</code>, Lesson 1.3), so the groups move with the calendar like the cleanups do.</li>
+                                <li>The section headings are headers for screen readers, like the other headings on the screen.</li>
+                            </ul>
+                        </li>
+                        <li>Turn on <strong>Group by date</strong> in the web preview and scroll: the headings Today, Within a week, Within a month and Later, each pinned to the top while its cards pass under it. Search for <code>calder</code>: only the groups that still have cards remain.
+                            <figure class="screenshot">
+    <img src="images/lesson_09/09-grouped.png" alt="The grouped list, scrolled down: the heading Within a month stays pinned at the top of the screen on the Sand page color, while the card Family Beach Morning, with its beach picture, date, place and spots left, scrolls up underneath it." width="420" height="814" loading="lazy">
+    <figcaption>With Group by date on, a <code>SectionList</code> shows the same cards under headings. <code>stickySectionHeadersEnabled</code> pins the current heading to the top while its cards scroll under it.</figcaption>
+</figure>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <p>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                    <p>Commit (git sees <code>rows.ts</code> as deleted, which <code>-A</code> includes):</p>
+                    <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Cleanups as a FlatList with loading, error and empty states, pull to refresh and a grouped SectionList"</code></pre>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project: list its lists. For each one, write what one item is (its type), where its key comes from, and the words it shows when it is loading, when the load failed, and when there is nothing yet ("No orders yet" is not the same as "Could not reach the server"). Which list would read better grouped under headings, and what would the headings be?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>Screen.tsx</code> exports <code>useScreenScroll</code>, and <code>Screen</code> uses it</li>
+                        <li>☐ <code>LoadingView</code>, <code>ErrorView</code> and <code>EmptyState</code> exist, and the Cleanups screen shows each one at the right moment (slow API, stopped API, "volcano")</li>
+                        <li>☐ The Cleanups screen is a <code>FlatList</code> with <code>keyExtractor</code> on the cleanup's id, one column on a phone and two at 700 wide, with no error when the window changes width</li>
+                        <li>☐ Try again and Refresh load the cleanups again; pull to refresh is wired with <code>refreshing</code> and <code>onRefresh</code></li>
+                        <li>☐ Group by date shows a <code>SectionList</code> with sticky headings, and empty groups disappear when searching</li>
+                        <li>☐ <code>src/utils/rows.ts</code> is gone, <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: The end of the list</h3>
+                    <p>When the cards have loaded, show a quiet line under the last one: "That is every upcoming cleanup." It should not appear while loading, after an error, or when nothing matches.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>FlatList has a prop for what scrolls below the items, the way <code>ListHeaderComponent</code> scrolls above them. Which variable tells you there are cards?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>ListFooterComponent={cards.length &gt; 0 ? &lt;AppText variant="muted" style={styles.footer}&gt;That is every upcoming cleanup.&lt;/AppText&gt; : undefined}</code> to the FlatList (and the SectionList, if you like), with <code>footer: { textAlign: 'center' }</code> in the styles. <code>cards</code> is empty in all three "no cards" states, so one condition covers them. Note <code>undefined</code>, not <code>null</code>: React Native's types for this prop accept an element, a component or <code>undefined</code>, and tsc rejects <code>null</code> with "Type 'null' is not assignable to type 'Element | ComponentType&lt;any&gt; | undefined'". Lesson 3.2 replaces this line with "loading more…" when the list loads page by page.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Read the key error</h3>
+                    <p>Change the FlatList's <code>keyExtractor</code> to <code>(card) =&gt; card.event.capacity</code> and run <code>npx tsc --noEmit</code>. Which line of the message names the problem, and what is the part that points into <code>node_modules</code> for?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Compare the first two lines: one describes the whole function, the other the part that is wrong.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The second line, "Type 'number' is not assignable to type 'string'", names it: a key must be a string. The first line says the same for the whole function, <code>(card: Card) =&gt; number</code> versus the expected <code>(item: Card, index: number) =&gt; string</code>. The indented part below the code frame quotes React Native's own <code>FlatList.d.ts</code>: "the expected type comes from property 'keyExtractor'", which is where the rule is written. You never edit that file; you fix your function. Capacity would also be a bad key even as a string: two cleanups can have the same capacity. Put <code>card.event.id</code> back.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Counts in the headings</h3>
+                    <p>Show how many cleanups each group has: "Within a month (4)".</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>renderSectionHeader</code> receives the whole section, and a section has its <code>data</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>renderSectionHeader</code>, write <code>{`${section.title} (${section.data.length})`}</code> inside the <code>AppText</code>. A screen reader reads "Within a month (4)" as "Within a month, 4", which is clear enough; if you prefer words, write <code>{section.title}, {section.data.length} cleanups</code>.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Back to the top (Stretch)</h3>
+                    <p>Add a "Back to the top" button under the last card that scrolls the FlatList back to the search field.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>You need a <code>ref</code> to the list (typed with the item type, as in the web course's refs) and FlatList's <code>scrollToOffset</code> method.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Import <code>useRef</code> from React. In the component: <code>const listRef = useRef&lt;FlatList&lt;Card&gt;&gt;(null);</code>, then <code>ref={listRef}</code> on the FlatList and, as its footer, <code>&lt;Button label="Back to the top" onPress={() =&gt; listRef.current?.scrollToOffset({ offset: 0, animated: true })} /&gt;</code> when <code>cards.length &gt; 0</code> (otherwise <code>undefined</code>, as in Exercise 1). The <code>?.</code> is needed because the ref is <code>null</code> until the list exists. When <code>key={columns}</code> builds a new list, React points the ref at the new one for you.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate moves the search field into <code>ListHeaderComponent={() =&gt; &lt;SearchField … /&gt;}</code>. What does a volunteer notice on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Neither tsc nor the linter complains about this; look at what happens on each render instead.">
+                                A) The app does not compile
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The cards have stable keys; the problem is the header, which is a component, not an item.">
+                                B) Cards appear twice
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A header shows in every state, loading included.">
+                                C) The search field only appears after the cleanups load
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The arrow function is a new component on every render, so React replaces the header, and its text field, after each letter. Focus is lost and the keyboard closes. Pass an element (const header = ...) instead.">
+                                D) The keyboard closes after every letter
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> The Cleanups FlatList has <code>numColumns={columns}</code> but no <code>key</code>. A volunteer opens Shoreline Crew on a tablet in split screen and makes it wider than 700. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="FlatList builds its rows once, for one number of columns.">
+                                A) The cards move into two columns
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="FlatList cannot change numColumns in place: it stops with Changing numColumns on the fly is not supported. A key that changes with the number of columns, key={columns}, makes React build a new list instead.">
+                                B) An error: changing numColumns on the fly is not supported
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="useColumns re-renders the screen when the window changes; the question is what FlatList does with the new number.">
+                                C) Nothing changes until the app restarts
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Which <code>keyExtractor</code> is right for the Cleanups list?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Positions change when a search filters the list; what happened to the open details in the course's test?">
+                                A) <code>(card, index) =&gt; String(index)</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is a title guaranteed to be unique, and to stay the same if an organizer fixes a typo?">
+                                B) <code>(card) =&gt; card.event.title</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The API's id is unique and never changes, so each drawn card stays with its cleanup while the list is filtered, refreshed or regrouped. Positions and titles can both change.">
+                                C) <code>(card) =&gt; card.event.id</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A key that changes on every render tells React every card is new each time.">
+                                D) <code>() =&gt; String(Math.random())</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> shoreline-api is not running when a volunteer opens the Cleanups screen. Where does the error view appear?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The failed load leaves the list with no cards, so FlatList shows ListEmptyComponent, which is the ErrorView in the failed state. The header (banner, search, switches) stays above it.">
+                                A) In the list's <code>ListEmptyComponent</code>, under the banner and the search field
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Nothing in the code navigates anywhere; the screen stays the same list.">
+                                B) On a separate error screen that replaces the list
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="ListFooterComponent is not used here; which prop shows when data is empty?">
+                                C) In <code>ListFooterComponent</code>, after the cards
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> On a tablet, the Cleanups screen shows two columns, but with Group by date on it shows one. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="useColumns still returns 2; who ignores it?">
+                                A) <code>useColumns</code> returns 1 when the list is grouped
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="SectionList has no numColumns, so the grouped view is one card per line at any width. Getting columns there means putting rows of cards in each section yourself.">
+                                B) <code>SectionList</code> has no <code>numColumns</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Sticky headings work at any width; the limit is in what SectionList offers.">
+                                C) Sticky headings only work with one column
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Eight cleanups scroll fine in a ScrollView. Was this worth it?</summary>
+                    <p>For eight, the difference is invisible. But the list's size is not up to you: the API has more cleanups than the first page, Lesson 3.2 loads them page by page, and an organizer's list in a real group could have hundreds. You also got the header, the empty states and pull to refresh as part of the deal. Use a ScrollView for content you know is short (a form, a detail page) and a list component for anything that comes from data.</p>
+                </details>
+                <details>
+                    <summary>What about FlashList? I have read it is faster.</summary>
+                    <p>It is, for big lists: Shopify's FlashList recycles drawn rows instead of throwing them away. Its props are almost the same as FlatList's, which is why the course starts here. Lesson 3.2 switches the Cleanups list to FlashList, adds paging, and measures the difference.</p>
+                </details>
+                <details>
+                    <summary>My list shows nothing, or does not scroll. Why?</summary>
+                    <p>Usually its parent has no height. A FlatList fills the space it is given; inside a <code>View</code> with no <code>flex: 1</code>, that can be no space at all. Shoreline Crew avoids this because the list <em>is</em> the screen (<code>useScreenScroll</code>'s style has <code>flex: 1</code>). The other cause is a list inside a ScrollView (Common Mistakes).</p>
+                </details>
+                <details>
+                    <summary>A card does not update when state outside its item changes. Why?</summary>
+                    <p>FlatList only draws a row again when its item or one of the list's own props changes. If <code>renderItem</code> reads something that is not in <code>data</code> (say, a "selected id" in the screen's state), pass it as <code>extraData={selectedId}</code> so the list knows to look again. Shoreline Crew's cards only use their own item (and their own <code>Show details</code> state, which lives inside the card), so it does not need <code>extraData</code>.</p>
+                </details>
+                <details>
+                    <summary>Should pull to refresh be the only way to refresh?</summary>
+                    <p>A pull is a hidden gesture: people who use a screen reader, a keyboard or a switch control may never find it. Shoreline Crew's web preview has a button anyway; Lesson 8.1 looks at how screen readers reach pull to refresh on phones and whether the app needs a visible way too. In Module 5, TanStack Query also refreshes data on its own when the app comes back to the foreground.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Give the grouped view two columns on wide screens. SectionList has no <code>numColumns</code>, but nothing stops a section's <code>data</code> from being rows of cards instead of cards: group first, then split each section's cards into rows of <code>columns</code> (Lesson 2.5's <code>toRows</code> did exactly that; you deleted it today, so write it again in <code>src/utils/</code>). Each item is then a row, <code>renderItem</code> draws a row of cells, and the key becomes the first card's id. Check that the lone card in a group's last row keeps its width.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Open two apps you use every day and put your phone in airplane mode. Pull a list to refresh in each. What do they show: a spinner that never ends, an old list with a quiet note, a full-screen error, nothing? Which one would you want on a beach with one bar of signal, and what will you copy for Shoreline Crew?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>A <code>ScrollView</code> draws every child; a <code>FlatList</code> draws the rows near the screen and more as you scroll (virtualization). Use list components for anything that comes from data</li>
+                        <li><code>data</code> + <code>renderItem</code> + <code>keyExtractor</code>: TypeScript reads the item type from <code>data</code>; keys are strings from the data (an id), never positions</li>
+                        <li><code>ListHeaderComponent</code> (an element, not an inline component), <code>ListEmptyComponent</code> for loading, failed and nothing-matches, <code>ListFooterComponent</code> below the items</li>
+                        <li><code>numColumns</code> makes rows; give the list <code>key={columns}</code>, use <code>columnWrapperStyle</code> only with more than one column, and size cells as a share of the row</li>
+                        <li>Pull to refresh = <code>refreshing</code> + <code>onRefresh</code>; set <code>refreshing</code> back to false on success and failure. The web preview has no gesture</li>
+                        <li><code>SectionList</code> groups items under headings from <code>sections</code>; sticky headings need <code>stickySectionHeadersEnabled</code> on Android and a background color; no columns</li>
+                        <li>A list is the screen's scroll view: never put it inside another vertical ScrollView</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate a web list habit (<code>map</code> in a <code>&lt;ul&gt;</code>, a sticky table header)</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (virtualization, key, section)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read every FlatList prop</td><td><a href="https://reactnative.dev/docs/flatlist" target="_blank" rel="noopener">React Native: FlatList</a></td></tr>
+                            <tr><td>Read about SectionList</td><td><a href="https://reactnative.dev/docs/sectionlist" target="_blank" rel="noopener">React Native: SectionList</a></td></tr>
+                            <tr><td>Read about pull to refresh</td><td><a href="https://reactnative.dev/docs/refreshcontrol" target="_blank" rel="noopener">React Native: RefreshControl</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You turned the Cleanups screen into a real list that draws only what is near the screen, in one or two columns</li>
+                        <li>You gave every empty moment its own words: loading, a failed load with Try again, and nothing matching</li>
+                        <li>You added pull to refresh, and a button where the platform has no gesture</li>
+                        <li>You grouped the cleanups under sticky headings with a typed, reusable grouping helper</li>
+                        <li>You measured why keys must come from the data, and made the screen's scroll settings reusable for every list to come</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_10.html"><strong>Lesson 3.2: Big Lists, Fast</strong></a> the Cleanups list switches to FlashList, loads cleanups a page at a time as you reach the end of the list (the footer you may have built in Exercise 1 becomes "loading more…"), and you measure what it costs to draw a list on a phone.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Try every state once more (slow, stopped, nothing matches, refreshed) and commit your work</li>
+                    <li>In Expo Go, pull the Cleanups screen down and watch the refresh spinner</li>
+                    <li>Open <code>http://localhost:4000/api/events?perPage=5</code> in a browser and look at the response headers <code>X-Total-Count</code> and <code>X-Total-Pages</code> (your browser's DevTools, Network tab): Lesson 3.2 uses them</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today the screen looked the same at the end as at the start, and that is a real achievement: you replaced its foundations without breaking anything a volunteer could see, and then you deliberately broke it (a slow API, a stopped one, a search for a volcano) to make sure it fails gracefully. Many apps never get that second part right. If some of the list's props still blur together, that is normal: you will use them again in every lesson that has a list, and they will settle.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_08.html" class="prev-lesson">← Previous: Responsive, Platform-Specific and Themed UI</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_10.html" class="next-lesson">Next: Big Lists, Fast →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

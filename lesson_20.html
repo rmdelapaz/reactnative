@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Permissions done right on a phone: ask at the moment a feature needs it, explain why first, take a no gracefully, send blocked users to Settings, read Expo's permission Hooks and responses, set the words on the question with a config plugin in app.json, and know what Expo Go, development builds and the web preview show. React Native &amp; Expo: Build and Ship a Mobile App Lesson 6.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Permissions Done Right - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+            <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🔐 Lesson 6.1: Permissions Done Right</h1>
+                <p class="lead">A phone keeps the things people care about most (where they are, what their camera sees, their photos, their attention) behind doors only they can open. Every device feature in this module starts at one of those doors, and how you knock decides whether it ever opens. Today you learn to knock well: at the right moment, with a reason, ready for a no. Shoreline Crew gets a small, reusable permission step and its first real use, a "How far is it?" panel that asks for the volunteer's location only when they want their distance.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Describe the life of a permission on an iPhone, an Android phone and the web preview: not asked, granted, denied, and blocked (plus the one-time and approximate answers)</li>
+                        <li>Ask at the moment a feature needs it, explain why first, and handle "no" and "don't ask again" without trapping the person</li>
+                        <li>Use Expo's permission model: the permission Hooks, <code>get…PermissionsAsync</code> versus <code>request…PermissionsAsync</code>, the <code>PermissionResponse</code> object, and what the Hooks leave to you</li>
+                        <li>Write the words on the phone's question with a config plugin in <code>app.json</code>, ask only for what you use, and check what reaches the native projects</li>
+                        <li>Say what Expo Go, a development build and the web preview each show you about permissions</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 135 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_19.html">Lesson 5.5: Offline First</a> (and the focus manager from <a href="lesson_16.html">Lesson 5.2</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A reusable permission step (<code>usePermission</code> and <code>PermissionGate</code>) and a <strong>How far is it?</strong> panel on the cleanup screen that asks for location only when the volunteer presses <strong>Show my distance</strong></li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), expo-location 58.0, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the real permission questions; the web preview in Chrome for the quick checks; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-20-start.zip">lesson-20-start.zip</a> · Finished code: <a href="downloads/lesson-20-end.zip">lesson-20-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Knocking Before You Enter</a></li>
+                        <li><a href="#life" class="toc-link">The Life of a Permission</a></li>
+                        <li><a href="#moment" class="toc-link">The Right Moment, the Reason, and the No</a></li>
+                        <li><a href="#expo" class="toc-link">Permissions in Expo Modules</a></li>
+                        <li><a href="#config" class="toc-link">The Words on the Question: Config Plugins</a></li>
+                        <li><a href="#builds" class="toc-link">Expo Go, Development Builds and the Web Preview</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Location, Asked Politely</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Knocking Before You Enter</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you noticed two kinds of apps. Some greet you with a stack of questions before you have seen a single screen: location, notifications, contacts, Bluetooth. Others wait until you tap "Scan a code" and only then ask for the camera. You probably said yes more easily to the second kind, and you probably remember which apps you refused out of plain irritation.</p>
+                <p>That difference is the whole lesson. The phone's permission question is the same dialog in both apps; what changes is <em>when</em> it appears, whether the app said why first, and what happens after a no. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>You can predict the phone's behavior</strong> for every answer, on iPhone and on Android, including the one that never lets you ask again.</li>
+                    <li><strong>Shoreline Crew has a permission step it can reuse</strong>: a Hook that turns any Expo permission into one of five steps, and a component that explains, asks, takes a no, and points to Settings. Lessons 6.2 to 6.4 put the camera and notifications through the same step.</li>
+                    <li><strong>The cleanup screen asks for location at the right moment</strong>, with its own words on the question, and shows how far the volunteer is from the beach.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> permissions are where an app's first impression, its store review and its users' trust meet. A rejected App Store build for a vague purpose string, a one-star review that says "wants my location for no reason", a feature nobody can use because they tapped "Don't Allow" on day one: each one is a permission handled carelessly. Teams notice the developer who gets this right the first time.</p>
+                <div class="card card-accent">
+                    <h4>🌱 The phone has the last word</h4>
+                    <p>Much of today happens in dialogs your code does not draw and cannot screenshot, and some of it you can only see on a real phone. That can feel like working blind. It is not: the rules are documented, the code paths are few, and the web preview lets you try every one of them on your computer first. When the phone surprises you, that is information, not failure. Write it down and adjust.</p>
+                </div>
+            </section>
+
+            <section id="life" class="lesson-section">
+                <h2>🚦 The Life of a Permission</h2>
+                <p>On the web, a page asks the browser, and the browser asks the person. On a phone, the app asks the operating system, and the operating system asks the person, in its own dialog, with its own buttons. Your app never sees the dialog. It only gets the answer, and it can ask the question only while the phone allows it.</p>
+                <p>Every permission an app can ask for (location, camera, photos, microphone, notifications and more) moves through the same few states:</p>
+<div class="mermaid">
+graph TD
+    A["Not asked yet"] -->|"the app asks"| B{"The phone's question"}
+    B -->|"Allow"| C["Granted"]
+    B -->|"Don't allow"| D["Denied"]
+    D -->|"Android: ask once more"| B
+    D -->|"no more questions"| E["Blocked"]
+    E -->|"Settings app"| C
+    C -->|"Settings app"| E
+</div>
+                <p>The arrows are where the platforms differ, and they are worth knowing by heart:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>State</th><th>iPhone</th><th>Android phone</th><th>Web preview (Chrome)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>Not asked yet</strong></td><td>The first request shows the question</td><td>The first request shows the question</td><td>The first request shows the browser's bubble</td></tr>
+                            <tr><td><strong>Granted</strong></td><td>"Allow While Using App", or "Allow Once" (for this session only)</td><td>"While using the app", or "Only this time"</td><td>"Allow on every visit", or "Allow this time"</td></tr>
+                            <tr><td><strong>Denied, may ask again</strong></td><td>Never: one "Don't Allow" and the question is gone</td><td>After the first "Don't allow", the app may ask once more</td><td>Not reported (see below)</td></tr>
+                            <tr><td><strong>Blocked</strong></td><td>After "Don't Allow"</td><td>After the second "Don't allow"</td><td>After "Never allow" (or "Block")</td></tr>
+                            <tr><td><strong>Changed later</strong></td><td>Settings, under the app's name</td><td>Settings, App info, Permissions</td><td>Site settings (the icon left of the address)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Three more facts shape how you write the code:</p>
+                <ul>
+                    <li><strong>Answers come in shades.</strong> Location can be granted as <em>approximate</em> instead of precise: iPhone has a Precise switch in its question, and Android 12 and later offer "Approximate" and "Precise" side by side. A one-time answer ("Allow Once", "Only this time") lasts until the app is no longer in use, and then the phone asks again next time. The app sees "granted" either way.</li>
+                    <li><strong>Answers change without you.</strong> People change them in Settings whenever they like, and Android can reset the permissions of an app that has not been used for months. "It was granted last week" means nothing today: check before every use.</li>
+                    <li><strong>Not everything needs a permission.</strong> Network requests, the app's own storage (Module 5), the share sheet (Lesson 4.4) and haptics do not. The photo picker you will use in Lesson 6.2 generally does not either; the camera does. Notifications do, on iPhone and on recent Android versions (Lesson 6.4).</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The iPhone and Android behaviors in this section come from Apple's, Google's and Expo's documentation, and could not be run here. The dialogs' exact wording changes between versions of iOS and Android; the states do not. You will meet each state on your own phone in Step 6.</p>
+                </div>
+            </section>
+
+            <section id="moment" class="lesson-section">
+                <h2>🚪 The Right Moment, the Reason, and the No</h2>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the farm gate on the way to the beach</h4>
+                    <p>Some of Shoreline Crew's beaches are reached across private land. The crew does not knock on every farmhouse door when the van leaves the depot. It knocks when it reaches the gate, says in one sentence why ("We're collecting litter from the cove; we'll close the gate behind us"), and if the answer is no, takes the long way round without arguing. If the gate is padlocked, nobody climbs it: the crew calls the office that holds the key. The gate is the permission, the sentence is your explanation, the long way round is your app working without it, and the office is the Settings app.</p>
+                </div>
+                <p>Five rules follow from it:</p>
+                <ol>
+                    <li><strong>Ask in context.</strong> Ask when the person does the thing that needs it: presses <strong>Show my distance</strong>, <strong>Take a photo</strong>, <strong>Remind me</strong>. At that moment the question answers itself. At launch it is a stranger at the door asking for keys.</li>
+                    <li><strong>Explain first, in a sentence or two.</strong> Say what you need, what it is for, and what you will not do with it. The button under your explanation leads straight to the phone's question, so call it <strong>Continue</strong>, not "Allow": the real "Allow" is the phone's. A <strong>Not now</strong> that asks nothing is the polite way out.</li>
+                    <li><strong>A no is an answer.</strong> Everything that does not need the permission keeps working, and where you can, offer another way (Lesson 6.3's check-in needs only a code, never the location; Lesson 6.2 can pick a photo instead of taking one). Ask again only when the person asks for the feature again, never on a timer.</li>
+                    <li><strong>When only Settings can help, say so.</strong> Explain plainly that the phone will not ask again, offer a button that opens your app's page in Settings, and notice when the person comes back.</li>
+                    <li><strong>Check before every use.</strong> The answer can change in Settings at any time.</li>
+                </ol>
+                <p>Why so careful? On an iPhone, a "Don't Allow" given at launch to a question nobody understood is final, as far as your app is concerned: the only way back is a trip through Settings that most people will never make. Apple's guidelines also ask that a screen shown before the system question does not imitate it and leads on to it (check the current App Review Guidelines before you ship), which is exactly what a <strong>Continue</strong> button does.</p>
+            </section>
+
+            <section id="expo" class="lesson-section">
+                <h2>🧩 Permissions in Expo Modules</h2>
+                <p>On the web, each browser API has its own permission style. Expo gives every module the same three tools, so once you know one module you know them all. For location (<code>expo-location</code>):</p>
+                <pre data-snippet><code class="language-tsx">import * as Location from 'expo-location';
+
+// Plain functions, anywhere
+const now = await Location.getForegroundPermissionsAsync(); // reads the answer, never asks
+const after = await Location.requestForegroundPermissionsAsync(); // asks, if the phone still may
+
+// The Hook, in a component: [the answer so far (null at first), ask, read again]
+const [response, requestPermission, getPermission] = Location.useForegroundPermissions();</code></pre>
+                <p><code>request…</code> shows the phone's question only while the state is "not asked yet" (or Android's one extra chance); otherwise it returns the current answer at once, silently. Other modules follow the same pattern: <code>ImagePicker.useCameraPermissions()</code> in Lesson 6.2, the camera module's <code>useCameraPermissions()</code>, and so on. Every one of them answers with the same shape, defined in <code>expo-modules-core</code> and exported by <code>expo</code>:</p>
+                <pre data-snippet><code class="language-ts">// What every get…PermissionsAsync and request…PermissionsAsync resolves to (shortened)
+type PermissionResponse = {
+  status: PermissionStatus; // 'granted' | 'undetermined' | 'denied'
+  granted: boolean; // status === 'granted', for convenience
+  canAskAgain: boolean; // false: only the Settings app can change the answer
+  expires: PermissionExpiration; // 'never' | number
+};</code></pre>
+                <p>Modules add their own extras to it: location's answer carries <code>ios.accuracy</code> (<code>'full'</code> or <code>'reduced'</code>) and <code>android.accuracy</code> (<code>'fine'</code>, <code>'coarse'</code> or <code>'none'</code>), which is how an app learns it got the approximate answer. The five states from the diagram fall out of three fields:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The answer</th><th>Our step</th><th>What the volunteer sees</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>null</code> (the Hook is still reading)</td><td><code>'checking'</code></td><td>A short "Checking…"</td></tr>
+                            <tr><td><code>granted: true</code></td><td><code>'granted'</code></td><td>The feature</td></tr>
+                            <tr><td><code>status: 'undetermined'</code></td><td><code>'not-asked'</code></td><td>The explanation, <strong>Continue</strong>, <strong>Not now</strong></td></tr>
+                            <tr><td><code>status: 'denied'</code>, <code>canAskAgain: true</code></td><td><code>'denied'</code></td><td>"That is fine", the reason again, <strong>Ask me again</strong></td></tr>
+                            <tr><td><code>status: 'denied'</code>, <code>canAskAgain: false</code></td><td><code>'blocked'</code></td><td>"Your phone will not ask again", <strong>Open Settings</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Reading the Hook's source in <code>node_modules/expo-modules-core/src/PermissionsHook.ts</code> (about 80 lines) shows what it does <em>not</em> do, and that is where your code comes in:</p>
+                <ul>
+                    <li><strong>It never asks by itself</strong> unless you pass <code>{ request: true }</code>, which would ask the moment the component appears. Leave it off: asking is a button's job.</li>
+                    <li><strong>It does not read the answer again</strong> when the app returns from the Settings app. It reads once, when the component mounts, and after each request. A volunteer who turns location on in Settings and comes back would still see "blocked". Lesson 5.2's focus manager already knows when the app comes back to the foreground, so your Hook will listen to it.</li>
+                    <li><strong>On the web, <code>canAskAgain</code> is always <code>true</code>.</strong> expo-location's web code (<code>build/ExpoLocation.web.js</code>) returns it for every answer, but a browser never asks again after "Block": a second request comes back "denied" at once. In the web preview, your Hook will treat a no as blocked.</li>
+                </ul>
+            </section>
+
+            <section id="config" class="lesson-section">
+                <h2>📝 The Words on the Question: Config Plugins</h2>
+                <p>Part of a permission lives outside your JavaScript, in the app's native projects. An iPhone app must declare a <strong>purpose string</strong> for each kind of access in its <code>Info.plist</code>, and the phone prints that string in its question (Apple's documentation: an app that asks without one is stopped by the system). An Android app must list each permission in its <code>AndroidManifest.xml</code>; Android writes its own question and has no purpose string.</p>
+                <p>You have never edited either file, because an Expo project does not keep them: <code>npx expo prebuild</code>, which runs inside every development and store build (Module 9), <em>generates</em> the native projects from <code>app.json</code>. Packages change the generated files through <strong>config plugins</strong>, the <code>plugins</code> list you met when <code>npx expo install expo-secure-store</code> printed "Added config plugin" in Lesson 4.3.</p>
+                <p>expo-location behaves differently, and it is worth seeing why. Installed with no entry in <code>plugins</code>, its plugin still runs: it is on Expo's list of plugins applied automatically. Running <code>npx expo prebuild --no-install</code> in a copy of the project (never in your project folder; it creates <code>ios/</code> and <code>android/</code>) and reading the two files gave:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>android/app/src/main/AndroidManifest.xml:
+&lt;uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/&gt;
+&lt;uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/&gt;
+&lt;uses-permission android:name="android.permission.INTERNET"/&gt;
+&lt;uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/&gt;
+&lt;uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/&gt;
+&lt;uses-permission android:name="android.permission.VIBRATE"/&gt;
+&lt;uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/&gt;
+
+ios/ShorelineCrew/Info.plist:
+NSFaceIDUsageDescription: Allow $(PRODUCT_NAME) to access your Face ID biometric data.
+NSLocationAlwaysAndWhenInUseUsageDescription: Allow $(PRODUCT_NAME) to access your location
+NSLocationAlwaysUsageDescription: Allow $(PRODUCT_NAME) to access your location
+NSLocationTemporaryUsageDescriptionDictionary: {'ExpoLocationFullAccuracy': 'Allow $(PRODUCT_NAME) to access your precise location'}
+NSLocationWhenInUseUsageDescription: Allow $(PRODUCT_NAME) to access your location
+NSMotionUsageDescription: Allow $(PRODUCT_NAME) to detect your current motion activity</code></pre>
+                </div>
+                <p>The two location lines in the manifest are what Android needs: coarse (approximate) and fine (precise) location, so that Android 12 and later can offer both. The iPhone side has a problem, though: five location and motion strings, all in the plugin's default words ("Allow $(PRODUCT_NAME) to access your location"), including "Always" (background) location and motion activity that Shoreline Crew never uses. Vague words make people say no, and app reviewers ask about access an app declares but cannot justify.</p>
+                <p>So the project lists the plugin with options: its own sentence for the one string it needs, and <code>false</code> for the four it does not. Measured with the same prebuild:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>android/app/src/main/AndroidManifest.xml:
+&lt;uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/&gt;
+&lt;uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/&gt;
+&lt;uses-permission android:name="android.permission.INTERNET"/&gt;
+&lt;uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/&gt;
+&lt;uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/&gt;
+&lt;uses-permission android:name="android.permission.VIBRATE"/&gt;
+&lt;uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/&gt;
+
+ios/ShorelineCrew/Info.plist:
+NSFaceIDUsageDescription: Allow $(PRODUCT_NAME) to access your Face ID biometric data.
+NSLocationWhenInUseUsageDescription: Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.</code></pre>
+                </div>
+                <p>Only the "while using" string is left, in Shoreline Crew's words. (<code>NSFaceIDUsageDescription</code> comes from Lesson 4.3's <code>expo-secure-store</code> plugin; Exercise 2 deals with it.) A good purpose string says what the app uses and what for, specifically and honestly: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point." beats "This app needs your location to work."</p>
+            </section>
+
+            <section id="builds" class="lesson-section">
+                <h2>🧪 Expo Go, Development Builds and the Web Preview</h2>
+                <p>Here is the catch with everything in the last section: <strong>Expo Go does not use it</strong>. Expo Go is one app, installed from the store, with its own <code>Info.plist</code>, its own manifest and its own purpose strings, which it uses for every project you open in it. Your <code>plugins</code> settings shape the app you build yourself, a <strong>development build</strong> (Lesson 9.2) or a store build. What each one shows you:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Expo Go</th><th>Development build (Lesson 9.2)</th><th>Web preview</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Who asks</td><td>Expo Go</td><td>Shoreline Crew</td><td>The browser, for the site</td></tr>
+                            <tr><td>Words on the iPhone question</td><td>Expo Go's</td><td>Your <code>app.json</code> string</td><td>The browser's own</td></tr>
+                            <tr><td>A change to <code>plugins</code></td><td>No effect</td><td>Needs a new build</td><td>No effect</td></tr>
+                            <tr><td>Who the answer belongs to</td><td>Expo Go: shared by every project you open in it</td><td>This app only</td><td>That address (<code>localhost:8081</code>) in that browser</td></tr>
+                            <tr><td>Back to "not asked yet"</td><td>Reinstall Expo Go (Android: "Ask every time" in Settings also works)</td><td>Reinstall the app</td><td>Site settings, Reset permission</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So Expo Go is excellent for the <em>flow</em> (your explanation, the moment, the faces after each answer) and blind to the <em>words</em>. Check your purpose string in a development build before you ship (Module 9). And because Expo Go remembers your answers across projects, a "first time" test on a phone where you allowed location for some other Expo project will skip straight to "granted"; the Step 6 notes say how to reset it.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: no more expo-permissions</h4>
+                    <p>Older tutorials import a single <code>expo-permissions</code> package (<code>Permissions.askAsync(Permissions.LOCATION)</code>). It was removed years ago; each module now carries its own functions and Hook, as above. If you copy an old answer from the internet and it imports <code>expo-permissions</code>, translate it to the module's own <code>request…PermissionsAsync</code>.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each mistake below was made on purpose in a copy of the finished project and measured in the web preview, unless it says otherwise.</p>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Asking as the app starts</h4>
+                    <p>It is tempting to "get permissions out of the way" in the root layout:</p>
+                    <pre data-snippet data-legacy><code class="language-tsx">// Don't: asks before anyone knows why
+useEffect(() =&gt; {
+  void Location.requestForegroundPermissionsAsync();
+}, []);</code></pre>
+                    <p>Measured: the app made a location request at startup, on the Cleanups list, before anyone pressed anything. On an iPhone, that is the phone's question over a list of cleanups with no reason in sight, and a "Don't Allow" given there is final: when the volunteer later wants their distance, the panel can only point to Settings. Ask from the button that needs the answer.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Reading the position with no permission step</h4>
+                    <p>Calling <code>Location.getCurrentPositionAsync()</code> straight away "works" when the permission happens to be granted. Measured without the gate: pressing <strong>Show my distance</strong> made the browser ask, the answer was no, and the panel said "Could not find where you are. Check that location is turned on for your phone, then try again." That message is wrong (location is on; the app is not allowed) and <strong>Try again</strong> can never fix it. On Android, expo-location rejects with "Not authorized to use location services" (read in its Android code; not run here). Know the permission step before you reach for the feature.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Passing the Hook instead of its answer</h4>
+                    <p><code>usePermission</code> takes what an Expo Hook <em>returns</em>. Forget the parentheses and TypeScript stops you:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/DistancePanel.tsx:43:34 - error TS2345: Argument of type '(options?: PermissionHookOptions&lt;object&gt; | undefined) =&gt; [LocationPermissionResponse | null, () =&gt; Promise&lt;LocationPermissionResponse&gt;, () =&gt; Promise&lt;...&gt;]' is not assignable to parameter of type 'PermissionHookResult'.
+
+43   const location = usePermission(Location.useForegroundPermissions);
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/components/DistancePanel.tsx:43:34
+    43   const location = usePermission(Location.useForegroundPermissions);
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Did you mean to call this expression?
+
+
+Found 1 error in src/components/DistancePanel.tsx:43</code></pre>
+                    </div>
+                    <p>Read it from the bottom: "Did you mean to call this expression?" is the whole answer. The long type in the first line is the Hook itself (a function that takes options and returns the three-item tuple); <code>PermissionHookResult</code> is the tuple. Write <code>usePermission(Location.useForegroundPermissions())</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Never reading the answer again</h4>
+                    <p>Without the focus subscription in <code>usePermission</code>, the panel shows the answer it read when it appeared, forever. Measured: location was blocked, then allowed (in the web preview: the browser's site setting, then coming back to the tab). With the subscription, the distance appeared with no press; without it, the panel still said "Shoreline Crew is not allowed to use your location", and only a reload helped. On a phone this is the volunteer who did everything right in Settings and comes back to an app that still says no.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Trusting canAskAgain in the web preview</h4>
+                    <p>expo-location's web code answers <code>canAskAgain: true</code> even after a no, and a browser that was told "Block" never asks again. Without the web rule in <code>permissionStep</code>, the web preview showed the "denied" face with <strong>Ask me again</strong>; measured, each press made one more request that came back no, and nothing on the screen changed. A button that does nothing teaches people to stop pressing your buttons. When a platform's answer cannot be trusted, say so in one line of code and a comment, as the Hook does.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Location, Asked Politely</h2>
+                <p>You install expo-location and give it Shoreline Crew's words, build the permission Hook and the gate component that every device feature in this module will use, then add a <strong>How far is it?</strong> panel to the cleanup screen and try every answer, first in the web preview and then on your phone. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install expo-location and write its words <span class="step-time">(10 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac), then:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-location</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 1 package, and audited 812 packages in 3s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>"1 SDK 58.0.0 compatible native module": Expo picked the version that matches SDK 58 (<code>~58.0.22</code>). Notice what is missing compared with Lesson 4.3's <code>expo-secure-store</code>: no "Added config plugin" line, and <code>app.json</code> is unchanged. As <a href="#config">Config Plugins</a> showed, expo-location's plugin runs anyway, with default words. Give it yours: in <code>app.json</code>, add an entry at the end of <code>plugins</code> (and a comma after <code>"expo-sqlite"</code>):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">       "expo-secure-store",
+-      "expo-sqlite"
++      "expo-sqlite",
++      [
++        "expo-location",
++        {
++          "locationWhenInUsePermission": "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
++          "locationAlwaysAndWhenInUsePermission": false,
++          "locationAlwaysPermission": false,
++          "motionUsagePermission": false,
++          "locationFullAccuracyPermission": false
++        }
++      ]
+     ],</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>locationWhenInUsePermission</code></strong> is the purpose string an iPhone shows in its question (in a development or store build; Expo Go shows its own).</li>
+                        <li><strong>The four <code>false</code> values</strong> remove what Shoreline Crew does not use: "Always" location (two strings), motion activity, and the request for temporary precise location. Ask only for what you use, and say so in the app's files too.</li>
+                        <li>Android needs nothing here: the plugin adds coarse and fine location to the manifest either way.</li>
+                    </ul>
+                    <p>expo-location is in Expo Go already, so no new build is needed to follow this lesson. The <code>app.json</code> change shapes your own builds from Module 9 on.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: One permission, as a step <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/hooks/usePermission.ts</code>. It works with any Expo permission, not only location:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/usePermission.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/usePermission.ts"><code class="language-ts">import { focusManager } from '@tanstack/react-query';
+import type { PermissionResponse } from 'expo';
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
+
+/**
+ * What every Expo permission Hook returns (Location.useForegroundPermissions,
+ * ImagePicker.useCameraPermissions, ...): the answer so far (null until it has been read),
+ * a function that asks the person, and one that only reads the answer again.
+ */
+export type PermissionHookResult = [
+  PermissionResponse | null,
+  () =&gt; Promise&lt;PermissionResponse&gt;,
+  () =&gt; Promise&lt;PermissionResponse&gt;,
+];
+
+/**
+ * Where the app stands with one permission:
+ * 'checking'  the answer is being read (nobody is asked)
+ * 'not-asked' the phone has never asked: explain, then ask
+ * 'denied'    the answer was no, and the phone may ask again
+ * 'blocked'   the answer was no, and only the Settings app can change it
+ * 'granted'   yes
+ */
+export type PermissionStep = 'checking' | 'not-asked' | 'denied' | 'blocked' | 'granted';
+
+export function permissionStep(response: PermissionResponse | null): PermissionStep {
+  if (response === null) {
+    return 'checking';
+  }
+  if (response.granted) {
+    return 'granted';
+  }
+  if (response.status === 'undetermined') {
+    return 'not-asked';
+  }
+  // The web preview's answers always say canAskAgain: true, but a browser never asks again after
+  // a "Block": treat a no there as blocked
+  if (!response.canAskAgain || Platform.OS === 'web') {
+    return 'blocked';
+  }
+  return 'denied';
+}
+
+export type Permission = {
+  step: PermissionStep;
+  ask: () =&gt; Promise&lt;PermissionResponse&gt;;
+  check: () =&gt; Promise&lt;PermissionResponse&gt;;
+};
+
+/**
+ * One permission, as a step. Pass it an Expo permission Hook's result:
+ * usePermission(Location.useForegroundPermissions()). The answer is read again each time the app
+ * comes back to the foreground, so a change made in the Settings app shows up at once.
+ */
+export function usePermission([response, ask, check]: PermissionHookResult): Permission {
+  useEffect(
+    () =&gt;
+      // The focus manager from Lesson 5.2: AppState on a phone, the browser tab on the web
+      focusManager.subscribe((focused) =&gt; {
+        if (focused) {
+          void check();
+        }
+      }),
+    [check],
+  );
+  return { step: permissionStep(response), ask, check };
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>PermissionHookResult</code></strong> is the tuple every Expo permission Hook returns. Typing the parameter this way means any module's Hook fits, because each module's response type extends <code>PermissionResponse</code>.</li>
+                        <li><strong><code>permissionStep</code></strong> is a plain function, the table from <a href="#expo">Permissions in Expo Modules</a> in code, with the web rule in one commented line. The screens never look at <code>status</code> or <code>canAskAgain</code> again: they ask "which step?".</li>
+                        <li><strong>The effect</strong> subscribes to TanStack Query's <code>focusManager</code>, the same "back in the foreground" signal Lesson 5.5's queue uses (AppState on a phone, the browser tab on the web). <code>focusManager.subscribe</code> returns its own unsubscribe function, which the arrow returns as the effect's cleanup.</li>
+                        <li><strong>The return value</strong> keeps only what screens need: the step, <code>ask</code> (the Hook's request function) and <code>check</code> (its read function).</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The gate: explain, ask, take the no <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/components/PermissionGate.tsx</code>, one face per step:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/PermissionGate.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/PermissionGate.tsx"><code class="language-tsx">import * as Linking from 'expo-linking';
+import { type ReactNode, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { LoadingView } from '@/components/LoadingView';
+import type { Permission } from '@/hooks/usePermission';
+import { spacing } from '@/theme/spacing';
+
+type PermissionGateProps = {
+  permission: Permission; // from usePermission()
+  what: string; // what the app asks for, in words: "your location"
+  why: string; // what it is for, said before the phone asks
+  onNotNow?: () =&gt; void; // a way out that asks nothing
+  children: ReactNode; // the feature, shown once the answer is yes
+};
+
+// Explain, then ask; take a no gracefully; point to Settings when only Settings can help.
+// The feature inside renders only after a yes.
+export function PermissionGate({ permission, what, why, onNotNow, children }: PermissionGateProps) {
+  // Set when there is no Settings app to open (the web preview)
+  const [noSettings, setNoSettings] = useState(false);
+
+  async function openSettings() {
+    try {
+      await Linking.openSettings(); // this app's page in the phone's Settings
+    } catch {
+      setNoSettings(true);
+    }
+  }
+
+  const notNow = onNotNow &amp;&amp; &lt;Button label="Not now" onPress={onNotNow} /&gt;;
+
+  switch (permission.step) {
+    case 'checking':
+      return &lt;LoadingView label="Checking…" /&gt;;
+    case 'granted':
+      return children;
+    case 'not-asked':
+      return (
+        &lt;View style={styles.box}&gt;
+          &lt;AppText&gt;{why}&lt;/AppText&gt;
+          &lt;AppText variant="muted"&gt;
+            Your phone asks next. You can change your answer at any time in Settings.
+          &lt;/AppText&gt;
+          &lt;View style={styles.actions}&gt;
+            &lt;Button label="Continue" variant="primary" onPress={() =&gt; permission.ask()} /&gt;
+            {notNow}
+          &lt;/View&gt;
+        &lt;/View&gt;
+      );
+    case 'denied':
+      return (
+        &lt;View style={styles.box}&gt;
+          &lt;AppText accessibilityLiveRegion="polite"&gt;
+            Shoreline Crew does not have {what}, and that is fine: everything else works without it.
+          &lt;/AppText&gt;
+          &lt;AppText variant="muted"&gt;{why}&lt;/AppText&gt;
+          &lt;View style={styles.actions}&gt;
+            &lt;Button label="Ask me again" variant="primary" onPress={() =&gt; permission.ask()} /&gt;
+            {notNow}
+          &lt;/View&gt;
+        &lt;/View&gt;
+      );
+    case 'blocked':
+      return (
+        &lt;View style={styles.box}&gt;
+          &lt;AppText accessibilityLiveRegion="polite"&gt;
+            Shoreline Crew is not allowed to use {what}. Your phone will not ask again: you can turn
+            it on in Settings, then come back here.
+          &lt;/AppText&gt;
+          {noSettings &amp;&amp; (
+            &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+              There is no Settings app here. In a browser, allow it in the site settings (the icon
+              at the left of the address bar), then press Check again.
+            &lt;/AppText&gt;
+          )}
+          &lt;View style={styles.actions}&gt;
+            {noSettings ? (
+              &lt;Button label="Check again" variant="primary" onPress={() =&gt; permission.check()} /&gt;
+            ) : (
+              &lt;Button label="Open Settings" variant="primary" onPress={openSettings} /&gt;
+            )}
+            {notNow}
+          &lt;/View&gt;
+        &lt;/View&gt;
+      );
+  }
+}
+
+const styles = StyleSheet.create({
+  box: {
+    gap: spacing.sm,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>children</code></strong> is the feature, and it renders only on <code>'granted'</code>. The component that reads the position is not even mounted before a yes, so it cannot ask by accident.</li>
+                        <li><strong><code>what</code> and <code>why</code></strong> are the screen's words; the gate's own sentences fit any permission. Lesson 6.2 passes "your camera" and its reason, and nothing else changes.</li>
+                        <li><strong>The 'not-asked' face</strong> is the explanation: the reason, a line saying the phone asks next, <strong>Continue</strong> and <strong>Not now</strong>. The <strong>'denied'</strong> face is Android's extra chance; the <strong>'blocked'</strong> face is the padlocked gate.</li>
+                        <li><strong><code>Linking.openSettings()</code></strong> (expo-linking, as in Lesson 4.4) opens your app's page in the Settings app. In the web preview it throws (there is no Settings app), and the face says where a browser keeps the switch instead, with <strong>Check again</strong>: the same "try, then fall back" shape as Lesson 4.4's share button.</li>
+                        <li><strong><code>accessibilityLiveRegion</code></strong> on the denied and blocked sentences: when a face changes after the phone's question, TalkBack reads the new sentence without the volunteer hunting for it.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: How far is it? <span class="step-time">(15 min)</span></h3>
+                    <p>First, the arithmetic. Create <code>src/utils/distance.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/distance.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/distance.ts"><code class="language-ts">/** A point on the map, in degrees (a Site and a phone position both have these) */
+export type Coordinates = { latitude: number; longitude: number };
+
+const EARTH_RADIUS_KM = 6371;
+const toRadians = (degrees: number) =&gt; (degrees * Math.PI) / 180;
+
+/** The straight-line distance between two points, in kilometers (the haversine formula) */
+export function distanceKm(from: Coordinates, to: Coordinates): number {
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) * Math.cos(toRadians(to.latitude)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(a));
+}
+
+/** "about 350 m", "about 3.2 km", "about 48 km" */
+export function formatDistance(km: number): string {
+  if (km &lt; 1) {
+    return `about ${Math.max(10, Math.round(km * 100) * 10)} m`;
+  }
+  return `about ${km &lt; 10 ? km.toFixed(1) : Math.round(km)} km`;
+}</code></pre>
+                    </div>
+                    <p>The haversine formula gives the distance along the Earth's surface between two latitude and longitude pairs, in a straight line, not by road. Every <code>Site</code> from shoreline-api has a <code>latitude</code> and a <code>longitude</code>, and so does a position from the phone, which is why both fit <code>Coordinates</code>. Then the panel, <code>src/components/DistancePanel.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/DistancePanel.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/DistancePanel.tsx"><code class="language-tsx">import { useQuery } from '@tanstack/react-query';
+import * as Location from 'expo-location';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import type { Site } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { ErrorView } from '@/components/ErrorView';
+import { LoadingView } from '@/components/LoadingView';
+import { PermissionGate } from '@/components/PermissionGate';
+import { usePermission } from '@/hooks/usePermission';
+import { spacing } from '@/theme/spacing';
+import { distanceKm, formatDistance } from '@/utils/distance';
+
+type DistancePanelProps = {
+  site: Site;
+};
+
+// "How far is it?" on a cleanup's screen. Nothing asks for the location until the volunteer
+// presses Show my distance: that press is the moment the question makes sense.
+export function DistancePanel({ site }: DistancePanelProps) {
+  const [wanted, setWanted] = useState(false);
+  return (
+    &lt;View style={styles.panel}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        How far is it?
+      &lt;/AppText&gt;
+      {wanted ? (
+        &lt;DistanceFromHere site={site} onNotNow={() =&gt; setWanted(false)} /&gt;
+      ) : (
+        &lt;&gt;
+          &lt;AppText variant="muted"&gt;See how far you are from {site.name}, in a straight line.&lt;/AppText&gt;
+          &lt;Button label="Show my distance" onPress={() =&gt; setWanted(true)} /&gt;
+        &lt;/&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+// Mounted only after the press: the permission Hook reads the answer here, and asks nobody
+function DistanceFromHere({ site, onNotNow }: { site: Site; onNotNow: () =&gt; void }) {
+  const location = usePermission(Location.useForegroundPermissions());
+  return (
+    &lt;PermissionGate
+      permission={location}
+      what="your location"
+      why={`Shoreline Crew uses your location once, on this phone, to work out how far you are from ${site.name}. It is not sent anywhere.`}
+      onNotNow={onNotNow}
+    &gt;
+      &lt;Distance site={site} /&gt;
+    &lt;/PermissionGate&gt;
+  );
+}
+
+// Only rendered after a yes: read where the phone is, once, and compare
+function Distance({ site }: { site: Site }) {
+  const here = useQuery({
+    queryKey: ['position'],
+    queryFn: () =&gt; Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+    networkMode: 'always', // the phone finds itself without the internet
+    staleTime: 60_000, // a minute-old position is good enough for "how far"
+    retry: false,
+  });
+
+  if (here.isPending) {
+    return &lt;LoadingView label="Finding where you are…" /&gt;;
+  }
+  if (here.isError) {
+    return (
+      &lt;ErrorView
+        message="Could not find where you are. Check that location is turned on for your phone, then try again."
+        onRetry={() =&gt; here.refetch()}
+      /&gt;
+    );
+  }
+  const km = distanceKm(here.data.coords, site);
+  return (
+    &lt;AppText accessibilityLiveRegion="polite"&gt;
+      You are {formatDistance(km)} from {site.name}.
+    &lt;/AppText&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  panel: {
+    gap: spacing.sm,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Three components, three moments.</strong> <code>DistancePanel</code> waits for the press. <code>DistanceFromHere</code> exists only after it, so <code>Location.useForegroundPermissions()</code> reads the answer then (reading never asks). <code>Distance</code> exists only after a yes.</li>
+                        <li><strong>The position is a query</strong>, set up like Lesson 5.3's logbook query: <code>networkMode: 'always'</code> (finding the phone needs no internet) and a <code>staleTime</code>. <code>retry: false</code> is new: trying again at once rarely helps a phone that cannot find itself, and <strong>Try again</strong> is one press away. <code>Accuracy.Balanced</code> is about a hundred meters, plenty for "how far", and kinder to the battery than <code>High</code>.</li>
+                        <li><strong>The reason is specific and honest</strong>: once, on this phone, for this distance, never sent. That is what the code does; keep the two in step if the code ever changes.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Put it on the cleanup screen and try it in the web preview <span class="step-time">(15 min)</span></h3>
+                    <p>In <code>src/app/cleanups/[id].tsx</code>, import the panel and place it between the share button and <strong>About this cleanup</strong>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { Detail } from '@/components/Detail';
++import { DistancePanel } from '@/components/DistancePanel';
+ import { EmptyState } from '@/components/EmptyState';
+ // ...
+       )}
++      {/* Asks for the location only when the volunteer wants the distance */}
++      &lt;DistancePanel site={site} /&gt;
+       &lt;AppText variant="heading" accessibilityRole="header"&gt;</code></pre>
+                    </div>
+                    <p>Start Metro (<code>npx expo start</code>), press <kbd>w</kbd>, and open <strong>Weekend Cove Cleanup</strong>. Scroll to <strong>How far is it?</strong> and press <strong>Show my distance</strong>:</p>
+<figure class="screenshot">
+    <img src="images/lesson_20/20-explain.png" alt="The Weekend Cove Cleanup screen in the web preview, scrolled to How far is it?: the sentence Shoreline Crew uses your location once, on this phone, to work out how far you are from Driftwood Cove. It is not sent anywhere., then Your phone asks next. You can change your answer at any time in Settings., and the buttons Continue and Not now; the panel is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The volunteer pressed Show my distance: before the phone's question, one sentence says what the location is for. Continue leads to the question; Not now asks nothing.</figcaption>
+</figure>
+                    <p>Press <strong>Continue</strong>. Chrome shows its own bubble under the address bar (its buttons are along the lines of "Allow while visiting the site", "Allow this time" and "Never allow"; the wording depends on Chrome's version). Allow it, and the panel shows your distance from the cove, which from your desk may be a very large number. To pretend you are on the beach, open the developer tools, the <strong>⋮</strong> menu, <strong>More tools</strong>, <strong>Sensors</strong>, and set a custom location near the cove (latitude <code>36.942</code>, longitude <code>-122.0225</code>), then reload the page (expo-location's web code accepts a remembered position, so a reload makes it ask the browser afresh) and press <strong>Show my distance</strong> again:</p>
+<figure class="screenshot">
+    <img src="images/lesson_20/20-distance.png" alt="The Weekend Cove Cleanup screen in the web preview, dark theme, scrolled to How far is it?: the line You are about 370 m from Driftwood Cove., outlined in red, between the Share this cleanup button and About this cleanup." width="420" height="814" loading="lazy">
+    <figcaption>Location already allowed: the press goes straight to the distance. (In the web preview the position is the browser's; on a phone it comes from the phone.)</figcaption>
+</figure>
+                    <p>Now the no. Click the icon at the left of the address bar, find <strong>Location</strong> and choose <strong>Reset permission</strong> (or set it to ask), reload, press <strong>Show my distance</strong>, <strong>Continue</strong>, and this time <strong>Never allow</strong>. The panel switches to the blocked face. Press <strong>Open Settings</strong>:</p>
+<figure class="screenshot">
+    <img src="images/lesson_20/20-blocked.png" alt="The Weekend Cove Cleanup screen in the web preview, scrolled to How far is it?: Shoreline Crew is not allowed to use your location. Your phone will not ask again: you can turn it on in Settings, then come back here., then a note that there is no Settings app here and how to allow it in the browser&#x27;s site settings, and the buttons Check again and Not now; the panel is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>After a no, the web preview treats the browser's answer as blocked. On a phone, Open Settings opens Shoreline Crew's page in the Settings app; here there is none, so the panel says where the browser keeps the switch.</figcaption>
+</figure>
+                    <p>Turn location back on in the same site settings and press <strong>Check again</strong>: the distance appears. Also try <strong>Not now</strong>: the panel goes back to <strong>Show my distance</strong>, and nothing was asked. Each face in this step was also measured in headless Chromium (which answers no without showing a bubble), including the return to the tab: after allowing location and coming back, the distance appeared with no button pressed.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The real questions on your phone, then check and commit <span class="step-time">(15 min)</span></h3>
+                    <p>Open the app in Expo Go (shoreline-api running <code>--host</code> and <code>.env.local</code> on your computer's network address, as in Lesson 5.1) and go to a cleanup. If you have ever allowed location for another project in Expo Go, reset it first, as below.</p>
+                    <ul>
+                        <li><strong>The first question.</strong> Press <strong>Show my distance</strong>, read the explanation, press <strong>Continue</strong>. The phone's own question appears, naming <strong>Expo Go</strong> (not Shoreline Crew), with your options. Allow "while using the app": the distance appears.</li>
+                        <li><strong>A no from Settings, and the way back.</strong> Leave the app and turn location off for Expo Go (iPhone: Settings, Expo Go, Location, Never; Android: Settings, Apps, Expo Go, Permissions, Location, Don't allow). Come back to the app and press <strong>Show my distance</strong>: the blocked face. (An iPhone restarts an app whose permission was turned off in Settings, so on iPhone the app may open fresh; on Android, a panel that was already on screen switches to the blocked face by itself, because the focus subscription reads the new answer.) Press <strong>Open Settings</strong>, allow location, come back: the distance returns.</li>
+                        <li><strong>Android's second chance.</strong> On Android, reset Expo Go's location permission ("Ask every time"), press <strong>Continue</strong> and choose <strong>Don't allow</strong>: the "denied" face offers <strong>Ask me again</strong>. Say no once more and the blocked face appears: Android stops asking. On iPhone, the first "Don't Allow" goes straight to blocked.</li>
+                    </ul>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The phone's questions, the Settings paths and the "ask once / ask twice" behavior come from Apple's, Google's and Expo's documentation and could not be run here; menu names differ a little between versions and phone makers. If a step does not match, note what your phone did in your journal: the code handles every answer the same way whatever the menus are called.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p>tsc prints nothing, and expo lint only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-info">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, list every permission your app could need. For each one, write down: the button or moment that needs it, your one-sentence reason (the same idea as your purpose string), what the app does after a no, and whether you can drop it entirely (a picker instead of the camera, a typed address instead of location). The best permission question is the one you never have to ask.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ expo-location installed with <code>npx expo install</code>; <code>app.json</code> lists its plugin with Shoreline Crew's purpose string and <code>false</code> for the strings it does not use</li>
+                        <li>☐ <code>src/hooks/usePermission.ts</code> turns any Expo permission Hook's answer into a step and reads it again when the app returns to the foreground</li>
+                        <li>☐ <code>src/components/PermissionGate.tsx</code> explains before asking, takes a no with a way to ask again (Android), and points to Settings when blocked</li>
+                        <li>☐ The cleanup screen's <strong>How far is it?</strong> panel asks only after <strong>Show my distance</strong> and shows the distance after a yes</li>
+                        <li>☐ You saw every face in the web preview and the real questions in Expo Go on your phone</li>
+                        <li>☐ tsc and expo lint are clean, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 6 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the face</h3>
+                    <p>Without running anything, say which face of the <strong>How far is it?</strong> panel appears after <strong>Show my distance</strong> (and, where it applies, <strong>Continue</strong>):</p>
+                    <ol>
+                        <li>An iPhone that answered "Don't Allow" to Expo Go's location question last month.</li>
+                        <li>An Android phone, first time ever; the volunteer taps "Don't allow" once.</li>
+                        <li>The same Android phone, after a second "Don't allow".</li>
+                        <li>The web preview in Chrome, after "Never allow".</li>
+                        <li>An iPhone where the volunteer chose "Allow Once" yesterday and has not opened the app since.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Find each case in the platform table in <a href="#life">The Life of a Permission</a>, then turn the answer into a step with the table in <a href="#expo">Permissions in Expo Modules</a>. Remember the web rule.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) Blocked, straight after the press: the Hook reads "denied" with <code>canAskAgain: false</code>, and <strong>Continue</strong> never appears. (2) Denied, with <strong>Ask me again</strong>: Android allows one more question. (3) Blocked, with <strong>Open Settings</strong>. (4) Blocked, and <strong>Open Settings</strong> turns into the site-settings note with <strong>Check again</strong> (measured). (5) The explanation with <strong>Continue</strong>: a one-time answer ends when the app is no longer in use, so the phone asks again. Cases 1, 2, 3 and 5 are from the platforms' documentation; check them on your phone.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Ask only for what you use, again</h3>
+                    <p>The measured <code>Info.plist</code> in <a href="#config">Config Plugins</a> still declares <code>NSFaceIDUsageDescription</code>, from Lesson 4.3's <code>expo-secure-store</code> plugin. Shoreline Crew keeps its token in SecureStore but never asks for Face ID. Remove the string through the plugin's options, the way you did for location.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A plugin with options is a two-item array: the name, then an object. Look for an option named after Face ID in <code>node_modules/expo-secure-store/plugin/src/withSecureStore.ts</code>; its type says whether <code>false</code> is allowed.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>app.json</code>, replace <code>"expo-secure-store"</code> in <code>plugins</code> with:</p>
+                        <pre data-snippet><code class="language-json">["expo-secure-store", { "faceIDPermission": false }]</code></pre>
+                        <p>The option is typed <code>string | false</code>. Measured with <code>npx expo config --type introspect</code> (see Exercise 3), the iPhone's usage strings are then only:</p>
+                        <div class="card card-output">
+                            <h4>Expected output</h4>
+                            <pre><code>NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",</code></pre>
+                        </div>
+                        <p>If Shoreline Crew ever protects a SecureStore item with Face ID (<code>requireAuthentication</code>), it needs a Face ID purpose string again, in its own words.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Look inside without building (Stretch)</h3>
+                    <p>You do not need <code>npx expo prebuild</code> to see what the plugins will write. <code>npx expo config --type introspect</code> runs the config plugins in memory and prints the result, including the iPhone's <code>infoPlist</code> and Android's <code>permissions</code>, without creating any folder. Run it in <code>shoreline-crew</code>, find the usage strings, then remove the whole <code>expo-location</code> entry from <code>plugins</code> for a moment and run it again. What appears, and why did <code>npx expo install</code> not add the entry for you? Put the entry back afterwards.</p>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type introspect</code></pre>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The output is long: search it for <code>UsageDescription</code> (in VS Code's terminal, <kbd>Ctrl</kbd>+<kbd>F</kbd>, or <kbd>⌘ Cmd</kbd>+<kbd>F</kbd> on a Mac). The answer to "why" is in <a href="#config">Config Plugins</a>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>With the project's entry, the strings are:</p>
+                        <div class="card card-output">
+                            <h4>Expected output</h4>
+                            <pre><code>NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+NSFaceIDUsageDescription: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',</code></pre>
+                        </div>
+                        <p>Without the entry (measured in a copy of the project):</p>
+                        <div class="card card-output">
+                            <h4>Expected output</h4>
+                            <pre><code>NSLocationAlwaysAndWhenInUseUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSLocationAlwaysUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSLocationWhenInUseUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSMotionUsageDescription: 'Allow $(PRODUCT_NAME) to detect your current motion activity',
+NSFaceIDUsageDescription: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',
+NSLocationTemporaryUsageDescriptionDictionary: {
+  ExpoLocationFullAccuracy: 'Allow $(PRODUCT_NAME) to access your precise location'
+},</code></pre>
+                        </div>
+                        <p>expo-location's plugin is one Expo applies automatically when the package is installed, with default words, so <code>npx expo install</code> has nothing to add; the entry exists only to pass options. The same is true of <code>expo-camera</code> and <code>expo-image-picker</code>, which you meet in Lesson 6.2.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> When should Shoreline Crew show the phone's location question?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would a volunteer who just opened the app know why it wants their location?">
+                                A) The first time the app opens, to get it out of the way
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does signing in need the location? What if the answer is no?">
+                                B) Right after a volunteer signs in
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Asked in context, the question explains itself, and the panel's one-sentence reason comes first. Asked at launch or at sign-in, nobody knows why, and on an iPhone a no given then is final unless the volunteer digs into Settings.">
+                                C) After the volunteer presses Show my distance and reads the one-sentence reason
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The phone does not let an app read the location without a yes.">
+                                D) Never: read the position quietly in the background
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Theo's iPhone answered "Don't Allow" to the location question last week. Today he presses <strong>Show my distance</strong>. What does the panel show?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="On an iPhone one Don't Allow sets canAskAgain to false, so permissionStep returns blocked as soon as the Hook reads the answer. A request would return the same no without showing anything, so the panel offers Open Settings instead.">
+                                A) The blocked face, with <strong>Open Settings</strong>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="How many times does an iPhone ask for the same permission?">
+                                B) The phone's question again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which step does the Hook report for a no that cannot be asked again?">
+                                C) The explanation with <strong>Continue</strong>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The Distance component only exists after a yes.">
+                                D) "Could not find where you are."
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> You rewrote <code>locationWhenInUsePermission</code> in <code>app.json</code> and restarted Metro, but the iPhone's question in Expo Go still shows different words. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the purpose string part of your JavaScript bundle at all?">
+                                A) Metro's cache: start it with <code>--clear</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which file does the iPhone read the string from, and who built that file?">
+                                B) The phone caches questions for a day
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson measured what the plugin writes with exactly that option.">
+                                C) The option name is wrong
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The purpose string lives in the app's Info.plist, which config plugins write when your own app is built. Expo Go is a different app with its own Info.plist and words, used for every project. Your string appears in a development build or a store build.">
+                                D) Expo Go is its own app with its own purpose strings; yours appear in your own build
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Maya sees the blocked face, presses <strong>Open Settings</strong>, turns location on and switches back to Shoreline Crew. What makes the panel notice?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson read the Hook's source: when does it read the answer?">
+                                A) <code>useForegroundPermissions()</code> reads the answer again by itself
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo's Hook reads once when it mounts and after each request. usePermission subscribes to the focus manager, which AppState tells when the app is back in the foreground, and calls check() then. Without it (measured), the panel kept saying no.">
+                                B) <code>usePermission</code> reads it again when the focus manager says the app is back in the foreground
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Coming back from another app is not navigation.">
+                                C) Expo Router mounts the screen again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson's project shows the distance with no restart.">
+                                D) Nothing: she must close and reopen the app
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> In the web preview, a volunteer chose "Never allow" in Chrome. Why does <code>permissionStep</code> say <code>'blocked'</code>, even though the answer says <code>canAskAgain: true</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="expo-location's web code answers canAskAgain true for every answer, but a browser told Never allow never asks again: a request returns the no at once. Treating the web's no as blocked shows the site-settings note instead of an Ask me again button that could do nothing (measured).">
+                                A) The web answer always says <code>true</code>, but a browser never asks again after a block, so the Hook does not trust it there
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the web rule's comment in usePermission.ts.">
+                                B) Chrome reports <code>canAskAgain: false</code> and the Hook just copies it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What would an Ask me again button do in a browser that said Never?">
+                                C) It is a bug: on the web it should be <code>'denied'</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+                <details class="card">
+                    <summary>Why not pass { request: true } to the Hook and save a button?</summary>
+                    <p>Because it asks the moment the component appears, which is "asking at launch" for whatever screen it is on. Shoreline Crew mounts <code>DistanceFromHere</code> only after the press, so the Hook there could ask at once without being rude, but the volunteer would then never see the reason first. One button press for a sentence of explanation is a good trade, especially on an iPhone, where the first answer is the one that sticks.</p>
+                </details>
+                <details class="card">
+                    <summary>What about "Always" location, in the background?</summary>
+                    <p>Shoreline Crew never needs it, which is why <code>app.json</code> turns its strings off. Background location is a different permission (<code>requestBackgroundPermissionsAsync</code>), asked only after the "while using" one, with extra purpose strings, Android's <code>ACCESS_BACKGROUND_LOCATION</code> and, per Expo's documentation, a development build rather than Expo Go for testing. Both stores also ask apps to justify it in review. Use it only when the app's main job needs it (a run tracker, say), and expect more people to say no.</p>
+                </details>
+                <details class="card">
+                    <summary>The spinner says "Finding where you are…" and never stops. Why?</summary>
+                    <p>A yes is not a position. The phone may have location services switched off as a whole (Android then rejects the request, and the panel shows its error with <strong>Try again</strong>), or it may be indoors, slowly looking for a fix. In the web preview, a browser with permission but no position to give simply waited (measured: still "Finding where you are…" after 12 seconds). expo-location's <code>hasServicesEnabledAsync()</code> answers "is location on at all?", and a production app would add a time limit to the wait. For "how far is the cove", the simple version is fine.</p>
+                </details>
+                <details class="card">
+                    <summary>Do notifications and the camera work the same way?</summary>
+                    <p>The camera, yes: <code>ImagePicker.useCameraPermissions()</code> returns the same three-item tuple, so Lesson 6.2 writes <code>usePermission(ImagePicker.useCameraPermissions())</code> and a gate with "your camera". Notifications (Lesson 6.4) have <code>getPermissionsAsync</code> and <code>requestPermissionsAsync</code> but no Hook in expo-notifications; <code>createPermissionHook</code>, exported by <code>expo</code>, makes one from those two functions (it is how every module builds its own). The answers have the same <code>PermissionResponse</code> shape, so <code>permissionStep</code> and the gate work unchanged.</p>
+                </details>
+                <details class="card">
+                    <summary>How do I see the "first time" again when testing?</summary>
+                    <p>Web preview: the site-settings icon, <strong>Reset permission</strong>, then reload. Expo Go on Android: Settings, Apps, Expo Go, Permissions, Location, "Ask every time" (or clear Expo Go's storage). Expo Go on iPhone: Settings, Expo Go, Location lets you change the answer but not return to "not asked yet"; reinstalling Expo Go does. A development build: uninstall and reinstall the app. (Phone menus from the platforms' documentation; names vary a little by version.)</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Add a <strong>Phone permissions</strong> card to the Profile tab: one row per permission Shoreline Crew uses (today only location; by Lesson 6.4 also the camera and notifications), each showing its step in words ("Allowed", "Not asked yet", "Turned off") and, for a blocked one, <strong>Open Settings</strong>. Reuse <code>usePermission</code> for each row; the focus subscription keeps the card true after a trip to Settings. Decide whether a "Not asked yet" row should offer to ask, or only explain where in the app the question comes up, and write down why.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Open your phone's Settings and find the list of apps that can use your location. Pick three: for each, try to remember when it first asked, whether it explained why, and whether you would say yes again today. Then write the purpose string you would give each of them, in one honest sentence. What made a reason convincing to you?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>A permission is not asked yet, granted, denied (Android may ask once more) or blocked (only Settings can change it); an iPhone asks once, an Android phone twice, and answers change in Settings at any time</li>
+                        <li>Ask when the person does the thing that needs it, say why in a sentence first (with <strong>Continue</strong>, not "Allow"), keep the app working after a no, and point to Settings when the phone will not ask again</li>
+                        <li>Every Expo module offers <code>get…</code> (reads), <code>request…</code> (asks if it still may) and a Hook, all answering with <code>PermissionResponse</code>; the Hook neither asks by itself nor reads again after Settings</li>
+                        <li>Purpose strings and Android permissions are written by config plugins in <code>app.json</code>; some plugins run with default words even when unlisted, so list them to use your words and <code>false</code> for what you do not use</li>
+                        <li>Expo Go shows the flow but not your words (its own app, its own strings, shared answers); your purpose strings appear in your own builds; the web preview's <code>canAskAgain</code> cannot be trusted</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Expo's guide to permissions</td><td><a href="https://docs.expo.dev/guides/permissions/" target="_blank" rel="noopener">Expo: Permissions</a></td></tr>
+                            <tr><td>Look up expo-location and its plugin options</td><td><a href="https://docs.expo.dev/versions/latest/sdk/location/" target="_blank" rel="noopener">Expo: Location</a></td></tr>
+                            <tr><td>Read how config plugins work</td><td><a href="https://docs.expo.dev/config-plugins/introduction/" target="_blank" rel="noopener">Expo: Config plugins</a></td></tr>
+                            <tr><td>Read Apple's advice on asking</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/privacy" target="_blank" rel="noopener">Apple Human Interface Guidelines: Privacy</a></td></tr>
+                            <tr><td>Read Android's advice on asking</td><td><a href="https://developer.android.com/training/permissions/requesting" target="_blank" rel="noopener">Android Developers: Request runtime permissions</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew asks for location only when a volunteer wants their distance, explains why first, and keeps working after a no</li>
+                        <li>A permission Hook and gate that the camera and notifications can use unchanged</li>
+                        <li>Your own words on the iPhone's question, and nothing declared that the app does not use</li>
+                        <li>You can predict and test every answer on iPhone, Android and the web preview</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>The first door is open. In <a href="lesson_21.html">Lesson 6.2: Camera and Photos</a>, volunteers photograph what they collected: the camera goes through the same <code>usePermission</code> and <code>PermissionGate</code>, picking from the photo library turns out to need no permission at all, and the photos join the debris log in Lesson 5.5's queue.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 6 on your phone, including Android's second chance if you have an Android phone, and commit your work</li>
+                    <li>Take two photos of anything with your phone's camera app and look at how big the files are (in the photo's details): Lesson 6.2 has to send photos like these over one bar of signal</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Permissions look like a small topic: a function call and a dialog. You now know they are really about people, timing and trust, and about platforms that each tell the story a little differently. You also read library source code to find out what a Hook does not do, which is a habit that will save you days over a career. If the iPhone and Android rules are still blurry, that is normal; they settle the first time you watch your own phone follow them.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_19.html" class="prev-lesson">← Previous: Offline First</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_21.html" class="next-lesson">Next: Camera and Photos →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

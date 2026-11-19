@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Animation with Reanimated 4 on a phone: shared values that live on the UI thread, timing and springs, CSS-style transitions and keyframe animations, and the phone's Reduce Motion setting, applied to an animated tally that counts up when a debris log is saved. React Native &amp; Expo: Build and Ship a Mobile App Lesson 7.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Animation with Reanimated 4 - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🎞️ Lesson 7.1: Animation with Reanimated 4</h1>
+                <p class="lead">Theo finishes a cleanup, sends his debris log and opens his logbook. The numbers could simply change: 42 pieces becomes 44, and he may not even notice. Or they could count up in front of him, the new log landing in the season's total like a bag dropped on the pile. Motion like that is not decoration: it tells him what just happened and where to look. Today Shoreline Crew starts to move, with the animation library Expo puts in every new app, and with the same restraint as last lesson's haptics: motion that explains, and steps aside for people who turn it off.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain why phone animations run on the UI thread, and what shared values and worklets do about it</li>
+                        <li>Animate with shared values: <code>useSharedValue</code>, <code>useAnimatedStyle</code>, <code>withTiming</code>, <code>withSpring</code> and <code>withSequence</code>, read and written with <code>get()</code> and <code>set()</code></li>
+                        <li>Hand a value from the UI thread back to React with <code>useAnimatedReaction</code> and <code>scheduleOnRN</code>, without drawing the screen 60 times a second</li>
+                        <li>Use Reanimated 4's CSS-style transitions and keyframe animations, and choose between them and shared values</li>
+                        <li>Respect the phone's Reduce Motion setting: know what Reanimated does about it by itself, and what it leaves to you</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 130 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_24.html">Lesson 6.5: Haptics, Sharing and Files</a> (and the logbook from <a href="lesson_17.html">Lesson 5.3</a>, the queue from <a href="lesson_19.html">Lesson 5.5</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A season tally on the Logbook tab: logs, pieces, bags and kilograms that count up when a log is saved, give a small bounce, light up while they count, and simply appear for people who reduce motion</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-native-reanimated 4.7, react-native-worklets 0.13, Expo Router 58 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone to see the motion at its real speed; the web preview for the tally and the Reduce Motion test; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-25-start.zip">lesson-25-start.zip</a> · Finished code: <a href="downloads/lesson-25-end.zip">lesson-25-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Motion That Explains</a></li>
+                        <li><a href="#threads" class="toc-link">Two Threads, One Frame</a></li>
+                        <li><a href="#shared-values" class="toc-link">Shared Values and Animated Styles</a></li>
+                        <li><a href="#timing-springs" class="toc-link">Timing and Springs</a></li>
+                        <li><a href="#css" class="toc-link">CSS-Style Transitions and Animations</a></li>
+                        <li><a href="#reduced-motion" class="toc-link">When Motion Should Step Aside</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: A Tally That Counts</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Motion That Explains</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you watched an app you like for movement. You probably found two kinds. Some motion helps you follow what happened: a message slides up from where you typed it, a deleted email folds away, a badge's number ticks over. Some only slows you down: a splash animation you have seen a hundred times, a list that bounces in every time you open it. Good apps have plenty of the first kind and almost none of the second.</p>
+                <p>In the web course you animated with CSS (<code>transition</code>, <code>@keyframes</code>) and let the browser do the work. A phone has no CSS engine, and React Native's answer has a famous trap: if the JavaScript that drives an animation is busy (fetching, parsing, drawing a list), the animation stutters. <strong>Reanimated</strong>, the library every new Expo app already includes, solves that by running animations on the thread that draws the screen. Its version 4 also brings back a little of the web: CSS-style transitions and keyframe animations, written in a style object. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>The logbook has a season tally.</strong> Four numbers (logs, pieces, bags, kilograms) in a row under <strong>Your logbook</strong>, in place of last lesson's totals sentence.</li>
+                    <li><strong>They count.</strong> When a saved log reaches the logbook, each number counts up from what you saw before to the new total, gives a small bounce when it gets there, and its background lights up while it counts.</li>
+                    <li><strong>They step aside.</strong> With Reduce Motion turned on (iPhone) or animations removed (Android), the numbers simply show their totals: the information is the same, only the movement is gone.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "make it feel smooth" lands on every mobile developer's desk, and it is where cross-platform apps are judged most harshly. Knowing which thread an animation runs on is the difference between an app that glides and one that hiccups every time data arrives, and it is a favorite interview question for React Native roles. Knowing when <em>not</em> to animate is the part that gets you trusted with a design system.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Judge motion with your eyes, then with numbers</h3>
+                    <p>Animation is the first topic in this course where "it type-checks" says almost nothing. You will watch the tally count in the web preview and on your phone, change a duration and watch again, and turn a spring's bounce up until it looks silly. That is not wasted time: it is how motion gets designed. When something looks off and you cannot say why yet, slow it down (Step 5 shows how) and look frame by frame.</p>
+                </div>
+            </section>
+
+            <section id="threads" class="lesson-section">
+                <h2>🧵 Two Threads, One Frame</h2>
+                <p>A phone redraws its screen 60 times a second, and many newer phones 90 or 120 times (Apple calls it ProMotion). At 60, every frame has about 16.7 milliseconds; at 120, about 8.3. Lesson 1.1 showed the two worlds inside your app, your JavaScript and the platform's native code. For motion, what matters is that each runs on its own thread:</p>
+                <ul>
+                    <li><strong>The JavaScript thread</strong> runs your React code: components, Hooks, TanStack Query, the queue sender, JSON parsing, React drawing a list. When it is busy, it is busy.</li>
+                    <li><strong>The UI thread</strong> (the main thread) lays out and draws the native views, and reads touches.</li>
+                </ul>
+                <p>The obvious way to animate in React is state: change a number 60 times a second with <code>setState</code> and let React draw each frame. On a phone that means every frame needs the JavaScript thread, React's comparison of the old and new screen, and a trip to the UI thread. If, in the middle of the count, TanStack Query is parsing a long answer, frames are late and the motion stutters: the animation is only as smooth as the busiest thing your JavaScript does.</p>
+                <p>Reanimated moves the animation itself to the UI thread. React says once what should happen ("count from 42 to 44 in 900 ms"), and the UI thread works out every frame on its own, with no React and no trip across. For that it needs two things:</p>
+                <ul>
+                    <li><strong>Shared values</strong>: numbers (or strings, colors, objects) that both threads can see. The UI thread reads and writes them every frame; your component reads and writes them when it needs to.</li>
+                    <li><strong>Worklets</strong>: small JavaScript functions that can run on the UI thread, in a separate JavaScript runtime there. You rarely write the word: the functions you pass to <code>useAnimatedStyle</code>, <code>useAnimatedReaction</code> and the animation callbacks are turned into worklets for you by a Babel plugin that Expo's Babel preset adds automatically (read in <code>babel-preset-expo</code>: "Automatically add worklets or reanimated plugin when package is installed"). A worklet can only call other worklets; to run ordinary JavaScript, such as a React state setter, it schedules it on the JavaScript thread.</li>
+                </ul>
+<div class="mermaid">
+graph TD
+    A["React: count to 44"] --> B["Shared value"]
+    B --> C["UI thread: each frame"]
+    C --> D["Animated style: bounce"]
+    C --> E["Reaction: new step?"]
+    E --> F["scheduleOnRN"]
+    F --> G["React: setShown"]
+</div>
+                <p>Read it top to bottom: React starts the animation once by setting a shared value. From then on the UI thread moves it every frame; an animated style (the bounce) goes straight to the native view with no React at all; and when the number reaches a new whole step, a reaction sends that one step back to React, which draws the text. You will build exactly this.</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the skipper and the helm</h3>
+                    <p>On the crew's boat, the skipper decides "take us to the buoy off Seal Rock" and goes back to the chart. The person at the helm makes the hundred small corrections that get the boat there through the swell, without asking the skipper about each one. React is the skipper: it decides where an animation should end up and how (a duration, a spring), once. The UI thread is at the helm, frame by frame. When the skipper has to know something on the way ("we passed the reef"), the helm calls it out: that is <code>scheduleOnRN</code>, and it should be rare.</p>
+                </div>
+                <div class="card card-info">
+                    <h4>🧩 Version note: Reanimated 4 and react-native-worklets</h4>
+                    <p>Reanimated 4 runs only on React Native's New Architecture (SDK 58 has nothing else), and the worklet machinery moved out into its own package, <code>react-native-worklets</code>: that is where <code>scheduleOnRN</code> comes from. Older tutorials (Reanimated 2 and 3) tell you to add <code>'react-native-reanimated/plugin'</code> to <code>babel.config.js</code>, use <code>runOnJS</code>, and write <code>.value</code>; Expo's preset now adds the worklets plugin for you (your project has no <code>babel.config.js</code> at all), <code>runOnJS</code> still exists but <code>scheduleOnRN</code> is its replacement, and <code>get()</code>/<code>set()</code> suit the React Compiler (see <a href="#mistakes">Common Mistakes</a>). Reanimated 4 also changed the default spring (next sections) and added CSS-style animations.</p>
+                </div>
+            </section>
+
+            <section id="shared-values" class="lesson-section">
+                <h2>📦 Shared Values and Animated Styles</h2>
+                <p>Here is the smallest useful Reanimated component: something that fades in when it appears.</p>
+                <pre data-snippet><code class="language-tsx">import { type ReactNode, useEffect } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+
+export function FadeIn({ children }: { children: ReactNode }) {
+  const opacity = useSharedValue(0); // a value that lives on the UI thread
+  const faded = useAnimatedStyle(() =&gt; ({ opacity: opacity.get() })); // runs there, every frame
+
+  useEffect(() =&gt; {
+    opacity.set(withTiming(1, { duration: 300 })); // "get to 1 in 300 ms": React is done here
+  }, [opacity]);
+
+  return &lt;Animated.View style={faded}&gt;{children}&lt;/Animated.View&gt;;
+}</code></pre>
+                <ul>
+                    <li><code>useSharedValue(0)</code> makes the shared value. Like <code>useRef</code>, it is the same object for the component's whole life, and changing it does not draw the component again: that is the point.</li>
+                    <li><code>useAnimatedStyle</code> takes a function that returns a style. It runs on the UI thread whenever a shared value it reads changes, which during an animation is every frame, and the result goes to the native view directly.</li>
+                    <li><code>Animated.View</code> (also <code>Animated.Text</code>, <code>Animated.Image</code>, <code>Animated.ScrollView</code>) is the component that accepts such a style. A plain <code>View</code> would not move.</li>
+                    <li><code>opacity.set(withTiming(1, …))</code> does not set the value to 1. It hands the shared value an <em>animation</em>, and the UI thread steps it from 0 to 1 over 300 ms. <code>opacity.get()</code> reads where it is now.</li>
+                </ul>
+                <p>The four Hooks and functions this lesson uses:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Hook or function</th><th>Runs on</th><th>Job</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>useSharedValue(start)</code></td><td>(creates the value)</td><td>A value both threads can see; <code>get()</code> reads it, <code>set()</code> writes a value or an animation</td></tr>
+                            <tr><td><code>useAnimatedStyle(() =&gt; style)</code></td><td>UI thread</td><td>A style that follows shared values, frame by frame, without React</td></tr>
+                            <tr><td><code>useAnimatedReaction(read, react)</code></td><td>UI thread</td><td>Watches what <code>read</code> returns and calls <code>react(now, before)</code> when it changes</td></tr>
+                            <tr><td><code>scheduleOnRN(fn, ...args)</code></td><td>called on the UI thread, runs <code>fn</code> on the JavaScript thread</td><td>The way back to React: a state setter, a <code>feel()</code>, a log line</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>One habit matters from the first line: <strong>never read or write a shared value while React is rendering</strong> (in the component's body, outside a Hook's function). Reanimated's own code warns "Reading from <code>value</code> during component render" in development. Read and write them in effects, event handlers and animation callbacks; let <code>useAnimatedStyle</code> do the reading for styles.</p>
+            </section>
+
+            <section id="timing-springs" class="lesson-section">
+                <h2>⏱️ Timing and Springs</h2>
+                <p>Reanimated has two main ways to get from here to there, plus helpers to chain them:</p>
+                <pre data-snippet><code class="language-ts">import { Easing, withSpring, withTiming } from 'react-native-reanimated';
+
+// Timing: how long, and the shape of the curve
+withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+
+// Spring, by feel: about how long, and how much it bounces (1 = no bounce)
+withSpring(1, { duration: 500, dampingRatio: 0.35 });
+
+// Spring, by physics: how heavy, how stiff, how much friction
+withSpring(1, { mass: 1, stiffness: 100, damping: 10 });</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th><code>withTiming</code></th><th><code>withSpring</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>You choose</td><td>A duration and an easing curve</td><td>How it should feel: a duration and a <code>dampingRatio</code>, or the physics (<code>mass</code>, <code>stiffness</code>, <code>damping</code>)</td></tr>
+                            <tr><td>It ends</td><td>Exactly on time, exactly at the target</td><td>When the spring settles; with a <code>dampingRatio</code> below 1 it overshoots first</td></tr>
+                            <tr><td>Good for</td><td>Values that must never pass their target: a number, a progress bar, an opacity</td><td>Things that move like objects: a card snapping into place, a scale "bounce", a sheet you let go of (Lesson 7.2's gestures)</td></tr>
+                            <tr><td>If interrupted</td><td colspan="2">A new animation starts from wherever the value is now (a spring even keeps its speed), so a change in the middle never jumps</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li><strong>Easing:</strong> <code>Easing.out(Easing.cubic)</code> starts fast and slows down at the end, which is how things arrive in the real world; <code>Easing.linear</code> moves at one speed and looks mechanical; <code>Easing.inOut(…)</code> suits something that leaves and arrives on screen.</li>
+                    <li><strong>The default spring changed in Reanimated 4.</strong> Its source sets the default to a "gentle" spring (mass 4, stiffness 900, damping 120) that settles without overshooting; Reanimated 3's default (mass 1, stiffness 100, damping 10) bounced. An old tutorial's <code>withSpring(42)</code> behaves differently today, and the course measured what that bouncy spring does to a number (<a href="#mistakes">Common Mistakes</a>).</li>
+                    <li><strong>Chains:</strong> <code>withSequence(a, b)</code> runs animations one after the other; <code>withDelay(ms, a)</code> waits first; <code>withRepeat(a, times)</code> repeats. The tally's bounce is <code>withSequence(withTiming(1.2, …), withSpring(1, …))</code>: grow quickly, then spring back.</li>
+                    <li><strong>The callback:</strong> every animation function takes a last argument, a function called with <code>finished</code> when it stops: <code>true</code> if it got to the end, <code>false</code> if something interrupted it. It is a worklet, on the UI thread.</li>
+                </ul>
+            </section>
+
+            <section id="css" class="lesson-section">
+                <h2>🎨 CSS-Style Transitions and Animations</h2>
+                <p>Reanimated 4's headline feature will look familiar from the web course: on an <code>Animated</code> component, a style can say how it should <em>change</em>. A <strong>transition</strong> animates a style property whenever React gives it a new value:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+
+// How full a cleanup is. When taken changes, the bar slides to its new width by itself.
+export function SpotsBar({ taken, capacity }: { taken: number; capacity: number }) {
+  return (
+    &lt;View style={styles.track}&gt;
+      &lt;Animated.View style={[styles.fill, { width: `${(100 * taken) / capacity}%` }]} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  track: { height: 8, borderRadius: 4, backgroundColor: '#bfe3df' },
+  fill: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1f6f8b',
+    transitionProperty: 'width',
+    transitionDuration: 400,
+    transitionTimingFunction: 'ease-out',
+  },
+});</code></pre>
+                <p>No shared value, no Hook: React draws the bar with a new width, and <code>transitionProperty</code>, <code>transitionDuration</code> and <code>transitionTimingFunction</code> (the same names as CSS, in camelCase, durations in milliseconds or as <code>'400ms'</code>) make it slide there. A <strong>keyframe animation</strong> runs by itself, as long as the style holds it:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
+
+// A dot that breathes while logs are being sent: a CSS-style animation with keyframes
+const breathe = {
+  from: { opacity: 1 },
+  to: { opacity: 0.3 },
+};
+
+export function SendingDot() {
+  const reduceMotion = useReducedMotion(); // the phone's Reduce Motion, read when the app started
+  return &lt;Animated.View style={[styles.dot, !reduceMotion &amp;&amp; styles.breathing]} /&gt;;
+}
+
+const styles = StyleSheet.create({
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#1f6f8b' },
+  breathing: {
+    animationName: breathe,
+    animationDuration: '800ms',
+    animationIterationCount: 'infinite',
+    animationDirection: 'alternate',
+  },
+});</code></pre>
+                <p><code>animationName</code> takes the keyframes object itself (not a name, unlike CSS), with <code>from</code>/<code>to</code> or percentages; <code>animationDuration</code>, <code>animationIterationCount</code> and <code>animationDirection</code> work as in CSS. Remove the style and the animation stops. (Ignore <code>useReducedMotion</code> for a moment: it is the next section's subject.)</p>
+                <p>In the web preview, Reanimated turns these into real CSS (measured: the tally you build today renders with <code>transition-property: background-color; transition-duration: 300ms</code> on its element). On a phone, Reanimated runs them on the UI thread with its own engine, from the same style.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Use…</th><th>When</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A CSS-style transition</td><td>A style changes because state changed, and it should glide instead of jump</td><td>The tally's background while it counts; a spots bar (Exercise idea)</td></tr>
+                            <tr><td>A CSS-style keyframe animation</td><td>Something should loop or play by itself while a state lasts</td><td>A "sending" dot (Exercise 2)</td></tr>
+                            <tr><td>Shared values + <code>withTiming</code>/<code>withSpring</code></td><td>The value is not a style (a number to show), it must chain or react when it ends, or it follows a finger (Lesson 7.2)</td><td>The count itself and its bounce</td></tr>
+                            <tr><td>Layout animations, Lottie</td><td>Things appearing, leaving or moving in a list; illustrated animations</td><td>Lesson 7.3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="reduced-motion" class="lesson-section">
+                <h2>🧘 When Motion Should Step Aside</h2>
+                <p>For some people, movement on a screen is not a nicety: zooming, sliding and bouncing can bring on dizziness or nausea (vestibular disorders), or make a screen hard to follow. Both phones have a setting for it, and so do desktop systems, which browsers pass on as the CSS media feature <code>prefers-reduced-motion</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Where</th><th>Setting</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>iPhone</td><td><strong>Settings &gt; Accessibility &gt; Motion &gt; Reduce Motion</strong></td></tr>
+                            <tr><td>Android</td><td><strong>Settings &gt; Accessibility &gt; Remove animations</strong> (names vary by maker; on some phones it is under Color and motion, or Visibility enhancements)</td></tr>
+                            <tr><td>Web preview (Chrome)</td><td>DevTools, <strong>⋮ &gt; More tools &gt; Rendering</strong>, "Emulate CSS media feature prefers-reduced-motion" set to <code>reduce</code> (or your computer's own setting)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>What does Reanimated do about it? The course measured it in the web preview with Chromium's reduced-motion setting on and off, using the snippets above:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Animation</th><th>Reduce Motion off</th><th>Reduce Motion on</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>withTiming</code>, <code>withSpring</code>, <code>withSequence</code> (FadeIn, the tally)</td><td>Animates</td><td><strong>Jumps to the end</strong>: FadeIn's opacity was 1 at the first sample; the tally showed its total at once, with no bounce</td></tr>
+                            <tr><td>CSS-style transition (SpotsBar)</td><td>Slides in 400 ms</td><td><strong>Still slides</strong>, the same 400 ms</td></tr>
+                            <tr><td>CSS-style keyframe animation (SendingDot without its check)</td><td>Breathes forever</td><td><strong>Still breathes</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li>Every animation function takes a <code>reduceMotion</code> option whose default is <code>ReduceMotion.System</code>: follow the phone. <code>ReduceMotion.Always</code> and <code>ReduceMotion.Never</code> override it for one animation. That is why the tally needs no extra code for its count and bounce.</li>
+                    <li>The CSS-style transitions and animations do not look at the setting in the web preview (measured), and the course found no Reduce Motion check for them in Reanimated's iPhone code; on Android, some of them follow the system's animation speed. Do not count on either: <code>useReducedMotion()</code> tells you whether the setting was on, and you decide, as <code>SendingDot</code> does: no breathing.</li>
+                    <li><strong>"When the app started."</strong> Reading Reanimated's code, both the default and <code>useReducedMotion()</code> read the setting once, when the app starts; its documentation says changing the setting "doesn't cause your components to rerender". After changing it, restart the app (or reload the web preview). Lesson 7.3 makes Shoreline Crew follow the setting live, and decides whether the app needs its own switch, like last lesson's vibration switch.</li>
+                </ul>
+                <p>Reduced motion does not mean no change at all. Apple's guidelines suggest replacing movement with gentler effects such as a dissolve; a color that fades in place, like the tally's background, is that kind of effect, so the tally keeps its CSS transition. It is the counting and the bounce that go, and Reanimated already takes care of those.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Per Reanimated's code, the phone tells it about Reduce Motion (iPhone) or Remove animations (Android) as the app starts, in Expo Go too. The course could not run a phone or an emulator: Step 7 has you turn the setting on, restart Shoreline Crew, and check that the tally shows its totals at once. On Android, Reanimated's code treats the system's transition animation scale at 0 (which Remove animations sets) as "reduce motion"; the setting also turns off the system's own animations, such as screen transitions.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made on purpose in a copy of the finished project. The first was caught by <code>npx expo lint</code>; the others were measured in the web preview, except where only a phone can show the result.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Writing <code>.value</code> with the React Compiler on</h3>
+                    <p>Most Reanimated examples you will find write <code>count.value = withTiming(…)</code> and read <code>count.value</code>. Reanimated 4 still supports it, but your project has the React Compiler switched on (Lesson 1.2's <code>app.json</code>: <code>reactCompiler</code>), and its lint rules see a Hook's return value being changed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+~/shoreline/shoreline-crew/src/components/Tally.tsx
+  63:7  error  Error: This value cannot be modified
+
+This modifies a variable that React considers immutable.
+
+~/shoreline/shoreline-crew/src/components/Tally.tsx:63:7
+  61 |         reduceMotion: ReduceMotion.System, // the default, written out: Reduce Motion on = jump to the end
+  62 |       };
+&gt; 63 |       count.value = withTiming(value, counted, (finished) =&gt; {
+     |       ^^^^^ `count` cannot be modified
+  64 |           // Runs on the UI thread when the count stops (finished is false if something interrupted it)
+  65 |           if (finished) {
+  66 |             scheduleOnRN(setCounting, false);  react-hooks/immutability
+
+✖ 1 problem (1 error, 0 warnings)</code></pre>
+                    </div>
+                    <p>The compiler is right to worry: it assumes whatever a Hook returns does not change, and may skip work based on that. <code>count.set(…)</code> and <code>count.get()</code> do the same thing as a method call, which the compiler leaves alone, and Reanimated's documentation recommends them for code the compiler handles. Use them everywhere, including inside worklets, so there is one way to do it.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Calling a React setter straight from a worklet</h3>
+                    <p>Inside <code>useAnimatedReaction</code>, <code>setShown(step / steps)</code> looks simpler than <code>scheduleOnRN(setShown, step / steps)</code>. Measured: in the web preview it works perfectly, the tally counts as usual, and <code>tsc</code> and <code>expo lint</code> say nothing. That is the trap. The web preview has no separate UI thread (Reanimated runs worklets on the page's one JavaScript thread), so it cannot show a thread mistake. On a phone, the reaction runs on the UI thread, where React's setter does not exist, and per react-native-worklets' code the app stops with a red screen saying:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (on a phone, from the library's code)</h4>
+                        <pre><code>[Worklets] Tried to synchronously call a Remote Function. Called "…" on the UI Runtime.</code></pre>
+                    </div>
+                    <p>Anything that is not a worklet (state setters, <code>feel()</code>, your API client) goes through <code>scheduleOnRN</code>. Testing animations only in the web preview is like testing haptics there: the code runs, the real thing happens on a phone.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A bouncy spring for a number</h3>
+                    <p>A spring feels alive, so why not count with one? Measured with the count changed to <code>withSpring(value, { mass: 1, stiffness: 100, damping: 10 })</code> (Reanimated 3's old default, still in many tutorials), sampling the pieces tally every few milliseconds:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (pieces shown, in order)</h4>
+                        <pre><code>0 3 8 12 19 27 30 37 42 44 47 48 49 48 47 46 45 44 43 42 41 42</code></pre>
+                    </div>
+                    <p>The logbook claimed 49 pieces, then 41, before settling on 42 two seconds later: a spring overshoots its target, and for a number that means showing totals that were never true. Springs are for things that move like objects (the bounce); numbers, progress bars and anything that must not pass its target get <code>withTiming</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting CSS-style animations to respect Reduce Motion</h3>
+                    <p>After seeing <code>withTiming</code> jump to the end with Reduce Motion on, it is natural to assume the CSS-style ones do too. Measured in Chromium with reduced motion on: a 400 ms width transition still took 400 ms, and an infinite keyframe animation kept looping. If a CSS-style animation moves, zooms or loops, check <code>useReducedMotion()</code> yourself and leave it out (or swap it for a fade) when it is <code>true</code>.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: A Tally That Counts</h2>
+                <p>You check what the template already installed, build one <code>Tally</code> component that uses everything above, put four of them in the logbook, then watch, tune and test the motion: with Reduce Motion off and on, in the web preview and on your phone.</p>
+
+                <div class="card">
+                    <h3>Step 1: Reanimated is already here <span class="step-time">(5 min)</span></h3>
+                    <p>Nothing to install today. The project you created in Lesson 1.2 came with both packages, at the versions SDK 58 expects:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/package.json</div>
+                        <pre data-src="shoreline-crew/package.json" data-match="excerpt"><code class="language-json">    "react-native-reanimated": "4.7.1",
+...
+    "react-native-worklets": "0.13.0",</code></pre>
+                    </div>
+                    <p>Check that npm agrees, in the <code>shoreline-crew</code> folder:</p>
+                    <pre class="terminal"><code class="language-bash">npm ls react-native-reanimated react-native-worklets</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>shoreline-crew@1.0.0 ~/shoreline/shoreline-crew
+├─┬ @expo/ui@58.0.28
+│ └── react-native-worklets@0.13.0 deduped
+├─┬ expo-router@58.0.31
+│ ├─┬ react-native-drawer-layout@4.2.12
+│ │ └── react-native-reanimated@4.7.1 deduped
+│ ├── react-native-reanimated@4.7.1 deduped
+│ └── react-native-worklets@0.13.0 deduped
+├─┬ expo@58.0.25
+│ └─┬ expo-modules-core@58.1.0
+│   └── react-native-worklets@0.13.0 deduped
+├─┬ react-native-reanimated@4.7.1
+│ └── react-native-worklets@0.13.0 deduped
+└── react-native-worklets@0.13.0</code></pre>
+                    </div>
+                    <p>The last two lines are your own dependencies. The rest shows who else uses them: Expo Router, Expo's UI package and Expo's core modules use Reanimated or the worklets too, and Reanimated itself depends on <code>react-native-worklets</code>. <code>deduped</code> means they all share your one copy, which is what you want: two copies of a library with native code can clash. There is no <code>babel.config.js</code> to edit: Expo's Babel preset adds the worklets plugin when it finds the package. Both are part of Expo Go's native code, so no development build is needed either.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The Tally component <span class="step-time">(20 min)</span></h3>
+                    <p>Create <code>src/components/Tally.tsx</code>. It is the longest file today, and every part of it is one of the ideas above:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Tally.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Tally.tsx"><code class="language-tsx">import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { StyleSheet } from 'react-native';
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+
+import { AppText } from '@/components/AppText';
+import { createThemedStyles } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+type TallyProps = {
+  /** The number to show. When it changes, the tally counts up (or down) to it. */
+  value: number;
+  /** What is counted, after the number: "pieces" */
+  label: string;
+  /** Digits after the decimal point: 1 for kilograms */
+  decimals?: number;
+};
+
+// A number that counts to its value while the screen is in view, then gives a small bounce
+export function Tally({ value, label, decimals = 0 }: TallyProps) {
+  const steps = 10 ** decimals; // 10 steps per kilogram, 1 per piece
+  // Shared values live on the UI thread. The count starts at 0, so opening the logbook counts up once.
+  const count = useSharedValue(0);
+  const scale = useSharedValue(1);
+  // The number the Text shows. React draws again only when it reaches the next step.
+  const [shown, setShown] = useState(0);
+  // True while counting: the tally's background lights up, with a CSS-style transition
+  const [counting, setCounting] = useState(false);
+  const styles = useStyles();
+
+  // On the UI thread, every frame: has the count reached a new step? Then tell React (JS thread).
+  useAnimatedReaction(
+    () =&gt; Math.round(count.get() * steps),
+    (step, previous) =&gt; {
+      if (step !== previous) {
+        scheduleOnRN(setShown, step / steps);
+      }
+    },
+  );
+
+  // Count when the screen comes into view, and when the value changes while it is in view
+  useFocusEffect(
+    useCallback(() =&gt; {
+      if (count.get() === value) {
+        return;
+      }
+      setCounting(true);
+      const counted = {
+        duration: 900,
+        easing: Easing.out(Easing.cubic), // fast at first, slowing down at the end
+        reduceMotion: ReduceMotion.System, // the default, written out: Reduce Motion on = jump to the end
+      };
+      count.set(
+        withTiming(value, counted, (finished) =&gt; {
+          // Runs on the UI thread when the count stops (finished is false if something interrupted it)
+          if (finished) {
+            scheduleOnRN(setCounting, false);
+            // A bounce: grow quickly, then spring back. dampingRatio below 1 lets it overshoot a little.
+            scale.set(
+              withSequence(
+                withTiming(1.2, { duration: 120 }),
+                withSpring(1, { dampingRatio: 0.35, duration: 500 }),
+              ),
+            );
+          }
+        }),
+      );
+    }, [count, scale, value]),
+  );
+
+  const bounce = useAnimatedStyle(() =&gt; ({ transform: [{ scale: scale.get() }] }));
+
+  return (
+    // A screen reader hears the final number once, not every step on the way
+    &lt;Animated.View
+      style={[styles.tally, counting &amp;&amp; styles.counting]}
+      accessible
+      accessibilityLabel={`${value} ${label}`}
+    &gt;
+      &lt;Animated.View style={bounce}&gt;
+        &lt;AppText variant="title"&gt;{shown}&lt;/AppText&gt;
+      &lt;/Animated.View&gt;
+      &lt;AppText variant="muted"&gt;{label}&lt;/AppText&gt;
+    &lt;/Animated.View&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  tally: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
+    // CSS-style: when the background changes, fade between the two colors
+    transitionProperty: 'backgroundColor',
+    transitionDuration: 300,
+  },
+  counting: {
+    backgroundColor: colors.pressed,
+  },
+}));</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Two shared values.</strong> <code>count</code> is the number on its way, starting at 0, so a tally that appears counts up once; <code>scale</code> is the bounce, resting at 1.</li>
+                        <li><strong>The number goes back to React in steps.</strong> Text content is not a style, so <code>useAnimatedStyle</code> cannot show it. The reaction rounds the count to whole steps (10 per kilogram with <code>decimals={1}</code>) and calls <code>scheduleOnRN(setShown, …)</code> only when the step changes: counting to 42 pieces draws the component about 42 times, not once per frame. <code>step / steps</code> turns 25 back into 2.5.</li>
+                        <li><strong><code>useFocusEffect</code></strong> (Lesson 4.3) starts the count when the Logbook tab comes into view, and again whenever <code>value</code> changes while it is in view. A tab the volunteer is not looking at does not count; it counts when they come back, so they see it. If the count is already at the value, nothing happens.</li>
+                        <li><strong>The count</strong> is a <code>withTiming</code> of 900 ms that slows down at the end. <code>reduceMotion: ReduceMotion.System</code> is Reanimated's default, written out so the next person reading the file knows Reduce Motion was thought about.</li>
+                        <li><strong>The callback</strong> runs on the UI thread when the count stops. If it finished (not interrupted by a newer count), it tells React the counting is over and starts the bounce: <code>withSequence</code> of a 120 ms grow and a spring back with <code>dampingRatio: 0.35</code>, which overshoots a little below 1 and settles.</li>
+                        <li><strong>The highlight</strong> is a CSS-style transition: <code>styles.counting</code> changes the background while <code>counting</code> is true, and <code>transitionProperty</code>/<code>transitionDuration</code> in the base style make it fade in and out over 300 ms. React decides <em>when</em>; Reanimated does the fading.</li>
+                        <li><strong>Accessibility.</strong> The whole tally is one <code>accessible</code> element labeled with the final value ("42 pieces"), so VoiceOver and TalkBack read it once, as a whole, instead of the number and the word separately or a number that is still counting.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Four tallies in the logbook <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/app/(tabs)/logbook.tsx</code>, the totals sentence from Lesson 5.3 becomes a row of tallies. The kilogram rounding moves into a small function, because both the tally and <code>amounts()</code> need it:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { ShareLogbook } from '@/components/ShareLogbook';
++import { Tally } from '@/components/Tally';
+ import { useSession } from '@/hooks/useSession';
+ // ...
+       ) : (
+-        &lt;AppText&gt;
+-          {totals.logs} {totals.logs === 1 ? 'log' : 'logs'} in all: {amounts(totals)}.
+-        &lt;/AppText&gt;
++        &lt;View style={styles.tallies}&gt;
++          &lt;Tally value={totals.logs} label={totals.logs === 1 ? 'log' : 'logs'} /&gt;
++          &lt;Tally value={totals.pieces} label={totals.pieces === 1 ? 'piece' : 'pieces'} /&gt;
++          &lt;Tally value={totals.bags} label={totals.bags === 1 ? 'bag' : 'bags'} /&gt;
++          &lt;Tally value={tenths(totals.weightKg)} label="kg" decimals={1} /&gt;
++        &lt;/View&gt;
+       )}
+ // ...
+ function amounts({ pieces, bags, weightKg }: Pick&lt;LogbookTotals, 'pieces' | 'bags' | 'weightKg'&gt;) {
+-  const weight = Math.round(weightKg * 10) / 10; // sums of decimals can end in ...0000001
++  const weight = tenths(weightKg);
+   const words = [pieces === 1 ? 'piece' : 'pieces', bags === 1 ? 'bag' : 'bags'];
+ // ...
+ 
++// Kilograms to one decimal: sums of decimals can end in ...0000001
++function tenths(kg: number) {
++  return Math.round(kg * 10) / 10;
++}
++
+ const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
++  tallies: {
++    flexDirection: 'row',
++    gap: spacing.xs,
++    padding: spacing.xs,
++    borderWidth: 1,
++    borderColor: colors.border,
++    borderRadius: radius.card,
++    backgroundColor: colors.surface,
++  },
+   card: {</code></pre>
+                    </div>
+                    <ul>
+                        <li>The row is a card of its own (<code>styles.tallies</code>), each tally taking an equal share of the width with <code>flex: 1</code> (Lesson 2.2). Four short numbers fit side by side on the narrowest phones; a total with five digits would still fit.</li>
+                        <li>The words follow the totals, as before ("1 bag", "2 bags"). They are decided from the final value, so during a count from 0 to 1 the label already says "bag".</li>
+                        <li><code>tenths()</code> rounds before the tally sees the weight, so the label says "2.5 kg", never "2.5000000000000004 kg".</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Watch it count <span class="step-time">(10 min)</span></h3>
+                    <p>Start shoreline-api in one terminal and <code>npx expo start</code> in another, then open the web preview (<kbd>w</kbd>):</p>
+                    <ol>
+                        <li>Sign in as <code>theo.nakamura@example.com</code> (password <code>shoreline-demo</code>), open the Logbook tab and press <strong>Bring in my sent logs</strong>. The tallies appear and count up to 1 log, 42 pieces, 1 bag and 2.5 kg, lit up while they count, each with a small bounce at the end. (If your logbook kept Sunset Stairs from last lesson, the tallies count as soon as the tab opens.)</li>
+                        <li>Open the Cleanups tab, then today's <strong>Tide Pool Morning Cleanup</strong>, and <strong>Log what you collected</strong>: two glass, 0.8 kg, <strong>Send the log</strong>. On "Log sent. Thank you!", press <strong>Open my logbook</strong>: the tallies count on from where they were, to 2 logs, 44 pieces and 3.3 kg (measured). The bags tally stays still: its value did not change.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_25/25-tally-counting.png" alt="The Logbook tab in the web preview, signed in as Theo, a quarter of a second after Bring in my sent logs: under Your logbook, four tallies on a pale teal background, 1 log, 25 pieces, 1 bag and 1.5 kg, outlined in red, then the Share my logbook button and the Sunset Stairs Cleanup entry." width="420" height="814" loading="lazy">
+    <figcaption>Caught mid-count: the pieces and the kilograms are on their way to 42 and 2.5, and the tallies are lit up while they count. (The web preview, stopped a quarter of a second in; on a phone it is just as quick. The tab bar gets the bottom inset a notched iPhone would give it.)</figcaption>
+</figure>
+                    <p>The second case is the one this lesson was built for: the log was saved, then the logbook was looked at, and the tally shows the difference. If the logbook tab was already open when the queue sent a waiting log (<strong>Send now</strong>, Lesson 5.5), the count runs right there.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_25/25-tally-done.png" alt="The Logbook tab in the web preview, dark theme, signed in as Theo after the count: under Your logbook, four tallies, 1 log, 42 pieces, 1 bag and 2.5 kg, outlined in red, then the sentence about sharing your logbook, the Share my logbook button and the Sunset Stairs Cleanup entry." width="420" height="814" loading="lazy">
+    <figcaption>A second later: the count is over, each number gave a small bounce, and the highlight faded back to the card's color. A screen reader hears each tally once, with its final number. (The web preview, dark theme.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Try the knobs <span class="step-time">(10 min)</span></h3>
+                    <p>Motion is tuned by eye. Make each change in <code>Tally.tsx</code> and save. A tally that already shows its total has nothing to count, so reload (press <kbd>r</kbd> in the terminal running Metro, or reload the browser tab and sign in again) and open the Logbook tab: fresh tallies count up from 0. Then put the line back.</p>
+                    <ol>
+                        <li><code>duration: 3000</code>: now you can see the easing. The numbers race at first and crawl at the end; that slowing down is what makes an arrival look natural. Try <code>Easing.linear</code> at 3000 too: it looks like a machine.</li>
+                        <li>In the bounce, <code>dampingRatio: 1</code>: no overshoot, a soft settle. Then <code>0.15</code>: a wobble that goes on too long. 0.35 is a choice, not a rule; pick one you like and keep it the same everywhere.</li>
+                        <li>Replace the count's <code>withTiming(value, counted, …)</code> with <code>withSpring(value, { mass: 1, stiffness: 100, damping: 10 }, …)</code> and watch the pieces overshoot (<a href="#mistakes">Common Mistakes</a>). Put <code>withTiming</code> back.</li>
+                    </ol>
+                    <p>A rule of thumb, in line with Material Design's motion durations (from about 50 ms for the smallest changes to about a second for the largest): a highlight or a bounce takes 100 to 300 ms; a number counting or something crossing the screen, up to about a second. Longer, and people wait for your app instead of using it.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: With Reduce Motion on <span class="step-time">(10 min)</span></h3>
+                    <p>In Chrome, open DevTools (<kbd>F12</kbd>, or <kbd>⌥ Option</kbd>+<kbd>⌘ Cmd</kbd>+<kbd>I</kbd> on a Mac), then <strong>⋮ &gt; More tools &gt; Rendering</strong>, and set "Emulate CSS media feature prefers-reduced-motion" to <code>reduce</code>. Reanimated reads the setting when the app starts, so reload the page (and sign in again: the web preview keeps no session after a reload, Lesson 4.3).</p>
+                    <ol>
+                        <li>Logbook, <strong>Bring in my sent logs</strong>: the totals appear at once. No counting, no bounce, and the highlight has no time to show, because the count ends in the same moment it starts.</li>
+                        <li>Set the emulation back to "No emulation" and reload: the count is back.</li>
+                    </ol>
+                    <p>This course's checks do the same in Chromium: with reduced motion on, the pieces tally showed 0 and then 42, nothing in between; without it, many steps ending at 42. You changed no code for this: the count and the bounce use Reanimated's animation functions, which follow the setting by default. Lesson 7.3 goes further (the setting followed live, Lottie, layout animations).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check it, then watch it on your phone <span class="step-time">(10 min)</span></h3>
+                    <p>Run <code>npx tsc --noEmit</code> and <code>npx expo lint</code>: both should print nothing but the <code>env:</code> lines. Then in Expo Go (with your computer's address in <code>.env.local</code>, Lesson 5.1):</p>
+                    <ol>
+                        <li>Logbook, <strong>Bring in my sent logs</strong>: the tallies count and bounce. On a phone the motion runs on the UI thread, so it should stay smooth even while the logbook loads.</li>
+                        <li>Send a debris log, then <strong>Open my logbook</strong>: the count from the old totals to the new ones.</li>
+                        <li>Turn on Reduce Motion (iPhone: <strong>Settings &gt; Accessibility &gt; Motion &gt; Reduce Motion</strong>; Android: <strong>Settings &gt; Accessibility &gt; Remove animations</strong>, names vary), close Expo Go completely and open the app again: the totals should appear without counting. Turn it back off and restart again.</li>
+                        <li>With VoiceOver or TalkBack on, move to a tally: it should read "42 pieces" once.</li>
+                    </ol>
+                    <p>If your phone shows something different (a stutter, a bounce with Reduce Motion on), note the model and the system version: animation is where phones differ, and that note is the start of a good bug report.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>package.json</code> lists react-native-reanimated 4.7 and react-native-worklets 0.13, and there is no Babel plugin to add</li>
+                        <li><code>src/components/Tally.tsx</code> counts with <code>withTiming</code>, bounces with <code>withSequence</code> and <code>withSpring</code>, hands whole steps to React with <code>useAnimatedReaction</code> and <code>scheduleOnRN</code>, and lights up with a CSS-style transition</li>
+                        <li>The Logbook shows four tallies (logs, pieces, bags, kg) that count from what you last saw to the new totals when a log reaches the logbook</li>
+                        <li>With reduced motion on (Chrome's emulation or your phone's setting, after a restart), the totals appear at once</li>
+                        <li>Each tally is read once, with its final value, by a screen reader</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> find the one change in your final project's app that people most need to notice (a total, a status, a new item) and sketch the motion that would explain it in under a second. Then write down what it should do with Reduce Motion on.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: What does the tally do?</h3>
+                    <p>Theo's logbook shows 1 log, 42 pieces, 1 bag, 2.5 kg, and the count is over. Without running anything, say what the pieces tally does in each case:</p>
+                    <ol>
+                        <li>He opens the Profile tab and comes back to the Logbook.</li>
+                        <li>He is looking at the Logbook when the queue sends a waiting log of 2 pieces (Lesson 5.5).</li>
+                        <li>The same log is sent while he is on the Cleanups tab; a minute later he opens the Logbook.</li>
+                        <li>He turns on Reduce Motion, restarts the app and opens the Logbook.</li>
+                        <li>He signs out, and Maya signs in on the same phone and opens the Logbook.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Three questions settle each case: is the Logbook in view (<code>useFocusEffect</code>)? Did <code>value</code> change since the count was last at it? Was the <code>Tally</code> just created (its count starts at 0)?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) Nothing: the focus effect runs, finds the count already at 42 and returns. (2) It counts from 42 to 44 at once: the logbook query is invalidated, the totals change while the tab is in view, and the effect runs again with the new value. (3) Nothing while he is away; when he opens the Logbook, it counts from 42 to 44, so he sees the change. (4) A restarted app creates new tallies, which start at 0: with Reduce Motion on, <code>withTiming</code> jumps to the end, so he sees 42 at once, with no bounce. (5) Signing out unmounts <code>MyLogbook</code> (Lesson 5.3's reason for a separate component), so Maya gets new tallies that count from 0 to her own totals, or the "Your logbook is empty" text if she has none. Theo's numbers never flash on her screen.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A dot that breathes while sending</h3>
+                    <p>The Logbook says "Sending…" while the queue sends waiting logs. Put a small dot that breathes (fades in and out) next to those words, with a CSS-style keyframe animation, in the app's action color, and make it hold still for people who reduce motion. It is decoration, so screen readers should skip it.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Start from <code>SendingDot</code> in <a href="#css">CSS-Style Transitions and Animations</a>. <code>createThemedStyles</code> (Lesson 2.5) gives you the color; <code>accessibilityElementsHidden</code> (iPhone) and <code>importantForAccessibility="no"</code> (Android) hide a view from screen readers. The dot and the words need a row (<code>flexDirection: 'row'</code>).</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>src/components/SendingDot.tsx</code>:</p>
+                        <pre data-snippet><code class="language-tsx">import { StyleSheet } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
+
+import { createThemedStyles } from '@/hooks/useTheme';
+
+// Breathes while the queue is sending; holds still for people who reduce motion
+const breathe = {
+  from: { opacity: 1 },
+  to: { opacity: 0.3 },
+};
+
+export function SendingDot() {
+  const reduceMotion = useReducedMotion();
+  const styles = useStyles();
+  return (
+    &lt;Animated.View
+      style={[styles.dot, !reduceMotion &amp;&amp; styles.breathing]}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+    /&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.action },
+  breathing: {
+    animationName: breathe,
+    animationDuration: '800ms',
+    animationIterationCount: 'infinite',
+    animationDirection: 'alternate',
+  },
+}));</code></pre>
+                        <p>In <code>logbook.tsx</code>, wrap the live line in <code>&lt;View style={styles.sendingRow}&gt;</code> (a row with <code>alignItems: 'center'</code> and a small gap) and put <code>{sending &amp;&amp; &lt;SendingDot /&gt;}</code> before the text. When <code>sending</code> turns false, the dot leaves with its style, and the animation stops. With Reduce Motion on, the dot is still there (a still dot still says "something is going on"); it just does not move.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A count that fits the change (Stretch)</h3>
+                    <p>Counting from 0 to 3 bags takes 900 ms, and so does counting from 0 to 1,250 pieces at the end of a busy season. Make the duration depend on the size of the change: quick for small changes, never longer than 1.2 seconds. Watch both kinds in the web preview.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Before the count starts, <code>count.get()</code> is where it is now and <code>value</code> is where it is going. A small pure function of the two is easy to test later (Lesson 8.2).</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">// How long to count: quick for a small change, never more than 1.2 seconds
+export function countDuration(from: number, to: number): number {
+  return Math.min(1200, 300 + 15 * Math.abs(to - from));
+}</code></pre>
+                        <p>In <code>Tally</code>, use <code>duration: countDuration(count.get(), value)</code> in <code>counted</code>. A change of 1 takes 315 ms, a change of 42 takes 930 ms, and anything above 60 takes 1.2 seconds. Compare in "steps" instead if you want kilograms to behave like pieces: <code>countDuration(count.get() * steps, value * steps)</code>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Why does the tally's count run on the UI thread instead of changing React state every frame?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Did the web course need a UI thread to animate with CSS?">
+                                A) React state cannot hold decimal numbers such as 2.5
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="React says once where the count should go and how; the UI thread works out every frame by itself. Whatever else the JavaScript thread is doing (parsing an answer, drawing a list) cannot make the animation late.">
+                                B) So the animation stays smooth even when the JavaScript thread is busy with React, the network or the queue
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which part of the app talks to shoreline-api?">
+                                C) Because the UI thread is the only one allowed to read the logbook database
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did the web preview run the tally?">
+                                D) Because Expo Go cannot run React state updates
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> In <code>Tally</code>, why does the reaction call <code>scheduleOnRN(setShown, …)</code> only when the rounded step changes?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does step / steps give for kilograms?">
+                                A) Because <code>setShown</code> only accepts whole numbers
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is there any limit on how often scheduleOnRN may be called?">
+                                B) Because <code>scheduleOnRN</code> can only run once per second
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which thread runs Math.round inside the reaction?">
+                                C) Because the UI thread cannot round numbers itself
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The count changes every frame, but the text only needs to change when it reaches a new step. Sending only new steps to React draws the component about 42 times for 42 pieces, not once per frame for a whole second.">
+                                D) So React draws the number once per visible step, not once per frame
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Maya has Reduce Motion on and restarted Shoreline Crew. She opens her Logbook, which holds 3 logs. What does the pieces tally do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="withTiming and withSpring default to ReduceMotion.System: with the setting on, they jump to the end. The tally shows the total at once, with no count and no bounce, and the words are the same as for everyone.">
+                                A) It shows her total at once, without counting or bouncing
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What is the default reduceMotion of withTiming?">
+                                B) It counts up as usual, because Reduce Motion only affects CSS-style animations
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the setting change what the tally shows, or only how it gets there?">
+                                C) It stays at 0, because the animation never runs
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the measurement table in When Motion Should Step Aside.">
+                                D) It counts, but slowly, so the motion is gentler
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The cleanup screen should get a bar showing how full a cleanup is, and the bar should glide to its new width after a sign-up. What is the simplest fitting tool?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does a bar that shows a count of spots ever need to overshoot?">
+                                A) A shared value with <code>withSpring</code> and the default bouncy settings
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Should the bar move by itself, over and over?">
+                                B) A keyframe animation with <code>animationIterationCount: 'infinite'</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The width is a style that changes because state changed, which is exactly what a CSS-style transition is for: React draws the new width, and transitionProperty plus transitionDuration make it glide, with no shared value and no Hook.">
+                                C) A CSS-style transition: <code>transitionProperty: 'width'</code> with a duration on an <code>Animated.View</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> A teammate calls <code>setShown(step)</code> directly inside <code>useAnimatedReaction</code>. tsc, lint and the web preview are all fine. What happens on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does the web preview have a separate UI thread?">
+                                A) Nothing different: the web preview already proved it works
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="On a phone the reaction runs on the UI thread, where a React state setter is not a worklet. react-native-worklets stops with an error about synchronously calling a Remote Function on the UI Runtime. scheduleOnRN runs the setter on the JavaScript thread instead.">
+                                B) A red screen: the UI thread cannot call a React setter, which must go through <code>scheduleOnRN</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which rule did the lint output in Common Mistakes come from?">
+                                C) A lint error appears the next time Metro starts
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a crash be quiet?">
+                                D) The number stays at 0 without any message
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>React Native has its own <code>Animated</code> API. Why not use that?</summary>
+                    <p>React Native's built-in <code>Animated</code> is older and still works: with its native driver option, it hands transform and opacity animations to the UI thread; anything else (a number shown as text, a width, a color) is driven from JavaScript, frame by frame. It has no worklets, so it cannot run your own logic on the UI thread or react to a gesture there. You will meet it in older code and in libraries (the yellow web preview warning about the native driver in Lesson 3.2 came from FlashList's use of it). For new code, Reanimated is what the Expo template installs and what Lesson 7.2's gestures build on.</p>
+                </details>
+
+                <details class="card">
+                    <summary>How close is the web preview to the real motion?</summary>
+                    <p>Close for <em>what</em> moves and when: the same durations, easing and springs, and the same Reduce Motion behavior for Reanimated's animation functions. Not for <em>how smooth</em> it is: the web preview runs worklets on the page's one JavaScript thread, so it cannot show the benefit of the UI thread, nor thread mistakes (<a href="#mistakes">Common Mistakes</a>). Judge smoothness on a phone, preferably an older or cheaper one, and in a release build when it matters (development builds and Expo Go run slower JavaScript checks).</p>
+                </details>
+
+                <details class="card">
+                    <summary>My app bundle got bigger. Is that Reanimated?</summary>
+                    <p>Yes. Reanimated was installed from the start, but nothing imported it until today, so Metro left it out. Measured with <code>npx expo export</code>: the Android bundle grew from about 4.7 MB to 5.6 MB and the iOS bundle from about 4.3 MB to 5.4 MB between Lesson 6.5's code and today's; the web bundle stayed about 1.1 MB. The native part was always in Expo Go and in any build. For an animation library used across the app, that is a normal price; Lesson 8.4 looks at what actually slows an app down.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Do animations drain the battery?</summary>
+                    <p>A one-second count now and then costs next to nothing. What costs is motion that never stops: an infinite keyframe animation, a spinner left running off screen. Animate while it means something (Exercise 2's dot only while sending) and stop afterwards. Phones also cut animations themselves: reading Reanimated's Android code, battery saver can switch off the system's animators, and the code accounts for it.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why not count the tally on the web course's way, with a <code>setInterval</code>?</summary>
+                    <p>It would work, on the JavaScript thread: a timer that adds one 30 times a second and sets state. On a phone it is exactly the "only as smooth as the busiest thing" problem: the timer fires late while React or the network is busy, and the count stutters. It also knows nothing of easing, springs or Reduce Motion. Reanimated gives you all three, and the timer-free version is shorter.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>The tally still asks React to draw about once per step. It can be done with no React drawing at all: Reanimated's <code>useAnimatedProps</code> sets a native component's properties from the UI thread, and a common trick (from Reanimated's community, not its core documentation) is an <code>Animated.createAnimatedComponent(TextInput)</code> that is not editable, whose <code>text</code> property is set every frame from the count. Try it in a copy of <code>Tally</code>, then compare: does it look different? Use React DevTools' profiler (Lesson 8.4 shows it) to count the renders in each version. Then decide whether the saving is worth a <code>TextInput</code> pretending to be text, and what a screen reader makes of it.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Turn on Reduce Motion on your phone for a day. Which apps changed, and how: did they drop movement, swap it for fades, or ignore the setting? Was anything harder to follow without the motion? Write down one animation in Shoreline Crew you would keep with the setting on, and one you would drop.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Reanimated runs animations on the UI thread: React sets a shared value once, and the UI thread moves it frame by frame, so a busy JavaScript thread cannot make the motion stutter</li>
+                        <li>Shared values are read and written with <code>get()</code> and <code>set()</code> (the React Compiler's lint rules reject writing <code>.value</code>), never while rendering; <code>useAnimatedStyle</code> turns them into styles without React</li>
+                        <li><code>withTiming</code> is for values that must land exactly (numbers, bars); <code>withSpring</code> is for things that move like objects; <code>withSequence</code> chains them, and callbacks say whether an animation finished</li>
+                        <li>Worklets run on the UI thread and can only call worklets; React setters and other JavaScript go through <code>scheduleOnRN</code>, and only as often as the screen needs (once per visible step)</li>
+                        <li>Reanimated 4's CSS-style transitions and keyframe animations live in a style; use them for style changes driven by state and for loops while a state lasts</li>
+                        <li>Reanimated's animation functions follow Reduce Motion by default (jump to the end); CSS-style ones do not, so check <code>useReducedMotion()</code> for those; both read the setting when the app starts</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Reanimated's guides and every function</td><td><a href="https://docs.swmansion.com/react-native-reanimated/">React Native Reanimated documentation</a></td></tr>
+                            <tr><td>Learn the CSS-style transitions and animations in depth</td><td><a href="https://docs.swmansion.com/react-native-reanimated/docs/css-animations/animation-name">Reanimated: CSS animations</a></td></tr>
+                            <tr><td>Understand worklets and threads</td><td><a href="https://docs.swmansion.com/react-native-worklets/">React Native Worklets documentation</a></td></tr>
+                            <tr><td>See how Expo sets Reanimated up</td><td><a href="https://docs.expo.dev/versions/latest/sdk/reanimated/">Expo: Reanimated</a></td></tr>
+                            <tr><td>Read Apple's guidance on motion</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/motion">Apple Human Interface Guidelines: Motion</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>The logbook's totals count up when a log arrives, so volunteers see what their log added</li>
+                        <li>You used shared values, an animated style, a reaction, timing, a spring and a sequence in one small component</li>
+                        <li>You used Reanimated 4's CSS-style transitions and know when they beat shared values</li>
+                        <li>The tally steps aside for people who reduce motion, and you know which animations do that by themselves</li>
+                        <li>You can explain the UI thread and the JavaScript thread, and why the web preview cannot show thread mistakes</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Today, React started every animation. In <a href="lesson_26.html">Lesson 7.2: Gestures</a>, a finger does: React Native Gesture Handler reads touches on the UI thread, and the shared values you met today follow the finger frame by frame. You will add swipe to delete for a log waiting in the queue, drag something into place, and let springs finish the movement when the finger lets go.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone (the count, the restart with Reduce Motion on, a screen reader on a tally) and commit your work</li>
+                    <li>Notice gestures in the apps you use: where can you swipe a row away, drag to reorder, pull down to close? How does the app show you that a gesture is possible before you try it?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Threads, worklets, shared values: today had more new words than code. If "the UI thread" still feels abstract, that is normal; it becomes real the first time you watch something stay smooth on a phone while data loads, or the first time a red screen tells you a setter was called on the wrong thread and you know exactly why. You now have the model that most React Native developers pick up slowly, by accident. Keep watching animations in other apps with this lesson's questions in mind; your eye for motion will grow faster than you expect.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_24.html" class="prev-lesson">← Previous: Haptics, Sharing and Files</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_26.html" class="next-lesson">Next: Gestures →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

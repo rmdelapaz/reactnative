@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Styling without a DOM or a cascade: View and Text as the two building blocks, StyleSheet.create, numbers instead of px, style arrays, why text styles only pass from a Text to a Text, fonts and line heights on Android, iOS and the web preview, a theme file for the crew's colors, and Shoreline Crew's first real screen with an AppText component and an EventCard. React Native &amp; Expo: Build and Ship a Mobile App Lesson 2.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>View, Text and StyleSheet - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🧱 Lesson 2.1: View, Text and StyleSheet</h1>
+                <p class="lead">You know CSS well enough to style a web app without thinking about it. On a phone, the same instincts are about eighty percent right, and the other twenty percent is where the surprises live: there is no stylesheet that flows down the page, no class names, no <code>px</code>, and text follows its own rules. In this lesson you learn exactly where the line runs, and you use it to turn the plain list from Lesson 1.3 into Shoreline Crew's first real screen, with the crew's colors in a theme file and a card for every upcoming cleanup.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Build screens from <code>View</code> and <code>Text</code>, and say which HTML habits they replace</li>
+                        <li>Write styles with <code>StyleSheet.create</code>: camelCase names, numbers instead of <code>px</code>, no shorthands, and know which mistakes the type checker catches</li>
+                        <li>Explain why styles do not cascade in React Native, and use the one place they do: a <code>Text</code> inside a <code>Text</code></li>
+                        <li>Combine styles with style arrays, where later entries win and <code>false</code> entries are skipped</li>
+                        <li>Describe how fonts, font weights, line heights and the person's text size differ between Android, iOS and the web preview</li>
+                        <li>Keep the app's colors and spacing in a theme file and build reusable, typed <code>AppText</code> and <code>EventCard</code> components</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_03.html">Lesson 1.3: From the HQ to the Phone</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's theme files (<code>src/theme/colors.ts</code>, <code>spacing.ts</code>), an <code>AppText</code> component, an <code>EventCard</code>, and the first real Cleanups screen</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3, Expo Router 58, TypeScript 6.0), the shoreline-api (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone shows the same screen without data until Lesson 5.1</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-04-start.zip">lesson-04-start.zip</a> · Finished code: <a href="downloads/lesson-04-end.zip">lesson-04-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: CSS Instincts, Phone Rules</a></li>
+                        <li><a href="#view-text" class="toc-link">View and Text: Two Building Blocks</a></li>
+                        <li><a href="#stylesheet" class="toc-link">Styles Are Objects</a></li>
+                        <li><a href="#no-cascade" class="toc-link">No Cascade: Text Inherits from Text Only</a></li>
+                        <li><a href="#style-arrays" class="toc-link">Style Arrays: Combining Styles</a></li>
+                        <li><a href="#platform-text" class="toc-link">Text on Android, iOS and the Web</a></li>
+                        <li><a href="#theme" class="toc-link">A Theme File for the Crew's Colors</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: The Cleanups Screen</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: CSS Instincts, Phone Rules</h2>
+                <p>At the end of Lesson 1.3, Shoreline Crew could talk to the API, but its home screen looked like a debug log: one line of text per cleanup. Volunteers deserve better. They glance at this screen on a beach, in bright sun, with a bag of litter in one hand, so it has to be clear at a glance: which cleanup, when, where to meet, and whether there is still room.</p>
+                <p>In Shoreline Crew HQ you built that kind of card with an <code>&lt;article&gt;</code>, a CSS Module and a few CSS variables. None of those exist here. Lesson 1.1 told you the headline ("no DOM, no CSS"); this lesson gives you the details that make the difference between fighting React Native and working with it.</p>
+                <ul>
+                    <li><strong>Why it matters for your work:</strong> styling is where web developers lose the most time in their first React Native weeks, mostly to things that silently do nothing. Knowing which habits carry over and which are ignored without a word is what makes you productive on a mobile team quickly.</li>
+                    <li><strong>Why it matters for the volunteers:</strong> a screen that respects the phone's own fonts and the person's text size reads well in the sun and for people who need larger text. You get that mostly for free, as long as you do not fight it.</li>
+                </ul>
+                <div class="card card-success">
+                    <h4>✅ Expect a few "why is nothing happening?" moments</h4>
+                    <p>Everyone who comes from the web writes a style that React Native quietly ignores, and then stares at the screen. That is not a sign you are bad at this: it is the exact moment this lesson is for. When it happens, ask two questions from this page: "is this style on the right kind of component?" and "is this a value React Native understands?" Most puzzles end there.</p>
+                </div>
+            </section>
+
+            <section id="view-text" class="lesson-section">
+                <h2>🧱 View and Text: Two Building Blocks</h2>
+                <p>A web page is built from dozens of HTML elements. A React Native screen is built mostly from two components, and almost everything else is a specialized version of them:</p>
+                <ul>
+                    <li><strong><code>View</code></strong> is a box: it holds other components, has a size, a background, a border and padding, and lays out its children (with flexbox, Lesson 2.2). On Android it becomes a native <code>android.view.View</code>; on iOS a <code>UIView</code>. It cannot show text by itself.</li>
+                    <li><strong><code>Text</code></strong> shows text, and only <code>Text</code> can. On Android and iOS it becomes the platform's own native text view. It has text styles (font, size, color, weight, line height) that a <code>View</code> does not have.</li>
+                </ul>
+                <p>Here is where the HTML you know goes:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>On the web (the HQ)</th><th>On the phone</th><th>Where you meet it</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>&lt;div&gt;</code>, <code>&lt;article&gt;</code>, <code>&lt;section&gt;</code>, <code>&lt;header&gt;</code></td><td><code>View</code></td><td>This lesson</td></tr>
+                            <tr><td><code>&lt;p&gt;</code>, <code>&lt;span&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;time&gt;</code></td><td><code>Text</code> (a <code>Text</code> inside a <code>Text</code> for inline parts)</td><td>This lesson</td></tr>
+                            <tr><td><code>&lt;h1&gt;</code> to <code>&lt;h3&gt;</code></td><td><code>Text</code> with <code>accessibilityRole="header"</code> (Lesson 1.2)</td><td>This lesson</td></tr>
+                            <tr><td>The page's scrolling</td><td><code>ScrollView</code> (Lesson 1.3), then lists</td><td>Lessons 3.1 and 3.2</td></tr>
+                            <tr><td><code>&lt;img&gt;</code></td><td><code>Image</code> from expo-image</td><td>Lesson 2.3</td></tr>
+                            <tr><td><code>&lt;button&gt;</code>, <code>&lt;input&gt;</code></td><td><code>Pressable</code>, <code>TextInput</code></td><td>Lesson 2.4</td></tr>
+                            <tr><td><code>&lt;ul&gt;</code> of many items</td><td><code>FlatList</code>, <code>FlashList</code></td><td>Module 3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>There is no semantic zoo of elements: a heading is a <code>Text</code> that <em>says</em> it is a heading, through <code>accessibilityRole</code>, so a screen reader can announce it. You will set that role on every heading you build today.</p>
+                <h3>The one rule you already know</h3>
+                <p>Lesson 1.1 showed it: a string directly inside a <code>View</code> is an error on a phone ("Text strings must be rendered within a &lt;Text&gt; component"), and the red error screen appears. One more detail you should know now: <strong>the web preview forgives it</strong>. When the course put <code>&lt;View&gt;raw words&lt;/View&gt;</code> in an exported web build, the browser simply showed "raw words", with no message in the console. So the web preview is not proof that a screen works on a phone. When something looks fine on the web, the rules on this page still apply.</p>
+            </section>
+
+            <section id="stylesheet" class="lesson-section">
+                <h2>🎨 Styles Are Objects</h2>
+                <p>In React Native, a style is a plain JavaScript object passed to a component's <code>style</code> prop. You already wrote some in Lessons 1.2 and 1.3 with <code>StyleSheet.create</code>. Here is how the HQ's CSS habits translate:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet } from 'react-native';
+
+// The HQ's CSS habits, written the React Native way
+export const styles = StyleSheet.create({
+  card: {
+    padding: 16, // padding: 1rem
+    paddingHorizontal: 24, // padding-left and padding-right
+    borderWidth: 1, // border: 1px solid #e4dccb
+    borderColor: '#e4dccb',
+    borderRadius: 12,
+    width: '50%', // a percentage is a string
+  },
+  label: {
+    fontSize: 14,
+    lineHeight: 20, // a size, not a multiplier like 1.5
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+});</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>CSS (the HQ)</th><th>React Native</th><th>Why</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>font-size</code>, <code>background-color</code></td><td><code>fontSize</code>, <code>backgroundColor</code></td><td>JavaScript object keys: camelCase</td></tr>
+                            <tr><td><code>16px</code>, <code>1rem</code>, <code>1.25em</code></td><td><code>16</code></td><td>A plain number of <strong>density-independent pixels</strong> (next paragraph). No <code>rem</code> or <code>em</code>: nothing to be relative to</td></tr>
+                            <tr><td><code>50%</code></td><td><code>'50%'</code></td><td>Percentages are strings</td></tr>
+                            <tr><td><code>border: 1px solid #e4dccb</code></td><td><code>borderWidth: 1</code>, <code>borderColor: '#e4dccb'</code></td><td>No shorthands that pack several values into one string</td></tr>
+                            <tr><td><code>padding: 8px 16px</code></td><td><code>paddingVertical: 8</code>, <code>paddingHorizontal: 16</code></td><td>Same reason; <code>Vertical</code> and <code>Horizontal</code> exist instead</td></tr>
+                            <tr><td><code>line-height: 1.5</code></td><td><code>lineHeight: 24</code></td><td>A size, never a multiplier</td></tr>
+                            <tr><td><code>className="card"</code>, <code>var(--surface)</code></td><td><code>style={styles.card}</code>, an imported constant</td><td>No classes, no selectors, no CSS variables</td></tr>
+                            <tr><td>Colors: <code>#0b3954</code>, <code>rgb()</code>, <code>white</code></td><td>The same strings</td><td>One thing that really does carry over</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>Density-independent pixels.</strong> Phones have very different screens: one may pack two physical pixels into the space where another has three. If <code>fontSize: 16</code> meant 16 physical pixels, text would be tiny on the sharper screen. So React Native's numbers are in units of about the same <em>physical</em> size on every phone (Android calls them dp, iOS calls them points): <code>16</code> becomes 32 physical pixels on a "2x" screen and 48 on a "3x" one. That is also what the web's <code>px</code> really is on a phone browser, so your sense of "16 is body text, 32 is a big heading" carries over.</p>
+
+                <h3>Why <code>StyleSheet.create</code>?</h3>
+                <p>You can pass an object straight to <code>style</code> (<code>style={{ padding: 16 }}</code>), and it works. <code>StyleSheet.create</code> gives you three things for one line of code: every style has a <strong>name</strong> you can read in the JSX, the styles live in one place at the bottom of the file like a CSS Module, and TypeScript checks each style against everything a <code>View</code>, <code>Text</code> or <code>Image</code> accepts. Lesson 1.2's exercise showed one side of that check: a misspelled style name such as <code>styles.tagLine</code> is a type error (TS2551). A misspelled or invented property inside <code>StyleSheet.create</code> is one too, as the next table shows.</p>
+
+                <h3>What the type checker catches, and what it does not</h3>
+                <p>That check is good, but not complete. The course tried the classic web habits in Shoreline Crew's own files, with <code>npx tsc --noEmit</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>You write</th><th><code>tsc</code></th><th>What happens</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>fontSize: '16px'</code></td><td>TS2322 error</td><td>Font sizes must be numbers</td></tr>
+                            <tr><td><code>border: '1px solid #e4dccb'</code></td><td>TS2345 error</td><td>There is no <code>border</code> property</td></tr>
+                            <tr><td><code>&lt;View className="card"&gt;</code></td><td><strong>no error</strong></td><td>Expo's generated types accept it (for the web), but no class is defined: it styles nothing (below)</td></tr>
+                            <tr><td><code>padding: '16px'</code></td><td><strong>no error</strong></td><td>The web preview shows 16 pixels of padding; a phone should ignore it (below)</td></tr>
+                            <tr><td><code>color</code> or <code>fontSize</code> in a <code>View</code>'s style</td><td><strong>no error</strong></td><td>Ignored: a <code>View</code> draws no text and passes nothing on (next section)</td></tr>
+                            <tr><td><code>lineHeight: 1.5</code></td><td><strong>no error</strong></td><td>Lines 1.5 units tall: the text squeezes into a sliver</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card card-info">
+                    <h4>🧩 Version note: string sizes in React Native 0.88</h4>
+                    <p>React Native 0.88's types allow <em>any</em> string for sizes such as <code>padding</code> and <code>width</code> (its <code>DimensionValue</code> type is <code>number | string | "auto" | null</code>), so <code>'16px'</code> type-checks. The web preview hands the string to the browser, which understands <code>px</code>. React Native's native layout code, which the course read for this version, understands only numbers, <code>'auto'</code> and percentages such as <code>'50%'</code>, and treats anything else as "not set". So <code>padding: '16px'</code> should look right in the web preview and have no padding on a phone. The rule that keeps you safe on every version: <strong>sizes are numbers, or percentages as strings</strong>.</p>
+                </div>
+            </section>
+
+            <section id="no-cascade" class="lesson-section">
+                <h2>🌊 No Cascade: Text Inherits from Text Only</h2>
+                <p>On the web you set <code>color</code> and <code>font-family</code> once on <code>:root</code> or a container, and every paragraph below inherits them. The HQ's <code>index.css</code> did exactly that. Try the same in React Native:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, Text, View } from 'react-native';
+
+// The web habit: set the color and size once, on the container
+export function Heading() {
+  return (
+    &lt;View style={styles.box}&gt;
+      &lt;Text&gt;Upcoming cleanups&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    padding: 16,
+    color: '#0b3954', // type-checks, but a View draws no text: the Text below stays black
+    fontSize: 20,
+  },
+});</code></pre>
+                <p>It type-checks and lints, and "Upcoming cleanups" appears in the default text style (size 14 in the system font), not in Deep Tide at 20. In the web preview the course measured exactly that: the <code>View</code> got a color of its own, and the <code>Text</code> inside it was black at 14 pixels. Two rules explain it:</p>
+                <ol>
+                    <li><strong>Styles stay on the component you put them on.</strong> There are no selectors and no cascade: a style object belongs to one component. A <code>View</code> has no text to color, so <code>color</code> on a <code>View</code> does nothing at all.</li>
+                    <li><strong>The one exception is a <code>Text</code> inside a <code>Text</code>.</strong> A nested <code>Text</code> inherits the text styles of the <code>Text</code> around it and can change some of them, like a <code>&lt;strong&gt;</code> inside a <code>&lt;p&gt;</code>. That is how you style part of a line.</li>
+                </ol>
+<div class="mermaid">
+graph TD
+    A["View: color, fontSize"] -.->|"not passed on"| B["Text: 14, black"]
+    C["Text: color, size"] -->|"inherited"| D["Text inside it: + bold"]
+</div>
+                <p>You will write this in the project's <code>EventCard</code>: the spots line is one <code>Text</code>, and only the number inside it is bold. The inner <code>Text</code> gets the line's color, size and line height for free:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                    <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="excerpt"><code class="language-tsx">{availability.kind === 'open' &amp;&amp; (
+  &lt;AppText&gt;
+    {/* A Text inside a Text inherits its color and size: only the weight changes */}
+    &lt;Text style={styles.strong}&gt;{availability.spotsLeft}&lt;/Text&gt; of {event.capacity} spots left
+  &lt;/AppText&gt;
+)}</code></pre>
+                </div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: tide pools, not a creek</h4>
+                    <p>CSS is a creek: pour color in at the top of the page and everything downstream gets wet. React Native is a beach of tide pools. Each <code>Text</code> holds only the water you pour into it; a <code>View</code> is a rock, and water poured on a rock runs off. The one shortcut: a small pool inside a bigger pool (a <code>Text</code> inside a <code>Text</code>) shares its water. So when you want the same text style in many places, you do not pour it at the top; you give every pool the same bucket. That bucket is a component, <code>AppText</code>, and you build it in the project.</p>
+                </div>
+                <p>This is also why React Native apps nearly always have their own text component. Without one, every <code>Text</code> in the app needs its color, size and line height repeated, and a change to the body text means editing every screen.</p>
+            </section>
+
+            <section id="style-arrays" class="lesson-section">
+                <h2>🧩 Style Arrays: Combining Styles</h2>
+                <p>Without classes, how do you give one element a base style plus a variation? You pass an <strong>array</strong> to <code>style</code>. React Native merges it from left to right, so <strong>later entries win</strong>, and it skips <code>false</code>, <code>null</code> and <code>undefined</code>, which makes conditions easy:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, Text } from 'react-native';
+
+type SpotsProps = { full: boolean; label: string };
+
+// A style array: later entries win, and false, null or undefined entries are skipped
+export function Spots({ full, label }: SpotsProps) {
+  return &lt;Text style={[styles.line, full &amp;&amp; styles.full]}&gt;{label}&lt;/Text&gt;;
+}
+
+const styles = StyleSheet.create({
+  line: { fontSize: 16, color: '#1f2a37' },
+  full: { fontWeight: 'bold', color: '#b23a22' },
+});</code></pre>
+                <p>When <code>full</code> is <code>false</code>, the array is <code>[styles.line, false]</code> and only <code>line</code> applies; when it is <code>true</code>, <code>full</code>'s bold and coral win over <code>line</code>'s color. This replaces three web patterns at once: <code>className={`${a} ${b}`}</code>, a modifier class, and the <code>clsx</code> helper.</p>
+                <p>Arrays also make components flexible. Shoreline Crew's <code>AppText</code> will combine three layers: a base style, a variant (title, heading, body, muted, error) and whatever a screen passes in. Here is how the banner's title ends up white, bold and 32 units tall:</p>
+<div class="mermaid">
+graph TD
+    A["styles.base: 16, Ink"] --> B["styles.title: 32, bold"]
+    B --> C["the screen's style: white"]
+    C --> D["drawn: 32, bold, white"]
+</div>
+                <p>Every layer only says what it changes. The base sets the color, size and line height; the title variant replaces the size and line height and adds bold; the screen replaces the color. Nothing else in the app has to know.</p>
+            </section>
+
+            <section id="platform-text" class="lesson-section">
+                <h2>🔤 Text on Android, iOS and the Web</h2>
+                <p>A <code>Text</code> with no <code>fontFamily</code> uses the platform's own system font: San Francisco on an iPhone and Roboto on most Android phones. The web preview asks the browser for its system font (the course measured the list react-native-web uses: <code>-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif</code>), so the same screen looks a little different on your computer, an iPhone and an Android phone. That is a feature: each app feels at home on its phone. Custom fonts, such as the crew's heading font Outfit, arrive in Lesson 2.3.</p>
+                <ul>
+                    <li><strong>Font weights.</strong> <code>fontWeight</code> accepts <code>'normal'</code>, <code>'bold'</code>, <code>'100'</code> to <code>'900'</code> (as strings or numbers) and names such as <code>'semibold'</code>. A font may not have every weight; the comment on <code>fontWeight</code> in React Native's own type definitions says that in that case "the closest one is chosen". So <code>'600'</code> can look like bold on one phone and like semibold on another. Use a few weights and look at them on a real device.</li>
+                    <li><strong>Line height.</strong> <code>lineHeight</code> is a size in the same units as <code>fontSize</code>. For body text, about one and a half times the font size reads well: <code>fontSize: 16</code> with <code>lineHeight: 24</code>. The course measured what happens with the CSS habit <code>lineHeight: 1.5</code>: the line in the web preview was 1.5 pixels tall.</li>
+                    <li><strong>The person's text size.</strong> Android and iOS let people make all text larger in their settings, and React Native follows that setting by default (<code>allowFontScaling</code> is <code>true</code>). A 16 can become 20 or much more. Do not turn it off, and do not give a box with text in it a fixed <code>height</code>: let text grow and wrap. Lesson 8.1 tests the extremes.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Open the finished screen in Expo Go and compare it with the web preview: the headings and body text should appear in San Francisco on an iPhone and in Roboto on an Android phone, and the bold weights may differ slightly. Then make the phone's text larger (iPhone: <strong>Settings</strong> &gt; <strong>Display &amp; Brightness</strong> &gt; <strong>Text Size</strong>; Android: <strong>Settings</strong> &gt; <strong>Display</strong> &gt; <strong>Font size</strong>, the exact names vary by maker) and return to Expo Go: the cards should grow taller with the text. Until Lesson 5.1, Expo Go shows "Could not reach the server" instead of the cards, but the banner and heading already show the effect.</p>
+                </div>
+            </section>
+
+            <section id="theme" class="lesson-section">
+                <h2>🎨 A Theme File for the Crew's Colors</h2>
+                <p>Lessons 1.2 and 1.3 typed the crew's colors straight into <code>index.tsx</code>: <code>'#0b3954'</code> for the title, <code>'#1f6f8b'</code> for the tagline. With one screen that was fine. With cards, banners and soon a dozen screens, a hex code in every file is how apps end up with eleven slightly different blues.</p>
+                <p>The HQ solved this with CSS custom properties (<code>--deep-tide</code>, <code>--text</code>, <code>--surface</code>). React Native has no CSS variables, but it has something just as good: a TypeScript module that exports constants. Shoreline Crew's theme has two layers, the same two the HQ's <code>index.css</code> had:</p>
+                <ul>
+                    <li><strong><code>brand</code></strong>: the crew's named colors (Deep Tide, Sea Teal, Sand, Coral…), copied from the HQ.</li>
+                    <li><strong><code>colors</code></strong>: what each color is <em>for</em> (<code>page</code>, <code>surface</code>, <code>text</code>, <code>heading</code>, <code>error</code>…). Screens use only these.</li>
+                </ul>
+                <p>Naming colors by their job is what makes dark mode possible later: in Lesson 2.5, <code>colors.page</code> becomes Sand in light mode and a deep night blue in dark mode, and no screen has to change. Until then the app is light only, on purpose; if your phone is in dark mode, the screen stays light.</p>
+                <p>Two TypeScript details make the theme pleasant to use. <code>as const</code> makes every value a read-only literal, so <code>colors.page</code> is exactly <code>'#fbf6ec'</code> (hover over it in VS Code) and nobody can assign to it by accident. And because the theme is ordinary code, a typo such as <code>colors.pgae</code> is a type error, which a misspelled <code>var(--pgae)</code> in CSS never was.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ Units in sizes</h4>
+                    <p><code>fontSize: '16px'</code> is caught. TypeScript says:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/AppText.tsx:20:5 - error TS2322: Type 'string' is not assignable to type 'number'.
+
+20     fontSize: '16px',
+       ~~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/StyleSheet/StyleSheetTypes.d.ts:811:3
+    811   fontSize?: number | undefined;
+          ~~~~~~~~
+...
+
+Found 1 error in src/components/AppText.tsx:20</code></pre>
+                    </div>
+                    <p>Read it from the top: the file and line, the type that was expected (<code>number</code>), the line with the tildes under the problem, and where the rule comes from (React Native's own style types). <code>padding: '16px'</code> is <em>not</em> caught (see the version note above), so drop units everywhere, not only where the checker complains.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ CSS shorthands</h4>
+                    <p><code>border: '1px solid #e4dccb'</code> produces one of TypeScript's longest messages. Its first line begins <code>src/components/EventCard.tsx:44:5 - error TS2345: Argument of type</code> and runs on for hundreds of characters; the words that matter are further in: <code>'border' does not exist in type</code>. Skip to the code frame, which points at the property:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>...
+  Property 'card' is incompatible with index signature.
+...
+
+44     border: '1px solid #e4dccb',
+       ~~~~~~
+
+Found 1 error in src/components/EventCard.tsx:44</code></pre>
+                    </div>
+                    <p>Write <code>borderWidth</code>, <code>borderColor</code> and, if you need it, <code>borderStyle</code>. Long error messages are not a sign of a big problem; look for the line number and the property name, then read the rest only if you need it.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>className</code> out of habit</h4>
+                    <p>Your fingers will type it at least once, and nothing will stop you. Once Metro has started (Lesson 1.2), Expo's generated <code>expo-env.d.ts</code> loads Expo's own types, which add a <code>className</code> prop to <code>View</code> and <code>Text</code> for the web. So <code>npx tsc --noEmit</code> prints nothing, and the card simply does not get its look: no stylesheet defines <code>card</code>, and a phone ignores the prop. Use <code>style={styles.card}</code>. (Libraries such as NativeWind turn <code>className</code> into real Tailwind styles; that is a choice a team makes, and the course does not use it.)</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Text styles on a <code>View</code></h4>
+                    <p>A <code>color</code>, <code>fontSize</code> or <code>fontWeight</code> in a <code>View</code>'s style passes the type check and does nothing. When text does not change, check which component the style is on, and move it to the <code>Text</code> (or give the <code>Text</code> a variant of <code>AppText</code>).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>lineHeight</code> as a multiplier</h4>
+                    <p><code>lineHeight: 1.5</code> type-checks and squeezes every line into 1.5 units: lines overlap or vanish. Multiply yourself: font size 16, line height 24.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Trusting the web preview with a stray string</h4>
+                    <p>A string left directly inside a <code>View</code> (for example after deleting a <code>&lt;Text&gt;</code> tag but not its words) looks fine in the web preview, while a phone shows the red error screen. When you edit JSX, keep every word inside a <code>Text</code> or an <code>AppText</code>, and look at the phone now and then.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: The Cleanups Screen</h2>
+                <p>You move the crew's colors into a theme, build the two components every screen will use (<code>AppText</code> and <code>EventCard</code>), and rebuild the home screen as Shoreline Crew's Cleanups screen. Keep shoreline-api running in its own terminal (<code>node server.ts</code>), and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: The theme files <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Create the folder <code>src/theme</code> and the file <code>colors.ts</code> in it. The <code>brand</code> values are the HQ's, from its <code>index.css</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/colors.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/colors.ts"><code class="language-ts">// Shoreline Crew's colors: the same brand as Shoreline Crew HQ's index.css, as plain values.
+export const brand = {
+  deepTide: '#0b3954',
+  seaTeal: '#1f6f8b',
+  sunrise: '#f4a259',
+  sand: '#fbf6ec',
+  seafoam: '#bfe3df',
+  kelp: '#2d6a4f',
+  coral: '#b23a22',
+  ink: '#1f2a37',
+  muted: '#5b6573',
+  white: '#ffffff',
+} as const;
+
+// What the screens use: a job, not a color name. Lesson 2.5 adds a dark set with the same names.
+export const colors = {
+  page: brand.sand,
+  surface: brand.white,
+  border: '#e4dccb',
+  text: brand.ink,
+  textMuted: brand.muted,
+  heading: brand.deepTide,
+  error: brand.coral,
+  banner: brand.deepTide,
+  onBanner: brand.white,
+  onBannerAccent: brand.seafoam,
+} as const;</code></pre>
+                            </div>
+                        </li>
+                        <li>Add the spacing scale next to it. Four sizes are enough for now; a scale keeps gaps consistent the way the HQ's <code>rem</code> steps did:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/spacing.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/spacing.ts"><code class="language-ts">// Sizes in density-independent pixels: plain numbers, no units
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+} as const;
+
+export const radius = {
+  card: 12,
+} as const;</code></pre>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: <code>AppText</code>, the app's text component <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/components/AppText.tsx</code>. It is a <code>Text</code> with Shoreline Crew's text styles built in:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/AppText.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/AppText.tsx"><code class="language-tsx">import { StyleSheet, Text, type TextProps } from 'react-native';
+
+import { colors } from '@/theme/colors';
+
+// Every piece of text in Shoreline Crew goes through AppText, so the app has one set of text styles
+export type TextVariant = 'title' | 'heading' | 'body' | 'muted' | 'error';
+
+type AppTextProps = TextProps &amp; {
+  variant?: TextVariant;
+};
+
+export function AppText({ variant = 'body', style, ...rest }: AppTextProps) {
+  // Later styles win: the base, then the variant, then whatever the screen passes in
+  return &lt;Text style={[styles.base, styles[variant], style]} {...rest} /&gt;;
+}
+
+const styles = StyleSheet.create({
+  base: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  title: {
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: 'bold',
+  },
+  heading: {
+    color: colors.heading,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  body: {},
+  muted: {
+    color: colors.textMuted,
+  },
+  error: {
+    color: colors.error,
+  },
+});</code></pre>
+                    </div>
+                    <p>What each part does:</p>
+                    <ul>
+                        <li><code>TextProps &amp; { variant?: TextVariant }</code>: <code>AppText</code> accepts every prop a <code>Text</code> accepts (<code>accessibilityRole</code>, <code>numberOfLines</code>, <code>style</code>…) plus one of its own. This is the "extend the props of the element you wrap" pattern from the web course, with React Native's <code>TextProps</code> instead of <code>ComponentProps&lt;'p'&gt;</code>. <code>type TextProps</code> in the import brings in only the type.</li>
+                        <li><code>{ variant = 'body', style, ...rest }</code>: the screen's own <code>style</code> is taken out so it can go <em>last</em> in the array; everything else goes straight to <code>Text</code>.</li>
+                        <li><code>styles[variant]</code>: TypeScript knows <code>variant</code> is one of five names and that <code>styles</code> has all five, so the lookup is checked. Exercise 3 shows what happens when they disagree.</li>
+                        <li><code>body: {}</code> is empty on purpose: body text is just the base. Keeping it as a named variant means a screen can say what it means, and a later lesson can give body text its own font without touching any screen.</li>
+                        <li>Every variant has a <code>lineHeight</code> about one and a half times its <code>fontSize</code>, and none sets a fixed height, so larger text from the phone's settings still fits.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: <code>EventCard</code> <span class="step-time">(20 min)</span></h3>
+                    <p>If you have Shoreline Crew HQ, open its <code>src/components/EventCard.tsx</code> beside the phone version. The HQ's card is an <code>&lt;article&gt;</code> with an <code>&lt;h3&gt;</code>, a <code>&lt;time&gt;</code>, and a <code>SpotsLine</code> that says "5 of 12 spots left" or "Full: new sign-ups join the waiting list". The phone's card keeps those words and that order, and rebuilds the markup from <code>View</code> and <code>AppText</code>. Create <code>src/components/EventCard.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx"><code class="language-tsx">import { StyleSheet, Text, View } from 'react-native';
+
+import type { CleanupEvent } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+import { getAvailability } from '@/utils/availability';
+import { formatDate } from '@/utils/format';
+
+type EventCardProps = {
+  event: CleanupEvent;
+};
+
+// One cleanup in a list: the phone's version of the HQ's EventCard
+export function EventCard({ event }: EventCardProps) {
+  const availability = getAvailability(event);
+
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        {event.title}
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        {formatDate(event.date)}, {event.startTime} to {event.endTime}
+      &lt;/AppText&gt;
+      &lt;AppText variant="muted"&gt;Meet at: {event.meetingPoint}&lt;/AppText&gt;
+      {availability.kind === 'open' &amp;&amp; (
+        &lt;AppText&gt;
+          {/* A Text inside a Text inherits its color and size: only the weight changes */}
+          &lt;Text style={styles.strong}&gt;{availability.spotsLeft}&lt;/Text&gt; of {event.capacity} spots left
+        &lt;/AppText&gt;
+      )}
+      {availability.kind === 'full' &amp;&amp; (
+        &lt;AppText style={styles.strong}&gt;Full: new sign-ups join the waiting list&lt;/AppText&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  strong: {
+    fontWeight: 'bold',
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>The card is a <code>View</code> with the HQ card's look: a white surface, a one-unit border, rounded corners (the HQ's <code>0.75rem</code> is 12) and padding. <code>gap</code> spaces the lines, as in Lesson 1.3's screen; Lesson 2.2 explains how <code>gap</code> and flexbox lay things out.</li>
+                        <li>The title is a heading for screen readers (<code>accessibilityRole="header"</code>), the HQ's <code>&lt;h3&gt;</code>.</li>
+                        <li>The spots line uses the copied <code>getAvailability</code>. For an open cleanup, a nested <code>Text</code> makes only the number bold (no cascade, but inheritance inside <code>Text</code>). A full cleanup gets the whole line bold by passing <code>style={styles.strong}</code> to <code>AppText</code>, the last entry in its array. A closed cleanup shows no spots line, like the HQ's.</li>
+                        <li>The HQ's card also showed the site's name, a status badge and a "Show details" button. The badge comes in Lesson 2.2, buttons in Lesson 2.4, and the details move to their own screen in Lesson 4.1.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: The Cleanups screen <span class="step-time">(15 min)</span></h3>
+                    <p>Replace <code>src/app/index.tsx</code>. The loading logic is Lesson 1.3's, unchanged; what is new is everything you see:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/index.tsx"><code class="language-tsx">import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import { describeError, getEvents } from '@/api/client';
+import type { CleanupEvent } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { EventCard } from '@/components/EventCard';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+
+type Load =
+  | { status: 'loading' }
+  | { status: 'failed'; message: string }
+  | { status: 'loaded'; events: CleanupEvent[] };
+
+// The Cleanups screen: the crew's banner, then one card per upcoming cleanup
+export default function Index() {
+  const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
+
+  useEffect(() =&gt; {
+    const controller = new AbortController();
+    getEvents('when=upcoming', controller.signal)
+      .then((page) =&gt; setLoad({ status: 'loaded', events: page.items }))
+      .catch((error: unknown) =&gt; {
+        if (!controller.signal.aborted) {
+          setLoad({ status: 'failed', message: describeError(error) });
+        }
+      });
+    return () =&gt; controller.abort();
+  }, []);
+
+  return (
+    &lt;ScrollView style={styles.screen} contentContainerStyle={styles.content}&gt;
+      &lt;View style={styles.banner}&gt;
+        &lt;AppText variant="title" accessibilityRole="header" style={styles.bannerTitle}&gt;
+          Shoreline Crew
+        &lt;/AppText&gt;
+        &lt;AppText style={styles.bannerTagline}&gt;Many hands, cleaner sands.&lt;/AppText&gt;
+      &lt;/View&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Upcoming cleanups
+      &lt;/AppText&gt;
+      {load.status === 'loading' &amp;&amp; &lt;AppText variant="muted"&gt;Loading cleanups…&lt;/AppText&gt;}
+      {load.status === 'failed' &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {load.message}
+        &lt;/AppText&gt;
+      )}
+      {load.status === 'loaded' &amp;&amp;
+        load.events.map((event) =&gt; &lt;EventCard key={event.id} event={event} /&gt;)}
+    &lt;/ScrollView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: colors.page,
+  },
+  content: {
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  banner: {
+    gap: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.banner,
+  },
+  bannerTitle: {
+    color: colors.onBanner,
+  },
+  bannerTagline: {
+    color: colors.onBannerAccent,
+    fontSize: 18,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>style</code> and <code>contentContainerStyle</code> on <code>ScrollView</code> are two different boxes. <code>style</code> is the scrolling window itself: its Sand background fills the screen. <code>contentContainerStyle</code> is the long strip of content that scrolls inside it: its padding and gap travel with the cards. (Padding on the window would stay put while the cards slide under it.)</li>
+                        <li>The banner is a <code>View</code> with Deep Tide behind white and Seafoam text. White on Deep Tide (about 12:1), Seafoam on Deep Tide (about 8.8:1) and Ink on white (about 14.5:1) all pass the WCAG contrast ratio for small text, 4.5:1, with room to spare; the muted gray on white is about 5.9:1.</li>
+                        <li>The title passes <code>style={styles.bannerTitle}</code>, which only changes the color: the size and weight still come from the <code>title</code> variant (the diagram in <a href="#style-arrays">Style Arrays</a>).</li>
+                        <li>There are no hex codes left in the screen: every color comes from <code>colors</code>, every gap from <code>spacing</code>. <code>spotsText</code> from Lesson 1.3 is gone; the card says it better.</li>
+                    </ul>
+                    <p>Save, and the web preview reloads by itself (Fast Refresh). If it does not, press <kbd>r</kbd> in Metro's terminal. You should see the banner, the heading and a card for each upcoming cleanup:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_04/04-cleanups-screen.png" alt="A phone-shaped frame showing the web preview of Shoreline Crew: under a header bar titled index, a dark blue rounded banner with the white heading Shoreline Crew and the tagline Many hands, cleaner sands. in light green, the heading Upcoming cleanups on a sand-colored page, and white cards with a rounded border, each with a cleanup&#x27;s title, its date and times, a gray meeting-point line and how many spots are left." width="420" height="814" loading="lazy">
+    <figcaption>The first real screen, in the web preview: a <code>View</code> banner, <code>AppText</code> headings and one <code>EventCard</code> per upcoming cleanup, every color from <code>src/theme/colors.ts</code>. Dates move with today.</figcaption>
+</figure>
+                    <p>The Stack header still says "index", the file's name. Lesson 4.1 gives every screen a proper title.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Break it on purpose <span class="step-time">(10 min)</span></h3>
+                    <p>Scroll to the spots lines first and look at what the nested <code>Text</code> and the style array did:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_04/04-spots-lines.png" alt="The same web preview with two parts outlined in red: in the first card, the number 5 of the line 5 of 12 spots left, which is bold while the rest of the line is regular, and in the second card, Weekend Cove Cleanup, the whole bold line Full: new sign-ups join the waiting list." width="420" height="814" loading="lazy">
+    <figcaption>Two spots lines: a nested <code>Text</code> makes only the number bold (it inherits the color and size of the line around it), and a full cleanup gets a whole bold line through <code>AppText</code>'s style array. The numbers change with the sample data.</figcaption>
+</figure>
+                    <p>Now try the web habits from this lesson one at a time, look at the web preview and run <code>npx tsc --noEmit</code>, then undo each change:</p>
+                    <ol>
+                        <li>In <code>EventCard.tsx</code>, add <code>color: colors.error,</code> to the <code>card</code> style. Nothing turns red, and <code>tsc</code> is quiet: a <code>View</code> passes nothing on.</li>
+                        <li>In <code>AppText.tsx</code>, change the base <code>lineHeight: 24</code> to <code>lineHeight: 1.5</code>. Every line collapses. Put 24 back.</li>
+                        <li>In <code>EventCard.tsx</code>, replace <code>borderWidth: 1,</code> and <code>borderColor: colors.border,</code> with <code>border: '1px solid #e4dccb',</code>. <code>tsc</code> reports the TS2345 error from <a href="#mistakes">Common Mistakes</a>.</li>
+                        <li>In the nested <code>Text</code> of the spots line, add <code>color: colors.error</code> to <code>strong</code> (in <code>EventCard</code>'s styles). Now the number is coral and bold, and still the size of the line around it: it changed what it set and inherited the rest. Then notice that the full cleanup's line turned coral too, because it uses the same <code>strong</code> style. Undo it.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:
+                            <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                        </li>
+                        <li>Commit:
+                            <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Cleanups screen: theme files, AppText and EventCard"</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>Your final project (Lesson 10.1) needs a theme too. In your journal, pick three to six colors for it and name each one twice: once by what it is ("Deep Tide") and once by its job ("heading", "page", "error"). Then list the text variants your app's first screen would need. If you like, sketch that screen as boxes: which parts are <code>View</code>s and which are <code>Text</code>?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>src/theme/colors.ts</code> has the <code>brand</code> colors and the <code>colors</code> roles; <code>spacing.ts</code> has the spacing scale and the card radius</li>
+                        <li>☐ <code>AppText</code> combines base, variant and the screen's <code>style</code> in one array</li>
+                        <li>☐ <code>EventCard</code> shows a cleanup's title (as a header), date and times, meeting point and spots line, with only the number bold for an open cleanup</li>
+                        <li>☐ The web preview shows the banner, "Upcoming cleanups" and one card per upcoming cleanup, with no hex codes left in <code>index.tsx</code></li>
+                        <li>☐ You saw <code>color</code> on a <code>View</code> and <code>lineHeight: 1.5</code> fail silently, and <code>border</code> fail loudly</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Translate a CSS rule</h3>
+                    <p>The HQ's badges used this CSS: <code>padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 0.875rem; font-weight: 600;</code>. Write it as one React Native style object (assume <code>1rem</code> is 16). Which parts belong on a <code>View</code> and which on a <code>Text</code>?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Multiply each <code>rem</code> by 16. The two-value padding becomes two properties. Then sort the properties: which ones are about the box, and which about the letters?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>{ paddingVertical: 2, paddingHorizontal: 10, borderRadius: 999, fontSize: 14, fontWeight: '600' }</code>. On a phone, the box styles (<code>paddingVertical</code>, <code>paddingHorizontal</code>, <code>borderRadius</code>, and a background) usually go on a <code>View</code> and the text styles (<code>fontSize</code>, <code>fontWeight</code>, <code>color</code>) on the <code>Text</code> inside it. A <code>Text</code> can also take padding and a background itself, so a very simple badge can be a single styled <code>Text</code>. Lesson 2.2 builds the badge row.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Part of a line</h3>
+                    <p>In <code>EventCard</code>, make only the words "Meet at:" bold, and keep the meeting point itself in the muted style.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Same trick as the spots number: a <code>Text</code> inside the <code>AppText</code>, with only the style that changes.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>&lt;AppText variant="muted"&gt;&lt;Text style={styles.strong}&gt;Meet at:&lt;/Text&gt; {event.meetingPoint}&lt;/AppText&gt;</code>. The nested <code>Text</code> inherits the muted color, the size and the line height, and adds only bold. Keep the space outside the inner <code>Text</code>, between <code>&lt;/Text&gt;</code> and <code>{event.meetingPoint}</code>, so it is part of the line.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A new variant, and the type error that guards it</h3>
+                    <p>Add a <code>'small'</code> variant (size 14, line height 20) to <code>AppText</code>. First add it <em>only</em> to the <code>TextVariant</code> type and run <code>npx tsc --noEmit</code>. Read the error, then finish the job and use the variant for the meeting-point line.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The error points at <code>styles[variant]</code>. Which name in the type has no style yet?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>tsc</code> reports <code>error TS7053: Element implicitly has an 'any' type because expression of type 'TextVariant' can't be used to index type</code> … and, on its second line, <code>Property 'small' does not exist on type</code> …, pointing at <code>styles[variant]</code> in <code>AppText.tsx</code> line 14. Add <code>small: { fontSize: 14, lineHeight: 20 },</code> to the styles and the error is gone; then <code>&lt;AppText variant="small"&gt;</code> works. The type and the styles can never drift apart: that is the benefit of looking the variant up in a typed object instead of a chain of <code>if</code>s. (Muted and small together? A variant is one choice; pass <code>style={…}</code> for the extra color, or make <code>'small'</code> muted if that is what your design needs.)</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Mark the full cleanups (Stretch)</h3>
+                    <p>Give the card of a full cleanup a thick Sunrise stripe on its left edge, using a style array on the card's <code>View</code>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>borderLeftWidth</code> and <code>borderLeftColor</code> override the card's border on one side. Add them in a second style and include it only when <code>availability.kind === 'full'</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>A style <code>cardFull: { borderLeftWidth: 6, borderLeftColor: brand.sunrise }</code> (import <code>brand</code> as well as <code>colors</code>, or add a role such as <code>colors.attention</code>, which is the better long-term habit), and <code>&lt;View style={[styles.card, availability.kind === 'full' &amp;&amp; styles.cardFull]}&gt;</code>. The color alone is not enough for everyone (some people cannot tell colors apart, and a screen reader cannot see it), which is why the words "Full: new sign-ups join the waiting list" stay on the card.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate writes <code>&lt;View style={{ color: colors.heading }}&gt;&lt;Text&gt;Upcoming cleanups&lt;/Text&gt;&lt;/View&gt;</code>. What does the phone show?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That is what CSS would do. Does a View pass its styles to the components inside it?">
+                                A) The text in Deep Tide, inherited from the View
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Styles stay on the component you put them on, and a View has no text to color. The Text uses the default style. Put the color on the Text, or use AppText with the heading variant.">
+                                B) The text in the default color, because a View passes no styles on
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The course measured this case: tsc accepts it and the phone draws the screen. What color does the Text get then?">
+                                C) A red error screen, because color is not allowed on a View
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> <code>AppText</code> draws <code>style={[styles.base, styles.heading, { color: 'white' }]}</code>. <code>base</code> sets the color to Ink and <code>heading</code> sets it to Deep Tide. Which color is the text?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the first entry of a style array the strongest or the weakest?">
+                                A) Ink
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="heading comes after base, but is it the last entry that sets a color?">
+                                B) Deep Tide
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Several entries may set the same property. React Native merges them; which one wins?">
+                                C) An error, because two styles set the same property
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A style array is merged from left to right and later entries win, so the screen's own style, which comes last, sets the color. That is why AppText puts the style prop at the end.">
+                                D) White
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> You copy the HQ's habit and write <code>lineHeight: 1.5</code> in <code>AppText</code>'s base style. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="lineHeight is a size in the same units as fontSize, not a multiplier. 1.5 units is far less than one line of 16-unit text, so the lines collapse. tsc cannot know you meant a multiplier. Use 24 for 16-unit text.">
+                                A) Every line is squeezed into a sliver 1.5 units tall
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="In CSS, yes. In React Native, is lineHeight measured in the same way as fontSize, or as a factor?">
+                                B) Lines are one and a half times the font size, as in CSS
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="1.5 is a number, and lineHeight accepts numbers. Does tsc know what you meant?">
+                                C) <code>npx tsc --noEmit</code> reports a type error
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Where do text styles inherit in React Native?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Think of the tide pools: what happens to water poured on a rock?">
+                                A) From a View to every Text inside it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="StyleSheet.create only gives styles names and types. Does it apply them to anything by itself?">
+                                B) From <code>StyleSheet.create</code> to every component in the file
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A nested Text inherits the text styles of the Text around it and changes only what it sets, which is how EventCard makes just the spots number bold. Everywhere else there is no inheritance, which is why the app has AppText.">
+                                C) From a Text to a Text nested inside it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="There is one exception, and EventCard uses it for the spots number.">
+                                D) Nowhere at all
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Why do Shoreline Crew's screens use <code>colors.page</code> and <code>colors.heading</code> instead of <code>brand.sand</code> or <code>'#fbf6ec'</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Lessons 1.2 and 1.3 used hex codes in styles, and they worked. Is this about what React Native can read?">
+                                A) Because React Native cannot read hex color codes in styles
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A role says what a color is for, so Lesson 2.5 can give each role a dark-mode value in one file and every screen follows. It also keeps the app to one set of colors.">
+                                B) So one file can change what each job looks like, for example a dark palette in Lesson 2.5
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="StyleSheet.create accepts any valid color string. What does a name like page give you that a hex code does not?">
+                                C) Because <code>StyleSheet.create</code> only accepts imported constants
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Are inline styles like <code>style={{ padding: 16 }}</code> bad?</summary>
+                    <p>No, they work and are fine for a one-off. The course prefers <code>StyleSheet.create</code> for named styles in one place and the stricter check on each style. Old articles also claim a big speed difference; in a current app that is not a reason to worry, and the React Compiler (on in Expo's template, Lesson 8.4) already memoizes much of what a component creates.</p>
+                </details>
+                <details>
+                    <summary>What about NativeWind, styled-components or other styling libraries?</summary>
+                    <p>They exist and some teams love them: NativeWind brings Tailwind's <code>className</code> strings to React Native, and others offer CSS-like syntax or design-system themes. Every one of them turns into the same style objects in the end, so what you learn here is what they do underneath. Learn the plain way first; pick a library later for a reason you can name.</p>
+                </details>
+                <details>
+                    <summary>How do I add a shadow to a card?</summary>
+                    <p>The card uses a border, which looks the same everywhere. React Native's types for this version also accept a CSS-like <code>boxShadow</code> string (for example <code>boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)'</code>), which the React Native documentation describes as supported on Android and iOS with the New Architecture; older tutorials use <code>shadowColor</code>/<code>shadowOpacity</code> (iOS) and <code>elevation</code> (Android). Shadows look different on each platform, so check them on a phone.</p>
+                </details>
+                <details>
+                    <summary>My phone is in dark mode, and the app stays light. Is something wrong?</summary>
+                    <p>No, that is expected for now. The theme has only light values today. Lesson 2.5 adds the dark palette and switches between them; because the screens use roles such as <code>colors.page</code>, none of them will need changing.</p>
+                </details>
+                <details>
+                    <summary>Why does the header bar say "index"?</summary>
+                    <p>Expo Router's Stack uses the route's file name as the title until you give it one. Lesson 4.1 is about routes and titles. The banner in the screen is part of the content, not the header bar.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>React Native can show you the final, merged style of a style array: <code>StyleSheet.flatten([...])</code> returns one plain object. In <code>AppText</code>, temporarily log <code>StyleSheet.flatten([styles.base, styles[variant], style])</code> for the banner's title, and compare what you see in the browser's console (or Metro's terminal, on a phone) with the diagram in <a href="#style-arrays">Style Arrays</a>. Then remove the log: it runs on every render.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> List three CSS habits that React Native catches with a type error and three that it ignores silently. Which of the silent ones do you think you are most likely to write by accident, and what will you look for when a style "does nothing"?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><strong><code>View</code> is a box and <code>Text</code> shows text.</strong> Headings are <code>Text</code> with <code>accessibilityRole="header"</code>; every string lives in a <code>Text</code> (the web preview forgives a stray one, a phone does not)</li>
+                        <li>Styles are objects: camelCase, <strong>numbers</strong> in density-independent pixels, percentages as strings, no shorthands, no classes, no CSS variables</li>
+                        <li><code>StyleSheet.create</code> names and type-checks styles, but <code>padding: '16px'</code>, text styles on a <code>View</code> and <code>lineHeight: 1.5</code> pass the check and fail quietly</li>
+                        <li><strong>No cascade:</strong> styles stay on their component; only a <code>Text</code> inside a <code>Text</code> inherits. A shared text component (<code>AppText</code>) replaces the page-wide font settings of the web</li>
+                        <li>Style arrays merge left to right, later entries win, <code>false</code> is skipped: base, variant, then the caller's style</li>
+                        <li>System fonts differ by platform, weights fall back to the closest available, and text grows with the person's settings: never fix the height of text</li>
+                        <li>Colors and spacing live in <code>src/theme/</code>, named by their job, ready for dark mode in Lesson 2.5</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate a CSS habit into React Native</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (density-independent pixel, style array)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read every style property <code>Text</code> accepts</td><td><a href="https://reactnative.dev/docs/text-style-props" target="_blank" rel="noopener">React Native: Text style props</a></td></tr>
+                            <tr><td>Read about <code>StyleSheet</code> in the official docs</td><td><a href="https://reactnative.dev/docs/stylesheet" target="_blank" rel="noopener">React Native: StyleSheet</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You built Shoreline Crew's first real screen: a banner, a heading and a card for every upcoming cleanup</li>
+                        <li>You moved the crew's colors into a theme named by job, ready for dark mode</li>
+                        <li>You wrote two reusable, typed components that every later screen will use</li>
+                        <li>You can tell which CSS habits React Native rejects, which it ignores, and how to find out</li>
+                        <li>You used the one kind of inheritance React Native has, on purpose</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_05.html"><strong>Lesson 2.2: Flexbox the Native Way</strong></a> you learn how React Native lays boxes out: flexbox with different defaults from the web (a column, not a row), sizing with <code>flex</code>, and the common layouts of phone screens. You use it to put the card's details side by side, add a status badge row, and start a <code>Screen</code> component that every screen can share.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the web preview shows the Cleanups screen with its cards, and that your work is committed</li>
+                    <li>Think of one phone app you use every day and notice how its rows and columns are arranged: next lesson builds those layouts</li>
+                    <li>Write today's journal entry, including your three "loud" and three "silent" CSS habits</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today the app stopped looking like a test and started looking like Shoreline Crew. You did it without a single line of CSS, and you now know the handful of places where your web instincts need a second look. That knowledge compounds: every screen from here uses the same theme, the same <code>AppText</code> and the same habits, so each one gets faster to build. If some of today's rules still feel strange, that is normal; a week of writing styles this way and they will feel like your own.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_03.html" class="prev-lesson">← Previous: From the HQ to the Phone</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_05.html" class="next-lesson">Next: Flexbox the Native Way →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

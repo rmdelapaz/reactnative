@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Configuring an Expo app in code: app.config.ts instead of app.json, development, preview and production variants with their own names and ids, per-variant settings and secrets, plain http in release builds, permission strings, entitlements, icons and splash. React Native &amp; Expo: Build and Ship a Mobile App Lesson 9.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>App Config and Environments - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+        <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>⚙️ Lesson 9.1: App Config and Environments</h1>
+                <p class="lead">Until now Shoreline Crew has lived inside Expo Go, which brings its own name, icon and permissions. Shipping means your app carries its own: a name under the icon, an id the stores know it by, the sentences the phone shows when it asks for the camera, the colors of the splash screen. Today all of that moves into one typed file, <code>app.config.ts</code>, and one project learns to become three apps: one for you to develop, one for testers, one for volunteers.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain what the app config controls, who reads it (Expo Go, prebuild, your build) and how to see exactly what Expo sees with <code>npx expo config</code></li>
+                        <li>Replace <code>app.json</code> with a typed <code>app.config.ts</code> and say what you gain and what tools can no longer do for you</li>
+                        <li>Define development, preview and production variants with their own names and app ids, chosen by <code>APP_VARIANT</code></li>
+                        <li>Decide where each setting lives (<code>EXPO_PUBLIC_</code> variables, the shell, <code>.env.local</code>, a build service's secrets) and keep secrets out of your code</li>
+                        <li>Explain why release builds refuse plain <code>http</code>, what that means for shoreline-api, and what a real app does instead</li>
+                        <li>Audit what a build asks the phone for: permission sentences, Face ID, push entitlement, notification icon and splash screen</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_31.html">Lesson 8.4: Performance and Debugging</a>; Lessons 2.3 (icons and splash), 5.1 (the API address) and 6.1 to 6.4 (permissions, maps, notifications) are revisited</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's <code>app.config.ts</code> with three variants (Shoreline Dev, Shoreline Preview, Shoreline Crew), a guard against plain http in production, the Google Maps key read from the environment, a tidier set of native settings, and the app's name and version on Profile (48 tests)</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, Expo CLI config and prebuild), expo-build-properties 58.0, TypeScript 6.0 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your terminal for <code>npx expo config</code> and the checks; Expo Go or the web preview to see the new Profile line. Builds that show the icon, splash and ids come in Lesson 9.2</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-32-start.zip">lesson-32-start.zip</a> · Finished code: <a href="downloads/lesson-32-end.zip">lesson-32-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: From a Project to an App</a></li>
+                        <li><a href="#config" class="toc-link">What the App Config Is, and Who Reads It</a></li>
+                        <li><a href="#dynamic" class="toc-link">app.json or app.config.ts</a></li>
+                        <li><a href="#variants" class="toc-link">Three Variants of One App</a></li>
+                        <li><a href="#settings" class="toc-link">Settings, Environments and Secrets</a></li>
+                        <li><a href="#http" class="toc-link">Plain http in Release Builds</a></li>
+                        <li><a href="#native" class="toc-link">What a Build Asks the Phone For</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew's App Config</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: From a Project to an App</h2>
+                <p>At the end of Lesson 8.4 you read every key in <code>app.json</code>. Most of them did nothing you could see: Expo Go showed its own icon, asked for the camera in its own words, and never needed an id for Shoreline Crew. That changes the moment you build your own app (Lesson 9.2). The phone, the stores and Google's and Apple's services all read what this file says.</p>
+                <p>This lesson is the bridge. By the end of it:</p>
+                <ul>
+                    <li><strong>The config is code:</strong> <code>app.config.ts</code>, type-checked like the rest of the app, replaces <code>app.json</code>.</li>
+                    <li><strong>One project makes three apps:</strong> Shoreline Dev for you, Shoreline Preview for crew leaders who test, Shoreline Crew for volunteers, each with its own name and id so all three fit on one phone.</li>
+                    <li><strong>Settings and secrets have a home:</strong> the API address per variant, and a Google Maps key that never enters your code.</li>
+                    <li><strong>The debts from earlier lessons are paid:</strong> plain <code>http</code> in release builds (5.1), the Maps key (6.3), the push entitlement (6.4), permission sentences (6.1, 6.2) and the Face ID sentence nobody needs (6.1's Exercise 2), plus the iPhone icon question Lesson 2.3 left open.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> on a real team, "which build is this?" is the first question of every bug report, and the most expensive mistakes in mobile are configuration mistakes: a test build that overwrote the store app on a manager's phone, an API key pushed to a public repository, a store rejection for a permission sentence that says "Allow $(PRODUCT_NAME) to access your Face ID biometric data" in an app with no Face ID. Each of those is one line in the file you write today.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Config errors are the friendly kind</h3>
+                    <p>Today you will break the config on purpose, and every break stops Expo at once with a message that names the file and the problem. That is the best kind of error: loud, early, on your computer, before a volunteer ever sees it. If a command fails, read the first <code>Error:</code> line; it is almost always enough.</p>
+                </div>
+            </section>
+
+            <section id="config" class="lesson-section">
+                <h2>🗂️ What the App Config Is, and Who Reads It</h2>
+                <p>The app config describes the app around your JavaScript: its name and version, its icon and splash screen, its deep-link scheme (Lesson 4.4), its ids, and the config plugins that write native settings such as permission sentences. Expo reads it whenever it runs, and different readers use different parts:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Reader</th><th>What it uses</th><th>When</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Expo CLI and Metro</td><td>Everything, to start or export the app; the web preview gets a small web-only part (name, favicon, colors)</td><td><code>npx expo start</code>, <code>npx expo export</code></td></tr>
+                            <tr><td>Expo Go</td><td>The <strong>public config</strong> Metro sends: name, version, scheme, and what your code reads with <code>expo-constants</code>. Not your icon, ids or permission sentences: Expo Go is already installed with its own</td><td>Every time you open the project</td></tr>
+                            <tr><td>Prebuild</td><td>Everything, to write the native projects (<code>android/</code>, <code>ios/</code>): ids, icons, splash, permissions, entitlements</td><td>Each build (Lesson 9.2), or <code>npx expo prebuild</code></td></tr>
+                            <tr><td>Your build</td><td>The native projects, plus a copy of the public config inside the app, which <code>Constants.expoConfig</code> reads</td><td>On the phone, after install</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+<div class="mermaid">
+graph TD
+    E["Shell and .env.local"] --> A["app.config.ts, in Node"]
+    A --> P["Public config"]
+    A --> N["Native projects"]
+    P --> G["Expo Go and Constants"]
+    N --> B["Your build's ids and icons"]
+</div>
+                <p>Two consequences follow from this picture, and the rest of the lesson builds on them:</p>
+                <ul>
+                    <li><strong>The config runs on your computer, never on the phone.</strong> It is evaluated by Node (and, from Lesson 9.2, on the build server). It can read environment variables and do arithmetic; it cannot import your React Native components.</li>
+                    <li><strong>The public config travels with the app.</strong> Anything in it, including a config plugin's options, ends up in Expo Go's copy of your project and inside every build, where anyone holding the app file can read it. Keep that in mind when a key comes along.</li>
+                </ul>
+                <p>You never have to guess what Expo sees: <code>npx expo config</code> prints the evaluated config. <code>--type public</code> prints what travels with the app; <code>--type introspect</code> runs the config plugins in memory and prints the native settings they would write, without creating any folders (Lesson 6.1 used it for permission sentences).</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the field kit's label</h3>
+                    <p>Lesson 1.1 called the native modules a build carries its field kit. The app config is the label stitched on the bag: whose kit it is, which crew, what is inside, what it is allowed to carry through security. Expo Go is a borrowed bag with Expo's label already on it, which is why nothing you wrote on yours showed up so far. Today you write the label for three bags, one per crew: practice, testing, and the real cleanup.</p>
+                </div>
+            </section>
+
+            <section id="dynamic" class="lesson-section">
+                <h2>📄 app.json or app.config.ts</h2>
+                <p>Expo accepts the config in two forms. <code>app.json</code> is static JSON, the form the template gave you. <code>app.config.ts</code> (or <code>.js</code>) is a function Expo runs; it returns the same object. When both exist, Expo reads <code>app.json</code> first and passes it to the function as <code>config</code>, so a small <code>app.config.ts</code> can adjust a big <code>app.json</code>. Shoreline Crew moves everything into <code>app.config.ts</code> and deletes <code>app.json</code>, so there is one file to read.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th><code>app.json</code></th><th><code>app.config.ts</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Values per variant</td><td>No: one fixed set</td><td>Yes: code chooses</td></tr>
+                            <tr><td>Reads the environment</td><td>No</td><td>Yes: <code>process.env</code>, including <code>.env.local</code></td></tr>
+                            <tr><td>Typos caught</td><td>No: an unknown key is silently ignored</td><td>Yes: <code>npx tsc --noEmit</code> checks it against Expo's <code>ExpoConfig</code> type</td></tr>
+                            <tr><td>Comments</td><td>No</td><td>Yes: explain why a setting is there</td></tr>
+                            <tr><td>Tools can edit it</td><td>Yes: <code>npx expo install</code> adds config plugins for you</td><td>No: tools print what to add, and you add it</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The last row is the price, and it is a small one: when a package needs a plugin entry, <code>npx expo install</code> tells you exactly what to paste (Common Mistakes shows the message). In return, the config gets types, comments and logic. Expo compiles the TypeScript file itself; you will see it called <code>app.config.js</code> in stack traces.</p>
+                <p>The function receives a <code>ConfigContext</code> and returns an <code>ExpoConfig</code>, both types from <code>expo/config</code>. The smallest useful one, wrapping an existing <code>app.json</code>, looks like this:</p>
+                <pre data-snippet><code class="language-ts">import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+// For a first look: Expo reads app.json, then hands it to this function as `config`
+export default ({ config }: ConfigContext): ExpoConfig =&gt; ({
+  ...config,
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+});</code></pre>
+                <p><code>...config</code> keeps everything <code>app.json</code> said; the two keys after it win. <code>ExpoConfig</code> insists on a <code>name</code> and a <code>slug</code>, so a wrapper sets both. You try exactly this in Step 2, then move everything in.</p>
+            </section>
+
+            <section id="variants" class="lesson-section">
+                <h2>🧪 Three Variants of One App</h2>
+                <p>A team rarely has one copy of its app on a phone. Shoreline Crew will have three, built from the same code:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Variant</th><th>Name under the icon</th><th>App id (iOS bundle identifier and Android package)</th><th>Who has it</th><th>What kind of build</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>development</td><td>Shoreline Dev</td><td><code>com.example.shorelinecrew.dev</code></td><td>You, while coding</td><td>A development build: loads JavaScript from Metro, like Expo Go (Lesson 9.2)</td></tr>
+                            <tr><td>preview</td><td>Shoreline Preview</td><td><code>com.example.shorelinecrew.preview</code></td><td>Crew leaders who test before a release</td><td>A release build with the JavaScript inside, installed directly, not from a store</td></tr>
+                            <tr><td>production</td><td>Shoreline Crew</td><td><code>com.example.shorelinecrew</code></td><td>Volunteers</td><td>A release build from the App Store and Google Play (Lesson 9.4)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The <strong>app id</strong> is how a phone and a store tell apps apart. Install a build with an id the phone already has, and it replaces that app, data and all. With three ids, the three variants sit side by side, and the preview a crew leader installs never wipes the production app holding their offline logs (Lesson 5.5). Rules worth knowing before you choose yours:</p>
+                <ul>
+                    <li>Ids are written as a reversed domain name you control, plus the app: <code>com.yourname.shorelinecrew</code>. Letters, digits and dots are safe on both platforms (Android also allows underscores, iOS hyphens; use neither).</li>
+                    <li>The production id is <strong>permanent</strong> once the app is in a store: a different id is a different app, with no reviews and no users.</li>
+                    <li>The course uses <code>com.example</code> because <code>example.com</code> is reserved for examples. Google Play refuses package names that start with <code>com.example</code>, so before Lesson 9.4, replace it with a domain or name of your own.</li>
+                    <li>Names under icons get cut off when long (how many letters fit depends on the phone and its text size): keep the word that tells variants apart near the start.</li>
+                </ul>
+                <p>One environment variable picks the variant: <code>APP_VARIANT</code>. Nothing set means <code>development</code>, so <code>npx expo start</code> keeps working as before, and a build that forgot to say which variant it is gets a <code>.dev</code> id: it can never overwrite the real app by accident. In Lesson 9.2, each build profile in <code>eas.json</code> sets <code>APP_VARIANT</code> for its builds. Today you set it in front of a command:</p>
+                <pre class="terminal"><code class="language-bash">APP_VARIANT=preview npx expo config --type public</code></pre>
+                <p>That form works in macOS and Linux terminals and in WSL. In Windows PowerShell, set the variable first and remove it afterwards, as in Lesson 8.4:</p>
+                <pre class="terminal"><code class="language-bash">$env:APP_VARIANT = "preview"
+npx expo config --type public
+Remove-Item Env:APP_VARIANT</code></pre>
+                <div class="card card-info">
+                    <h3>💡 Mental model: three bags, three labels</h3>
+                    <p>The practice kit, the testers' kit and the volunteers' kit hold the same tools, packed the same way. Only the label differs, and the label is what keeps the practice gloves out of the volunteers' bag. <code>APP_VARIANT</code> is the label maker: one setting, read once, and every other difference follows from it.</p>
+                </div>
+            </section>
+
+            <section id="settings" class="lesson-section">
+                <h2>🔑 Settings, Environments and Secrets</h2>
+                <p>Shoreline Crew now has three kinds of settings that change from place to place, and each has a different home:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>Read by</th><th>Lives in</th><th>Secret?</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>EXPO_PUBLIC_API_URL</code> (Lesson 5.1)</td><td>Your app's JavaScript, inlined when Metro bundles</td><td><code>.env.local</code> while you develop; the build profile for builds (9.2)</td><td>No: it is in the bundle for anyone to read</td></tr>
+                            <tr><td><code>APP_VARIANT</code></td><td><code>app.config.ts</code> only</td><td>The shell or the build profile, never a file in the project</td><td>No</td></tr>
+                            <tr><td><code>ANDROID_GOOGLE_MAPS_API_KEY</code> (Lesson 6.3)</td><td><code>app.config.ts</code>, which hands it to react-native-maps' config plugin</td><td><code>.env.local</code> on your computer; the build service's secret variables (9.2)</td><td>Keep it out of your code and repository; know that it ships inside the Android app</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Three facts, all measured for this lesson, make this work:</p>
+                <ul>
+                    <li><strong>Expo loads <code>.env.local</code> before it runs <code>app.config.ts</code>.</strong> Every variable in it is in <code>process.env</code> there, with or without the <code>EXPO_PUBLIC_</code> prefix. The <code>env: export …</code> line at the top of each command lists them.</li>
+                    <li><strong>Only <code>EXPO_PUBLIC_</code> variables reach your app's JavaScript.</strong> A variable without the prefix stays on your computer, where the config can use it. That is why the Maps key has no prefix.</li>
+                    <li><strong>A variable set in the shell beats <code>.env.local</code></strong> (Lesson 5.1 measured it). So a build can say "this time, the API is here" without editing any file.</li>
+                </ul>
+                <p>Why not write the variant's API address straight into <code>app.config.ts</code>? Because addresses change more often than code: your laptop's Wi-Fi address moves, a staging server gets a new name. Lesson 5.1 made <code>EXPO_PUBLIC_API_URL</code> the one source of the address, and it stays that: the config only <em>checks</em> it.</p>
+                <div class="card card-danger">
+                    <h3>🛑 A key in the app is not hidden</h3>
+                    <p>A Google Maps key for Android is written into the app's manifest, where the Maps SDK reads it, and into the copy of the public config every build carries. Anyone with the app file can read both. So "secret" here means two things: the key never goes in your code or a committed file (a public repository is searched for keys within minutes), and in Google Cloud you <strong>restrict</strong> it to Maps on Android, to your app's package name and to your signing certificate's fingerprint, so a copied key is useless elsewhere. True secrets, such as signing keys and API tokens that grant power, never go into an app at all; Lessons 9.2 and 9.4 keep them on the build service.</p>
+                </div>
+            </section>
+
+            <section id="http" class="lesson-section">
+                <h2>🔒 Plain http in Release Builds</h2>
+                <p>Since Lesson 5.1, Shoreline Crew has talked to shoreline-api at an address like <code>http://192.168.1.42:4000</code>: plain <code>http</code>, no encryption. That works in Expo Go and in development builds because both are made for development. Release builds are stricter, on purpose:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Expo Go, development build</th><th>Release build (preview, production)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Android</td><td>Allowed: Expo's native project turns on "cleartext traffic" in the debug build's manifest only (measured with a prebuild)</td><td>Blocked: Android 9 and newer refuse cleartext <code>http</code> unless the app's manifest allows it</td></tr>
+                            <tr><td>iPhone</td><td>Allowed for local addresses</td><td>App Transport Security requires https. Expo's iOS project allows local-network addresses (<code>NSAllowsLocalNetworking</code>, measured), and nothing else</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The reason is the beach: a volunteer's sign-in token (Lesson 4.3) sent over plain <code>http</code> on café or event Wi-Fi can be read by anyone on that network. Encryption is not an extra for real apps; the platforms make it the default.</p>
+                <p>What this means for Shoreline Crew's three variants:</p>
+                <ul>
+                    <li><strong>Development:</strong> nothing changes. Expo Go and development builds reach <code>node server.ts --host</code> on your computer as before.</li>
+                    <li><strong>Preview:</strong> a release build, so Android would refuse your laptop's API. You allow cleartext for the preview variant only, with <strong>expo-build-properties</strong>, an Expo config plugin for native build settings. That lets <em>your</em> preview build reach shoreline-api on your Wi-Fi. It is a development convenience, scoped to one variant.</li>
+                    <li><strong>Production:</strong> never. <code>app.config.ts</code> refuses to produce a production config unless <code>EXPO_PUBLIC_API_URL</code> starts with <code>https://</code>. The check runs before anything is built, so a store build talking to a laptop cannot happen.</li>
+                </ul>
+                <p>What does a real app do? It runs its API on a server with a domain name and a TLS certificate (hosting platforms set the certificate up for you), so every variant speaks https. Teams usually run two servers: a <strong>staging</strong> server with test data for preview builds, and the <strong>production</strong> server for the store app. Shoreline Crew's course API stays on your computer (it is a teaching server, in memory, reset with one request), so the course stops at the preview build. When you ship your own app in Module 10, its API needs that https home; Lesson 9.4 comes back to it.</p>
+                <div class="card card-warning">
+                    <h3>⚠️ Phones outside your Wi-Fi</h3>
+                    <p>A preview build with cleartext allowed still needs to reach your computer: same Wi-Fi, <code>--host</code>, firewall open, as in Lesson 5.1. A crew leader testing from home cannot reach your laptop at all. That is the moment a team sets up a staging server, not a reason to allow cleartext everywhere.</p>
+                </div>
+            </section>
+
+            <section id="native" class="lesson-section">
+                <h2>📲 What a Build Asks the Phone For</h2>
+                <p>Lessons 2.3 and 6.1 to 6.4 each left a native setting in the config. In your own build they become things a volunteer sees: the words of a permission question, the icon on a notification. Expo's defaults are generous, so a careful app takes back what it does not use.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>From</th><th>Shoreline Crew's choice</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Location question</td><td>6.1, expo-location's plugin</td><td>Only "while using", with Shoreline Crew's own sentence; the "always", motion and full-accuracy sentences set to <code>false</code></td></tr>
+                            <tr><td>Camera question</td><td>6.2, expo-image-picker's plugin</td><td>Camera sentence; photo library and microphone <code>false</code> (picking photos needs no permission)</td></tr>
+                            <tr><td>Face ID sentence</td><td>4.3, expo-secure-store's plugin</td><td><strong>New:</strong> <code>faceIDPermission: false</code>. The app never asks for a fingerprint or a face, so the default "Allow $(PRODUCT_NAME) to access your Face ID biometric data." goes (6.1's Exercise 2)</td></tr>
+                            <tr><td>Push entitlement</td><td>6.4, expo-notifications' plugin</td><td><code>enableRemoteNotifications: false</code> stays: local reminders only, so the iPhone build carries no <code>aps-environment</code></td></tr>
+                            <tr><td>Notification icon and color</td><td>6.4</td><td><strong>New:</strong> a 96 x 96 white-on-transparent icon and Sea Teal <code>#1f6f8b</code>. Android draws a notification's small icon from its shape only; the full-color app icon would show as a white square</td></tr>
+                            <tr><td>Splash screen</td><td>2.3, expo-splash-screen</td><td><strong>New:</strong> a <code>dark</code> background (<code>#0f1b26</code>, the app's night page color) so a phone in dark mode does not flash Sand at startup</td></tr>
+                            <tr><td>Google Maps key</td><td>6.3, react-native-maps' plugin</td><td><strong>New:</strong> read from <code>ANDROID_GOOGLE_MAPS_API_KEY</code>; without it, maps in Android builds stay empty</td></tr>
+                            <tr><td>Cleartext http</td><td>5.1</td><td><strong>New:</strong> preview variant only</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>The iPhone icon, decided</h3>
+                <p>Lesson 2.3 deleted the template's <code>ios.icon</code>, which pointed at <code>assets/expo.icon</code>: a folder made with <strong>Icon Composer</strong>, Apple's tool for the layered "Liquid Glass" icons of recent iOS versions. It held Expo's logo, and Icon Composer runs only on a Mac. Shoreline Crew keeps the decision: <strong>iOS builds use <code>icon.png</code></strong>, the same 1024 x 1024 square every platform gets, and iOS rounds its corners. That works on every iPhone and needs no Mac. If you have a Mac and want the layered look, design a <code>.icon</code> file in Icon Composer and point <code>ios.icon</code> at it; check Expo's app icon guide for the iOS versions that use it.</p>
+                <p>You will not see any of these settings in Expo Go, which keeps its own icon, splash and permission sentences (Lesson 2.3 said so). The web preview has none of them either. What you can do today is read them with <code>npx expo config --type introspect</code>; Lesson 9.2's development build shows them on a phone.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: introspect is close, not exact</h4>
+                    <p>For this lesson, the native projects were also generated for real (<code>npx expo prebuild</code> in a copy of the project) and compared with <code>--type introspect</code>. Permission sentences, entitlements, ids, cleartext and notification settings matched. One section did not: introspect starts from a stand-in Info.plist, so its <code>NSAppTransportSecurity</code> shows <code>NSAllowsArbitraryLoads: true</code>, while the real iOS project has <code>false</code> plus <code>NSAllowsLocalNetworking</code>. Trust introspect for what plugins write; for the template's own defaults, a prebuild in a copy is the real answer (Exercise 3).</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each output below is what the terminal printed, on a copy of the project broken on purpose.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting <code>npx expo install</code> to add the plugin for you</h3>
+                    <p>With <code>app.json</code>, installing a package that has a config plugin also added the plugin (Lessons 4.3 and 6.5 saw <code>› Added config plugin</code>). With <code>app.config.ts</code>, the install still happens, and then the command stops with exit code 1 and tells you what to add:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: npm's summary in the middle)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+...
+Cannot automatically write to dynamic config at: app.config.ts
+Add the following to your Expo config
+
+{
+  "plugins": [
+    "expo-build-properties"
+  ]
+}</code></pre>
+                    </div>
+                    <p>Nothing is broken: the package is in <code>package.json</code>. Add the entry to the <code>plugins</code> array in <code>app.config.ts</code> yourself (with its options, if the package's documentation lists any), then run <code>npx expo config --type introspect</code> to see what it writes. A script that stops on a non-zero exit code (a CI job, Lesson 9.3) stops here too, which is why it is worth knowing the message.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A misspelled key in the config</h3>
+                    <p>In <code>app.json</code>, <code>"bundleIdentifer"</code> (one letter missing) is silently ignored, and you find out at build time, when the build asks for an id you thought you gave it. Expo's own config reader prints the misspelled key back without a word. In <code>app.config.ts</code>, the type check catches it the moment you run it:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>app.config.ts:44:5 - error TS2561: Object literal may only specify known properties, but 'bundleIdentifer' does not exist in type 'IOS'. Did you mean to write 'bundleIdentifier'?
+
+44     bundleIdentifer: variants[variant].appId,
+       ~~~~~~~~~~~~~~~
+
+  node_modules/@expo/config-types/build/ExpoConfig.d.ts:209:5
+    209     ios?: IOS;
+            ~~~
+    The expected type comes from property 'ios' which is declared here on type 'ExpoConfig'
+
+
+Found 1 error in app.config.ts:44</code></pre>
+                    </div>
+                    <p>That is the main reason to write the config in TypeScript, and the reason to run <code>npx tsc --noEmit</code> after every config change. VS Code underlines it as you type, too.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A secret in a committed file</h3>
+                    <p>The real Maps key goes in <code>.env.local</code>, which the template's <code>.gitignore</code> already excludes (<code>.env*.local</code>). It never goes in <code>app.config.ts</code>, <code>.env.example</code> or any file Git tracks: once a key reaches a shared repository, deleting it in a later commit does not remove it from the history. If it happens, the fix is to <strong>replace the key</strong> in Google Cloud (create a new one, delete the old one), not to edit the file.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting Expo Go to show your icon, ids or sentences</h3>
+                    <p>After this lesson, Expo Go still shows its own icon, its own splash, and its own words in the location and camera questions, and it still runs as <code>host.exp.Exponent</code>. That is not a sign your config is wrong: Expo Go is one app that opens many projects. Check native settings with <code>npx expo config --type introspect</code> today, and on a phone with the development build of Lesson 9.2.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Changing a variable and not restarting</h3>
+                    <p>Expo reads the config and <code>.env.local</code> when a command starts. Change <code>APP_VARIANT</code> or a value in <code>.env.local</code> while Metro is running, and nothing changes until you stop it (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and start it again; for <code>EXPO_PUBLIC_</code> values, start with <code>npx expo start --clear</code> (Lesson 5.1), because they are baked into the cached bundle.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew's App Config</h2>
+                <p>You read what Expo sees, move the config into TypeScript, give the app three variants, guard the production variant, take the Maps key from the environment, check what a build would ask the phone for, and put the variant's name on Profile. No phone is needed for most of it: the terminal is where config lives. Keep shoreline-api running in one terminal (<code>node server.ts</code>) for the last step.</p>
+
+                <div class="card">
+                    <h3>Step 1: Read what Expo sees, and install the last package the easy way <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>shoreline-crew</code>, print the public config:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the start)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Crew',
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+...</code></pre>
+                    </div>
+                    <p>Scroll through it next to your <code>app.json</code>. Most of it is your file; Expo added a few keys (<code>sdkVersion</code>, <code>platforms</code>, a computed <code>android.permissions</code> list, an <code>extra.router</code> section). This output is your reference: after the move to TypeScript, the development variant should print the same things, plus ids.</p>
+                    <p>One package is new in this lesson: <strong>expo-build-properties</strong>, for the preview variant's cleartext setting. Install it now, while <code>app.json</code> still exists, so the CLI can add its plugin for you:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-build-properties</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+...
+› Added config plugin: expo-build-properties</code></pre>
+                    </div>
+                    <p>It is a config-only plugin: it writes native build settings and adds no JavaScript to the bundle. <code>app.json</code>'s <code>plugins</code> now end with <code>"expo-build-properties"</code>.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Move the config into app.config.ts <span class="step-time">(20 min)</span></h3>
+                    <p>First, see how the two files work together. Create <code>app.config.ts</code> next to <code>app.json</code> with the small wrapper from "app.json or app.config.ts":</p>
+                    <pre data-snippet><code class="language-ts">import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+// For a first look: Expo reads app.json, then hands it to this function as `config`
+export default ({ config }: ConfigContext): ExpoConfig =&gt; ({
+  ...config,
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+});</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the start)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+...</code></pre>
+                    </div>
+                    <p>The name changed and everything else came from <code>app.json</code>. Now make <code>app.config.ts</code> the only config. Replace its contents with the whole file below. It is every key from <code>app.json</code>, plus the variants and the settings the next steps explain one at a time:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.ts</div>
+                        <pre data-src="shoreline-crew/app.config.ts"><code class="language-ts">// Shoreline Crew's app config: names, ids, icons, splash and the native settings of every build.
+// Expo runs this file each time it needs the config (npx expo start, export, prebuild, EAS Build),
+// so it can pick values for a variant and read the environment. It replaces app.json (Lesson 9.1).
+import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+// One project, three apps that can sit side by side on a phone, each with its own name and id
+const variants = {
+  development: { name: 'Shoreline Dev', appId: 'com.example.shorelinecrew.dev' },
+  preview: { name: 'Shoreline Preview', appId: 'com.example.shorelinecrew.preview' },
+  production: { name: 'Shoreline Crew', appId: 'com.example.shorelinecrew' },
+};
+type Variant = keyof typeof variants;
+
+function isVariant(value: string): value is Variant {
+  return Object.hasOwn(variants, value);
+}
+
+// APP_VARIANT picks the variant: set it in the shell, or (Lesson 9.2) per build profile in eas.json
+const variant = process.env.APP_VARIANT ?? 'development';
+if (!isVariant(variant)) {
+  throw new Error(`APP_VARIANT must be development, preview or production, not "${variant}".`);
+}
+
+// The API address is baked into the JavaScript (Lesson 5.1). A store build must not use plain http:
+// Android and iOS block it in release builds, and anyone on the same Wi-Fi could read it.
+const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
+if (variant === 'production' &amp;&amp; !apiUrl.startsWith('https://')) {
+  throw new Error(`A production build needs an https:// EXPO_PUBLIC_API_URL, not "${apiUrl}".`);
+}
+
+// A secret for Android builds only (Lesson 6.3): from the environment, never from this file
+const googleMapsKey = process.env.ANDROID_GOOGLE_MAPS_API_KEY;
+
+export default ({ config }: ConfigContext): ExpoConfig =&gt; ({
+  ...config,
+  name: variants[variant].name,
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+  scheme: 'shorelinecrew',
+  userInterfaceStyle: 'automatic',
+  ios: {
+    bundleIdentifier: variants[variant].appId,
+  },
+  android: {
+    package: variants[variant].appId,
+    adaptiveIcon: {
+      backgroundColor: '#0b3954',
+      foregroundImage: './assets/images/android-icon-foreground.png',
+      backgroundImage: './assets/images/android-icon-background.png',
+      monochromeImage: './assets/images/android-icon-monochrome.png',
+    },
+    predictiveBackGestureEnabled: false,
+  },
+  web: {
+    output: 'server',
+    favicon: './assets/images/favicon.png',
+  },
+  plugins: [
+    'expo-router',
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#fbf6ec',
+        image: './assets/images/splash-icon.png',
+        imageWidth: 200,
+        // Dark mode: the page color the app itself uses at night, so nothing flashes bright
+        dark: { backgroundColor: '#0f1b26', image: './assets/images/splash-icon.png' },
+      },
+    ],
+    // No fingerprint or face unlock in the app: no Face ID question on iPhones
+    ['expo-secure-store', { faceIDPermission: false }],
+    'expo-sqlite',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        motionUsagePermission: false,
+        locationFullAccuracyPermission: false,
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        cameraPermission:
+          'Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.',
+        photosPermission: false,
+        microphonePermission: false,
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        // Local reminders only (Lesson 6.4): no push entitlement
+        enableRemoteNotifications: false,
+        icon: './assets/images/notification-icon.png',
+        color: '#1f6f8b',
+      },
+    ],
+    'expo-sharing',
+    // Without a key, maps on Android builds stay empty (Expo Go and iPhones do not need one)
+    ['react-native-maps', { androidGoogleMapsApiKey: googleMapsKey }],
+    [
+      'expo-build-properties',
+      {
+        // Preview builds are release builds, which refuse plain http. This lets a preview build
+        // reach shoreline-api on your computer; production never gets it.
+        android: { usesCleartextTraffic: variant === 'preview' },
+      },
+    ],
+  ],
+  experiments: {
+    typedRoutes: true,
+    reactCompiler: true,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>The <code>variants</code> object holds the only things that differ between the three apps. <code>isVariant</code> is a type guard (as in the HQ's API client): after the <code>throw</code>, TypeScript knows <code>variant</code> is one of the three keys, so <code>variants[variant]</code> type-checks.</li>
+                        <li>The checks at the top run every time Expo reads the config, so a mistake stops every command at once, before any build.</li>
+                        <li>The returned object is typed <code>ExpoConfig</code>: every key from <code>app.json</code>, now with comments, plus <code>ios.bundleIdentifier</code> and <code>android.package</code>, which Shoreline Crew never needed in Expo Go.</li>
+                        <li>The <code>plugins</code> array keeps Lessons 4.3 to 6.5's entries, with four changes: secure-store's <code>faceIDPermission: false</code>, the notification <code>icon</code> and <code>color</code>, react-native-maps with its key, and expo-build-properties with its option.</li>
+                    </ul>
+                    <p>The notification icon is a new picture: copy <code>assets/images/notification-icon.png</code> from the finished code (<a href="downloads/lesson-32-end.zip">lesson-32-end.zip</a>) into your <code>assets/images</code> folder, as you did with the brand icons in Lesson 2.3. It is the sun and waves of the monochrome icon layer, white on transparent, 96 x 96 pixels. Then delete <code>app.json</code>:</p>
+                    <pre class="terminal"><code class="language-bash">rm app.json</code></pre>
+                    <p>In PowerShell, <code>Remove-Item app.json</code>; or delete it in VS Code's file list. Run the type check and lint, which now cover the config too:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit
+npx expo lint</code></pre>
+                    <p><code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> only Expo's <code>env:</code> lines. If you see an error, read its first line: a missing comma or a misspelled key (Common Mistakes) is the usual cause.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Meet the three variants <span class="step-time">(15 min)</span></h3>
+                    <p>With no <code>APP_VARIANT</code>, you get the development variant:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+...
+    [
+      'react-native-maps',
+      {
+        androidGoogleMapsApiKey: undefined
+      }
+    ],
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: false
+        }
+      }
+    ]
+  ],
+  ios: {
+    bundleIdentifier: 'com.example.shorelinecrew.dev'
+  },
+  android: {
+    package: 'com.example.shorelinecrew.dev',
+    predictiveBackGestureEnabled: false,
+    permissions: [
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.ACCESS_FINE_LOCATION'
+    ],
+    adaptiveIcon: {
+      backgroundColor: '#0b3954',
+      foregroundImage: './assets/images/android-icon-foreground.png',
+      backgroundImage: './assets/images/android-icon-background.png',
+      monochromeImage: './assets/images/android-icon-monochrome.png'
+    }
+  },
+...</code></pre>
+                    </div>
+                    <p>Compare with Step 1: the name is <code>Shoreline Dev</code>, both platforms have the <code>.dev</code> id, and the plugins show the values the code chose (<code>androidGoogleMapsApiKey: undefined</code> because you have no key yet, <code>usesCleartextTraffic: false</code> because this is not the preview variant). Now the preview variant (PowerShell: as in "Three Variants of One App"):</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=preview npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Preview',
+...
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: true
+        }
+      }
+    ]
+  ],
+  ios: {
+    bundleIdentifier: 'com.example.shorelinecrew.preview'
+  },
+  android: {
+    package: 'com.example.shorelinecrew.preview',
+...</code></pre>
+                    </div>
+                    <p>Then make the most likely mistake on purpose, a shortened name:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_32/32-variant-typo.png" alt="A terminal running APP_VARIANT=prod npx expo config --type public: after the env lines, Expo prints Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts, then the message APP_VARIANT must be development, preview or production, not &quot;prod&quot;, then a stack trace that starts at app.config.js line 15." width="722" height="282" loading="lazy">
+    <figcaption>A misspelled variant stops every Expo command at once, with your own message. The stack trace names <code>app.config.js</code>: Expo compiled your TypeScript file to JavaScript to run it.</figcaption>
+</figure>
+                    <p>Every Expo command (start, export, and from Lesson 9.2, every build) reads the config first, so this message appears wherever the typo is. Without the check, an unknown name would slip through to whatever the code does next, and a build would quietly become something you did not ask for.</p>
+                    <p>Try one more thing in Expo Go if your phone is at hand: start Metro (<code>npx expo start</code>) and open the project. Expo Go lists projects by their config name, so it should now show <strong>Shoreline Dev</strong>; everything else looks the same, because Expo Go keeps its own icon and settings.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Keep plain http out of production <span class="step-time">(15 min)</span></h3>
+                    <p>Ask for the production variant with your development <code>.env.local</code>:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=production npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".
+Error: A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".
+    at Object.&lt;anonymous&gt; (~/shoreline/shoreline-crew/app.config.js:21:11)
+...</code></pre>
+                    </div>
+                    <p>The guard read <code>http://localhost:4000</code> from <code>.env.local</code> (Expo loaded it before running the config) and refused. That is exactly what should happen to a store build pointed at a laptop. Give it an https address in the shell, which beats <code>.env.local</code>; <code>crew-api.example.org</code> stands in for the staging or production server a real team would run:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=production EXPO_PUBLIC_API_URL=https://crew-api.example.org npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>{
+  name: 'Shoreline Crew',
+...
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: false
+        }
+      }
+    ]
+  ],
+  ios: {
+    bundleIdentifier: 'com.example.shorelinecrew'
+  },
+  android: {
+    package: 'com.example.shorelinecrew',
+...</code></pre>
+                    </div>
+                    <p>No <code>env:</code> lines this time: with the variable already set in the shell, Expo did not need <code>.env.local</code>'s value and did not list it. The name is the real one, the ids have no suffix, and cleartext is <code>false</code>. In PowerShell, set both variables with <code>$env:</code> first and remove both afterwards.</p>
+                    <p>Read the expo-build-properties entry once more: <code>usesCleartextTraffic: variant === 'preview'</code>. A preview build may talk to your computer; nothing else changes Android's rule. Lesson 9.2 builds the preview variant, and this line is why its Cleanups list will load.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The Maps key, from the environment <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 6.3 left the Google Maps key for Android builds open. The config now reads <code>ANDROID_GOOGLE_MAPS_API_KEY</code>; tell the next developer where it goes, in the file everyone copies:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.env.example</div>
+                        <pre data-src="shoreline-crew/.env.example" data-match="diff"><code class="language-diff-ini"> EXPO_PUBLIC_API_URL=http://localhost:4000
++
++# Only for your own Android builds (Lesson 9.1): the Google Maps key that app.config.ts reads.
++# Put the real key in .env.local, never here: this file is committed, .env.local is not.
++# ANDROID_GOOGLE_MAPS_API_KEY=your-key-from-google-cloud</code></pre>
+                    </div>
+                    <p>Getting a real key needs a Google Cloud account with billing turned on (check Google's current Maps pricing), so the course does not require one. To see what the config does with a key, add a pretend one to <code>.env.local</code>:</p>
+                    <pre data-snippet><code class="language-ini">EXPO_PUBLIC_API_URL=http://localhost:4000
+ANDROID_GOOGLE_MAPS_API_KEY=your-key-from-google-cloud</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export ANDROID_GOOGLE_MAPS_API_KEY EXPO_PUBLIC_API_URL
+...
+    [
+      'react-native-maps',
+      {
+        androidGoogleMapsApiKey: 'your-key-from-google-cloud'
+      }
+...</code></pre>
+                    </div>
+                    <p>Two things to notice. Expo loaded the key (the <code>env: export</code> line names it), but it has no <code>EXPO_PUBLIC_</code> prefix, so it is not in your JavaScript bundle. And it <em>is</em> in the public config, because plugin options are part of it: that is the "a key in the app is not hidden" card in action, and why the key must be restricted in Google Cloud. Delete the pretend line from <code>.env.local</code> again; when you have a real key, it goes there, and in Lesson 9.2 into the build service's secret variables.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Audit what a build asks the phone for <span class="step-time">(15 min)</span></h3>
+                    <p>Let the config plugins run in memory for the preview variant and read what they would write into the native projects:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=preview npx expo config --type introspect</code></pre>
+                    <p>The output is long (almost a thousand lines). Use your terminal's or VS Code's search for each item of the table in "What a Build Asks the Phone For". The lines that matter:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (excerpts, in the order they appear)</h4>
+                        <pre><code>          CFBundleDisplayName: 'Shoreline Preview',
+...
+          NSCameraUsageDescription: 'Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.',
+          NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+...
+        entitlements: {},
+...
+              package: 'com.example.shorelinecrew.preview'
+...
+                  'android:usesCleartextTraffic': 'true',
+...
+                      'android:name': 'com.google.firebase.messaging.default_notification_icon',
+                      'android:resource': '@drawable/notification_icon'
+...</code></pre>
+                    </div>
+                    <ul>
+                        <li>The iPhone shows <code>Shoreline Preview</code> under the icon, and asks for the camera and location with Shoreline Crew's sentences. There is no <code>NSFaceIDUsageDescription</code> any more: search for it, and it is gone.</li>
+                        <li><code>entitlements: {}</code>: no push entitlement (Lesson 6.4's choice), nothing else asked of Apple.</li>
+                        <li>Android's package is the preview id, cleartext is allowed (preview only), and the default notification icon is the new white one, with the Sea Teal color next to it.</li>
+                        <li>No <code>com.google.android.geo.API_KEY</code> line: without a key, the plugin leaves it out, and maps in an Android build would stay empty.</li>
+                    </ul>
+                    <p>Run the same command without <code>APP_VARIANT</code> and search for <code>usesCleartextTraffic</code>: the development variant says <code>'false'</code> in the main manifest. Development builds still reach your laptop, because the debug build has its own manifest that turns cleartext on (introspect does not show that file; the version note in "What a Build Asks the Phone For" explains how this lesson checked).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Name the build on Profile, and check everything <span class="step-time">(20 min)</span></h3>
+                    <p>When a crew leader reports a bug, the first question is "which build?". Put the answer on Profile. <code>expo-constants</code> (already installed) gives the running app its public config as <code>Constants.expoConfig</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/appInfo.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/appInfo.ts"><code class="language-ts">import Constants from 'expo-constants';
+
+// "Shoreline Dev, version 1.0.0": the name and version app.config.ts gave this build (Lesson 9.1).
+// A tester's bug report starts here: which variant, which version.
+export function appVersionLine(): string {
+  const config = Constants.expoConfig;
+  return `${config?.name ?? 'Shoreline Crew'}, version ${config?.version ?? 'unknown'}`;
+}</code></pre>
+                    </div>
+                    <p><code>expoConfig</code> can be <code>null</code> (the type says so), hence the fallbacks. Show it at the bottom of Profile, under the connection check:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { changeSettings, type ThemeChoice, useSettings } from '@/state/settings';
++import { appVersionLine } from '@/utils/appInfo';
+ 
+ // ...
+       &lt;ConnectionCheck /&gt;
++      {/* Which app this is (Lesson 9.1): testers put this line in their bug reports */}
++      &lt;AppText variant="muted"&gt;{appVersionLine()}&lt;/AppText&gt;
+     &lt;/Screen&gt;</code></pre>
+                    </div>
+                    <p>And a test, with a stand-in for <code>expo-constants</code> made by a factory, as Lesson 8.2 did for native modules (Jest has no build whose config it could read):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/appInfo.test.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/appInfo.test.ts"><code class="language-ts">import { appVersionLine } from './appInfo';
+
+// What app.config.ts gives a preview build (Lesson 9.1): Jest has no build of its own to read
+jest.mock('expo-constants', () =&gt; ({
+  __esModule: true,
+  default: { expoConfig: { name: 'Shoreline Preview', slug: 'shoreline-crew', version: '1.0.0' } },
+}));
+
+it('names the variant and the version of this build', () =&gt; {
+  expect(appVersionLine()).toBe('Shoreline Preview, version 1.0.0');
+});</code></pre>
+                    </div>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false src/utils/appInfo</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/utils/appInfo
+
+ PASS  src/utils/appInfo.test.ts
+  ✓ names the variant and the version of this build (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        0.223 s, estimated 1 s
+Ran all test suites matching src/utils/appInfo.</code></pre>
+                    </div>
+                    <p>Lesson 8.3's Maestro flow names Expo Go's id; note the development build's for Lesson 9.2:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.maestro/sign-in.yaml</div>
+                        <pre data-src="shoreline-crew/.maestro/sign-in.yaml" data-match="diff"><code class="language-diff-yaml"> #   maestro test .maestro/sign-in.yaml
+-appId: host.exp.Exponent # Expo Go's id. A development build has the app's own (Module 9)
++appId: host.exp.Exponent # Expo Go's id. A development build has its own: com.example.shorelinecrew.dev
+ env:</code></pre>
+                    </div>
+                    <p>Now the check Expo recommends before any build, <strong>expo-doctor</strong> (Lesson 2.3 met it):</p>
+                    <pre class="terminal"><code class="language-bash">npx expo-doctor</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>19/20 checks passed. 1 checks failed. Possible issues detected:
+Use the --verbose flag to see more details about passed checks.
+
+✖ Check that no duplicate dependencies are installed
+Your project contains duplicate native module dependencies, which should be de-duplicated.
+Native builds may only contain one version of any given native module, and having multiple versions of a single Native module installed may lead to unexpected build errors.
+Found duplicates for expo-server:
+  ├─ expo-server@58.1.0 (at: node_modules/expo-server)
+  └─ expo-server@57.0.3 (at: node_modules/expo-atlas/node_modules/expo-server)
+Advice:
+Resolve your dependency issues and deduplicate your dependencies. Learn more: https://expo.fyi/resolving-dependency-issues
+
+1 check failed, indicating possible issues with the project.</code></pre>
+                    </div>
+                    <p>Read it like any error. Two copies of <code>expo-server</code> are installed: the one Expo uses, and an older one inside <code>expo-atlas</code>, the bundle explorer from Lesson 8.4, which asks for the previous SDK's version. Native builds pick one copy of each module, so the doctor wants one. npm can settle it: an <code>overrides</code> entry in <code>package.json</code> tells npm which version a dependency's dependency gets. Add it after the <code>jest</code> section:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/package.json</div>
+                        <pre data-src="shoreline-crew/package.json" data-match="diff"><code class="language-diff-json">     }
++  },
++  "overrides": {
++    "expo-atlas": {
++      "expo-server": "~58.1.0"
++    }
+   }</code></pre>
+                    </div>
+                    <pre class="terminal"><code class="language-bash">npm install
+npx expo-doctor</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the doctor)</h4>
+                        <pre><code>20/20 checks passed. No issues detected!</code></pre>
+                    </div>
+                    <p>Overriding a dependency's version is a decision, not a reflex: it was checked for this lesson that Expo Atlas still exports and opens its treemap with the newer <code>expo-server</code> (it uses only its HTTP adapter). If a future <code>npx expo install --dev expo-atlas</code> brings a version made for SDK 58, remove the override. Finally, the whole suite, the type check and lint:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false
+npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the end of the tests)</h4>
+                        <pre><code>...
+Test Suites: 16 passed, 16 total
+Tests:       48 passed, 48 total
+Snapshots:   0 total
+Time:        2.139 s
+Ran all test suites.</code></pre>
+                    </div>
+                    <p>Start Metro again (<code>npx expo start</code>), open Profile in the web preview (<kbd>w</kbd>) or Expo Go, and scroll to the end:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_32/32-version-line.png" alt="The bottom of the Profile tab on a phone-sized web preview: the Connection section with the address http://localhost:4000 and a Check the connection button, and under it the muted line Shoreline Dev, version 1.0.0, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The last line of Profile names the variant and version this build was made as. <code>npx expo start</code> with no <code>APP_VARIANT</code> gives the development variant. Web preview; in a preview build the same line says Shoreline Preview.</figcaption>
+</figure>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>app.json</code> is gone, <code>app.config.ts</code> is the only config, and <code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                        <li><code>npx expo config --type public</code> prints Shoreline Dev / Shoreline Preview / Shoreline Crew with the <code>.dev</code>, <code>.preview</code> and plain ids, and <code>APP_VARIANT=prod</code> stops with your message</li>
+                        <li>The production variant refuses an <code>http://</code> API address and accepts an <code>https://</code> one; cleartext is allowed for preview only</li>
+                        <li>The Maps key is read from <code>ANDROID_GOOGLE_MAPS_API_KEY</code>, <code>.env.example</code> says where it goes, and no real key is in any committed file</li>
+                        <li>Introspect for preview shows no Face ID sentence, empty entitlements and the white notification icon</li>
+                        <li><code>npx expo-doctor</code> passes 20 of 20 checks, 48 tests pass, and Profile ends with "Shoreline Dev, version 1.0.0"</li>
+                        <li><strong>Your own app:</strong> write down its three names and ids (with a domain you own), and the one secret or setting it will need that should never be in the code</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes ten to twenty minutes. The next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the config</h3>
+                    <p>Without running anything, predict what <code>npx expo config --type public</code> does for each line below (your <code>.env.local</code> holds <code>EXPO_PUBLIC_API_URL=http://localhost:4000</code>): the name, the Android package and <code>usesCleartextTraffic</code>, or the error. Then run each one and check.</p>
+                    <ol>
+                        <li><code>APP_VARIANT=development</code></li>
+                        <li><code>APP_VARIANT=Preview</code></li>
+                        <li><code>APP_VARIANT=production EXPO_PUBLIC_API_URL=http://crew-api.example.org</code></li>
+                        <li><code>APP_VARIANT=preview EXPO_PUBLIC_API_URL=https://crew-api.example.org</code></li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>Object.hasOwn</code> compares names exactly, capital letters included. The https guard looks at the start of the address and only for one variant.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>1: Shoreline Dev, <code>com.example.shorelinecrew.dev</code>, cleartext <code>false</code> (the same as no variant at all). 2: the error <code>APP_VARIANT must be development, preview or production, not "Preview".</code>: names are case-sensitive. 3: the error <code>A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://crew-api.example.org".</code>: a real domain is not enough, it must be https. 4: Shoreline Preview, <code>com.example.shorelinecrew.preview</code>, cleartext <code>true</code>: the guard is for production only, and preview keeps its cleartext permission even when the address is https (it does no harm there; if your team's preview builds always use an https staging server, you can turn it off).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: One permission fewer</h3>
+                    <p>The public config lists two Android permissions, but Expo's native project starts with more. Its main manifest asks for <code>SYSTEM_ALERT_WINDOW</code> ("display over other apps"), which only the developer tools of a development build use, and the debug build's own manifest asks for it again. Remove it from release builds with <code>android.blockedPermissions</code>, and confirm with introspect.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>blockedPermissions</code> is a list of full permission names inside <code>android</code>. In the introspect output, search for <code>SYSTEM_ALERT_WINDOW</code>: what is written next to it?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>app.config.ts</code>, inside <code>android</code>, after <code>predictiveBackGestureEnabled: false,</code>:</p>
+                        <pre data-snippet><code class="language-ts">    // Only the overlay a development build draws over other apps needs it, and debug builds add their own
+    blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW'],</code></pre>
+                        <p>Measured for this lesson: <code>APP_VARIANT=preview npx expo config --type introspect</code> then lists the permission with <code>'tools:node': 'remove'</code>, and a real prebuild writes <code>&lt;uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/&gt;</code> into the main manifest while the debug manifest keeps its own line, so development builds keep their tools. Google Play shows the permissions an app asks for, so every one you do not need is one fewer question from a careful volunteer (Lesson 9.4 lists them in the store's data forms). Leave the others: <code>INTERNET</code> and <code>VIBRATE</code> (haptics, Lesson 6.5) are used, and the storage permissions are worth testing on an old Android phone before you remove them.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Look inside the native projects (Stretch)</h3>
+                    <p>Introspect shows what plugins write; a prebuild shows everything. Commit your work, then generate the preview variant's native projects, find the settings of this lesson in the real files, and clean up.</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=preview npx expo prebuild --no-install</code></pre>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look in <code>android/app/src/main/AndroidManifest.xml</code>, <code>android/app/src/debug/AndroidManifest.xml</code> and <code>ios/ShorelinePreview/Info.plist</code> (the iOS folder is named after the app). <code>git status</code> shows what else prebuild changed.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Measured for this lesson: the main Android manifest has <code>android:usesCleartextTraffic="true"</code> and the package <code>com.example.shorelinecrew.preview</code> (in <code>android/app/build.gradle</code> as <code>applicationId</code>); the debug manifest turns cleartext on for debug builds whatever the variant. <code>Info.plist</code> has <code>CFBundleDisplayName</code> Shoreline Preview, the camera and location sentences and no Face ID sentence, and <code>NSAppTransportSecurity</code> with <code>NSAllowsArbitraryLoads</code> false and <code>NSAllowsLocalNetworking</code> true, the real values introspect does not show. <code>git status</code> lists <code>package.json</code>: prebuild changed the <code>android</code> and <code>ios</code> scripts to <code>expo run:android</code> and <code>expo run:ios</code>. Clean up by deleting the <code>android</code> and <code>ios</code> folders (they are in <code>.gitignore</code>) and running <code>git restore package.json</code>. Shoreline Crew lets the build service generate these folders fresh for every build (Lesson 9.2), so they never drift from <code>app.config.ts</code>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> You run <code>npx expo start</code> without setting <code>APP_VARIANT</code> and open Profile in the web preview. What does its last line say?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which variant would you want a build that forgot to say to become: the one that can replace the store app?">
+                                A) Shoreline Crew, version 1.0.0, because production is the default
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What does app.config.ts use when process.env.APP_VARIANT is undefined?">
+                                B) Shoreline Preview, version 1.0.0
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the line that reads APP_VARIANT: is there a ?? after it?">
+                                C) Nothing: Metro stops because APP_VARIANT is required
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="No APP_VARIANT means development, so the name is Shoreline Dev. Choosing development as the default keeps npx expo start working as before, and a build that forgot its variant gets the .dev id, so it can never replace the real app.">
+                                D) Shoreline Dev, version 1.0.0
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A teammate pastes the real Google Maps key into <code>.env.example</code>, "so everyone has it". What is wrong, and what should happen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is .env.example read by Expo at all, and is it ignored by Git?">
+                                A) Nothing: .env.example is never committed
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation=".env.example is committed for everyone to copy, so the key is now in the repository and its history. Replace the key in Google Cloud, keep the real one in .env.local and the build service's secrets, and restrict it to Maps on Android, the app's package name and the signing certificate.">
+                                B) .env.example is committed, so the key is now in the repository: replace the key, keep it in .env.local or the build service's secrets, and restrict it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a prefix that puts the key into the JavaScript bundle make it more or less exposed?">
+                                C) It should be named EXPO_PUBLIC_ANDROID_GOOGLE_MAPS_API_KEY so the app can read it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does deleting a line in a later commit remove it from the repository's history?">
+                                D) Delete the line in the next commit, and the key is safe again
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Shoreline Crew worked in Expo Go on your Android phone. A release build made with your config but without the preview variant's cleartext setting shows "Could not reach the server at http://192.168.1.42:4000" on the same Wi-Fi. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Android release builds refuse cleartext http unless the manifest allows it. Expo Go and debug builds allow it, which is why it worked before. The preview variant allows it with expo-build-properties; production uses an https server instead.">
+                                A) Android release builds block plain http unless the app's manifest allows cleartext traffic
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a release build load its JavaScript from Metro, or carry it inside?">
+                                B) Metro is not running on the computer
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 5.1 measured that native apps send no Origin header. Does CORS apply on a phone?">
+                                C) The API's CORS rules block requests from a phone
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> In your own app with an <code>app.config.ts</code>, <code>npx expo install expo-camera</code> ends with "Cannot automatically write to dynamic config at: app.config.ts" and exit code 1. What do you do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Look at package.json: did the install itself happen?">
+                                A) Run the install again with npm install, since npx expo install failed
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is going back to a file without types or variants the only way to add one plugin entry?">
+                                B) Recreate app.json, because config plugins only work there
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The package is installed; only the config edit is left to you. Add the entry the message shows (with the options the package documents, such as its permission sentence) to the plugins array, then check the result with npx expo config --type introspect.">
+                                C) Add the plugin entry the message shows to the plugins array in app.config.ts, then check it with introspect
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Why do the development, preview and production variants each get a different app id?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the app id something the JavaScript bundle uses at all?">
+                                A) So each variant can use a different JavaScript bundle
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A phone treats the id as the app's identity: a build with an id that is already installed replaces that app and its data. With three ids, a crew leader can have the preview and the store app side by side, and a test build never overwrites the volunteers' app.">
+                                B) A phone replaces an installed app with any build that has the same id, so different ids let the three sit side by side
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 6.1's sentences come from plugin options. Do they depend on the id?">
+                                C) Permission questions only appear for apps with a unique id
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The production id is permanent in the store. Is that a reason for the others to differ?">
+                                D) The stores require every build of an app to have a new id
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Can I keep app.json and add a small app.config.ts?</summary>
+                    <p>Yes, that is a common setup: static keys in <code>app.json</code>, where <code>npx expo install</code> and other tools can still add plugins, and an <code>app.config.ts</code> that spreads <code>config</code> and changes the few values that depend on the variant. It was measured for this lesson: with both files, Expo reads <code>app.json</code> first and the doctor passes. Shoreline Crew uses one file because a reader then never has to merge two in their head, and because the types cover everything.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why do all three variants share the <code>shorelinecrew://</code> scheme?</summary>
+                    <p>Because <code>Linking.createURL</code> (Lesson 4.4) reads the scheme from the config, and the links and notifications that use it need no changes. The cost: with two variants installed on one Android phone, a <code>shorelinecrew://</code> link may ask which app should open it. Teams that test links a lot give the development variant its own scheme, such as <code>shorelinecrew-dev</code>, the same way the name differs. In Expo Go, links use Expo Go's own <code>exp://</code> address anyway.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Is <code>EXPO_PUBLIC_API_URL</code> a secret? Should production hide it?</summary>
+                    <p>No. Any address the app talks to can be seen by anyone who watches the phone's traffic, and <code>EXPO_PUBLIC_</code> values are written into the bundle. Protection belongs on the server: https, sign-in, checks on every request (the "screen checks are kindness, API checks are rules" idea from Lesson 6.3). What must never be in the app are values that grant power by themselves, like an admin token.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Does Shoreline Crew run on an iPad?</summary>
+                    <p>Its builds are iPhone apps (the config does not set <code>ios.supportsTablet</code>, and a prebuild confirms an iPhone-only device family); an iPad can run iPhone apps in a phone-sized window. Android tablets already get Lesson 2.5's two columns. Supporting iPads properly is a store decision as much as a code one (iPad screenshots, orientations, review), so it waits for Lesson 9.4 and your own app.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Where is the version number set, and when does it change?</summary>
+                    <p><code>version: '1.0.0'</code> in <code>app.config.ts</code> is the version people see. The stores also count builds with a separate number that must grow with every upload. Lesson 9.3 sets up both, along with what changes when you send an update without a new build.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make the variants look different on the home screen, not only in name. Many teams give development and preview builds an icon with a colored band or a small badge, so nobody opens the wrong one in a hurry. Make <code>icon-dev.png</code> and <code>icon-preview.png</code> from <code>icon.png</code> in any image editor (keep 1024 x 1024 and no transparency), add an <code>icon</code> field to each entry of <code>variants</code>, and use it for <code>icon</code> (and, if you like, a second Android foreground layer). Check the result with <code>APP_VARIANT=preview npx expo config --type public</code>; in Lesson 9.2's development build you will see it on your phone.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> List every setting of your own final-project idea that would change between "on my laptop" and "in the store": addresses, keys, names, permissions. For each one, write where it should live (code, <code>.env.local</code>, the build service, nowhere in the app) and why. Which one would hurt most if you got it wrong?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>The app config is the label on the app: name, ids, icons, splash, scheme and the plugins that write native settings. Expo Go uses only the public part; prebuild and your build use all of it. <code>npx expo config</code> (public, introspect) shows what Expo sees</li>
+                        <li><code>app.config.ts</code> runs in Node, reads the environment (including <code>.env.local</code>) and is type-checked; the price is that tools print plugin entries for you to add instead of adding them</li>
+                        <li>One <code>APP_VARIANT</code> picks development, preview or production: different names and app ids let all three live on one phone; development is the safe default</li>
+                        <li><code>EXPO_PUBLIC_</code> values are in the bundle and are not secrets; other variables stay on your computer for the config; real keys live in <code>.env.local</code> or the build service, never in committed files, and keys that ship in an app are restricted</li>
+                        <li>Release builds refuse plain http (Android cleartext, iOS App Transport Security): preview may allow it for your own Wi-Fi, production needs an https server, and the config refuses anything else</li>
+                        <li>Take back what Expo's defaults give away: unused permission sentences, Face ID, push entitlement; and give Android a white notification icon and the splash a dark color</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read every config key and its type</td><td><a href="https://docs.expo.dev/versions/latest/config/app/">Expo: app.json / app.config reference</a></td></tr>
+                            <tr><td>Learn how static and dynamic config combine</td><td><a href="https://docs.expo.dev/workflow/configuration/">Expo: Configuration with app config</a></td></tr>
+                            <tr><td>Set up app variants the way Expo describes</td><td><a href="https://docs.expo.dev/tutorial/eas/multiple-app-variants/">Expo: Configure multiple app variants</a></td></tr>
+                            <tr><td>Understand environment variables in Expo</td><td><a href="https://docs.expo.dev/guides/environment-variables/">Expo: Environment variables</a></td></tr>
+                            <tr><td>See every option of expo-build-properties</td><td><a href="https://docs.expo.dev/versions/latest/sdk/build-properties/">Expo: BuildProperties</a></td></tr>
+                            <tr><td>Restrict a Google Maps key</td><td><a href="https://developers.google.com/maps/api-security-best-practices">Google Maps Platform: API security best practices</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew's config is typed code, and a misspelled key is now a type error instead of a surprise at build time</li>
+                        <li>One project produces Shoreline Dev, Shoreline Preview and Shoreline Crew, each with its own id</li>
+                        <li>A store build can no longer be pointed at plain http, and the preview build can still reach your laptop</li>
+                        <li>The Maps key has a safe home, and you know why a key in an app must be restricted</li>
+                        <li>Five debts from earlier lessons are paid: cleartext, the Maps key, the push entitlement, permission sentences and the Face ID sentence; the notification icon and dark splash are done</li>
+                        <li>Profile names the build, a test proves it, and the doctor passes 20 of 20</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Everything you configured today is waiting for a build. In <a href="lesson_33.html">Lesson 9.2: Development Builds and EAS Build</a>, you see when Expo Go is no longer enough, add <code>expo-dev-client</code>, write <code>eas.json</code> with a build profile per variant (each one setting <code>APP_VARIANT</code>), and build Shoreline Crew in the cloud, with an honest look at the free plan's queue. That is where your icon, splash, notification icon and permission sentences finally appear on a phone.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npx tsc --noEmit</code>, <code>npx expo lint</code>, <code>npm test -- --watchAll=false</code> and <code>npx expo-doctor</code> once more, and commit (check that no key is in the commit)</li>
+                    <li>If you do not have one yet, create a free Expo account at expo.dev: Lesson 9.2 signs in with it. No payment is needed</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Configuration is the part of mobile development people learn by accident, usually after a bad day: the overwritten app, the leaked key, the rejected build. You learned it on purpose, with every mistake made on your own computer where it costs nothing. The file you wrote today is short, but it is the one a release depends on, and you can explain every line of it. That is what being ready to ship looks like.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_31.html" class="prev-lesson">← Previous: Performance and Debugging</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_33.html" class="next-lesson">Next: Development Builds and EAS Build →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

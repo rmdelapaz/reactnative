@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="shoreline-api from the phone's point of view: which address to use on a phone, emulator or simulator, sign-in, the endpoints the app uses, offline-safe debris logs, photos and errors. React Native &amp; Expo: Build and Ship a Mobile App.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Shoreline API Reference - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🌊 Shoreline API Reference</h1>
+                <p class="lead">Everything the Shoreline Crew phone app can ask shoreline-api, what it answers, and how a phone, an emulator or the web preview reaches it.</p>
+            </header>
+            <div class="card card-info">
+                <h2>🧭 About the API</h2>
+                <p><strong>shoreline-api</strong> is the course's mock back end, the same one the <a href="https://rays-typescript.netlify.app/api.html" target="_blank" rel="noopener">React + TypeScript course</a> uses for Shoreline Crew HQ: the cleanups, sites, volunteers, sign-ups, debris logs and photos of Shoreline Crew, a fictional beach-cleanup group. It needs no install and has no dependencies: with Node.js 24 or newer, run <code>node server.ts</code> in its folder. The data lives in memory and is rebuilt around today's date each time it starts. Lessons never change the API; you only download it. This page describes it from the phone's point of view.</p>
+                <p><a href="downloads/shoreline-api.zip">Download shoreline-api.zip</a> (<a href="lesson_02.html#project">Lesson 1.2</a> sets it up). Its <code>README.md</code> is the short version of this page. For the words used here, see the <a href="glossary.html">Glossary</a>; for error messages in the app, <a href="troubleshooting.html">Troubleshooting</a>.</p>
+                <nav aria-label="Sections of this page">
+                    <ul>
+                        <li><a href="#run">Run it</a> · <a href="#addresses">Which address the app uses</a> · <a href="#cors">CORS and pictures</a> · <a href="#practice">Slow and failing answers</a></li>
+                        <li><a href="#accounts">Accounts and signing in</a> · <a href="#memory">Memory, restarts and 401</a></li>
+                        <li><a href="#phone-endpoints">What the phone app uses</a> · <a href="#endpoints">Every endpoint</a> · <a href="#lists">Lists and pages</a></li>
+                        <li><a href="#events">Cleanups</a> · <a href="#signups">Sign-ups and check-in</a> · <a href="#logs">Debris logs</a> · <a href="#photos">Photos</a></li>
+                        <li><a href="#errors">Errors</a> · <a href="#sample-data">Sample data</a> · <a href="#tests">In tests (MSW)</a></li>
+                    </ul>
+                </nav>
+            </div>
+
+            <section class="card" id="run">
+                <h2>▶️ Run It</h2>
+                <p>Open a terminal in the folder, start the server and keep that terminal open while you work (a second terminal runs Metro). Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>. <a href="lesson_02.html#project">Lesson 1.2</a>.</p>
+                <pre class="terminal"><code class="language-bash">cd shoreline-api
+node server.ts</code></pre>
+                <div class="card card-output"><h4>Expected output</h4><pre><code>Shoreline Crew API running at http://localhost:4000/api
+  sample sign-in: maya.okafor@example.com (organizer) or theo.nakamura@example.com (volunteer), password shoreline-demo
+Press Ctrl+C to stop.</code></pre></div>
+                <p>For a phone on your Wi-Fi, start it with <code>--host</code> instead. It then also prints the address the phone uses (<a href="lesson_15.html#host">Lesson 5.1</a>):</p>
+                <pre class="terminal"><code class="language-bash">node server.ts --host</code></pre>
+                <div class="card card-output"><h4>Expected output</h4><pre><code>Shoreline Crew API running at http://localhost:4000/api
+  on your network:  http://192.168.1.42:4000/api
+  sample sign-in: maya.okafor@example.com (organizer) or theo.nakamura@example.com (volunteer), password shoreline-demo
+Press Ctrl+C to stop.</code></pre></div>
+                <p>Your address will differ, and a computer with several network connections prints one line for each. Open <code>http://localhost:4000/api</code> in a browser for the list of every endpoint.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--host</code></td><td>listen on every address of your computer (<code>0.0.0.0</code>), not only <code>localhost</code>, and print each network address: a phone on the same Wi-Fi can then reach it</td></tr>
+                            <tr><td><code>--latency=800</code> or <code>--latency=300-1500</code></td><td>wait before every answer, a fixed time or a random time in the range, in milliseconds (practice loading states)</td></tr>
+                            <tr><td><code>--fail-rate=0.2</code></td><td>a share of requests (0 to 1) answers <code>500</code>; 0.2 is about 1 in 5 (practice error states)</td></tr>
+                            <tr><td><code>--port=4100</code> (or <code>PORT=4100</code>)</td><td>another port; then change the port in <code>EXPO_PUBLIC_API_URL</code> too</td></tr>
+                            <tr><td><code>--today=2026-06-01</code></td><td>build the sample data around another date (<code>YYYY-MM-DD</code>)</td></tr>
+                            <tr><td><code>--cors=https://my-hq.netlify.app</code></td><td>also let these web pages read the answers (comma-separated list, or <code>*</code> for any); a phone app never needs it</td></tr>
+                            <tr><td><code>--quiet</code></td><td>do not print a line for each request</td></tr>
+                            <tr><td><code>--help</code></td><td>print the options and stop</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>An unknown option stops the server with the list of valid ones. If the port is taken it says <code>port 4000 is already in use. Is the API already running in another terminal? Or start it with --port=4100</code>. In the folder, <code>npm start</code> runs <code>node server.ts</code>, <code>npm run dev</code> restarts it when a file changes (<code>node --watch</code>), and <code>npm test</code> runs the API's own tests; none of them needs <code>npm install</code>.</p>
+            </section>
+
+            <section class="card" id="addresses">
+                <h2>📍 Which Address the App Uses</h2>
+                <p>On a phone, <code>localhost</code> is the phone. The app reads the API's address from <code>EXPO_PUBLIC_API_URL</code> in <code>.env.local</code> (<a href="lesson_03.html#env">Lesson 1.3</a>), and <a href="lesson_15.html#env">Lesson 5.1</a> picks it per device:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>You are testing on</th><th><code>EXPO_PUBLIC_API_URL</code></th><th>Start the API with</th></tr></thead>
+                        <tbody>
+                            <tr><td>The web preview only (<kbd>w</kbd> in Expo), or the iOS Simulator on a Mac</td><td><code>http://localhost:4000</code></td><td><code>node server.ts</code></td></tr>
+                            <tr><td>The Android emulator only</td><td><code>http://10.0.2.2:4000</code> (the emulator's name for your computer), or your network address if the API runs with <code>--host</code></td><td><code>node server.ts</code></td></tr>
+                            <tr><td>A phone with Expo Go (plus the web preview, if you like)</td><td><code>http://192.168.1.42:4000</code>: your computer's address from the "on your network" line</td><td><code>node server.ts --host</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li><strong>No <code>/api</code> at the end.</strong> The API's banner prints <code>…:4000/api</code>, but <code>client.ts</code> adds <code>/api</code> itself. Copy the banner's address whole and the app asks for <code>/api/api/events</code>, which answers <code>404</code> <code>No API route for GET /api/api/events.</code> The app's <code>apiBaseUrl()</code> refuses such an address with <code>EXPO_PUBLIC_API_URL is "…": leave out the /api at the end (the app adds it).</code>, and an address without <code>http://</code> with <code>…start it with http://, as in http://192.168.1.42:4000.</code> (<a href="lesson_15.html#client">Lesson 5.1</a>).</li>
+                    <li><strong>Change the file, restart Metro with <code>--clear</code>.</strong> The value is copied into the bundle when Metro builds it, so saving <code>.env.local</code> does not reach a running app: stop Metro and run <code>npx expo start --clear</code>. One Metro means one address for every device it serves. A variable set in the terminal (<code>EXPO_PUBLIC_API_URL=http://10.0.2.2:4000 npx expo start --clear</code>) wins over the file.</li>
+                    <li><strong>Test the road first.</strong> Open <code>http://192.168.1.42:4000/api/health</code> (with your address) in the phone's browser. The same little JSON means the network works and anything left is in the app; a spinner or an error means no change to the app can help. In the app, Profile → Connection runs the same check (<a href="#health">below</a>).</li>
+                    <li><strong>The address can change.</strong> Wi-Fi networks hand out addresses as devices join. When the phone suddenly cannot connect, compare <code>.env.local</code> with the address Metro prints today (<code>exp://192.168.1.42:8081</code>: the API is at the same address on port 4000).</li>
+                </ul>
+                <div class="card card-warning">
+                    <h3>⚠️ --host shares the API with your network</h3>
+                    <p><code>--host</code> lets every device on your Wi-Fi reach the API (that is the point). It is sample data with demo passwords, but use it on a network you trust and stop the API when you are done.</p>
+                </div>
+                <h3>Windows with WSL, firewalls and guest Wi-Fi</h3>
+                <p>Inside WSL 2 with its default networking (NAT), Linux gets its own private address, often starting <code>172.</code>, that only Windows can reach: the API's "on your network" line and Metro's QR code both show it, and a phone can reach neither. <a href="lesson_15.html#wsl">Lesson 5.1</a> gives three ways out: run Node in Windows (PowerShell, a Windows folder); turn on mirrored networking (Windows 11 22H2 or newer) with <code>networkingMode=mirrored</code> under <code>[wsl2]</code> in <code>%UserProfile%\.wslconfig</code>, then <code>wsl --shutdown</code>; or use the Android emulator on Windows, which reaches your computer at <code>10.0.2.2</code> whatever WSL does. <code>wslinfo --networking-mode</code> says which mode you have. A firewall may also need to allow Node.js (ports 8081 for Metro and 4000 for the API) on private networks, and guest, school or café Wi-Fi often keeps devices apart (a phone hotspot gets around it). See <a href="troubleshooting.html#wsl">Troubleshooting: WSL</a>.</p>
+                <p>Plain <code>http</code> works in Expo Go and development builds. Release builds refuse it (Android) or allow only local addresses (iPhone); <a href="lesson_32.html#http">Lesson 9.1</a> allows it for the preview variant only.</p>
+            </section>
+
+            <section class="card" id="cors">
+                <h2>🌐 CORS and Pictures That Follow</h2>
+                <p>CORS is a browser rule, so it matters only in the web preview (<a href="lesson_15.html#cors">Lesson 5.1</a>). shoreline-api adds <code>Access-Control-Allow-Origin</code> for pages on <code>http://localhost</code>, <code>http://127.0.0.1</code> or <code>http://[::1]</code> on any port, plus the origins named with <code>--cors</code>, and for those it also sends <code>Access-Control-Expose-Headers: X-Total-Count, X-Total-Pages, Link, Location</code>, so the page can read the pagination headers. It answers every <code>OPTIONS</code> preflight with <code>204</code> (methods <code>GET, POST, PUT, PATCH, DELETE, OPTIONS</code>, headers <code>Authorization, Content-Type</code>).</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>The request comes from</th><th>Origin sent</th><th>Allow-Origin in the answer</th><th>Result</th></tr></thead>
+                        <tbody>
+                            <tr><td>Shoreline Crew in Expo Go (native fetch)</td><td>none</td><td>none</td><td>Works: there is no browser to enforce CORS</td></tr>
+                            <tr><td>The web preview on your computer</td><td><code>http://localhost:8081</code></td><td><code>http://localhost:8081</code></td><td>Works (with the network address in <code>EXPO_PUBLIC_API_URL</code> too)</td></tr>
+                            <tr><td>The web preview opened on another device</td><td><code>http://192.168.1.42:8081</code></td><td>none</td><td>Blocked by that device's browser: the web preview is not a way to put the app on a phone; Expo Go is</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>Pictures follow the address.</strong> The API builds each site picture's URL (<code>site.image.url</code>) and each photo's <code>url</code> from the address the request arrived at. Asked at <code>http://192.168.1.42:4000</code>, it answers <code>http://192.168.1.42:4000/images/sites/pelican-point.jpg</code>; asked at <code>localhost</code>, <code>http://localhost:4000/images/…</code>. So every device gets picture addresses it can open (<a href="lesson_06.html#images">Lesson 2.3</a> shows them). The site pictures are served with <code>Cache-Control: max-age=3600</code>.</p>
+            </section>
+
+            <section class="card" id="practice">
+                <h2>🐢 Slow and Failing Answers</h2>
+                <p>Phones live on slow and dropped connections. Two server options change every answer; two query parameters change one request without a restart. To practice being offline, stop the API (or turn on airplane mode).</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Switch</th><th>Scope</th><th>Effect</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--latency=MS</code> or <code>MIN-MAX</code></td><td>every request</td><td>waits before answering. <code>/api/health</code> and <code>/api/_reset</code> are never slowed down.</td></tr>
+                            <tr><td><code>--fail-rate=0-1</code></td><td>every request</td><td>that share answers <code>500</code> with <code>Simulated server error (the server was started with --fail-rate).</code> Health and reset never fail.</td></tr>
+                            <tr><td><code>?_delay=2000</code></td><td>this request</td><td>waits that many milliseconds (at most 10000) instead of the <code>--latency</code> wait</td></tr>
+                            <tr><td><code>?_status=500</code></td><td>this request</td><td>answers that status (any 400 to 599) with the usual error body, such as <code>{ "error": "server_error", "message": "Simulated 500 response (the _status parameter)." }</code>; a 401 gets <code>unauthorized</code>, a 404 <code>not_found</code>, and so on</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The app's answers to these: loading and failed states in <a href="lesson_09.html#states">Lesson 3.1</a>, retries and the online manager in <a href="lesson_16.html#signals">Lesson 5.2</a>, the debris-log queue in <a href="lesson_19.html#retries">Lesson 5.5</a>.</p>
+            </section>
+
+            <section class="card" id="accounts">
+                <h2>🔑 Accounts and Signing In</h2>
+                <p>Every account's password is <code>shoreline-demo</code>. The phone app is for volunteers: sign in as Theo. Organizers also work, and they see each cleanup's check-in code.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Person</th><th>Email</th><th>Role</th></tr></thead>
+                        <tbody>
+                            <tr><td>Theo Nakamura (<code>v04</code>)</td><td><code>theo.nakamura@example.com</code></td><td>volunteer</td></tr>
+                            <tr><td>20 more (<code>v05</code> to <code>v24</code>)</td><td><code>first.last@example.com</code>, such as <code>amara.diallo@example.com</code></td><td>volunteer</td></tr>
+                            <tr><td>Maya Okafor (<code>v01</code>)</td><td><code>maya.okafor@example.com</code></td><td>organizer</td></tr>
+                            <tr><td>Luis Romero (<code>v02</code>)</td><td><code>luis.romero@example.com</code></td><td>organizer</td></tr>
+                            <tr><td>Hannah Becker (<code>v03</code>)</td><td><code>hannah.becker@example.com</code></td><td>organizer</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><a href="lesson_13.html">Lesson 4.3</a> signs in from the phone:</p>
+                <ol>
+                    <li><code>POST /api/auth/sign-in</code> with <code>{ "email": "…", "password": "…" }</code> answers <code>200</code> with <code>{ token, user }</code>, where <code>user</code> is <code>{ id, name, email, role }</code>. The email is trimmed and matched without case. A wrong email or password is <code>401</code> <code>Email or password is incorrect.</code>; a missing or badly written email, or an empty password, is <code>400</code> with <code>fieldErrors.email</code> or <code>fieldErrors.password</code>.</li>
+                    <li>Every later request sends the header <code>Authorization: Bearer TOKEN</code>. <code>client.ts</code>'s <code>request()</code> adds it whenever there is a session; the app keeps the token in secure storage so it survives an app restart (<a href="lesson_13.html#storage">Lesson 4.3</a>).</li>
+                    <li><code>GET /api/auth/me</code> answers the signed-in <code>user</code>, or <code>401</code> <code>Sign in first.</code> without a token.</li>
+                    <li><code>POST /api/auth/sign-out</code> forgets the token and answers <code>204</code> with no body.</li>
+                </ol>
+                <p>For curl, two test tokens always work: <code>Authorization: Bearer dev-volunteer</code> (Theo) and <code>Authorization: Bearer dev-organizer</code> (Maya). Lessons use <code>dev-volunteer</code> for quick experiments (<a href="lesson_21.html#upload">Lesson 6.2</a>, <a href="lesson_22.html#proof">Lesson 6.3</a>). In PowerShell, type <code>curl.exe</code>.</p>
+                <pre class="terminal"><code class="language-bash">curl -X POST http://localhost:4000/api/auth/sign-in -H "Content-Type: application/json" -d "{\"email\":\"theo.nakamura@example.com\",\"password\":\"shoreline-demo\"}"
+curl http://localhost:4000/api/me/signups -H "Authorization: Bearer dev-volunteer"</code></pre>
+            </section>
+
+            <section class="card" id="memory">
+                <h2>🧠 Memory, Restarts and the 401 on Public Endpoints</h2>
+                <p>Everything the API knows lives in memory. Restarting it (or <code>POST /api/_reset</code>) rebuilds the sample data and forgets everything since: your sign-ups and cancellations, check-ins, debris logs, uploaded photos, and every sign-in token except the two test tokens.</p>
+                <div class="card card-warning">
+                    <h3>⚠️ An old token gets 401 even where no token is needed</h3>
+                    <p>The API checks the token before it looks at the address. A request carrying a token it does not know answers <code>401</code> <code>Your session has ended. Sign in again.</code>, even <code>GET /api/events</code>, <code>GET /api/sites</code> or <code>POST /api/auth/sign-out</code>, because the request claimed to be someone. The same request without a token gets <code>200</code>. A phone meets this far more than a web page: its secure storage still holds the token from before the restart (<a href="lesson_13.html#expired">Lesson 4.3</a>).</p>
+                </div>
+                <ul>
+                    <li><strong>The client forgets the session.</strong> In <code>request()</code>, a <code>401</code> to a request that carried a token calls <code>setSession(null)</code>, and <code>describeError</code> says <code>Your sign-in has ended. Sign in again.</code> (<a href="lesson_13.html#expired">Lesson 4.3</a>).</li>
+                    <li><strong>One place tells the volunteer.</strong> The query cache's error handler marks the sign-in as ended wherever the 401 happened, and the public lists fetch again as a guest (<a href="lesson_16.html#ended">Lesson 5.2</a>).</li>
+                    <li><strong>Queued work after a restart.</strong> A queued debris log whose <code>photoIds</code> name photos from before the restart is refused with <code>400</code> (<code>fieldErrors.photoIds</code>: <code>Upload each photo first and send the ids it returned.</code>), and a <code>clientId</code> the API saw before the restart counts as new again (<a href="lesson_19.html#retries">Lesson 5.5</a>, <a href="lesson_21.html#offline">Lesson 6.2</a>).</li>
+                    <li><strong>The sample data moves with the calendar.</strong> It is built around today in the group's time zone (<code>America/Los_Angeles</code>), so "today's cleanup" is always today. See <a href="troubleshooting.html#session-ended">Troubleshooting</a> when your changes seem to vanish.</li>
+                </ul>
+            </section>
+
+            <section class="card" id="phone-endpoints">
+                <h2>📱 What the Phone App Uses</h2>
+                <p>Every request the finished Shoreline Crew sends goes through one function in <code>src/api/client.ts</code>. Each checks the JSON it gets back with a type predicate before any screen uses it.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Request</th><th><code>client.ts</code> function</th><th>Used by</th><th>Lesson</th></tr></thead>
+                        <tbody>
+                            <tr id="health"><td><code>GET /api/health</code></td><td><code>getHealth()</code></td><td>Profile → Connection, "Check the connection" (<code>ConnectionCheck.tsx</code>)</td><td><a href="lesson_15.html#project">Lesson 5.1</a></td></tr>
+                            <tr><td><code>GET /api/sites</code></td><td><code>getSites()</code></td><td>site names and pictures on the cards</td><td><a href="lesson_03.html#project">Lesson 1.3</a>, <a href="lesson_06.html#images">Lesson 2.3</a></td></tr>
+                            <tr><td><code>GET /api/events?when=upcoming&amp;page=N&amp;perPage=5</code></td><td><code>getEvents(query)</code> (through <code>readPage</code>)</td><td>the Cleanups list, five at a time</td><td><a href="lesson_03.html#project">Lesson 1.3</a>, <a href="lesson_10.html#paging">Lesson 3.2</a>, <a href="lesson_16.html#pages">Lesson 5.2</a></td></tr>
+                            <tr><td><code>GET /api/events/:id</code></td><td><code>getEvent(id)</code></td><td>the cleanup screen (and deep links to it)</td><td><a href="lesson_11.html">Lesson 4.1</a>, <a href="lesson_14.html">Lesson 4.4</a></td></tr>
+                            <tr><td><code>POST /api/auth/sign-in</code></td><td><code>postSignIn(credentials)</code></td><td>the Sign in modal</td><td><a href="lesson_13.html">Lesson 4.3</a></td></tr>
+                            <tr><td><code>POST /api/auth/sign-out</code></td><td><code>postSignOut()</code></td><td>Sign out (<code>src/auth/session.ts</code>; a failure is ignored, the phone forgets the token anyway)</td><td><a href="lesson_13.html">Lesson 4.3</a></td></tr>
+                            <tr><td><code>GET /api/auth/me</code></td><td><code>getMe()</code></td><td>Profile</td><td><a href="lesson_13.html">Lesson 4.3</a>, <a href="lesson_16.html">Lesson 5.2</a></td></tr>
+                            <tr><td><code>GET /api/me/signups</code></td><td><code>getMySignups()</code></td><td>My cleanups, and the sign-up panel</td><td><a href="lesson_16.html#signups">Lesson 5.2</a></td></tr>
+                            <tr><td><code>POST /api/events/:id/signups</code></td><td><code>postSignup(eventId)</code></td><td>Sign up (<code>signUpMutation</code>)</td><td><a href="lesson_16.html#signups">Lesson 5.2</a></td></tr>
+                            <tr><td><code>PATCH /api/signups/:id</code></td><td><code>cancelSignup(signupId)</code></td><td>Cancel, on the cleanup and in My cleanups</td><td><a href="lesson_16.html#signups">Lesson 5.2</a></td></tr>
+                            <tr><td><code>GET /api/events/:id/logs</code></td><td><code>getEventLogs(eventId)</code></td><td>bringing your sent logs into the logbook (<code>bringInSentLogsMutation</code>)</td><td><a href="lesson_17.html#project">Lesson 5.3</a></td></tr>
+                            <tr><td><code>POST /api/events/:id/logs</code></td><td><code>postLog(eventId, log)</code></td><td>the debris-log queue (<code>src/state/sendLogs.ts</code>)</td><td><a href="lesson_18.html#sending">Lesson 5.4</a>, <a href="lesson_19.html#retries">Lesson 5.5</a></td></tr>
+                            <tr><td><code>POST /api/photos</code></td><td><code>postPhoto(photo, contentType)</code></td><td>the queue, before the log that names the photos</td><td><a href="lesson_21.html#upload">Lesson 6.2</a></td></tr>
+                            <tr><td><code>POST /api/events/:id/check-in</code></td><td><code>checkIn(eventId, code)</code></td><td>Check in, on the cleanup's day (<code>checkInMutation</code>)</td><td><a href="lesson_22.html#proof">Lesson 6.3</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The app never calls the organizer endpoints, <code>GET /api/meta</code> (its debris categories are written into <code>src/utils/debris.ts</code>), <code>GET /api/sites/:id</code> or the impact endpoints. The client itself is copied from the HQ and adapted in <a href="lesson_03.html#carry-over">Lesson 1.3</a>: <code>request()</code> builds <code>${EXPO_PUBLIC_API_URL}/api${path}</code>, adds the Bearer token, turns an error status into an <code>ApiError</code> (with <code>status</code>, <code>code</code>, <code>fieldErrors</code>) and a request with no answer into a <code>NetworkError</code> that names the address.</p>
+                <pre data-snippet><code class="language-ts">// src/api/client.ts (the finished app): the photo itself is the body
+export async function postPhoto(photo: Blob, contentType: string): Promise&lt;Photo&gt; {
+  const response = await request('/photos', {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: photo,
+  });
+  const data: unknown = await response.json();
+  if (!isPhoto(data)) {
+    throw new Error('Unexpected data from POST /api/photos');
+  }
+  return data;
+}</code></pre>
+            </section>
+
+            <section class="card" id="endpoints">
+                <h2>🗺️ Every Endpoint</h2>
+                <p>All under <code>/api</code>, JSON in and out (send <code>Content-Type: application/json</code> with a body). A trailing slash is fine; <code>HEAD</code> works wherever <code>GET</code> does. Twenty-eight endpoints:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Method and path</th><th>Who</th><th>What</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>GET /api</code></td><td>anyone</td><td>the API's name, version and list of endpoints</td></tr>
+                            <tr><td><code>GET /api/health</code></td><td>anyone</td><td><code>{ "ok": true, "today": "YYYY-MM-DD" }</code>: the API is up, and the date its sample data is built around</td></tr>
+                            <tr><td><code>GET /api/meta</code></td><td>anyone</td><td>organization name, tagline, time zone, today's date, skills and debris categories with labels, API version</td></tr>
+                            <tr><td><code>POST /api/auth/sign-in</code></td><td>anyone</td><td><code>{ email, password }</code> → <code>{ token, user }</code></td></tr>
+                            <tr><td><code>POST /api/auth/sign-out</code></td><td>anyone (forgets the token sent)</td><td><code>204</code>, no body</td></tr>
+                            <tr><td><code>GET /api/auth/me</code></td><td>signed in</td><td>the signed-in <code>user</code></td></tr>
+                            <tr><td><code>GET /api/sites</code></td><td>anyone</td><td>the six cleanup sites, each with an <code>image</code> (an array, not paged)</td></tr>
+                            <tr><td><code>GET /api/sites/:id</code></td><td>anyone</td><td>one site</td></tr>
+                            <tr><td><code>GET /api/events</code></td><td>anyone</td><td>cleanups, paged; filters <code>q</code>, <code>status</code>, <code>siteId</code>, <code>when=upcoming|past</code>, <code>from</code>, <code>to</code>, <code>updatedSince</code>, <code>sort=date|-date|title</code> (drafts only for organizers)</td></tr>
+                            <tr><td><code>GET /api/events/:id</code></td><td>anyone</td><td>one cleanup with its <code>site</code> (organizers also get <code>checkInCode</code>)</td></tr>
+                            <tr><td><code>POST /api/events</code></td><td>organizer</td><td>create (<code>201</code>, <code>Location</code> header); a <code>draft</code> unless <code>status: "scheduled"</code></td></tr>
+                            <tr><td><code>PATCH /api/events/:id</code></td><td>organizer</td><td>change any fields, including <code>status</code></td></tr>
+                            <tr><td><code>DELETE /api/events/:id</code></td><td>organizer</td><td>delete a draft (<code>204</code>); any other status is <code>409</code> (cancel it instead)</td></tr>
+                            <tr><td><code>GET /api/events/:id/signups</code></td><td>organizer</td><td>the roster: sign-ups with each volunteer's contact details</td></tr>
+                            <tr><td><code>POST /api/events/:id/signups</code></td><td>signed in</td><td>sign yourself up (<code>201</code>); <code>waitlisted</code> when full; organizers may send <code>volunteerId</code></td></tr>
+                            <tr><td><code>PATCH /api/signups/:id</code></td><td>organizer, or the volunteer to cancel</td><td><code>{ status }</code>; a freed spot goes to the first person waiting</td></tr>
+                            <tr><td><code>GET /api/me/signups</code></td><td>signed in</td><td>your sign-ups, each with its <code>event</code>, the latest cleanup first (an array, not paged)</td></tr>
+                            <tr><td><code>POST /api/events/:id/check-in</code></td><td>signed in, with a confirmed spot</td><td><code>{ code }</code> on the day of the cleanup → your sign-up becomes <code>attended</code></td></tr>
+                            <tr><td><code>GET /api/events/:id/logs</code></td><td>signed in</td><td>debris logs (organizers: all; volunteers: their own)</td></tr>
+                            <tr><td><code>POST /api/events/:id/logs</code></td><td>signed in, with a spot</td><td>a debris log: <code>201</code> new, <code>200</code> when the same <code>clientId</code> comes again</td></tr>
+                            <tr><td><code>GET /api/events/:id/impact</code></td><td>anyone</td><td>the impact report of a cleanup (<code>404</code> until there is one)</td></tr>
+                            <tr><td><code>PUT /api/events/:id/impact</code></td><td>organizer</td><td>create or replace the impact report (the cleanup becomes <code>completed</code>)</td></tr>
+                            <tr><td><code>GET /api/impact</code></td><td>anyone</td><td>totals: events, volunteer hours, bags, weight, by debris category, by month, by site; <code>from</code>, <code>to</code></td></tr>
+                            <tr><td><code>GET /api/volunteers</code></td><td>organizer</td><td>the crew, paged; filters <code>q</code>, <code>skill</code>, <code>role</code></td></tr>
+                            <tr><td><code>GET /api/volunteers/:id</code></td><td>organizer, or that volunteer</td><td>one person</td></tr>
+                            <tr><td><code>POST /api/photos</code></td><td>signed in</td><td>upload a JPEG, PNG or WebP (5 MB max) as the raw body with its <code>Content-Type</code>, or as <code>multipart/form-data</code> field <code>photo</code> → <code>{ id, url, contentType, bytes, uploadedBy, createdAt }</code> (<code>201</code>)</td></tr>
+                            <tr><td><code>GET /api/photos/:id</code></td><td>anyone</td><td>the uploaded image</td></tr>
+                            <tr><td><code>POST /api/_reset</code></td><td>anyone</td><td>put the sample data back (development only)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>"Signed in" means a valid <code>Authorization: Bearer</code> token: without one these answer <code>401</code> <code>Sign in first.</code>; with a volunteer's token, organizer endpoints answer <code>403</code> <code>Only organizers can do that.</code></p>
+            </section>
+
+            <section class="card" id="lists">
+                <h2>📄 Lists and Pages</h2>
+                <p><code>GET /api/events</code> and <code>GET /api/volunteers</code> are paged. They take <code>page</code> (from 1) and <code>perPage</code> (1 to 50, default 10), answer a JSON array of that page's items, and say the rest in headers:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Header</th><th>Says</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>X-Total-Count</code></td><td>how many items match, on all pages</td></tr>
+                            <tr><td><code>X-Total-Pages</code></td><td>how many pages there are (at least 1, even for an empty list)</td></tr>
+                            <tr><td><code>Link</code></td><td>the addresses of the <code>first</code>, <code>prev</code>, <code>next</code> and <code>last</code> pages (<code>prev</code> and <code>next</code> only when they exist)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A <code>page</code> past the end answers an empty array, not an error; a <code>perPage</code> over 50 or a <code>page</code> of 0 is <code>400</code>. <a href="lesson_10.html#paging">Lesson 3.2</a> asks for the second page of upcoming cleanups, five at a time:</p>
+                <pre class="terminal"><code class="language-bash">curl -s -D - -o /dev/null "http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5"</code></pre>
+                <div class="card card-output"><h4>Expected output</h4><pre><code>HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json; charset=utf-8
+link: &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="first", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="prev", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5&gt;; rel="last"
+vary: Origin
+x-total-count: 8
+x-total-pages: 2
+...</code></pre></div>
+                <p>Header names come out in lowercase, which HTTP allows (<code>x-total-pages</code> is <code>X-Total-Pages</code>). On Windows PowerShell, type <code>curl.exe</code> and <code>NUL</code> instead of <code>/dev/null</code>.</p>
+                <p>The app's <code>readPage</code> returns a <code>Page&lt;T&gt;</code>: the items plus <code>page</code> and <code>perPage</code> (read from the request's address) and <code>total</code> and <code>totalPages</code> (from the headers). The Cleanups list asks for <code>perPage=5</code> and loads the next page with <code>onEndReached</code> while <code>page &lt; totalPages</code>, by hand in <a href="lesson_10.html#paging">Lesson 3.2</a> and with <code>useInfiniteQuery</code> in <a href="lesson_16.html#pages">Lesson 5.2</a>. The other lists (<code>/api/sites</code>, <code>/api/me/signups</code>, logs, the roster) are plain arrays with no paging headers.</p>
+            </section>
+
+            <section class="card" id="events">
+                <h2>📅 Cleanups</h2>
+                <p>A volunteer (or a guest) sees only <code>scheduled</code>, <code>completed</code> and <code>cancelled</code> cleanups; a <code>draft</code> answers <code>404</code> <code>No cleanup event with that id.</code>, exactly like an id that does not exist (<a href="lesson_11.html">Lesson 4.1</a> handles that 404). A cleanup has <code>id</code>, <code>title</code>, <code>siteId</code>, <code>status</code>, <code>date</code> (<code>YYYY-MM-DD</code>), <code>startTime</code> and <code>endTime</code> (<code>HH:MM</code>, the group's local time), <code>capacity</code>, <code>spotsTaken</code> (confirmed plus attended sign-ups), <code>meetingPoint</code>, <code>description</code>, <code>suppliesProvided</code>, <code>leadOrganizerId</code>, <code>createdAt</code> and <code>updatedAt</code> (ISO timestamps in UTC). <code>GET /api/events/:id</code> adds the whole <code>site</code> (with <code>latitude</code> and <code>longitude</code>, used by the map in <a href="lesson_22.html#maps">Lesson 6.3</a>), and <code>checkInCode</code> for organizers only.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Query parameter</th><th>Effect</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>when=upcoming</code> / <code>when=past</code></td><td>today or later / before today (the API's today)</td></tr>
+                            <tr><td><code>q</code></td><td>words in the title, description or site name (all must match)</td></tr>
+                            <tr><td><code>status</code>, <code>siteId</code>, <code>from</code>, <code>to</code></td><td>one status; one site; dates from and to (<code>YYYY-MM-DD</code>)</td></tr>
+                            <tr><td><code>sort</code></td><td><code>date</code> (default, soonest first), <code>-date</code>, <code>title</code></td></tr>
+                            <tr><td><code>updatedSince</code></td><td>only cleanups whose <code>updatedAt</code> is later than this ISO time</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A wrong value is <code>400</code> with a message per parameter, such as <code>fieldErrors.when</code>: <code>when must be upcoming or past.</code></p>
+                <div class="card card-info" id="updated-since">
+                    <h3>ℹ️ updatedSince: what it covers</h3>
+                    <p>A cleanup's <code>updatedAt</code> changes only when an organizer edits it (<code>PATCH</code>) or reports its impact (<code>PUT …/impact</code>). Sign-ups change <code>spotsTaken</code> without touching <code>updatedAt</code>, so a delta sync with <code>updatedSince</code> misses them, and a deleted draft simply stops appearing. Shoreline Crew's Cleanups list therefore does not use it: <a href="lesson_19.html#faq">Lesson 5.5</a> explains why in its Common Questions and leaves a delta sync to its Bonus Challenge.</p>
+                </div>
+            </section>
+
+            <section class="card" id="signups">
+                <h2>🙋 Sign-ups and Check-in</h2>
+                <p>A sign-up has <code>id</code>, <code>eventId</code>, <code>volunteerId</code>, <code>status</code> (<code>confirmed</code>, <code>waitlisted</code>, <code>cancelled</code>, <code>attended</code> or <code>no-show</code>), <code>note</code>, <code>createdAt</code> and <code>checkedInAt</code> (a timestamp or <code>null</code>). <a href="lesson_16.html#signups">Lesson 5.2</a> uses three endpoints:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Request</th><th>The API decides</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>GET /api/me/signups</code></td><td>your sign-ups, each with its cleanup (<code>event</code>), the latest cleanup first, canceled ones included</td></tr>
+                            <tr><td><code>POST /api/events/:id/signups</code> (body <code>{}</code>, or <code>{ "note": "…" }</code> up to 280 characters)</td><td><code>201</code> with <code>confirmed</code> while spots are left, else <code>waitlisted</code>. <code>409</code> <code>You are already signed up for this cleanup.</code> (a canceled sign-up does not count, so you can sign up again) or <code>409</code> <code>This cleanup is not open for sign-ups.</code> (not scheduled, or its date has passed)</td></tr>
+                            <tr><td><code>PATCH /api/signups/:id</code> with <code>{ "status": "cancelled" }</code></td><td><code>200</code> with the sign-up. If it held a spot, the first person on the waiting list gets it. A volunteer may only cancel (any other status is <code>403</code> <code>Volunteers can only cancel their own sign-up.</code>) and only their own (someone else's is <code>404</code>)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A second sign-up sent by a retry is harmless: the API refuses it with <code>409</code>, which is why <a href="lesson_16.html#signups">Lesson 5.2</a> does not need a <code>clientId</code> for sign-ups.</p>
+                <h3 id="check-in">Check-in with the organizer's code</h3>
+                <p><code>POST /api/events/:id/check-in</code> with <code>{ "code": "6544" }</code> proves you were there (<a href="lesson_22.html#proof">Lesson 6.3</a>). The organizer reads the code from the cleanup (organizers get <code>checkInCode</code>); nobody else sees it. The answer is your sign-up, now <code>attended</code> with <code>checkedInAt</code>. The API checks, in this order:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Problem</th><th>Answer</th></tr></thead>
+                        <tbody>
+                            <tr><td>No sign-up, a canceled one, or a waitlisted one</td><td><code>409</code> <code>You need a confirmed spot to check in.</code></td></tr>
+                            <tr><td>Not the cleanup's date (the API's today), or the cleanup is not <code>scheduled</code></td><td><code>409</code> <code>Check-in opens on the day of the cleanup.</code></td></tr>
+                            <tr><td>The code does not match</td><td><code>400</code> with <code>fieldErrors.code</code>: <code>That code does not match. Ask the organizer for today's code.</code></td></tr>
+                            <tr><td>All good</td><td><code>200</code>, the sign-up as <code>attended</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Check-in is idempotent: a second check-in with the right code leaves the sign-up <code>attended</code> and keeps the first <code>checkedInAt</code>. That makes a retry safe, so Shoreline Crew lets a check-in pressed without signal wait in memory and send when the connection returns, but never queues it for later, because a late check-in can only get the "day of the cleanup" 409 (<a href="lesson_22.html#offline">Lesson 6.3</a>).</p>
+                <pre class="terminal"><code class="language-bash">curl -i -X POST http://localhost:4000/api/events/e17/check-in -H "Authorization: Bearer dev-volunteer" -H "Content-Type: application/json" -d "{\"code\":\"6544\"}"</code></pre>
+            </section>
+
+            <section class="card" id="logs">
+                <h2>🧾 Debris Logs</h2>
+                <p>A debris log is what one volunteer recorded at a cleanup, sent from the phone, possibly much later. <code>POST /api/events/:id/logs</code> takes a <code>NewCleanupLog</code>:</p>
+                <pre data-snippet><code class="language-ts">export interface NewCleanupLog {
+  clientId: string        // made on the phone, 8 to 64 characters, once per log
+  items: DebrisCount[]    // { category, count }: a known category, a whole count 0 to 100000
+  bags: number            // a whole number 0 to 500
+  weightKg: number        // 0 to 5000
+  note?: string           // up to 500 characters
+  photoIds?: string[]     // ids from POST /api/photos, uploaded first
+  recordedAt: Timestamp   // when the volunteer recorded it (ISO)
+}</code></pre>
+                <p>The saved <code>CleanupLog</code> adds <code>id</code>, <code>eventId</code>, <code>volunteerId</code> and <code>createdAt</code>. The ten debris categories are <code>plastic-bottles</code>, <code>plastic-bags</code>, <code>food-wrappers</code>, <code>bottle-caps</code>, <code>cigarette-butts</code>, <code>fishing-gear</code>, <code>glass</code>, <code>metal</code>, <code>foam</code> and <code>other</code> (labels in <code>GET /api/meta</code>).</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Answer</th><th>When</th><th>The app's queue</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>201 Created</code></td><td>a new log, saved</td><td>done: into the logbook, out of the queue</td></tr>
+                            <tr><td><code>200 OK</code></td><td>you already sent a log with this <code>clientId</code>: the API answers the log it has, never a duplicate</td><td>the same as 201: an earlier try got through and its answer was lost</td></tr>
+                            <tr><td><code>400</code></td><td>a field is wrong (<code>fieldErrors</code> names it, such as <code>items.0.count</code> or <code>photoIds</code>)</td><td rowspan="3">refused with the server's message; never sent again</td></tr>
+                            <tr><td><code>403</code></td><td><code>Only volunteers with a spot at this cleanup can log for it.</code> (a confirmed or attended sign-up; organizers may always log)</td></tr>
+                            <tr><td><code>409</code></td><td><code>This cleanup has not happened yet.</code> (its date is after today)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The phone makes the <code>clientId</code> (with <code>expo-crypto</code>'s <code>randomUUID()</code>) when the form opens, so a resend after a dropped connection carries the same id and the season's totals never count a log twice (<a href="lesson_18.html#sending">Lesson 5.4</a>). The queue that resends it, and the table above, are <a href="lesson_19.html#retries">Lesson 5.5</a>'s. The API recognizes a resend by your sign-in plus the <code>clientId</code>, and checks it before the spot and date rules.</p>
+                <p><code>GET /api/events/:id/logs</code> lists your own logs for one cleanup (an organizer gets everyone's), as an array. The logbook fills itself from it for every cleanup you held a spot at (<a href="lesson_17.html#project">Lesson 5.3</a>).</p>
+            </section>
+
+            <section class="card" id="photos">
+                <h2>📷 Photos</h2>
+                <p><code>POST /api/photos</code> (signed in) accepts a photo in either of two forms (<a href="lesson_21.html#upload">Lesson 6.2</a>):</p>
+                <ul>
+                    <li><strong>The image itself as the body</strong>, with its type in <code>Content-Type</code> (<code>image/jpeg</code>, <code>image/png</code> or <code>image/webp</code>). This is what Shoreline Crew sends: on a phone an <code>expo-file-system</code> <code>File</code> (a <code>Blob</code>), in the web preview the browser's <code>Blob</code>.</li>
+                    <li><strong>A <code>multipart/form-data</code> form</strong> with the image in a field named <code>photo</code>. This is what the HQ's browser form sends.</li>
+                </ul>
+                <div class="card card-danger">
+                    <h3>🚫 The old { uri, name, type } form part fails on SDK 58</h3>
+                    <p>Older answers append <code>{ uri, name, type }</code> to a <code>FormData</code>. In Expo SDK 58 the global <code>fetch</code> on a phone is <code>expo/fetch</code>, which sends <code>Blob</code>s, not file addresses: TypeScript rejects the call (<code>No overload matches this call.</code>), and forced through with a cast, the fetch throws <code>Unsupported FormDataPart implementation</code>, which the app reports as "Could not reach the server". Send the <code>Blob</code> as the body instead (<a href="lesson_21.html#mistakes">Lesson 6.2</a>).</p>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Answer</th><th>When</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>201</code> with <code>{ id, url, contentType, bytes, uploadedBy, createdAt }</code> and a <code>Location</code> header</td><td>saved; put the <code>id</code> in the log's <code>photoIds</code></td></tr>
+                            <tr><td><code>415</code> <code>unsupported_media_type</code></td><td><code>Photos must be JPEG, PNG or WebP images.</code> (a HEIC or GIF, for example)</td></tr>
+                            <tr><td><code>413</code> <code>payload_too_large</code></td><td><code>Photos must be 5 MB or smaller.</code></td></tr>
+                            <tr><td><code>400</code></td><td>an empty body (<code>fieldErrors.photo</code>: <code>The image is empty.</code>), or a multipart form without a <code>photo</code> file</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre class="terminal"><code class="language-bash">curl -i -X POST http://localhost:4000/api/photos -H "Authorization: Bearer dev-volunteer" -H "Content-Type: image/jpeg" --data-binary @photo.jpg</code></pre>
+                <p><code>GET /api/photos/:id</code> serves the photo back to anyone, with no sign-in. Its <code>url</code> is built from the address you used, like the site pictures. Photos live in the API's memory: restart it and they are gone. Upload the photos before the log that names them, and save each id as it arrives, so a retry never uploads a photo twice (<a href="lesson_21.html#offline">Lesson 6.2</a>).</p>
+            </section>
+
+            <section class="card" id="errors">
+                <h2>⚠️ Errors</h2>
+                <p>Every error answer has the same JSON body: <code>{ error, message, fieldErrors? }</code>. <code>fieldErrors</code> appears only on a <code>400 validation_failed</code> and lists messages per field. The app's <code>ApiError</code> carries all three; <code>describeError</code> turns them into words for the screen (<a href="lesson_03.html#project">Lesson 1.3</a>).</p>
+                <pre data-snippet><code class="language-json">{
+  "error": "validation_failed",
+  "message": "Some fields need attention.",
+  "fieldErrors": {
+    "code": ["That code does not match. Ask the organizer for today's code."]
+  }
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Status</th><th><code>error</code></th><th>When</th></tr></thead>
+                        <tbody>
+                            <tr><td>400</td><td><code>validation_failed</code></td><td>a field or query parameter is wrong (<code>fieldErrors</code> says which), or the body is not a JSON object</td></tr>
+                            <tr><td>401</td><td><code>unauthorized</code></td><td>not signed in (<code>Sign in first.</code>), wrong password, or a token the API does not know (<code>Your session has ended. Sign in again.</code>, on any address)</td></tr>
+                            <tr><td>403</td><td><code>forbidden</code></td><td>signed in, but your role cannot do this</td></tr>
+                            <tr><td>404</td><td><code>not_found</code></td><td>no such item, a draft you cannot see, or no such route (<code>No API route for GET /api/api/events.</code>)</td></tr>
+                            <tr><td>405</td><td><code>method_not_allowed</code></td><td>the path exists with other methods (see the <code>Allow</code> header)</td></tr>
+                            <tr><td>409</td><td><code>conflict</code></td><td>the request is fine but the data says no (already signed up, not open, not today, not happened yet)</td></tr>
+                            <tr><td>413 / 415</td><td><code>payload_too_large</code> / <code>unsupported_media_type</code></td><td>photo uploads</td></tr>
+                            <tr><td>500</td><td><code>server_error</code></td><td>a simulated failure (<code>--fail-rate</code>, <code>?_status=500</code>) or a bug</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>No answer at all (wrong address, API not running, a phone on another network) is not an HTTP status: the app's <code>NetworkError</code> says <code>Could not reach the server at ADDRESS.</code> plus advice for that platform (<a href="lesson_15.html#client">Lesson 5.1</a>; see <a href="troubleshooting.html#network-request-failed">Troubleshooting</a>).</p>
+            </section>
+
+            <section class="card" id="sample-data">
+                <h2>🏖️ Sample Data</h2>
+                <p>The same every time for the same date, with cleanups placed around today:</p>
+                <ul>
+                    <li><strong>Six sites</strong> in Port Marisol, Calder Bay and Seal Rock, from <code>pelican-point</code> to <code>long-strand</code>, each with a picture and coordinates.</li>
+                    <li><strong>Seventeen cleanups</strong> <code>e01</code> to <code>e17</code>: past ones (completed, with impact reports, and <code>e05</code> canceled), <code>e17</code> Tide Pool Morning Cleanup <strong>today</strong> (check-in code <code>6544</code>, the one <a href="lesson_22.html#project">Lesson 6.3</a> uses), seven more upcoming, and two drafts (<code>e15</code>, <code>e16</code>) only organizers see. So <code>when=upcoming</code> lists 8 cleanups: two pages of five.</li>
+                    <li><strong><code>e08</code> Weekend Cove Cleanup is full</strong>, with two people waiting, so you can see both <code>Full</code> and <code>waitlisted</code>.</li>
+                    <li><strong>Three seed debris logs</strong> from <code>e07</code>, the most recent past cleanup (<code>clientId</code> <code>seed-log-1</code> to <code>seed-log-3</code>).</li>
+                    <li><strong>24 people</strong>: three organizers and 21 volunteers (<a href="#accounts">accounts</a>).</li>
+                </ul>
+                <p>Who is signed up for what is drawn from a fixed random seed, so ask the API (<code>GET /api/me/signups</code>) rather than assuming.</p>
+            </section>
+
+            <section class="card" id="tests">
+                <h2>🧪 In Tests (MSW)</h2>
+                <p>shoreline-api ships <code>msw/handlers.ts</code>, which runs the API's own <code>core/api.ts</code> inside Mock Service Worker, so tests get the same data, rules and headers with no server. Shoreline Crew copies <code>core/</code> and <code>msw/</code> into <code>src/mocks/</code> unchanged. Because React Native's global types disagree with a few of its lines, <code>tsconfig.json</code> excludes <code>src/mocks/</code> and <code>src/test/server.ts</code> loads the handlers with a typed <code>require()</code>; Node's <code>fetch</code> is put back in place of <code>expo/fetch</code> for the tests (<a href="lesson_29.html#requests">Lesson 8.2</a>). Its <code>core/types.ts</code> is the app's <code>src/api/types.ts</code>, copied byte for byte (<a href="lesson_03.html#carry-over">Lesson 1.3</a>).</p>
+            </section>
+
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

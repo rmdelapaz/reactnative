@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 15</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 15: Camera, Photos, Location and Maps</h1>
+    <p class="sub">Your workbook for Session 15: the warm-up, the key ideas of Lessons 6.2 and 6.3, worked examples, the guided labs, predict-then-check practice, a self-check for each lesson, and your exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Lessons <b>6.2–6.3</b></span>
+      <span class="chip">Session <b>15</b> · 3 hours</span>
+      <span class="chip">Name: ____________________</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Take a photo through the permission step, choose photos with none, and read what the picker gives back.</li>
+  <li>Keep photos small and safe: compression, no EXIF, JPEG, the API's limits checked when a photo is added, and the app's documents instead of the cache.</li>
+  <li>Upload a photo as a Blob, send photos before the log that names them, save each id at once, and change the saved queue's shape with a version and a migrate.</li>
+  <li>Read a position as a circle, and decide what proves a volunteer was there: the organizer's code, checked by the server.</li>
+  <li>Show a map with react-native-maps (the dot only after a yes), give the web preview a stand-in, and hand a place to the phone's map app.</li>
+</ul>
+
+  <div class="sec"><h2>Start Here: Warm-up</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">The gate and the dry bag (Session 14)</div>
+<p>Answer alone (5 minutes), then compare with a neighbor. Nobody collects this.</p>
+<div class="q"><div class="qn">W1</div><div class="qt">Session 14's permission step: Theo's iPhone answered Don't Allow to the camera last week. Which face does a camera button show him today, and what can he still do to put a photo on his log?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W2</div><div class="qt">Session 14's queue has two rules. A log now carries two photos, and the server checks every photo id a log names. What must reach the server first, and why?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W3</div><div class="qt">The two photo file sizes from your homework: write them down. shoreline-api takes photos of 5 MB or smaller. What does that mean for an app on a beach with one bar of signal?</div><div class="write"></div></div>
+</div>
+
+  <div class="sec"><h2>Lessons</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">6.2</span><h3>Camera and Photos</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Take a photo with the phone's camera (after Lesson 6.1's permission step) and choose photos from the library (no permission), and read what the picker gives back</li>
+  <li>Keep photos small enough for one bar of signal: compression quality, no EXIF, JPEG instead of HEIC, and the API's limits checked before anything is sent</li>
+  <li>Keep a photo safe while it waits: the cache versus the app's documents, with expo-file-system's File, Directory and Paths, and a .web.ts stand-in for the web preview</li>
+  <li>Upload a photo from a phone to POST /api/photos and say why the old React Native FormData trick fails with SDK 58's fetch</li>
+  <li>Send photos offline first: queued with their log, uploaded before it, each id saved so a retry never uploads a photo twice, with a version bump for the saved queue</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>Two ways to a photo:</b> <code class="inline">launchCameraAsync</code> (the camera: Lesson 6.1's permission step) and <code class="inline">launchImageLibraryAsync</code> (the library: no permission on current phones). Both answer <code class="inline">{ canceled, assets }</code>; each asset has a <code class="inline">uri</code> (a file on the phone), <code class="inline">mimeType</code>, <code class="inline">fileSize</code>, width and height.</li>
+  <li><b>Photos for one bar of signal:</b> <code class="inline">quality: 0.6</code>, <code class="inline">exif: false</code>, and on an iPhone the "compatible" JPEG instead of HEIC. shoreline-api takes JPEG, PNG or WebP of 5 MB or smaller (415 and 413 otherwise): check when a photo is ADDED.</li>
+  <li><b>Where a photo lives:</b> the picker's file is in the cache, which the phone may empty; a photo that waits moves into the app's documents (expo-file-system's File, Directory, Paths) and is deleted once the server has it. The web preview gets <code class="inline">photoFiles.web.ts</code>.</li>
+  <li><b>Sending a photo:</b> the photo itself as the body with its Content-Type (an expo-file-system File is a Blob). The old <code class="inline">{ uri, name, type }</code> FormData part fails with SDK 58's fetch (TS2769; with a cast, "Unsupported FormDataPart implementation" inside fetch).</li>
+  <li><b>Photos in the dry bag:</b> the queue carries <code class="inline">{ uri, type, photoId }</code> per photo; the sender uploads photos without an id first, saves each id at once (<code class="inline">setPhotoId</code>), then sends the log with photoIds. A 413 or 415 makes the log refused, like a 403.</li>
+  <li><b>Saved data changes shape:</b> persist's <code class="inline">version</code> and <code class="inline">migrate</code> give logs saved by version 0 an empty photo list, so they survive the update.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the classic upload, and why it fails</div>
+<p>The classic React Native upload from older answers, written into postPhoto: a FormData part made of the file's address. The type checker stops it:</p>
+<pre class="code"><span class="c">// Don't: React Native's old FormData trick (a file address instead of a Blob)</span>
+<span class="k">const</span> body = <span class="k">new</span> FormData();
+body.append(<span class="s">'photo'</span>, { uri: photo.uri, name: <span class="s">'photo.jpg'</span>, <span class="k">type</span>: <span class="s">'image/jpeg'</span> });
+<span class="k">await</span> fetch(<span class="s">`${apiBaseUrl()}/api/photos`</span>, { method: <span class="s">'POST'</span>, body });</pre><pre class="code">npx tsc --noEmit</pre>
+<pre class="out">src/api/client.ts:452:8 - error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: string, value: string | Blob): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+  Overload 2 of 3, '(name: string, value: string): void', gave the following error.
+    Argument of type '{ uri: string; name: string; type: string; }' is not assignable to parameter of type 'string'.
+  Overload 3 of 3, '(name: string, blobValue: Blob, filename?: string | undefined): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+
+452   body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+           ~~~~~~</pre><p>Read the overloads: <code class="inline">append</code> takes a string or a Blob, and the object is neither. Casting it away (<code class="inline">as unknown as Blob</code>) moves the error to the phone: SDK 58's fetch is Expo's own, and its code turns a FormData into bytes part by part. Run on such a form (Expo's own code, from node_modules), it says:</p>
+<pre class="out">old way: Error: Unsupported FormDataPart implementation</pre><p>Inside fetch, so the app reports "Could not reach the server" and the queue waits forever. The fix: send the photo itself as the body, with its kind in Content-Type (an expo-file-system File is a Blob).</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-15/l6_2-camera-and-photos/TASKS.md</code> and <code class="inline">src/lab.test.tsx</code>: the test names say the rules.</li>
+  <li>A terminal in <code class="inline">starter</code>: <code class="inline">npm test</code> (eight failures) and <code class="inline">npm run typecheck</code> (where did you see its error today?).</li>
+  <li>Task 1: what the picker gave back. Then Task 2: bags first, then the tally sheet.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>What is the difference between <code class="inline">asset.type</code> and <code class="inline">asset.mimeType</code>?</td><td></td></tr>
+<tr><td>In the lost-answer test, how many uploads should the server see in all, and why?</td><td></td></tr>
+<tr><td>Task 3: what does <code class="inline">migrate</code> receive, and what must it return?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       11 passed, 11 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines (Task 3 can go home).</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the instructor runs it, and the Answer Key has the real run.</p>
+<div class="q"><div class="qn">P1</div><div class="qt">One real JPEG (28,955 bytes) is sent to <code class="inline">POST /api/photos</code> twice more: labeled <code class="inline">image/heic</code>, and then a 9 MB PNG. Predict each status code and message, and what the queue would do with a log that carried each photo.</div><pre class="code">node refusals.mjs</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Photos on the Debris Log</b> (lesson page, "Project: Photos on the Debris Log"). In class: Step 1 and <code class="inline">photoFiles.ts</code>. At home: the rest.</p>
+<ul class="tick">
+  <li>☐ Step 1: <code class="inline">npx expo install expo-image-picker expo-file-system</code>; the camera's words in app.json; introspect</li>
+  <li>☐ Step 2: <code class="inline">src/utils/photoFiles.ts</code> and <code class="inline">photoFiles.web.ts</code></li>
+  <li>☐ Step 3: postPhoto; the queue's photos, setPhotoId, version 1 and migrate; uploadPhotos in the sender (and tsc's TS2554)</li>
+  <li>☐ Step 4: PhotoStrip, in the Logbook first</li>
+  <li>☐ Step 5: LogPhotos (Take a photo through the gate, Choose photos with none, the API's rules)</li>
+  <li>☐ Step 6: photos on the debris log (tsc clean again)</li>
+  <li>☐ Step 7: the web preview online and offline; the phone (if you have one); tsc and expo lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">On his iPhone Theo answered "Don't Allow" to Shoreline Crew's camera question. Which photo feature still works for him, and why?</div><div class="opts"><div class="opt">A) None: photos need the camera permission</div><div class="opt">B) Take a photo, once he presses Continue again</div><div class="opt">C) Choose photos: the photo library needs no permission, so a picture he took with the camera app can still go on the log</div><div class="opt">D) Only uploading photos he chose before</div></div></div>
+<div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The classic React Native upload from older answers, written in postPhoto. <code class="inline">npx tsc --noEmit</code> prints this (the kit ran it). What is the fix?</div><pre class="code">src/api/client.ts:452:8 - error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: string, value: string | Blob): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+  Overload 2 of 3, '(name: string, value: string): void', gave the following error.
+    Argument of type '{ uri: string; name: string; type: string; }' is not assignable to parameter of type 'string'.
+  Overload 3 of 3, '(name: string, blobValue: Blob, filename?: string | undefined): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+
+452   body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+           ~~~~~~</pre><div class="opts"><div class="opt">A) Silence it: <code class="inline">as unknown as Blob</code></div><div class="opt">B) Send the photo itself as the body (an expo-file-system File is a Blob), with its kind in Content-Type</div><div class="opt">C) Install a FormData polyfill</div><div class="opt">D) Set <code class="inline">Content-Type: multipart/form-data</code> by hand</div></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Someone adds the cast and ships the old FormData part. What happens on a phone when the queue sends the log?</div><div class="opts"><div class="opt">A) The photo is uploaded as before</div><div class="opt">B) shoreline-api answers 415</div><div class="opt">C) tsc catches it at the next build</div><div class="opt">D) Expo's fetch throws "Unsupported FormDataPart implementation" inside itself: the client reports a NetworkError, and the queue counts a try and waits for a signal that is already there</div></div></div>
+<div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">The kit sent one real JPEG to <code class="inline">POST /api/photos</code> labeled <code class="inline">image/heic</code>, as an iPhone photo can arrive without the picker's "compatible" option. What did shoreline-api answer, and what does the queue do with the log?</div><div class="opts"><div class="opt">A) 415 "Photos must be JPEG, PNG or WebP images.": refused with the server's words, never sent again by itself</div><div class="opt">B) 201: the API converts HEIC</div><div class="opt">C) 413: HEIC files are too big</div><div class="opt">D) 500: try again later</div></div></div>
+<div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Two decisions in Lesson 6.2's queue: why does each photo move from the cache into the app's documents, and why is each photo's id saved with <code class="inline">setPhotoId</code> the moment it arrives?</div><div class="write"></div></div>
+<div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Lesson 6.2 adds <code class="inline">photos</code> to every queued log. Theo updates the app with two logs saved yesterday, without a photos list. What keeps them?</div><div class="opts"><div class="opt">A) Nothing is needed: merge keeps everything</div><div class="opt">B) <code class="inline">version: 1</code> and a <code class="inline">migrate</code> that gives each version-0 log <code class="inline">photos: []</code> before the check</div><div class="opt">C) Clearing AsyncStorage at startup</div><div class="opt">D) <code class="inline">skipHydration: true</code></div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: follow one photo through Shoreline Crew, from the moment the volunteer presses Take a photo to the moment its file is deleted. Write down every place it lives (with its address), every check it passes, and every request that carries it. Then pick one step and write what would go wrong for the volunteer if that step were missing.</p>
+</div>
+    </div>
+  </section>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">6.3</span><h3>Location and Maps</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Read a phone's position as it really is: coordinates with an accuracy radius, a time, and a way to be faked, and pick the accuracy a feature needs</li>
+  <li>Design an on-the-day check-in: decide what proves a volunteer was there (the organizer's code, not the phone's location), and say honestly what happens offline</li>
+  <li>Build the check-in as a typed modal route with React Hook Form, a Zod schema and a mutation, and put the API's field message on the right field</li>
+  <li>Show a map with react-native-maps (a pin, a starting region, the blue dot only after a yes) and say what Expo Go, development builds and the web preview each need, including the Google Maps key for Android builds</li>
+  <li>Give the web preview a stand-in for a native-only library with a .web.tsx file, and hand a place to the phone's map app with a link</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>A position is a circle:</b> <code class="inline">coords.latitude</code>, <code class="inline">longitude</code> and <code class="inline">accuracy</code> (the radius in meters), a <code class="inline">timestamp</code>, and <code class="inline">mocked</code>. The accuracy option (Lowest to BestForNavigation) trades time and battery for precision; under cliffs and between buildings circles of 50 to 500 m are normal.</li>
+  <li><b>What proves you were there:</b> the organizer's code, checked by the server (on the day, a confirmed spot). The phone's position can be faked or far off and needs a yes to location: a hint, never a rule. Rules belong on the server.</li>
+  <li><b>Checking in with one bar:</b> a TanStack Query mutation, not the saved queue (a late check-in can never work, a wrong code needs the volunteer now). Offline it pauses in memory and the screen says so. The API's check-in is idempotent.</li>
+  <li><b>The modal:</b> faces before a form (guest, no confirmed spot, not today, checked in), a schema that keeps the code as text, the API's message for <code class="inline">code</code> on the field, and onSettled refreshing ['signups'] so the screen changes by itself.</li>
+  <li><b>Maps on a phone:</b> react-native-maps' <code class="inline">&lt;MapView&gt;</code> with <code class="inline">initialRegion</code> (latitudeDelta 0.01 is about 1.1 km) and <code class="inline">&lt;Marker&gt;</code>; <code class="inline">showsUserLocation</code> makes an iPhone ask, so only after a yes. Expo Go needs no setup; your own Android build needs a Google Maps key (Module 9).</li>
+  <li><b>The web preview:</b> react-native-maps stops the whole web build when imported: <code class="inline">SiteMap.web.tsx</code> stands in. Directions are the map app's job: <code class="inline">mapLink</code> per platform, opened with React Native's <code class="inline">Linking.openURL</code> (a new tab on the web).</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: a native-only library and the web build</div>
+<p>Lesson 6.3's map, imported where the web build sees it (the finished code with <code class="inline">SiteMap.web.tsx</code> removed). The web export stops:</p>
+<pre class="code">npx expo export --platform web</pre>
+<pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+Server rendering is enabled. Learn more: https://docs.expo.dev/router/web/server-rendering/
+λ Bundled 10857ms node_modules/expo/node_modules/@expo/cli/node_modules/@expo/router-server/node/render.js (1247 modules)
+Web Bundled …ms node_modules/expo-router/entry.js (1235 modules)
+
+Metro error: (0 , r(...).codegenNativeComponent) is not a function
+
+  TypeError: (0 , r(...).codegenNativeComponent) is not a function</pre><p>Read it as "a native component was defined where there is no native": react-native-maps defines native components when it is loaded, and react-native-web has no <code class="inline">codegenNativeComponent</code>. Expo Router's web build loads every route to render the pages on the server, so one import stops all of them. The fix is a file name: <code class="inline">SiteMap.web.tsx</code> next to <code class="inline">SiteMap.tsx</code>, with the same props, never importing react-native-maps.</p>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-15/l6_3-location-and-maps/TASKS.md</code>. A terminal in <code class="inline">starter</code>: <code class="inline">npm test</code>, then the web check (<code class="inline">npx expo export --platform web --output-dir dist --clear &amp;&amp; node web-check.mjs</code>).</li>
+  <li>Task 1: a position is a circle. Task 2: the map link, the blue dot and <code class="inline">VanMap.web.tsx</code>.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which two Task 1 tests did the starter fail, and what do they have in common?</td><td></td></tr>
+<tr><td>Why do the Jest tests not notice the missing <code class="inline">.web.tsx</code>, while the web check does?</td><td></td></tr>
+<tr><td>Task 3: why is the field's value <code class="inline">unknown</code> in the starter?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       13 passed, 13 total</code>, the web check says it loads without an error, and the type check and the linter print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your prediction first; the instructor runs it, and the Answer Key has the real run.</p>
+<div class="q"><div class="qn">P2</div><div class="qt">Four check-ins and two reads: Theo at a cleanup three days away; Amara (no spot) at today's; Theo at today's with 6544, twice; then today's cleanup as the organizer and as Theo. Predict each answer.</div><pre class="code">node checkins.mjs</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Check In and Find the Beach</b> (lesson page, "Project: Check In and Find the Beach"). In class: Step 1. At home: Steps 2 to 7.</p>
+<ul class="tick">
+  <li>☐ Step 1: checkIn, checkInSchema (four digits, as text), checkInMutation (refreshes the sign-ups)</li>
+  <li>☐ Step 2: the Check in modal (<code class="inline">src/app/check-in/[id].tsx</code>) and its Stack.Screen; start Metro before tsc</li>
+  <li>☐ Step 3: Check in on the cleanup screen; the organizer's code</li>
+  <li>☐ Step 4: check in in the web preview (Theo, then Maya for the code, then Theo with 6544)</li>
+  <li>☐ Step 5: <code class="inline">npx expo install react-native-maps</code>; SiteMap.tsx (the dot only after a yes)</li>
+  <li>☐ Step 6: SiteMap.web.tsx, mapLink, Where to meet and Open in Maps</li>
+  <li>☐ Step 7: the map and the check-in on a phone (if you have one); tsc and expo lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">Theo checks in at today's cleanup with the right code; the answer is lost and he presses Check in again. What does shoreline-api answer the second time? (The kit ran it.)</div><div class="opts"><div class="opt">A) 200, still attended, with the same checkedInAt: a retry is safe</div><div class="opt">B) 409: already checked in</div><div class="opt">C) 400: the code was used</div><div class="opt">D) 201 and a second sign-up</div></div></div>
+<div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">Why does Shoreline Crew NOT put check-ins in Lesson 5.5's saved queue?</div><div class="opts"><div class="opt">A) A check-in is too big for AsyncStorage</div><div class="opt">B) The API has no clientId for check-ins</div><div class="opt">C) TanStack Query cannot pause a mutation</div><div class="opt">D) A late check-in can never work (only on the day), a wrong code needs the volunteer now, and the organizer needs to see it now</div></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">You created <code class="inline">src/app/check-in/[id].tsx</code> and linked to it while Metro was stopped. <code class="inline">npx tsc --noEmit</code> prints (among others) this. What is the fix?</div><pre class="code">src/app/check-in/[id].tsx:34:39 - error TS2344: Type '"/check-in/[id]"' does not satisfy the constraint 'RoutePath'.
+
+34   const { id } = useLocalSearchParams&lt;'/check-in/[id]'&gt;();</pre><div class="opts"><div class="opt">A) Change the type parameter to <code class="inline">RoutePath</code></div><div class="opt">B) Add the route to <code class="inline">.expo/types/router.d.ts</code> by hand</div><div class="opt">C) Start Metro (<code class="inline">npx expo start</code>): Expo Router rewrites the route list, then tsc prints nothing</div><div class="opt">D) Remove the type parameter from useLocalSearchParams</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">An organizer suggests: "Only allow check-in within 300 m of the meeting point." Under the cliff at Otter Creek, Theo's phone reports <code class="inline">accuracy: 400</code>. What is the problem?</div><div class="opts"><div class="opt">A) None: 300 m is generous</div><div class="opt">B) The circle is 400 m wide, so the rule could refuse someone standing on the right spot; and a check on the phone can be changed by whoever holds it</div><div class="opt">C) accuracy 400 means the phone is 400 m from the pin</div><div class="opt">D) Accuracy.Highest always fixes it</div></div></div>
+<div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">What does <code class="inline">npx expo export --platform web</code> do when a route imports react-native-maps with no <code class="inline">.web.tsx</code> stand-in, why the WHOLE web build, and what is the fix?</div><div class="write"></div></div>
+<div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">In the web preview, Open in Maps opens OpenStreetMap. Why does the button use React Native's <code class="inline">Linking.openURL</code> and not expo-linking's?</div><div class="opts"><div class="opt">A) expo-linking cannot open https links</div><div class="opt">B) React Native's Linking adds the map provider</div><div class="opt">C) expo-linking needs a permission on the web</div><div class="opt">D) On the web, expo-linking's openURL replaces the page (leaving the app and, with the memory-only session, signing the volunteer out); React Native's opens a new tab</div></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: think of two apps on your phone that use your location: one where the location decides something (a delivery, a ride, a game, a check-in) and one where it only helps you. For each, what would happen if the position were 300 meters off, or faked? Who checks it, the phone or a server? Then write one sentence on what made you choose the code for Shoreline Crew's check-in, in your own words.</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<p>Three questions, no notes. Write your answers, hand them in or keep them: they tell you and your instructor what to revisit.</p>
+<div class="q"><div class="qn">E1</div><div class="qt">In what order does the queue send a log with two photos, and why?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E2</div><div class="qt">Why does Shoreline Crew check volunteers in with the organizer's code and not the phone's location?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E3</div><div class="qt">What does a native-only library like react-native-maps need so the web preview keeps working?</div><div class="write"></div></div>
+
+  <div class="sec"><h2>Notes</h2><span class="rule"></span></div>
+<div class="notes-lines"></div>
+
+  <div class="sec"><h2>Homework Checklist</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ Finish Photos on the Debris Log (photoFiles.web.ts, Steps 3 to 7, the commit)</li>
+  <li>☐ Finish Check In and Find the Beach (Steps 2 to 7, the commit)</li>
+  <li>☐ Lesson 6.2 Hands-on Exercises 1 and 2 (Exercise 3 is a stretch)</li>
+  <li>☐ Lesson 6.3 Hands-on Exercises 1 and 2 (Exercise 3 is a stretch)</li>
+  <li>☐ Both Quick Quizzes on the lesson pages</li>
+  <li>☐ Lab 6.2 Task 3; Lab 6.3 Task 3</li>
+  <li>☐ Both journal entries</li>
+  <li>☐ Two apps' notification settings looked at (one I like, one I silenced)</li>
+  <li>☐ Bring to Session 16: the finished Lesson 6.3 code, my phone with Expo Go (or the web preview), this workbook</li>
+</ul>
+
+  <div class="sec"><h2>Glossary</h2><span class="rule"></span></div>
+<table class="timing">
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>image picker (expo-image-picker)</td><td>Opens the phone's own camera or photo library and returns <code class="inline">{ canceled, assets }</code></td></tr>
+<tr><td>asset</td><td>One photo from the picker: <code class="inline">uri</code>, <code class="inline">mimeType</code>, <code class="inline">fileSize</code>, width, height</td></tr>
+<tr><td>EXIF</td><td>Data inside a photo (camera, time, often the place); <code class="inline">exif: false</code> leaves it out</td></tr>
+<tr><td>HEIC</td><td>The iPhone's photo format; shoreline-api refuses it (415)</td></tr>
+<tr><td>cache / documents</td><td>The app's two folders: the phone may empty the cache, it leaves documents alone</td></tr>
+<tr><td>Blob</td><td>Raw data with a type; an expo-file-system File is one, so fetch can send it as a body</td></tr>
+<tr><td>raw body versus multipart</td><td>The API's two upload forms: the image itself with its Content-Type, or a form with a <code class="inline">photo</code> field</td></tr>
+<tr><td>persist <code class="inline">version</code> / <code class="inline">migrate</code></td><td>A saved store's version number, and the function that updates data saved by an older version</td></tr>
+<tr><td>position accuracy</td><td>The radius in meters of the circle a phone's position probably lies in</td></tr>
+<tr><td>mock location</td><td>A position set by an app or tool instead of measured; <code class="inline">mocked</code> catches some</td></tr>
+<tr><td>check-in code</td><td>The organizer's four digits for the day; the API checks it</td></tr>
+<tr><td>idempotent request</td><td>Sending it again changes nothing: a second check-in leaves the sign-up attended, with the first time</td></tr>
+<tr><td>region / <code class="inline">latitudeDelta</code></td><td>Where a map starts and how much fits on screen (0.01 of latitude is about 1.1 km)</td></tr>
+<tr><td>marker</td><td>A pin on the map (<code class="inline">&lt;Marker&gt;</code>), with a title and a description</td></tr>
+<tr><td>Google Maps API key</td><td>Needed by your own Android builds (not Expo Go); restricted to your app</td></tr>
+<tr><td><code class="inline">.web.tsx</code> stand-in</td><td>A file the web bundle uses instead of the phone's version, with the same exports</td></tr>
+<tr><td><code class="inline">geo:</code> link</td><td>Android's link for a place, opened by the map app</td></tr>
+</tbody>
+</table>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 15 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Testing a React Native app&#x27;s logic: from Vitest to Jest with jest-expo, Node&#x27;s fetch put back so the HQ&#x27;s MSW handlers answer, mocks for native modules (AsyncStorage, SecureStore, haptics, notifications), and tests for Shoreline Crew&#x27;s address checks, schemas, CSV export, offline queue, log sender and reminders. React Native &amp; Expo: Build and Ship a Mobile App Lesson 8.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Testing the App's Logic - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🧪 Lesson 8.2: Testing the App's Logic</h1>
+                <p class="lead">A debris log written on a windy beach with one bar of signal has a long trip ahead: into a queue on the phone, through a closed app and a dead battery, and finally to the server, maybe on the third try. Nobody watches that trip, so it had better be right every time. Today you give Shoreline Crew the safety net the HQ has had since the web course: Jest tests that run the app's own logic, with the HQ's mock API answering its requests and stand-ins for every part of the phone a computer does not have.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Set up Jest with jest-expo in an Expo SDK 58 project and explain what changes from the web course's Vitest</li>
+                        <li>Make the HQ's MSW handlers answer a phone app's requests in Node, and explain the two things that stand in the way (Expo's own <code>fetch</code>, and MSW 3 being an ES module)</li>
+                        <li>Replace native modules in tests in three ways: jest-expo's automatic stand-ins, a library's own Jest mock, and your own <code>jest.mock()</code></li>
+                        <li>Test Shoreline Crew's logic where it matters most: rules (address checks, schemas), files (the CSV export), the offline queue, the log sender's five outcomes and the reminders</li>
+                        <li>Read a failing Jest run in the terminal and tell a broken test setup from a broken app</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_28.html">Lesson 8.1: Accessible Mobile Apps</a>, and Lessons 9.1 and 9.2 of the React + TypeScript course (Vitest, Testing Library and MSW), or equivalent</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's first test suite: 28 Jest tests for its address checks, form schemas, CSV export, offline queue, saved session, haptics, log sender and reminders, run with <code>npm test</code></li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Jest 30.5 with jest-expo 58, MSW 3.0 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your computer's terminal only: the tests run in Node, with no phone, no emulator and no shoreline-api server needed</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-29-start.zip">lesson-29-start.zip</a> · Finished code: <a href="downloads/lesson-29-end.zip">lesson-29-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Tests for the Parts You Cannot Watch</a></li>
+                        <li><a href="#vitest-to-jest" class="toc-link">From Vitest to Jest</a></li>
+                        <li><a href="#jest-expo" class="toc-link">A Phone That Is Not There: jest-expo</a></li>
+                        <li><a href="#requests" class="toc-link">Requests: Node's fetch and the HQ's Mock API</a></li>
+                        <li><a href="#native-mocks" class="toc-link">Three Ways to Stand In for a Native Module</a></li>
+                        <li><a href="#what-to-test" class="toc-link">What to Test, and Keeping Tests Apart</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew's First Test Suite</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Tests for the Parts You Cannot Watch</h2>
+                <p>So far you have checked Shoreline Crew by using it: tap, look, stop the API, tap again. That works for what you can see. It does not work well for what happens out of sight: the queue that keeps a log through a closed app, the sender that must never send a log twice or lose one, the reminders that must match the sign-ups after every change. Those parts have many paths (online, offline, refused, no answer, signed out), and walking every path by hand after every change is slow, so it stops happening. A test suite walks them all in about two seconds.</p>
+                <p>The HQ got its tests in Lessons 9.1 and 9.2 of the web course. You know the ideas: arrange, act, assert; find things the way people do; let MSW answer requests with the API's own code. This lesson does not teach them again. It teaches what changes when the app is a phone app, and that is more than you might expect: a different test runner, a test environment that pretends to be a phone, a <code>fetch</code> that is not Node's, and native modules (the keychain, the scheduler, the vibration motor) that simply do not exist on your computer.</p>
+                <p>The work is split over two lessons. <strong>Today: the app's logic</strong>, the plain functions and stores where the important decisions are made. By the end:</p>
+                <ul>
+                    <li><strong>Jest runs in Shoreline Crew</strong> with jest-expo, through <code>npm test</code>.</li>
+                    <li><strong>The HQ's mock API answers the phone app's requests</strong> in tests, with the same sample data, rules and errors as shoreline-api.</li>
+                    <li><strong>28 tests</strong> cover the address checks, the debris-log schema, the CSV export, the queue, the saved session, haptics, the sender's five outcomes and the reminders.</li>
+                </ul>
+                <p><a href="lesson_30.html">Lesson 8.3</a> then tests whole screens with React Native Testing Library and walks a flow end to end with Maestro.</p>
+                <p><strong>Why it matters for your work:</strong> on a mobile team, a pull request without tests for the logic it changes is usually not merged, and the continuous-integration server (Lesson 9.3 sets one up with GitHub Actions) runs the suite on every push. Mobile has an extra reason: a bug that reaches a store build takes days to fix for everyone (review, rollout, people updating), so catching it in a two-second test run is worth even more than on the web.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Red is information</h3>
+                    <p>Today you will see many failing tests, some on purpose (the Common Mistakes section broke the setup to show you what each mistake looks like) and some by accident. A failing test is the most specific error message you will ever get: it names the function, the input, what was expected and what came out. The skill this lesson builds is reading that message calmly and asking one question first: is the <em>app</em> wrong, or is the <em>test setup</em> wrong?</p>
+                </div>
+            </section>
+
+            <section id="vitest-to-jest" class="lesson-section">
+                <h2>🔁 From Vitest to Jest</h2>
+                <p>The HQ is a Vite app, so it used Vitest, which reads Vite's configuration. An Expo app is bundled by Metro, not Vite, and Expo's tooling for tests is <strong>jest-expo</strong>, a Jest preset. Vitest was designed to be Jest-compatible, so most of your test code reads the same. The differences are in the setup and in a few names:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>In the HQ (Vitest)</th><th>In Shoreline Crew (Jest + jest-expo)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>import { describe, it, expect, vi } from 'vitest'</code></td><td>Nothing to import: <code>describe</code>, <code>it</code>, <code>expect</code> and <code>jest</code> are globals (TypeScript learns about them from <code>@types/jest</code>)</td></tr>
+                            <tr><td><code>vi.fn()</code>, <code>vi.mock()</code>, <code>vi.mocked()</code></td><td><code>jest.fn()</code>, <code>jest.mock()</code>, <code>jest.mocked()</code></td></tr>
+                            <tr><td>Settings in <code>vite.config.ts</code> under <code>test</code></td><td>Settings in <code>package.json</code> under <code>"jest"</code>: <code>preset</code>, <code>testEnvironment</code>, <code>setupFilesAfterEnv</code></td></tr>
+                            <tr><td><code>environment: 'jsdom'</code>: a pretend browser with a DOM</td><td>jest-expo's environment: a pretend phone, with no DOM and React Native's modules replaced</td></tr>
+                            <tr><td>Vite transforms the code (ES modules all the way)</td><td>Babel (Expo's preset, the same one Metro uses) turns each file into CommonJS before Jest runs it</td></tr>
+                            <tr><td><code>import.meta.env.VITE_API_URL</code> from <code>.env</code> files</td><td><code>process.env.EXPO_PUBLIC_API_URL</code>, but Jest never reads <code>.env.local</code> (Metro does): the setup file sets it</td></tr>
+                            <tr><td><code>npm test</code> = <code>vitest</code> (watch mode)</td><td><code>npm test</code> = Jest with <code>--watchAll</code>; <code>npm test -- --watchAll=false</code> runs once</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two habits carry over unchanged. Test files sit next to the code they test, named <code>*.test.ts</code>. And the HQ's <code>src/test/</code> folder for test helpers comes back: <code>server.ts</code> for the mock API and <code>factories.ts</code> for sample objects. One rule is new: <strong>never put a test file inside <code>src/app/</code></strong>. Expo Router treats every file in that folder as a screen (according to Expo's documentation), so a <code>.test.tsx</code> there becomes a route. Tests for a screen live outside it (Lesson 8.3).</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: a dry run on the dock</h4>
+                    <p>Before a boat goes out, the crew can run through the whole plan on the dock: who carries what, what happens if the radio fails. Nothing on the dock is the sea, but every decision can be practiced. A Jest run is that dry run. jest-expo builds a dock that looks like a phone from the app's point of view (<code>Platform.OS</code> is <code>'ios'</code>, the native modules answer), and your tests decide what the sea does: the server says yes, the server says no, the signal drops. The app's decisions are real; the world around them is pretend.</p>
+                </div>
+            </section>
+
+            <section id="jest-expo" class="lesson-section">
+                <h2>📱 A Phone That Is Not There: jest-expo</h2>
+                <p>A test run is Node on your computer. There is no iPhone, no Hermes engine, no keychain and no notification scheduler. The <code>jest-expo</code> preset makes that workable. Read in its source (<code>node_modules/jest-expo/src/preset/</code>), it does four things:</p>
+                <ul>
+                    <li><strong>Transforms your code with <code>babel-preset-expo</code></strong>, so TypeScript, JSX and the <code>@/</code> paths work as they do in Metro.</li>
+                    <li><strong>Loads React Native's own Jest setup</strong>, which replaces the native side of React Native's modules (<code>Platform</code>, <code>AppState</code>, <code>Linking</code>, the views) with JavaScript stand-ins.</li>
+                    <li><strong>Gives every Expo native module an automatic stand-in.</strong> It reads a list of each module's native functions and makes each one a <code>jest.fn()</code>; the ones that return a Promise resolve to <code>undefined</code>. So <code>SecureStore.getItemAsync()</code> does not crash in a test: it answers "nothing".</li>
+                    <li><strong>Pretends to be an iPhone.</strong> The default preset sets <code>Platform.OS</code> to <code>'ios'</code>. (There are <code>jest-expo/android</code>, <code>jest-expo/web</code> and <code>jest-expo/universal</code> presets too; the FAQ has more.)</li>
+                </ul>
+                <p>The diagram shows where each call from your app ends up in a Shoreline Crew test:</p>
+                <div class="mermaid">
+graph TD
+    T["A test file"] --> A["The app's code"]
+    A --> F["fetch: Node's"]
+    A --> N["Native modules"]
+    F --> M["MSW: the HQ's handlers"]
+    M --> C["shoreline-api's code"]
+    N --> S["Stand-ins: jest.fn"]
+    S --> T
+                </div>
+                <p>The app's code is the real thing: the queue, the sender, the schemas, the reminder rules. Everything at the edges is a stand-in the test controls. Requests go to MSW, which runs shoreline-api's own code on a fresh copy of the sample data, exactly as in the HQ's tests. Native calls go to stand-ins whose answers each test decides and whose calls each test can read back ("was <code>scheduleNotificationAsync</code> called with <code>reminder-e08</code>?").</p>
+                <div class="card card-warning">
+                    <h4>⚠️ What these tests cannot tell you</h4>
+                    <p>A stand-in answers what you told it to. If the real keychain, scheduler or vibration motor behaves differently from your stand-in (a permission prompt, a size limit, a platform quirk), every test still passes. Tests prove that the app's <em>decisions</em> are right for the answers you imagined; trying the app on a phone (and Lesson 8.3's end-to-end flows) proves the answers are the ones the phone really gives.</p>
+                </div>
+            </section>
+
+            <section id="requests" class="lesson-section">
+                <h2>🌊 Requests: Node's fetch and the HQ's Mock API</h2>
+                <p>In the HQ, MSW's <code>setupServer</code> intercepted Node's <code>fetch</code> and answered with shoreline-api's code. The plan for the phone is the same, and two things stand in the way.</p>
+                <h3>1. Expo SDK 58 brings its own fetch</h3>
+                <p>In SDK 58, loading the <code>expo</code> package replaces the global <code>fetch</code> with Expo's own (<code>expo/fetch</code>), which talks to the phone's networking code. In a test there is no phone, so Expo's <code>fetch</code> cannot reach anything, and MSW, which knows how to intercept Node's <code>fetch</code>, never gets a clean request. The fix comes in two small files:</p>
+                <ul>
+                    <li><strong><code>jest.environment.js</code></strong>, a custom Jest environment built on jest-expo's, keeps Node's <code>fetch</code> under another name (<code>__nodeFetch</code>) before any app code runs.</li>
+                    <li><strong><code>jest.setup.ts</code></strong>, which Jest runs before every test file, puts Node's <code>fetch</code> back as the global one. It does it twice: at once, and again in a <code>beforeAll</code>, because loading <code>expo</code> again later installs Expo's <code>fetch</code> again (and <code>jest.mock()</code> can load it again behind your back, as Step 5 shows).</li>
+                </ul>
+                <h3>2. MSW 3 is an ES module</h3>
+                <p>MSW 3 ships only as ES modules (<code>import</code>/<code>export</code>), while Jest, with Expo's Babel preset, runs everything as CommonJS (<code>require</code>). Jest can load ES modules from <code>node_modules</code> only when Node's VM-modules feature is switched on. So the <code>test</code> script starts Node with a flag instead of calling <code>jest</code> directly:</p>
+                <pre class="terminal"><code class="language-bash">node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll</code></pre>
+                <p><code>--no-warnings=ExperimentalWarning</code> hides Node's note that the feature is experimental. Writing the path to Jest's own script, instead of <code>jest</code>, makes the same line work in PowerShell, Command Prompt and macOS/Linux shells. You never type it: it lives in <code>package.json</code>, and you run <code>npm test</code>.</p>
+                <h3>The HQ's handlers, copied</h3>
+                <p>shoreline-api ships its own MSW handlers (<code>msw/handlers.ts</code>, which runs <code>core/api.ts</code>), the files the HQ copied into its <code>src/mocks/</code>. Shoreline Crew copies the same two folders, unchanged. One wrinkle: shoreline-api is written for Node and browsers, and React Native's global types disagree with a few of its lines (its <code>FormData</code> has no <code>get()</code>, and the API's imports end in <code>.ts</code>). Rather than edit the API's code, the project tells TypeScript to skip <code>src/mocks/</code> (<code>"exclude"</code> in <code>tsconfig.json</code>), and <code>src/test/server.ts</code> loads the handlers with a <code>require()</code> that says, in a type, the one function the tests use. Jest itself does not care about types: Babel strips them and the handlers run.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the meeting point, rehearsed</h4>
+                    <p>In the app, every request goes to the meeting point in <code>EXPO_PUBLIC_API_URL</code>. In a test, the meeting point is <code>http://localhost:4000</code> (set by <code>jest.setup.ts</code>), and MSW stands there in place of the server, with the server's own rulebook in its hand. Nothing listens on port 4000: no request leaves Node, so tests work with shoreline-api stopped, on a plane, or on a build server.</p>
+                </div>
+            </section>
+
+            <section id="native-mocks" class="lesson-section">
+                <h2>🧰 Three Ways to Stand In for a Native Module</h2>
+                <p>Shoreline Crew uses a dozen native modules. In a test, each one needs a stand-in, and there are three kinds. Which one to use depends on who wrote the module and how much of it the test needs to control:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Kind</th><th>How</th><th>Used today for</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>jest-expo's automatic stand-ins</strong></td><td>Nothing to write: every Expo module's native functions do nothing and resolve to <code>undefined</code></td><td>expo-file-system and expo-sqlite load without errors; expo-crypto, expo-linking and the rest are there when app code imports them</td></tr>
+                            <tr><td><strong>The library's own Jest mock</strong></td><td><code>jest.mock('lib', () =&gt; jest.requireActual('lib/jest/…'))</code> in <code>jest.setup.ts</code></td><td>AsyncStorage (not an Expo module, so jest-expo does not cover it); NetInfo ships one too (<code>@react-native-community/netinfo/jest/netinfo-mock.js</code>)</td></tr>
+                            <tr><td><strong>Your own <code>jest.mock()</code></strong></td><td>Automatic (<code>jest.mock('expo-haptics')</code>: every function becomes an empty <code>jest.fn()</code>, plain values stay) or a factory (<code>jest.mock('x', () =&gt; ({ … }))</code>: exactly what you write)</td><td>expo-secure-store and expo-haptics (automatic), expo-notifications (a factory), and two of the app's own modules: the SQLite logbook and the "sign-in has ended" notice</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The rule of thumb: <strong>let the automatic stand-in be</strong> when the test does not care about a module; <strong>take control with <code>jest.mock()</code></strong> when the test needs to decide its answers (a saved session, a permission) or check its calls (which reminders were scheduled). Then <code>jest.mocked()</code>, which you know as <code>vi.mocked()</code>, gives you the module with mock types, so <code>mockResolvedValue</code> and <code>mock.calls</code> type-check.</p>
+                <p>Two details trip people up, and both appear in today's project:</p>
+                <ul>
+                    <li><strong>An empty <code>jest.fn()</code> returns <code>undefined</code>, not a Promise.</strong> Code that does <code>notificationAsync(…).catch(…)</code> then fails with "Cannot read properties of undefined (reading 'catch')". Give such functions an answer: <code>mockResolvedValue()</code>.</li>
+                    <li><strong>Some real modules cannot even load under Jest.</strong> expo-notifications sets up listeners when it is first imported, and <code>setNotificationHandler</code> fails without a phone ("handleSubscription.remove is not a function", measured). For a module like that, a factory that lists only what your code uses is the honest choice.</li>
+                </ul>
+                <p>Mocking one of your <em>own</em> modules (<code>jest.mock('@/storage/logbook')</code>) is a design decision: you are saying "this test is about the sender, not about SQLite". The logbook's SQL deserves its own test (on a phone, or with a Node SQLite library: the FAQ discusses it), but the sender's test should not fail because of it.</p>
+            </section>
+
+            <section id="what-to-test" class="lesson-section">
+                <h2>🎯 What to Test, and Keeping Tests Apart</h2>
+                <p>You cannot test everything, and you should not try. In a phone app, spend tests where a mistake costs a volunteer something and where you cannot see the mistake by tapping around:</p>
+                <ul>
+                    <li><strong>Data that must not be lost or sent twice</strong>: the queue and the sender (five outcomes: sent, offline, refused, no answer, signed out).</li>
+                    <li><strong>Rules people depend on</strong>: the debris-log schema (a typed "2,5" is 2.5 kilograms; the messages are the API's), the address checks that explain a wrong <code>.env.local</code>.</li>
+                    <li><strong>Things that leave the app</strong>: the CSV file someone opens in a spreadsheet (a note starting with <code>=</code> must not run as a formula), and the reminders the phone will show at 6 pm.</li>
+                    <li><strong>What the app remembers</strong>: the saved session and the saved queue, including saved data from an older version of the app.</li>
+                </ul>
+                <p>Skip what the libraries already test (that Zustand stores a value, that Zod checks a string) and what a test cannot judge (whether the screen looks right: that is the phone, and Lesson 8.3).</p>
+                <h3>State lives in modules</h3>
+                <p>A web page reloads between visits; a test file does not reload between tests. Shoreline Crew keeps state in modules: the session in <code>client.ts</code>, the settings in <code>settings.ts</code>, the queue in a Zustand store, the cached sign-ups in <code>queryClient</code>, and AsyncStorage's stand-in keeps what the previous test saved. The HQ's setup file reset its stores after each test; today each test file resets what it uses, in a <code>beforeEach</code>: <code>useLogQueue.setState(useLogQueue.getInitialState())</code>, <code>setSession(…)</code>, <code>AsyncStorage.clear()</code>, <code>queryClient.clear()</code>, and <code>jest.clearAllMocks()</code> to forget the calls the stand-ins recorded. A test that passes alone and fails in the full run almost always means something leaked from the test before it.</p>
+                <h3>Dates in the sample data</h3>
+                <p>shoreline-api builds its sample data around today's date (today's cleanup is always e17; Weekend Cove Cleanup, e08, is always a few days ahead), and its handlers do the same in tests. So assert on what stays the same (ids, titles, the API's messages, the order) rather than on a printed date, and use fixed dates only in objects you build yourself (<code>makeEvent()</code>).</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made on purpose in a copy of the finished project, and the output is what the terminal printed. Several of them break the <em>setup</em>, not the app, and the trick is to recognize them by their shape.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Running <code>npx jest</code> instead of <code>npm test</code></h3>
+                    <p>Plain <code>npx jest</code> skips the <code>--experimental-vm-modules</code> flag in the <code>test</code> script, so Jest cannot load MSW 3. Every test file that imports <code>msw</code> fails before a single test runs:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/state/sendLogs.test.ts
+  ● Test suite failed to run
+
+    Must use import to load ES Module: ~/shoreline/shoreline-crew/node_modules/msw/lib/core/index.js
+
+    The file contains ESM syntax (import/export) that could not be executed as CommonJS. Either:
+      - Configure a transform (e.g. babel-jest) that compiles this file to CommonJS (see https://jestjs.io/docs/code-transformation)
+      - If the file is in "node_modules", allow it to be transformed by adjusting "transformIgnorePatterns" (see https://jestjs.io/docs/configuration#transformignorepatterns-arraystring)
+      - Use Node v24.9+ where Jest supports require(esm) natively (see https://jestjs.io/docs/ecmascript-modules#require-of-esm)
+...
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.789 s, estimated 1 s
+Ran all test suites matching src/state/sendLogs.test.ts.</code></pre>
+                    </div>
+                    <p>Do not follow the message's suggestions: <code>transformIgnorePatterns</code> does not help with MSW 3 (its dependencies ship <code>.mjs</code> files), and this run already used Node 24.22. Run the tests with <code>npm test</code>, and pass extra options after <code>--</code>: <code>npm test -- --watchAll=false src/state</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Leaving out the environment that puts Node's fetch back</h3>
+                    <p>With only <code>"preset": "jest-expo"</code> (no <code>jest.environment.js</code>, no <code>fetch</code> line in the setup), requests go to Expo's <code>fetch</code>, which cannot reach anything in a test. The sender's tests then fail in a misleading pattern:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/state/sendLogs.test.ts
+  ✕ sends a waiting log, saves it in the logbook, and takes it out of the queue (10 ms)
+  ✓ sends nothing while the phone is offline (3 ms)
+  ✕ marks a log the server refuses, with the server's words (3 ms)
+  ✓ keeps the log and counts the try when the server does not answer (2 ms)
+  ✕ keeps the log for the next sign-in when the sign-in has ended (2 ms)
+...
+  ● sends a waiting log, saves it in the logbook, and takes it out of the queue
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 42
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "attempts": 1,
+...
+    &gt; 34 |   expect(useLogQueue.getState().logs).toEqual([]);
+         |                                       ^</code></pre>
+                    </div>
+                    <p>The two tests that pass are the two where no answer was expected (offline, and "no answer"), and the failed one shows <code>"attempts": 1</code>: the app counted a try that got no answer. When every request in a test run "gets no answer" although MSW is listening, suspect the <code>fetch</code>, not the app.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Forgetting AsyncStorage's Jest mock</h3>
+                    <p>AsyncStorage is a React Native community module, not an Expo one, so jest-expo has no stand-in for it. Without the <code>jest.mock()</code> line in <code>jest.setup.ts</code>, any test file that loads the queue or the settings fails at once:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/state/logQueue.test.ts
+  ● Test suite failed to run
+
+    [@RNC/AsyncStorage]: NativeModule: AsyncStorage is null.
+
+    To fix this issue try these steps:
+...
+      • If this happens while testing with Jest, check out how to integrate AsyncStorage here: https://react-native-async-storage.github.io/async-storage/docs/advanced/jest
+...
+Test Suites: 1 failed, 1 total
+Tests:       0 total</code></pre>
+                    </div>
+                    <p>The message's first suggestions are for an app on a phone; the last one is yours. The library's mock keeps values in memory for the length of a test file, which is why the queue's tests call <code>AsyncStorage.clear()</code> before each test.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Forgetting that an empty mock answers <code>undefined</code></h3>
+                    <p><code>jest.mock('expo-haptics')</code> turns <code>notificationAsync</code> into a function that returns <code>undefined</code>. <code>feel()</code> calls <code>.catch()</code> on what it returns, so without <code>mockResolvedValue()</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/utils/haptics.test.ts
+  ✕ buzzes "success" when something went through (1 ms)
+  ✓ stays still when the volunteer turned buzzing off (1 ms)
+
+  ● buzzes "success" when something went through
+
+    TypeError: Cannot read properties of undefined (reading 'catch')
+
+      31 |         );
+      32 |   // A buzz that could not play is never worth an error: the words on the screen say it all
+    &gt; 33 |   buzz.catch(() =&gt; {});
+         |        ^
+      34 | }
+      35 |
+
+      at catch (src/utils/haptics.ts:33:8)
+      at Object.&lt;anonymous&gt; (src/utils/haptics.test.ts:17:7)
+...
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 passed, 2 total</code></pre>
+                    </div>
+                    <p>The stack trace points into the app (<code>haptics.ts:33</code>), but the app is fine: on a phone, <code>notificationAsync</code> always returns a Promise. When a test fails inside code that works on your phone, check what your stand-ins return first.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Tests that pass in Jest and fail <code>tsc</code></h3>
+                    <p>Jest does not check types (Babel only strips them), so a test suite can be green while <code>npx tsc --noEmit</code> is red. Two ways this happens today. Without <code>"types": ["jest"]</code> in <code>tsconfig.json</code> (TypeScript 6 loads no global types unless the list names them), every <code>describe</code>, <code>it</code> and <code>jest</code> is unknown:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/api/address.test.ts:3:1 - error TS2593: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha` and then add 'jest' or 'mocha' to the types field in your tsconfig.
+
+3 describe('addressProblem', () =&gt; {
+  ~~~~~~~~
+...
+Found 113 errors in 10 files.
+
+Errors  Files
+     3  jest.setup.ts:11
+    18  src/api/address.test.ts:3
+    12  src/api/schemas.test.ts:23
+     8  src/auth/session.test.ts:9
+    22  src/notifications/reminders.test.ts:13
+    12  src/state/logQueue.test.ts:9
+    18  src/state/sendLogs.test.ts:14
+     8  src/storage/logbookExport.test.ts:17
+     4  src/test/server.ts:37
+     8  src/utils/haptics.test.ts:8</code></pre>
+                    </div>
+                    <p>And without <code>"src/mocks"</code> in <code>"exclude"</code>, TypeScript checks shoreline-api's copied code against React Native's types:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/mocks/core/api.ts:6:8 - error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+
+6 } from './seed.ts'
+         ~~~~~~~~~~~
+
+src/mocks/core/api.ts:594:26 - error TS2339: Property 'get' does not exist on type 'FormData'.
+
+594       const file = form?.get('photo')
+                             ~~~
+
+src/mocks/msw/handlers.ts:13:44 - error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+
+13 import { createApi, type ApiOptions } from '../core/api.ts'
+                                              ~~~~~~~~~~~~~~~~
+
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  src/mocks/core/api.ts:6
+     1  src/mocks/msw/handlers.ts:13</code></pre>
+                    </div>
+                    <p>Do not "fix" the copied files: they are the API's, kept identical so a new version can be copied over them. Keep them out of the type check, and let <code>src/test/server.ts</code> describe the one function you call.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Tests that depend on the test before them</h3>
+                    <p>The queue, the session and the settings live in modules, and nothing resets them between tests unless you do. A test that adds a log, followed by a test that expects an empty queue, passes alone (<code>npm test -- --watchAll=false -t "keeps one log"</code>) and fails in the full run, or the other way around. There is no special error for this: the symptom is a test whose result depends on which other tests ran. Reset in <code>beforeEach</code>, every time, everything the test file touches.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew's First Test Suite</h2>
+                <p>You set Jest up once, then write tests from the simplest (plain functions) to the most involved (the sender talking to the mock API with native modules replaced). Run <code>npm test</code> in a second terminal from Step 2 on and leave it running: it reruns the tests every time you save. You do not need shoreline-api or Metro running for any of this.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install Jest and set it up <span class="step-time">(15 min)</span></h3>
+                    <p>In the <code>shoreline-crew</code> folder, install the test tools as development dependencies. <code>npx expo install --dev</code> picks the versions that match SDK 58 for the packages Expo knows (jest-expo, jest, @types/jest) and passes the others to npm:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install --dev jest-expo jest @types/jest @testing-library/react-native msw</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 3 SDK 58.0.0 compatible native modules and 2 other packages using npm
+&gt; npm install --save-dev @testing-library/react-native msw
+...
+added 586 packages, and audited 1412 packages in 22s
+
+218 packages are looking for funding
+  run `npm fund` for details
+
+28 vulnerabilities (1 low, 27 moderate)
+...
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   @parcel/watcher@2.6.0 (install: node scripts/build-from-source.js)</code></pre>
+                    </div>
+                    <p>Expo calls the three it knows "native modules" in that line; they are just test tools. React Native Testing Library is for Lesson 8.3, installed now so the setup is done once. The deprecation warnings and the "vulnerabilities" count come from packages deep inside Jest's own tools, which run only on your computer during tests; do not run <code>npm audit fix --force</code>, which may install versions that do not match SDK 58. Your package counts and time will differ.</p>
+                    <p>Now tell npm how to run Jest, and Jest how to run your tests. In <code>package.json</code>, add a <code>test</code> script and a <code>"jest"</code> section (the install already added the packages above them):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/package.json</div>
+                        <pre data-src="shoreline-crew/package.json" data-match="diff"><code class="language-diff-json">     "web": "expo start --web",
+-    "lint": "expo lint"
++    "lint": "expo lint",
++    "test": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll"
+   },
+-  "private": true
++  "private": true,
++  "jest": {
++    "preset": "jest-expo",
++    "testEnvironment": "./jest.environment.js",
++    "setupFilesAfterEnv": [
++      "./jest.setup.ts"
++    ]
++  }
+ }</code></pre>
+                    </div>
+                    <p>The custom environment, a new file next to <code>package.json</code>, in plain JavaScript like the jest-expo environment it builds on:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/jest.environment.js</div>
+                        <pre data-src="shoreline-crew/jest.environment.js"><code class="language-js">// Shoreline Crew's Jest environment (new). Expo SDK 58 swaps the global fetch for Expo's own
+// (expo/fetch), which only works inside the app on a phone: under Jest it answers nothing.
+// This keeps Node's fetch under another name; jest.setup.ts puts it back for the tests.
+const { TestEnvironment } = require('jest-expo/src/preset/nativeEnvironment');
+
+module.exports = class ShorelineEnvironment extends TestEnvironment {
+  constructor(config, context) {
+    super(config, context);
+    this.global.__nodeFetch = this.global.fetch;
+  }
+};</code></pre>
+                    </div>
+                    <p>The setup file, also new. Jest runs it before every test file, after the test functions (<code>beforeAll</code>, <code>jest.mock</code>) exist:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/jest.setup.ts</div>
+                        <pre data-src="shoreline-crew/jest.setup.ts"><code class="language-ts">// Runs before every test file (package.json "jest" &gt; "setupFilesAfterEnv")
+
+// 1. Requests go through Node's fetch (kept by jest.environment.js), where MSW can answer them.
+// Loading the expo package installs Expo's fetch again (jest.mock() can load it a second time),
+// so put Node's back now and once more before the file's tests start
+function useNodeFetch() {
+  const nodeFetch = (globalThis as { __nodeFetch?: typeof fetch }).__nodeFetch;
+  Object.defineProperty(globalThis, 'fetch', { value: nodeFetch, writable: true, configurable: true });
+}
+useNodeFetch();
+beforeAll(useNodeFetch);
+
+// 2. The API address the tests use. .env.local is Metro's: Jest never reads it
+process.env.EXPO_PUBLIC_API_URL = 'http://localhost:4000';
+
+// 3. Native modules that have no phone under Jest: use the stand-ins their authors ship
+jest.mock('@react-native-async-storage/async-storage', () =&gt;
+  jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Part 1</strong> is the <code>fetch</code> fix from <a href="#requests">Requests</a>. <code>Object.defineProperty</code> replaces the property outright, getter and all, which is how Expo installed its own.</li>
+                        <li><strong>Part 2</strong> gives the app the address the mock API answers on. <code>client.ts</code> reads <code>process.env.EXPO_PUBLIC_API_URL</code> each time it makes a request, so setting it here is enough.</li>
+                        <li><strong>Part 3</strong> swaps AsyncStorage for the in-memory version its authors ship for Jest.</li>
+                    </ul>
+                    <p>Last, TypeScript and ESLint. TypeScript needs Jest's global types, and must skip the copied API code (next step). In <code>tsconfig.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/tsconfig.json</div>
+                        <pre data-src="shoreline-crew/tsconfig.json" data-match="diff"><code class="language-diff-json">       ]
+-    }
++    },
++    "types": [
++      "jest"
++    ]
+   },
+ // ...
+     "expo-env.d.ts"
++  ],
++  "exclude": [
++    "node_modules",
++    "src/mocks"
+   ]</code></pre>
+                    </div>
+                    <p>ESLint should leave the copied code alone too, as it already does for <code>types.ts</code>. In <code>eslint.config.js</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/eslint.config.js</div>
+                        <pre data-src="shoreline-crew/eslint.config.js" data-match="diff"><code class="language-diff-js">   {
+-    // dist: export output; src/api/types.ts: a copy of the API's contract, never edited
+-    ignores: ['dist/*', 'src/api/types.ts'],
++    // dist: export output. src/api/types.ts and src/mocks: copies of shoreline-api's code, never edited
++    ignores: ['dist/*', 'src/api/types.ts', 'src/mocks/*'],
+   },</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The mock API, and a first test <span class="step-time">(15 min)</span></h3>
+                    <p>Copy shoreline-api's <code>core</code> and <code>msw</code> folders into <code>src/mocks/</code>, unchanged. From the <code>shoreline-crew</code> folder (shoreline-api sits next to it in your <code>shoreline</code> course folder), on macOS or Linux:</p>
+                    <pre class="terminal"><code class="language-bash">mkdir -p src/mocks
+cp -r ../shoreline-api/core ../shoreline-api/msw src/mocks/</code></pre>
+                    <p>In PowerShell on Windows:</p>
+                    <pre class="terminal"><code class="language-bash">New-Item -ItemType Directory -Force src/mocks
+Copy-Item -Recurse ../shoreline-api/core, ../shoreline-api/msw src/mocks/</code></pre>
+                    <p>Then the bridge between the tests and those files, in a new <code>src/test/</code> folder. It is the HQ's <code>server.ts</code> with three differences: a typed <code>require()</code> instead of an <code>import</code>, the address written out (no <code>import.meta.env</code> here), and a <code>startMockApi()</code> helper that each test file calls, instead of a global setup that would load MSW for tests that never make a request:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/server.ts</div>
+                        <pre data-src="shoreline-crew/src/test/server.ts"><code class="language-ts">// The mock API for tests: shoreline-api's own code answers the app's requests inside the test run
+// (the HQ's src/test/server.ts, with one difference: how it loads the handlers)
+import type { RequestHandler } from 'msw';
+import { setupServer } from 'msw/node';
+
+/** The part of shoreline-api's createApi() the tests use: reset() puts the sample data back */
+type MockApi = { reset(): void };
+
+// src/mocks/ is shoreline-api's code, copied unchanged. Two of its lines do not type-check
+// against React Native's global types, so tsconfig.json leaves that folder out, and this
+// require() says what the one function we call looks like
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createHandlers } = require('../mocks/msw/handlers.ts') as {
+  createHandlers(options?: { baseUrl?: string }): { handlers: RequestHandler[]; api: MockApi };
+};
+
+/** The address jest.setup.ts gives the app */
+export const API_URL = 'http://localhost:4000';
+
+export const { handlers, api } = createHandlers({ baseUrl: API_URL });
+export const server = setupServer(...handlers);
+
+/** Every request the app sends from now on, written as 'POST /api/events/e17/logs' */
+export function recordRequests(): string[] {
+  const requests: string[] = [];
+  server.events.on('request:start', ({ request }) =&gt; {
+    requests.push(`${request.method} ${new URL(request.url).pathname}`);
+  });
+  return requests;
+}
+
+/**
+ * Answer this test file's requests with the mock API: call it once at the top of a test file
+ * that talks to shoreline-api. A request the mock API does not know fails the test.
+ */
+export function startMockApi(): void {
+  beforeAll(() =&gt; server.listen({ onUnhandledFrame: 'error' }));
+  // Every test starts from the sample data, with only the API's own handlers
+  beforeEach(() =&gt; api.reset());
+  afterEach(() =&gt; {
+    server.resetHandlers();
+    server.events.removeAllListeners();
+  });
+  afterAll(() =&gt; server.close());
+}</code></pre>
+                    </div>
+                    <p>The <code>eslint-disable-next-line</code> comment is there because Expo's lint rules warn about <code>require()</code> in TypeScript (<code>@typescript-eslint/no-require-imports</code>), for good reasons that do not apply to this one line. <code>onUnhandledFrame: 'error'</code> is MSW 3's name for "fail on a request no handler knows", as in the HQ.</p>
+                    <p>And the factories: complete sample objects, as the HQ had. A test passes only the parts it cares about:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/factories.ts</div>
+                        <pre data-src="shoreline-crew/src/test/factories.ts"><code class="language-ts">// Sample data for tests (the HQ's idea): complete, correctly typed objects. A test passes only
+// the parts it is about.
+import type { Session } from '@/api/client';
+import type { LogToSend } from '@/api/schemas';
+import type { CleanupEvent } from '@/api/types';
+
+/** Today's cleanup in the sample data (e17), where Theo has a spot */
+export function makeEvent(changes: Partial&lt;CleanupEvent&gt; = {}): CleanupEvent {
+  return {
+    id: 'e17',
+    title: 'Tide Pool Morning Cleanup',
+    siteId: 'otter-creek',
+    status: 'scheduled',
+    date: '2026-07-04',
+    startTime: '08:00',
+    endTime: '10:30',
+    capacity: 12,
+    spotsTaken: 5,
+    meetingPoint: 'Gravel pull-out on Highway 1',
+    description: 'We clear trash caught in the willows and along the creek banks. Expect mud.',
+    suppliesProvided: ['gloves', 'bags'],
+    leadOrganizerId: 'v03',
+    createdAt: '2026-06-01T16:00:00.000Z',
+    updatedAt: '2026-06-01T16:00:00.000Z',
+    ...changes,
+  };
+}
+
+/** A debris log for a cleanup, as the log form hands it to the queue */
+export function makeLogToSend(clientId: string, event = makeEvent()): LogToSend {
+  return {
+    event,
+    log: {
+      clientId,
+      items: [{ category: 'plastic-bottles', count: 12 }],
+      bags: 2,
+      weightKg: 3.5,
+      note: '',
+      recordedAt: '2026-07-04T17:30:00.000Z',
+    },
+  };
+}
+
+/** Theo, signed in as a volunteer (dev-volunteer: a token the API accepts without signing in) */
+export const volunteer: Session = {
+  token: 'dev-volunteer',
+  user: { id: 'v04', name: 'Theo Nakamura', email: 'theo.nakamura@example.com', role: 'volunteer' },
+};</code></pre>
+                    </div>
+                    <p>Now a first test, for the address checks of Lesson 5.1. They are plain functions: the platform is an argument, so one test can ask what an iPhone, an Android phone and the web preview would each be told about the same address. Create <code>src/api/address.test.ts</code> next to <code>address.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/address.test.ts</div>
+                        <pre data-src="shoreline-crew/src/api/address.test.ts"><code class="language-ts">import { addressAdvice, addressProblem, hostOf } from '@/api/address';
+
+describe('addressProblem', () =&gt; {
+  it('accepts an address written correctly', () =&gt; {
+    expect(addressProblem('http://192.168.1.42:4000')).toBeNull();
+  });
+
+  it('explains a missing address, a missing http:// and an /api at the end', () =&gt; {
+    expect(addressProblem('')).toMatch(/is not set/);
+    expect(addressProblem('192.168.1.42:4000')).toMatch(/start it with http:\/\//);
+    expect(addressProblem('http://localhost:4000/api')).toMatch(/leave out the \/api/);
+  });
+});
+
+describe('addressAdvice', () =&gt; {
+  it('reads the host from an address', () =&gt; {
+    expect(hostOf('http://LOCALHOST:4000')).toBe('localhost');
+    expect(hostOf('http://[::1]:4000')).toBe('[::1]');
+  });
+
+  it('tells a phone that localhost is the phone itself', () =&gt; {
+    expect(addressAdvice('http://localhost:4000', 'ios')).toMatch(/localhost is the phone itself/);
+    expect(addressAdvice('http://localhost:4000', 'android')).toMatch(/10\.0\.2\.2 on the emulator/);
+  });
+
+  it('gives each device its own advice for the same address', () =&gt; {
+    const address = 'http://10.0.2.2:4000';
+    expect(addressAdvice(address, 'android')).toMatch(/works on the emulator, not on a phone/);
+    expect(addressAdvice(address, 'ios')).toMatch(/only inside the Android emulator/);
+    expect(addressAdvice(address, 'web')).toMatch(/the web preview uses localhost/);
+  });
+});</code></pre>
+                    </div>
+                    <p>Start the tests in watch mode, in a second terminal, and leave them running:</p>
+                    <pre class="terminal"><code class="language-bash">npm test</code></pre>
+                    <p>You should see <code>PASS src/api/address.test.ts</code> and <code>Tests: 5 passed</code>, then Jest's watch menu. Try the loop once: change <code>'localhost'</code> to <code>'localhost2'</code> in the first <code>hostOf</code> expectation, save, read the red <code>✕</code> and the "Expected / Received" lines, and change it back. From here on, every file you save reruns the tests.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Rules people depend on: the schema and the CSV file <span class="step-time">(15 min)</span></h3>
+                    <p>Lesson 5.4's debris-log schema turns what a volunteer typed into what the API wants. Its tests read like its promises: text becomes numbers, only the debris found is listed, a decimal comma works, and the messages are the API's. Create <code>src/api/schemas.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/schemas.test.ts</div>
+                        <pre data-src="shoreline-crew/src/api/schemas.test.ts"><code class="language-ts">import { debrisLogSchema, toNewLog, type DebrisLogValues } from '@/api/schemas';
+import type { DebrisCategory } from '@/api/types';
+import { debrisCategories } from '@/utils/debris';
+
+// The form as it opens: every box empty except the ones a test fills in
+function formValues(changes: Partial&lt;DebrisLogValues&gt; = {}): DebrisLogValues {
+  const counts = Object.fromEntries(debrisCategories.map((category) =&gt; [category, '0']));
+  return {
+    counts: counts as Record&lt;DebrisCategory, string&gt;,
+    bags: '1',
+    weightKg: '2.5',
+    note: '',
+    ...changes,
+  };
+}
+
+// The first message for one field, or undefined when that field is fine
+function messageFor(values: DebrisLogValues, field: string) {
+  const result = debrisLogSchema.safeParse(values);
+  return result.error?.issues.find((issue) =&gt; issue.path.join('.') === field)?.message;
+}
+
+describe('debrisLogSchema', () =&gt; {
+  it('turns typed text into numbers and lists only the debris that was found', () =&gt; {
+    const values = formValues();
+    values.counts['plastic-bottles'] = ' 12 ';
+    values.counts.glass = '3';
+    expect(debrisLogSchema.parse(values)).toEqual({
+      bags: 1,
+      weightKg: 2.5,
+      note: '',
+      items: [
+        { category: 'plastic-bottles', count: 12 },
+        { category: 'glass', count: 3 },
+      ],
+    });
+  });
+
+  it('reads a decimal comma as a point', () =&gt; {
+    expect(debrisLogSchema.parse(formValues({ weightKg: '2,5' })).weightKg).toBe(2.5);
+  });
+
+  it("answers with the API's own messages", () =&gt; {
+    expect(messageFor(formValues({ bags: '' }), 'bags')).toBe(
+      'Bags must be a whole number from 0 to 500.',
+    );
+    expect(messageFor(formValues({ weightKg: 'lots' }), 'weightKg')).toBe(
+      'Weight must be a number of kilograms from 0 to 5000.',
+    );
+    const values = formValues();
+    values.counts.foam = '1.5';
+    expect(messageFor(values, 'counts.foam')).toBe('Count must be a whole number from 0 to 100000.');
+  });
+});
+
+describe('toNewLog', () =&gt; {
+  it('adds the id and the time made on the phone', () =&gt; {
+    const data = debrisLogSchema.parse(formValues());
+    const log = toNewLog(data, 'log-0001', new Date('2026-07-04T17:30:00Z'));
+    expect(log).toMatchObject({ clientId: 'log-0001', recordedAt: '2026-07-04T17:30:00.000Z' });
+  });
+});</code></pre>
+                    </div>
+                    <p><code>formValues()</code> is a small factory of its own: the form as it opens, with every count at <code>'0'</code> (Zod 4 makes a record with enum keys require every key, as the form does). The <code>as Record&lt;DebrisCategory, string&gt;</code> is needed because <code>Object.fromEntries</code> cannot know it built every key.</p>
+                    <p>Lesson 6.5's CSV export is a file other people open in spreadsheet apps, so its three special cases (the byte order mark that makes "Café" survive, CRLF line ends, and the guard against formulas) each get a test. <code>logbookExport.ts</code> imports expo-file-system and expo-sharing; jest-expo's automatic stand-ins let it load, and <code>logbookCsv</code> never calls them. Create <code>src/storage/logbookExport.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/storage/logbookExport.test.ts</div>
+                        <pre data-src="shoreline-crew/src/storage/logbookExport.test.ts"><code class="language-ts">import type { LogbookEntry } from '@/storage/logbook';
+import { logbookCsv } from '@/storage/logbookExport';
+
+function makeEntry(changes: Partial&lt;LogbookEntry&gt; = {}): LogbookEntry {
+  return {
+    clientId: 'log-0001',
+    eventTitle: 'Tide Pool Morning Cleanup',
+    eventDate: '2026-07-04',
+    pieces: 42,
+    bags: 1,
+    weightKg: 2.5,
+    note: '',
+    ...changes,
+  };
+}
+
+describe('logbookCsv', () =&gt; {
+  it('starts with a byte order mark and ends every row with CRLF', () =&gt; {
+    const csv = logbookCsv([makeEntry()]);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv.split('\r\n')).toEqual([
+      '\uFEFF"Cleanup","Date","Pieces","Bags","Weight (kg)","Note"',
+      '"Tide Pool Morning Cleanup","2026-07-04",42,1,2.5,""',
+      '',
+    ]);
+  });
+
+  it('keeps commas, quotes and line breaks inside one cell', () =&gt; {
+    const csv = logbookCsv([makeEntry({ note: 'Nets, "lots"\nof them' })]);
+    expect(csv).toContain('"Nets, ""lots""\nof them"');
+  });
+
+  it('stops a note from running as a spreadsheet formula', () =&gt; {
+    const csv = logbookCsv([makeEntry({ note: '=SUM(A1:A9)' })]);
+    expect(csv).toContain(`"'=SUM(A1:A9)"`);
+  });
+});</code></pre>
+                    </div>
+                    <p>Write the byte order mark as the escape <code>\uFEFF</code>, as the app does. (An editor that "helpfully" pastes the invisible character itself makes the test pass and the file impossible to read.)</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Native modules: the queue, the saved session, the buzz <span class="step-time">(20 min)</span></h3>
+                    <p>Three test files, one for each kind of stand-in. First the queue of Lesson 5.5, with AsyncStorage's own mock from the setup file. The tests check what the volunteer relies on: a double tap is still one log, the queue survives closing the app (what is saved, and what is not), and saved data from an older version of the app is upgraded or dropped, never trusted blindly. Create <code>src/state/logQueue.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/logQueue.test.ts</div>
+                        <pre data-src="shoreline-crew/src/state/logQueue.test.ts"><code class="language-ts">import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { loadLogQueue, useLogQueue } from '@/state/logQueue';
+import { makeLogToSend, volunteer } from '@/test/factories';
+
+const savedKey = 'shoreline-crew-log-queue';
+
+// The store lives in a module: every test starts with an empty queue and empty storage
+beforeEach(async () =&gt; {
+  useLogQueue.setState(useLogQueue.getInitialState());
+  await AsyncStorage.clear();
+});
+
+it('keeps one log per clientId', () =&gt; {
+  const { add } = useLogQueue.getState();
+  add(volunteer.user.id, makeLogToSend('log-0001'), []);
+  add(volunteer.user.id, makeLogToSend('log-0001'), []); // the same log again: a double tap
+  expect(useLogQueue.getState().logs).toHaveLength(1);
+  expect(useLogQueue.getState().logs[0]).toMatchObject({ status: 'waiting', attempts: 0 });
+});
+
+it('saves the logs on the phone, but not "sending right now"', async () =&gt; {
+  useLogQueue.getState().add(volunteer.user.id, makeLogToSend('log-0001'), []);
+  useLogQueue.getState().setSending(true);
+
+  const saved = JSON.parse((await AsyncStorage.getItem(savedKey)) ?? 'null');
+  expect(saved.version).toBe(1);
+  expect(saved.state.logs).toHaveLength(1);
+  expect(saved.state).not.toHaveProperty('sending');
+});
+
+it('loads a saved queue, keeps what passes the check, and upgrades version 0', async () =&gt; {
+  const fromVersion0 = { ...makeLogToSend('log-0001'), volunteerId: 'v04', status: 'waiting', attempts: 0 };
+  const broken = { volunteerId: 'v04', status: 'lost' };
+  await AsyncStorage.setItem(
+    savedKey,
+    JSON.stringify({ version: 0, state: { logs: [fromVersion0, broken] } }),
+  );
+
+  await loadLogQueue();
+
+  const { logs } = useLogQueue.getState();
+  expect(logs).toHaveLength(1);
+  expect(logs[0].log.clientId).toBe('log-0001');
+  expect(logs[0].photos).toEqual([]); // version 1 added photos
+});</code></pre>
+                    </div>
+                    <p>Zustand's <code>getInitialState()</code> gives the store as <code>create()</code> made it, so <code>setState(getInitialState())</code> is the reset. Reading <code>AsyncStorage.getItem()</code> back shows the exact JSON a phone would keep: <code>persist</code> wraps the state as <code>{ state, version }</code>.</p>
+                    <p>Next, the saved session of Lesson 4.3, with an automatic mock of expo-secure-store: every function an empty <code>jest.fn()</code>, and each test decides what the keychain answers. Create <code>src/auth/session.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/auth/session.test.ts</div>
+                        <pre data-src="shoreline-crew/src/auth/session.test.ts"><code class="language-ts">import * as SecureStore from 'expo-secure-store';
+
+import { readSession, setSession } from '@/api/client';
+import { loadSession } from '@/auth/session';
+import { volunteer } from '@/test/factories';
+
+// No keychain under Jest: an automatic mock, where every function returns undefined until a
+// test says what it should answer
+jest.mock('expo-secure-store');
+const secureStore = jest.mocked(SecureStore);
+
+beforeEach(() =&gt; {
+  setSession(null);
+  secureStore.isAvailableAsync.mockResolvedValue(true);
+  secureStore.setItemAsync.mockResolvedValue();
+  secureStore.deleteItemAsync.mockResolvedValue();
+});
+
+it('starts signed in with the session saved on the phone, and saves every change', async () =&gt; {
+  secureStore.getItemAsync.mockResolvedValue(JSON.stringify(volunteer));
+  await loadSession();
+  expect(readSession()).toEqual(volunteer);
+
+  setSession(null); // signing out
+  expect(secureStore.deleteItemAsync).toHaveBeenCalledWith('shoreline-crew-session');
+});
+
+it('starts signed out when the saved session is not a session', async () =&gt; {
+  secureStore.getItemAsync.mockResolvedValue('{"token": 42}');
+  await loadSession();
+  expect(readSession()).toBeNull();
+});</code></pre>
+                    </div>
+                    <p>Jest moves <code>jest.mock()</code> calls above the imports (it "hoists" them), so the app's <code>session.ts</code> gets the stand-in even though the line comes after the <code>import</code>. <code>jest.mocked(SecureStore)</code> changes nothing at run time; it gives TypeScript the mock types so <code>mockResolvedValue</code> type-checks. Notice <code>isAvailableAsync</code>: an empty mock answers <code>undefined</code>, which <code>loadSession()</code> would read as "no secure storage here" and skip everything.</p>
+                    <p>Last, Lesson 6.5's haptics, with the same kind of mock and the trap from <a href="#mistakes">Common Mistakes</a> handled. Create <code>src/utils/haptics.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/haptics.test.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/haptics.test.ts"><code class="language-ts">import { NotificationFeedbackType, notificationAsync } from 'expo-haptics';
+
+import { changeSettings } from '@/state/settings';
+import { feel } from '@/utils/haptics';
+
+// An automatic mock keeps the module's plain values (NotificationFeedbackType.Success is still
+// 'success') and swaps every function for one that does nothing and answers undefined
+jest.mock('expo-haptics');
+const buzz = jest.mocked(notificationAsync);
+
+// feel() calls .catch() on what notificationAsync gives back: give it a Promise
+beforeEach(() =&gt; buzz.mockResolvedValue());
+afterEach(() =&gt; buzz.mockClear());
+
+// jest-expo runs the tests as an iPhone (Platform.OS is 'ios'): the iPhone's kind of buzz
+it('buzzes "success" when something went through', () =&gt; {
+  changeSettings({ hapticsOn: true });
+  feel('success');
+  expect(buzz).toHaveBeenCalledWith(NotificationFeedbackType.Success);
+});
+
+it('stays still when the volunteer turned buzzing off', () =&gt; {
+  changeSettings({ hapticsOn: false });
+  feel('error');
+  expect(buzz).not.toHaveBeenCalled();
+});</code></pre>
+                    </div>
+                    <p>These tests cannot tell you that the buzz feels right, or that an iPhone with System Haptics off stays still (Lesson 6.5's phone checks do that). They lock in the app's part: the right kind of buzz, and none when the volunteer said no.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The sender's five outcomes, against the mock API <span class="step-time">(25 min)</span></h3>
+                    <p>This is the test the lesson has been building towards. <code>sendWaitingLogs()</code> (Lesson 5.5) decides, for each answer, whether a log is done, refused or still waiting. The mock API gives real answers from shoreline-api's rules: e17 is today's cleanup, where Theo has a spot, so a log for it is saved (201); e08 is a few days ahead, so the API answers 409 "This cleanup has not happened yet."; a token it does not know gets 401. Only "no answer at all" needs an override, MSW's <code>HttpResponse.error()</code>, which makes the request fail like a dropped connection. Create <code>src/state/sendLogs.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/sendLogs.test.ts</div>
+                        <pre data-src="shoreline-crew/src/state/sendLogs.test.ts"><code class="language-ts">import { onlineManager } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+
+import { readSession, setSession } from '@/api/client';
+import { markSignInEnded } from '@/auth/ended';
+import { useLogQueue } from '@/state/logQueue';
+import { sendWaitingLogs } from '@/state/sendLogs';
+import { saveSentLogs } from '@/storage/logbook';
+import { makeEvent, makeLogToSend, volunteer } from '@/test/factories';
+import { API_URL, recordRequests, server, startMockApi } from '@/test/server';
+
+// The logbook is SQLite on the phone, and "your sign-in has ended" is a screen notice: Jest
+// replaces both modules with empty functions that remember how they were called
+jest.mock('@/storage/logbook');
+jest.mock('@/auth/ended');
+
+startMockApi();
+
+beforeEach(() =&gt; {
+  useLogQueue.setState(useLogQueue.getInitialState());
+  setSession(volunteer);
+  onlineManager.setOnline(true);
+});
+
+// One log waiting for Theo; the cleanup is e17 (today, where he has a spot) unless a test says
+function queueLog(event = makeEvent()) {
+  useLogQueue.getState().add(volunteer.user.id, makeLogToSend('log-0001', event), []);
+}
+
+it('sends a waiting log, saves it in the logbook, and takes it out of the queue', async () =&gt; {
+  queueLog();
+  await sendWaitingLogs(volunteer.user.id);
+
+  expect(useLogQueue.getState().logs).toEqual([]);
+  expect(saveSentLogs).toHaveBeenCalledWith([
+    { log: expect.objectContaining({ clientId: 'log-0001', eventId: 'e17' }), event: makeEvent() },
+  ]);
+});
+
+it('sends nothing while the phone is offline', async () =&gt; {
+  queueLog();
+  onlineManager.setOnline(false);
+  const requests = recordRequests();
+
+  await sendWaitingLogs(volunteer.user.id);
+
+  expect(requests).toEqual([]);
+  expect(useLogQueue.getState().logs).toHaveLength(1);
+});
+
+it("marks a log the server refuses, with the server's words", async () =&gt; {
+  queueLog(makeEvent({ id: 'e08', title: 'Weekend Cove Cleanup' })); // in a few days
+  await sendWaitingLogs(volunteer.user.id);
+
+  expect(useLogQueue.getState().logs[0]).toMatchObject({
+    status: 'refused',
+    problem: 'This cleanup has not happened yet.',
+  });
+});
+
+it('keeps the log and counts the try when the server does not answer', async () =&gt; {
+  server.use(http.post(`${API_URL}/api/events/:id/logs`, () =&gt; HttpResponse.error()));
+  queueLog();
+  await sendWaitingLogs(volunteer.user.id);
+
+  expect(useLogQueue.getState().logs[0]).toMatchObject({ status: 'waiting', attempts: 1 });
+});
+
+it('keeps the log for the next sign-in when the sign-in has ended', async () =&gt; {
+  setSession({ ...volunteer, token: 'a-token-the-api-forgot' });
+  queueLog();
+  await sendWaitingLogs(volunteer.user.id);
+
+  expect(markSignInEnded).toHaveBeenCalled();
+  expect(readSession()).toBeNull();
+  expect(useLogQueue.getState().logs[0]).toMatchObject({ status: 'waiting', attempts: 0 });
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Two of the app's own modules are mocked</strong>, automatically: the SQLite logbook (no database here, and this test is about the sender) and the "sign-in has ended" notice (so the test can ask whether it was raised). <code>saveSentLogs</code> becomes an empty function that remembers its calls, and the first test checks it got the saved log.</li>
+                        <li><strong>Offline is TanStack Query's <code>onlineManager</code></strong>, the same switch NetInfo flips in the app (Lesson 5.2), so the test sets it directly and checks that not a single request went out.</li>
+                        <li><strong>The sign-in test</strong> uses a token the API does not know: the real 401 path, through the real client, which also signs the phone out (<code>readSession()</code> is <code>null</code>). The log stays waiting for the next sign-in.</li>
+                    </ul>
+                    <p>A note on the setup file's second <code>useNodeFetch</code>, in <code>beforeAll</code>: the course found it the hard way. An automatic <code>jest.mock('@/storage/logbook')</code> builds its stand-in by loading the real module once more, on the side, and that loads <code>expo</code> again, which installs Expo's <code>fetch</code> again. Without the <code>beforeAll</code>, the first test here failed with the log still waiting and <code>"attempts": 1</code>, exactly like the second mistake card. Putting Node's <code>fetch</code> back just before the tests start makes the order of imports and mocks not matter.</p>
+                    <p>Run just this file to see every test listed:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false src/state/sendLogs.test.ts</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/state/sendLogs.test.ts
+
+ PASS  src/state/sendLogs.test.ts
+  ✓ sends a waiting log, saves it in the logbook, and takes it out of the queue (42 ms)
+  ✓ sends nothing while the phone is offline (2 ms)
+  ✓ marks a log the server refuses, with the server's words (9 ms)
+  ✓ keeps the log and counts the try when the server does not answer (7 ms)
+  ✓ keeps the log for the next sign-in when the sign-in has ended (8 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        0.606 s, estimated 4 s
+Ran all test suites matching src/state/sendLogs.test.ts.</code></pre>
+                    </div>
+                    <figure class="screenshot">
+    <img src="images/lesson_29/29-one-file.png" alt="A terminal after npm test for one file: PASS src/state/sendLogs.test.ts, then five lines with green check marks: sends a waiting log, sends nothing while the phone is offline, marks a log the server refuses, keeps the log when the server does not answer, keeps the log when the sign-in has ended; then Tests: 5 passed, 5 total." width="1029" height="434" loading="lazy">
+    <figcaption>One test file: Jest lists every test with a check mark and its time. The five ways a debris log's trip to the server can end, each tested against the HQ's mock API. Times will differ.</figcaption>
+</figure>
+                    <p>Each line is a promise the app makes to a volunteer, now checked in a fraction of a second. In Lesson 5.5 you tried these outcomes by hand, stopping and starting shoreline-api.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The reminders, and the whole suite <span class="step-time">(15 min)</span></h3>
+                    <p>Lesson 6.4's <code>updateReminders()</code> must leave the phone with exactly the right reminders: one per confirmed cleanup still ahead, nothing the volunteer no longer needs, and nothing of anyone else's. The real expo-notifications cannot even load under Jest, so this test replaces it with a factory that lists only what <code>reminders.ts</code> uses. The sign-ups come from the mock API (Theo's sample sign-ups), through the app's real <code>queryClient</code>. Create <code>src/notifications/reminders.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/notifications/reminders.test.ts</div>
+                        <pre data-src="shoreline-crew/src/notifications/reminders.test.ts"><code class="language-ts">import { PermissionStatus } from 'expo';
+import * as Notifications from 'expo-notifications';
+
+import { setSession } from '@/api/client';
+import { queryClient } from '@/api/queries';
+import { updateReminders } from '@/notifications/reminders';
+import { changeSettings } from '@/state/settings';
+import { volunteer } from '@/test/factories';
+import { startMockApi } from '@/test/server';
+
+// The phone's notifications, replaced by functions the tests control and read back. Only what
+// reminders.ts uses: the real module needs a phone (its setNotificationHandler fails under Jest)
+jest.mock('expo-notifications', () =&gt; ({
+  setNotificationHandler: jest.fn(),
+  AndroidImportance: { DEFAULT: 3 },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  getPermissionsAsync: jest.fn(),
+  getAllScheduledNotificationsAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(),
+  scheduleNotificationAsync: jest.fn(),
+}));
+const notifications = jest.mocked(Notifications);
+
+startMockApi();
+
+// What the phone already has scheduled: only the ids matter here
+function alreadyScheduled(...ids: string[]) {
+  const requests = ids.map((identifier) =&gt; ({ identifier }) as Notifications.NotificationRequest);
+  notifications.getAllScheduledNotificationsAsync.mockResolvedValue(requests);
+}
+
+function allowNotifications(granted: boolean) {
+  notifications.getPermissionsAsync.mockResolvedValue({
+    granted,
+    status: granted ? PermissionStatus.GRANTED : PermissionStatus.DENIED,
+    canAskAgain: true,
+    expires: 'never',
+  });
+}
+
+beforeEach(() =&gt; {
+  setSession(volunteer);
+  changeSettings({ remindersOn: true });
+  allowNotifications(true);
+  alreadyScheduled();
+});
+
+afterEach(() =&gt; {
+  queryClient.clear(); // the sign-ups are cached between calls, as in the app
+  jest.clearAllMocks(); // forget the calls each test made
+});
+
+// The ids of the reminders updateReminders scheduled, in order
+function scheduledIds() {
+  return notifications.scheduleNotificationAsync.mock.calls.map(([request]) =&gt; request.identifier);
+}
+
+it("schedules one reminder per confirmed cleanup that's still ahead, soonest first", async () =&gt; {
+  await updateReminders();
+
+  // Theo's sample sign-ups: e08, e10, e11 and e13 confirmed (e17 is today: too late to remind)
+  expect(scheduledIds()).toEqual(['reminder-e08', 'reminder-e10', 'reminder-e11', 'reminder-e13']);
+  const [first] = notifications.scheduleNotificationAsync.mock.calls[0];
+  expect(first.content.title).toBe('Tomorrow: Weekend Cove Cleanup');
+  expect(first.content.data).toEqual({ url: '/cleanups/e08' });
+});
+
+it("cancels the app's reminders nobody needs, and nothing else", async () =&gt; {
+  alreadyScheduled('reminder-e08', 'reminder-e12', 'a-timer-from-another-part');
+  await updateReminders();
+
+  expect(notifications.cancelScheduledNotificationAsync.mock.calls).toEqual([['reminder-e12']]);
+});
+
+it('cancels every reminder once they are turned off', async () =&gt; {
+  alreadyScheduled('reminder-e08', 'reminder-e10');
+  changeSettings({ remindersOn: false });
+  await updateReminders();
+
+  expect(notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(2);
+  expect(notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+});
+
+it('schedules nothing when the phone does not allow notifications', async () =&gt; {
+  allowNotifications(false);
+  await updateReminders();
+
+  expect(scheduledIds()).toEqual([]);
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>PermissionStatus</code> comes from <code>expo</code>, which re-exports it; the factory stands in for the rest of expo-notifications.</li>
+                        <li><code>mock.calls</code> is the list of arguments of every call, so <code>scheduledIds()</code> reads back the ids in the order they were scheduled, and the test checks "soonest first" for free.</li>
+                        <li>The sample data moves with today's date, so the test names cleanups by id and title, never by date. Today's cleanup (e17) gets no reminder: its 6 pm the evening before is already past.</li>
+                    </ul>
+                    <p>Now press <kbd>q</kbd> in the watching terminal, and run the whole suite once, then the type check and the linter, as a build server would:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false
+npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false
+
+ PASS  src/state/sendLogs.test.ts
+ PASS  src/storage/logbookExport.test.ts
+ PASS  src/auth/session.test.ts
+ PASS  src/utils/haptics.test.ts
+ PASS  src/api/schemas.test.ts
+ PASS  src/notifications/reminders.test.ts
+ PASS  src/state/logQueue.test.ts
+ PASS  src/api/address.test.ts
+
+Test Suites: 8 passed, 8 total
+Tests:       28 passed, 28 total
+Snapshots:   0 total
+Time:        1.44 s
+Ran all test suites.</code></pre>
+                    </div>
+                    <p>With several files, Jest prints one <code>PASS</code> line per file (and lists the tests only of the ones that fail); the order and the time will differ. <code>tsc</code> and <code>expo lint</code> print nothing when all is well, apart from Expo's <code>env:</code> lines.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_29/29-watch.png" alt="A terminal after npm test: eight PASS lines, one per test file, Tests: 28 passed, 28 total, then Watch Usage with keys: f to run only failed tests, o for changed files, p to filter by file name, t to filter by test name, q to quit watch mode, Enter to run again." width="720" height="565" loading="lazy">
+    <figcaption><code>npm test</code> keeps watching: change a file and the tests run again. With several files Jest prints one PASS or FAIL line per file. Press <kbd>q</kbd> to stop.</figcaption>
+</figure>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>npm test</code> starts Jest in watch mode, and <code>npm test -- --watchAll=false</code> runs 28 tests in 8 files, all passing</li>
+                        <li><code>jest.environment.js</code> and <code>jest.setup.ts</code> put Node's <code>fetch</code> back, set the API address and mock AsyncStorage</li>
+                        <li><code>src/mocks/</code> holds shoreline-api's <code>core</code> and <code>msw</code> folders, unchanged, and <code>src/test/server.ts</code> serves them with <code>startMockApi()</code></li>
+                        <li>The sender's tests cover sent, offline, refused, no answer and sign-in ended</li>
+                        <li>The reminder tests check what is scheduled and what is cancelled, with expo-notifications replaced</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass, with <code>src/mocks</code> left out of both</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> list the three pieces of logic in your final-project idea whose failure would cost a user something they cannot see (a lost entry, a double charge, a missed reminder). For each, write the test names first, as sentences like today's, and the native modules each one would need a stand-in for.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Keep the tests you write if you like (they are good tests), or remove them; the next lesson starts from the project as Step 6 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: When is 6 pm the evening before?</h3>
+                    <p><code>reminderTime()</code> in <code>reminders.ts</code> is a plain function, but you cannot test it in a file of its own without the expo-notifications stand-in. Why? Add two tests for it to <code>reminders.test.ts</code>: a cleanup on the 4th of July gets its reminder at 18:00 on the 3rd, and a cleanup on the 1st of August is reminded on the 31st of July.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Importing <code>reminders.ts</code> runs its top-level code, and that calls <code>setNotificationHandler</code>. Build the event with <code>makeEvent({ date: '2026-07-04' })</code>, and read the result with <code>getDate()</code> and <code>getHours()</code>, the phone's local time, like the app.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>reminderTime</code> to the import from <code>@/notifications/reminders</code> and <code>makeEvent</code> to the import from <code>@/test/factories</code>, then at the end of the file:</p>
+                        <pre data-snippet><code class="language-ts">it('reminds at 6 pm the evening before, by the phone clock', () => {
+  const time = reminderTime(makeEvent({ date: '2026-07-04' }));
+  expect([time.getFullYear(), time.getMonth() + 1, time.getDate()]).toEqual([2026, 7, 3]);
+  expect([time.getHours(), time.getMinutes()]).toEqual([18, 0]);
+});
+
+it('goes back across the start of a month', () => {
+  expect(reminderTime(makeEvent({ date: '2026-08-01' })).getDate()).toBe(31);
+});</code></pre>
+                        <p>The module has a side effect when it loads (the notification handler), so anything that imports it needs the stand-in first. That is one reason to keep pure helpers in a module of their own; whether moving <code>reminderTime</code> is worth it is a judgment call. Comparing local date parts, not an ISO string, keeps the test right in every time zone.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: The guard on reminder taps</h3>
+                    <p>A tapped reminder opens the path in its data, but only if <code>isCleanupPath()</code> (in <code>src/utils/links.ts</code>, Lesson 6.4) says it is a cleanup's path. Data from outside the app deserves a test with hostile input: write <code>src/utils/links.test.ts</code> with one test for a good path and one for five bad values.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Think of what a notification's data could hold: a path that climbs out with <code>..</code>, a full web address, a different screen, a number, nothing at all.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">import { cleanupPath, isCleanupPath } from '@/utils/links';
+
+describe('isCleanupPath', () => {
+  it('accepts the path a reminder carries', () => {
+    expect(isCleanupPath(cleanupPath('e08'))).toBe(true);
+  });
+
+  it('refuses anything else a notification could carry', () => {
+    expect(isCleanupPath('/cleanups/e08/../../sign-in')).toBe(false);
+    expect(isCleanupPath('https://example.com/cleanups/e08')).toBe(false);
+    expect(isCleanupPath('/log/e17')).toBe(false);
+    expect(isCleanupPath(42)).toBe(false);
+    expect(isCleanupPath(undefined)).toBe(false);
+  });
+});</code></pre>
+                        <p>All six expectations pass with today's code. <code>links.ts</code> imports expo-linking, whose stand-in jest-expo provides, so no mock is needed.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A photo uploaded only once (Stretch)</h3>
+                    <p>Lesson 6.2 promised that when a log's photo has gone up but the log itself gets no answer, the next try sends only the log (the API would store a second copy of the photo). Prove it: one waiting log with one photo, a first send where the log gets no answer once, a second send that works. The requests must be one photo upload and two log posts, and the queue must end empty.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Mock <code>@/utils/photoFiles</code> with a factory: <code>readPhoto</code> resolves to a small <code>Blob</code> of type <code>image/jpeg</code> (the API only checks the type and that it is not empty), <code>forgetPhoto</code> is an empty function. MSW's <code>server.use(…, { once: true })</code> overrides one request only. <code>recordRequests()</code> lists what went out.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>A new file, <code>src/state/sendPhotos.test.ts</code>:</p>
+                        <pre data-snippet><code class="language-ts">import { http, HttpResponse } from 'msw';
+
+import { setSession } from '@/api/client';
+import { useLogQueue } from '@/state/logQueue';
+import { sendWaitingLogs } from '@/state/sendLogs';
+import { makeLogToSend, volunteer } from '@/test/factories';
+import { API_URL, recordRequests, server, startMockApi } from '@/test/server';
+
+jest.mock('@/storage/logbook');
+// The photo "file": a few bytes, in place of a picture in the app's documents
+jest.mock('@/utils/photoFiles', () => ({
+  readPhoto: jest.fn(async () => new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' })),
+  forgetPhoto: jest.fn(),
+}));
+
+startMockApi();
+
+beforeEach(() => {
+  useLogQueue.setState(useLogQueue.getInitialState());
+  setSession(volunteer);
+});
+
+it('uploads a photo once, even when the log needs a second try', async () => {
+  const photo = { uri: 'file:///documents/log-photos/one.jpg', type: 'image/jpeg', photoId: null };
+  useLogQueue.getState().add(volunteer.user.id, makeLogToSend('log-0001'), [photo]);
+  const requests = recordRequests();
+
+  // First try: the photo goes up, then the log gets no answer
+  server.use(http.post(`${API_URL}/api/events/:id/logs`, () => HttpResponse.error(), { once: true }));
+  await sendWaitingLogs(volunteer.user.id);
+  expect(useLogQueue.getState().logs[0].photos[0].photoId).toMatch(/^p/);
+
+  // Second try: only the log
+  await sendWaitingLogs(volunteer.user.id);
+  expect(requests).toEqual([
+    'POST /api/photos',
+    'POST /api/events/e17/logs',
+    'POST /api/events/e17/logs',
+  ]);
+  expect(useLogQueue.getState().logs).toEqual([]);
+});</code></pre>
+                        <p>After the first try, the photo's id from the server is saved in the queue (the test checks it starts with <code>p</code>, as the API's photo ids do), so the second try skips the upload. Without that line in <code>sendLogs.ts</code>, the requests list would show two <code>POST /api/photos</code>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> After a change to the test setup, the sender's tests for "offline" and "no answer" pass, and the other three fail: each log is still waiting with <code>attempts: 1</code>. shoreline-api's handlers have not changed. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would a sender bug make every request look unanswered, in every test that expects an answer?">
+                                A) <code>sendWaitingLogs</code> has a new bug in its retry rule
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Every request got no answer, which is what happens when the global fetch is Expo's again: MSW never answers it. The two tests that expected no answer pass by accident. Check jest.environment.js, the testEnvironment setting and the useNodeFetch lines in jest.setup.ts.">
+                                B) Requests are going to Expo's <code>fetch</code>, not Node's, so MSW never answers them
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is anything listening on port 4000 in a test run at all?">
+                                C) shoreline-api is not running in another terminal
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a missing AsyncStorage mock let the tests run at all?">
+                                D) AsyncStorage's mock is missing
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Why does Shoreline Crew's <code>test</code> script start <code>node --experimental-vm-modules</code> instead of simply running <code>jest</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does the flag have anything to do with how Jest watches files?">
+                                A) It makes watch mode work without git
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which package in the tests ships only import/export code?">
+                                B) jest-expo needs it to pretend to be an iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="TypeScript is handled by Babel: what is the flag about?">
+                                C) It lets Jest read TypeScript test files
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="MSW 3 is published only as ES modules. Jest runs the app's code as CommonJS, and it can load ES modules from node_modules only when Node's VM-modules feature is on. Running Jest's script through node with the flag works the same in every shell.">
+                                D) MSW 3 is ES modules only, and Jest can load those only with Node's VM-modules feature on
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> A test file has <code>jest.mock('expo-haptics')</code>. Calling <code>feel('success')</code> fails with "Cannot read properties of undefined (reading 'catch')", although the app works on your phone. What fixes the test?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="An automatic mock turns every function into an empty jest.fn that returns undefined. feel() calls .catch on what notificationAsync returns, so the stand-in must return a Promise like the real one: mockResolvedValue().">
+                                A) Make the stand-in answer like the real function: <code>jest.mocked(notificationAsync).mockResolvedValue()</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the app wrong, or the stand-in?">
+                                B) Remove the <code>.catch()</code> from <code>haptics.ts</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the real expo-haptics find a vibration motor in Node?">
+                                C) Delete the <code>jest.mock()</code> line so the real module runs
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the platform change what an empty mock returns?">
+                                D) Switch to the <code>jest-expo/android</code> preset
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Why does Shoreline Crew's <code>tsconfig.json</code> exclude <code>src/mocks</code> instead of fixing the few lines TypeScript complains about?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Do the tests use those files or not?">
+                                A) The tests do not use those files
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Metro ever bundle the mocks into the app?">
+                                B) Metro would otherwise put the mock API into the app
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The files are shoreline-api's own code, copied unchanged so the phone app's tests get the same rules and data as the real server, and so a new version can be copied over them. They are written for Node and browsers; only React Native's global types disagree. Excluding them, plus the typed require in server.ts, keeps them identical.">
+                                C) They are shoreline-api's code, kept identical; only React Native's global types disagree with them
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does tsc's exclude change what Jest runs?">
+                                D) Jest cannot run files that TypeScript checks
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> The sender's test file has <code>jest.mock('@/storage/logbook')</code>. What does that line say about the test?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The logbook is SQLite, which needs a phone, and it is not what this test is about. The automatic mock makes saveSentLogs an empty function that records its calls, so the test can still check the sender handed it the saved log.">
+                                A) The test is about the sender, not SQLite: the logbook becomes a stand-in whose calls the test can still check
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the logbook less important, or just a different test's job?">
+                                B) The logbook does not need tests
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where do requests go in these tests: to the logbook, or to MSW?">
+                                C) It stops the test from sending requests
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Could I use Vitest, as in the HQ?</summary>
+                    <p>Not easily, today. React Native's packages ship code that has to be transformed the way Metro does (Flow types, a React Native Babel preset), and Expo's testing support, documentation and native-module stand-ins are built for Jest through jest-expo. Community projects run React Native tests in Vitest, but you would be on your own with every native module. Your Vitest knowledge is not wasted: the test code reads almost the same.</p>
+                </details>
+
+                <details class="card">
+                    <summary>How do I see which lines the tests cover?</summary>
+                    <p>Add <code>--coverage</code>: <code>npm test -- --watchAll=false --coverage</code>. Jest prints a table per file and writes an HTML report to <code>coverage/lcov-report/index.html</code> (add <code>coverage/</code> to <code>.gitignore</code>: the template's file does not list it). The numbers include <code>src/mocks/</code> and modules that were only loaded to build a mock, so read the rows for the files you meant to test (<code>logQueue.ts</code>, <code>sendLogs.ts</code>) rather than "All files". Coverage tells you what was never run, not whether what ran was checked.</p>
+                </details>
+
+                <details class="card">
+                    <summary>The tests pretend to be an iPhone. What about Android?</summary>
+                    <p>The <code>jest-expo</code> preset sets <code>Platform.OS</code> to <code>'ios'</code>. According to Expo's documentation, <code>jest-expo/android</code> runs as Android, <code>jest-expo/web</code> as the web, and <code>jest-expo/universal</code> runs every test once per platform (slower, and each platform needs its own environment setup). For code with a <code>Platform.OS</code> branch, like <code>feel()</code>, the simplest test-level approach is to pass the platform in, as <code>addressAdvice()</code> does, so one test can try them all.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why not test the SQLite logbook too?</summary>
+                    <p>expo-sqlite runs SQL in the phone's own SQLite library, which jest-expo replaces with an empty stand-in, so its queries cannot run in Jest as they are. You could test the logbook's SQL against a Node SQLite library behind the same functions, or check it on a phone or in the web preview (Lesson 5.3 did). It is a fair trade to test the sender with the logbook mocked and the logbook by hand, as long as you know which one you chose.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why <code>--watchAll</code> and not <code>--watch</code>?</summary>
+                    <p><code>--watch</code> reruns only tests related to files changed since the last commit, so it needs git; <code>--watchAll</code> reruns everything and works in any folder (including the course's download folders, which are not git repositories). With 28 fast tests, everything takes about two seconds. Inside watch mode, <kbd>o</kbd> switches to "changed files only" when you are in a git repository.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Lesson 5.5 made the sender safe to call "as often as you like": a call while another is still sending does nothing. On a phone that happens for real (the app comes back to the foreground just as the connection returns). Write the test: one waiting log, two <code>sendWaitingLogs()</code> calls started together with <code>Promise.all</code>, and <code>recordRequests()</code> must show exactly one <code>POST</code>. Then break the rule on purpose (take <code>queue.sending ||</code> out of the first <code>if</code> in <code>sendLogs.ts</code>) and read what the test says. Would the API have saved the log twice? (Hint: <code>clientId</code>.) Put the check back afterwards.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Pick one stand-in you wrote today (SecureStore, haptics, notifications or the logbook). Write down what it pretends, and one way the real module on a phone could behave differently that your tests would never notice. Who or what catches that difference in your process?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Expo apps test with Jest and the jest-expo preset: Babel with Expo's preset, React Native's Jest setup, a stand-in for every Expo native module, and <code>Platform.OS</code> as <code>'ios'</code></li>
+                        <li>Coming from Vitest: globals instead of imports, <code>jest.*</code> instead of <code>vi.*</code>, settings in <code>package.json</code>, no DOM, and never a test file inside <code>src/app/</code></li>
+                        <li>SDK 58's global <code>fetch</code> is Expo's; a custom environment and the setup file put Node's back so MSW can answer, and putting it back again in <code>beforeAll</code> survives a second load of <code>expo</code></li>
+                        <li>MSW 3 is ES modules only: run Jest through <code>node --experimental-vm-modules</code>, behind <code>npm test</code></li>
+                        <li>The HQ's handlers are copied unchanged into <code>src/mocks/</code>, left out of <code>tsc</code> and ESLint, and served by <code>src/test/server.ts</code></li>
+                        <li>Three kinds of stand-ins: jest-expo's automatic ones, a library's own Jest mock, and your own <code>jest.mock()</code> (automatic or a factory); empty mocks answer <code>undefined</code></li>
+                        <li>Test where mistakes are invisible and costly (the queue, the sender's outcomes, the reminders, the files), reset module state before each test, and remember that stand-ins only prove the app's decisions</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Expo's guide to Jest</td><td><a href="https://docs.expo.dev/develop/unit-testing/">Expo: Unit testing with Jest</a></td></tr>
+                            <tr><td>Look up a Jest matcher or mock function</td><td><a href="https://jestjs.io/docs/expect">Jest: expect</a> and <a href="https://jestjs.io/docs/mock-function-api">Jest: Mock functions</a></td></tr>
+                            <tr><td>Understand ES modules in Jest</td><td><a href="https://jestjs.io/docs/ecmascript-modules">Jest: ECMAScript Modules</a></td></tr>
+                            <tr><td>Use MSW in Node</td><td><a href="https://mswjs.io/docs/integrations/node">MSW: Node.js integration</a></td></tr>
+                            <tr><td>Mock AsyncStorage</td><td><a href="https://react-native-async-storage.github.io/async-storage/docs/advanced/jest">AsyncStorage: Jest integration</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew has a test suite: 28 tests that run in about two seconds, with no phone and no server</li>
+                        <li>The HQ's mock API now answers the phone app too, with the same rules, data and errors as shoreline-api</li>
+                        <li>You replaced the keychain, the scheduler, the vibration motor and the device storage with stand-ins you control</li>
+                        <li>The offline queue and its sender, the part of the app nobody sees working, are checked on every path</li>
+                        <li>You can tell a broken test setup from a broken app by the shape of the failure</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_30.html">Lesson 8.3: Testing Screens and Flows</a> you test what the volunteer touches: React Native Testing Library renders screens in the same Jest setup (its <code>render()</code> is async now), finds controls by role and name, the names you checked in Lesson 8.1, and presses them; and an end-to-end flow with Maestro walks the real app on a device, step by step.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code> one last time, and commit your work</li>
+                    <li>Pick one screen of Shoreline Crew and write, in plain words, three things a test of it should check (what a volunteer sees, presses, and then sees)</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Setting up tests in a new kind of project is often the hardest part of testing it, and you just did it in one of the trickier setups around: a pretend phone, a replaced <code>fetch</code>, ES modules in a CommonJS runner. From here, every new test is a few lines, and every one keeps working for you long after you have forgotten the detail it checks. Some evening a change will turn one of today's tests red before it ever reaches a volunteer's phone. That moment is what today was for.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_28.html" class="prev-lesson">← Previous: Accessible Mobile Apps</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_30.html" class="next-lesson">Next: Testing Screens and Flows →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

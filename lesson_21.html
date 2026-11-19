@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Camera and photos on a phone: take a photo with the camera after a permission step, choose photos from the library with no permission at all, keep them small and safe in the app's own files, show them, and send them to the API with a debris log, offline first, through the log queue. React Native &amp; Expo: Build and Ship a Mobile App Lesson 6.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Camera and Photos - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+            <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📸 Lesson 6.2: Camera and Photos</h1>
+                <p class="lead">A tally sheet says "43 pieces, 1 bag". A photo shows the tangle of fishing line around the rocks, the bottle caps along the tide line, the bag that would not close. Organizers use those photos for reports, grant applications and the next season's plans, and volunteers like to see their work counted. Today Shoreline Crew learns to take them and choose them, keep them small, keep them safe on the phone, and send them with the debris log, even from a beach with no signal.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Take a photo with the phone's camera (after Lesson 6.1's permission step) and choose photos from the library (no permission), and read what the picker gives back</li>
+                        <li>Keep photos small enough for one bar of signal: compression quality, no EXIF, JPEG instead of HEIC, and the API's limits checked before anything is sent</li>
+                        <li>Keep a photo safe while it waits: the cache versus the app's documents, with expo-file-system's <code>File</code>, <code>Directory</code> and <code>Paths</code>, and a <code>.web.ts</code> stand-in for the web preview</li>
+                        <li>Upload a photo from a phone to <code>POST /api/photos</code> and say why the old React Native <code>FormData</code> trick fails with SDK 58's <code>fetch</code></li>
+                        <li>Send photos offline first: queued with their log, uploaded before it, each id saved so a retry never uploads a photo twice, with a version bump for the saved queue</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_20.html">Lesson 6.1: Permissions Done Right</a> (and the queue from <a href="lesson_19.html">Lesson 5.5</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A <strong>Photos (optional)</strong> section on the debris log (<strong>Take a photo</strong>, <strong>Choose photos</strong>, a strip of thumbnails), photos kept in the app's files, and a queue that uploads them before their log</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), expo-image-picker 58.0, expo-file-system 58.0, Zustand 5.1 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the camera and the photo library; the web preview in Chrome for the quick checks (a file chooser stands in for both); shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-21-start.zip">lesson-21-start.zip</a> · Finished code: <a href="downloads/lesson-21-end.zip">lesson-21-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Pictures of the Work</a></li>
+                        <li><a href="#ways" class="toc-link">Two Ways to a Photo</a></li>
+                        <li><a href="#size" class="toc-link">Photos for One Bar of Signal</a></li>
+                        <li><a href="#files" class="toc-link">Where a Photo Lives</a></li>
+                        <li><a href="#upload" class="toc-link">Sending a Photo</a></li>
+                        <li><a href="#offline" class="toc-link">Photos in the Dry Bag</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Photos on the Debris Log</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Pictures of the Work</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you found that a single photo from a recent phone camera is often a few megabytes, and some are bigger. Now picture a volunteer at the north end of a beach, one bar of signal, three photos and a cold wind. Sending 12 MB from there is slow at best, and the API that receives them, shoreline-api, refuses anything over 5 MB anyway. So photos on a phone are never "just an upload": they are files that have to be made smaller, kept somewhere safe, and sent at the right time.</p>
+                <p>By the end of the lesson:</p>
+                <ul>
+                    <li>The debris log has a <strong>Photos (optional)</strong> section: <strong>Take a photo</strong> opens the camera after the permission step you built in Lesson 6.1, <strong>Choose photos</strong> opens the photo library without any permission, and the chosen photos show as a strip of thumbnails you can remove.</li>
+                    <li>Photos are compressed when they are taken, checked against the API's rules before they are added, and moved into the app's own documents, where the phone will not delete them.</li>
+                    <li>Lesson 5.5's queue carries them: a log saved with no signal keeps its photos on the phone, and when the signal comes back, the photos go up first and the log follows with their ids.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> almost every app that people use outdoors or at work takes photos: delivery proof, insurance claims, site inspections, field surveys, receipts. The parts that go wrong are the same everywhere: huge files, lost files, formats a server does not take, duplicates after a retry. Teams that ship these apps value the developer who handles all four quietly.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Most of this runs where you cannot watch it</h3>
+                    <p>The camera, the photo library and the phone's file system live on the phone, and the web preview can only imitate them (a file chooser stands in for both). That is fine. You will check every step you can on your computer, read what the libraries do in their source, and then watch the rest happen on your own phone in Step 7. When the phone does something the lesson did not predict, you have learned something real about phones. Write it down.</p>
+                </div>
+            </section>
+
+            <section id="ways" class="lesson-section">
+                <h2>📸 Two Ways to a Photo</h2>
+                <p>On the web, an <code>&lt;input type="file" accept="image/*"&gt;</code> lets a person pick a file, and on a phone browser it may offer the camera too. A React Native app has no <code>&lt;input&gt;</code>. Instead, <strong>expo-image-picker</strong> opens the phone's own screens: the system camera, or the system photo library. Your app waits, and gets back the result.</p>
+                <pre data-snippet><code class="language-ts">import * as ImagePicker from 'expo-image-picker';
+
+// The phone's camera screen (needs the camera permission first)
+const taken = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'] });
+
+// The phone's photo library (no permission on current iPhones and Android phones)
+const chosen = await ImagePicker.launchImageLibraryAsync({
+  mediaTypes: ['images'],
+  allowsMultipleSelection: true,
+});
+
+if (!chosen.canceled) {
+  for (const asset of chosen.assets) {
+    // asset.uri: where the photo is now; asset.mimeType: 'image/jpeg', ...
+    // asset.width, asset.height, asset.fileSize (bytes), asset.fileName
+    console.log(asset.uri, asset.mimeType, asset.fileSize);
+  }
+}</code></pre>
+                <p>Both answer with the same shape: <code>canceled</code> (the volunteer closed the screen without a photo) and <code>assets</code>, one per photo. The <code>uri</code> is a file address on the phone (it starts with <code>file:</code>); the picker has already copied the photo into your app's space, so your app can read it without any further permission.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Take a photo (<code>launchCameraAsync</code>)</th><th>Choose photos (<code>launchImageLibraryAsync</code>)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Permission</td><td>The camera permission: Lesson 6.1's step</td><td>None on current iPhones (the system picker runs outside your app) and on current Android phones (the system Photo Picker)</td></tr>
+                            <tr><td>What the person sees</td><td>The phone's own camera screen, then "Use Photo" or "Retake"</td><td>The phone's own library, limited to what they select</td></tr>
+                            <tr><td>Several at once</td><td>One per press</td><td>Yes, with <code>allowsMultipleSelection</code> and <code>selectionLimit</code></td></tr>
+                            <tr><td>Expo Go</td><td>Works (Expo Go carries the module)</td><td>Works</td></tr>
+                            <tr><td>Web preview</td><td>A file chooser (with a <code>capture</code> hint that phone browsers may use for the camera)</td><td>A file chooser</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The permission row is why Lesson 6.1 said a no is an answer: a volunteer who refuses the camera can still choose a photo they took with the camera app. The web row was measured: expo-image-picker's web code creates a hidden <code>&lt;input type="file"&gt;</code> and clicks it, with <code>capture="camera"</code> for <code>launchCameraAsync</code> and <code>multiple</code> when several are allowed, and it always reports the camera permission as granted (there is no camera to ask about).</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The camera and library screens, and "no permission for the library", come from Expo's and the platforms' documentation and could not be run here. On older Android versions without the system Photo Picker, Android may show a different picker; your code does not change.</p>
+                </div>
+                <p><strong>What about expo-camera?</strong> It is the other camera package, and old tutorials (including this course's previous version) use it. It puts a live viewfinder <em>inside</em> your screen (<code>CameraView</code>), which you need for scanning QR codes or for your own camera controls. Shoreline Crew only needs "a photo of the pile", and the system camera already does that well, with the flash, zoom and focus people know. One package, expo-image-picker, covers both buttons.</p>
+            </section>
+
+            <section id="size" class="lesson-section">
+                <h2>🗜️ Photos for One Bar of Signal</h2>
+                <p>shoreline-api takes JPEG, PNG or WebP photos of 5 MB or smaller. Three picker options do most of the work of getting there:</p>
+                <ul>
+                    <li><strong><code>quality: 0.6</code></strong> re-encodes the photo as a JPEG at 60% quality. For a photo of a pile of debris on a small screen, the difference from the original is hard to see, and the file is usually several times smaller. (With <code>quality: 1</code>, the default, the picker may hand you the original file untouched.)</li>
+                    <li><strong><code>exif: false</code></strong> leaves out the EXIF data: the camera model, the time, and often the exact place the photo was taken. Shoreline Crew does not need it, and a volunteer's home address has no business in a debris report.</li>
+                    <li><strong><code>preferredAssetRepresentationMode: Compatible</code></strong> matters on iPhones, which save photos as HEIC. Reading expo-image-picker's iOS code: from the library, a HEIC photo comes back as HEIC unless this option asks iOS for its "most compatible" version, a JPEG. shoreline-api answers HEIC with <code>415 Photos must be JPEG, PNG or WebP images.</code> (Android ignores the option.)</li>
+                </ul>
+                <p>Even with these options, a phone can hand you something the server will refuse: a GIF, a screenshot saved as a huge PNG. The HQ's photo upload (in the web course) checked type and size before sending, and the phone does the same, at the moment a photo is added. That way the volunteer hears about it while they can still pick another photo, not hours later from the queue.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>How small the files get depends on the phone and the photo. As a rough guide, 60% JPEG quality usually turns a few megabytes into a few hundred kilobytes; measure your own (Step 7 shows how). HEIC and the "compatible" JPEG are from Apple's and Expo's documentation and expo-image-picker's source; check on an iPhone.</p>
+                </div>
+            </section>
+
+            <section id="files" class="lesson-section">
+                <h2>📁 Where a Photo Lives</h2>
+                <p>Where is the photo the picker gave you? In your app's <strong>cache</strong> folder. A phone's cache is the place it may empty when storage runs low; it is meant for things that can be fetched or made again. That is fine for a photo that is uploaded a second later. A debris log, though, can wait in the queue for hours (or until next weekend), and a log whose photos vanished in the meantime is a log that lies.</p>
+                <p>So Shoreline Crew <strong>moves</strong> each photo into its <strong>documents</strong> folder, which the phone leaves alone, and deletes it once the server has it. The tool is <strong>expo-file-system</strong>, whose API looks a lot like the web's <code>File</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>expo-file-system</th><th>What it is</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>Paths.document</code>, <code>Paths.cache</code></td><td>The app's two main folders, as <code>Directory</code> objects</td></tr>
+                            <tr><td><code>new Directory(Paths.document, 'log-photos')</code></td><td>A folder inside documents (just a name until you call <code>create()</code>)</td></tr>
+                            <tr><td><code>new File(uri)</code>, <code>new File(folder, 'name.jpg')</code></td><td>A file, by address or by folder and name; <code>exists</code>, <code>size</code>, <code>extension</code>, <code>uri</code></td></tr>
+                            <tr><td><code>await file.move(destination)</code>, <code>file.delete()</code></td><td>Move (its <code>uri</code> changes to the new place) and delete</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>One more property makes the next section easy: expo-file-system's <code>File</code> <strong>is a <code>Blob</code></strong> (it implements the web's <code>Blob</code> interface), so <code>fetch</code> can send it as a request body.</p>
+                <p>The web preview has no file system for an app (expo-file-system's web side only prints "expo-file-system is not supported on web"), and the photo there is a <code>blob:</code> address in the browser's memory. You met the answer in Lesson 2.5: a second file with <code>.web.ts</code>, which the web bundle uses instead. Both files export the same three functions, so the rest of the app never knows which one it got.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: bags first, then the tally sheet</h4>
+                    <p>At the end of a cleanup, the crew sets the filled bags on the sorting table, and the leader writes the tally sheet: "bags 1 to 3: plastic, glass, rope". The bags go to the table first; the sheet only names bags that are already there. Photos and logs work the same way. The photos are the bags: carried home in the dry bag (the app's documents, not a pocket that empties itself), handed over first, each given a number by the server. The log is the tally sheet: it lists those numbers (<code>photoIds</code>), and shoreline-api refuses a sheet that names a bag it has never seen.</p>
+                </div>
+            </section>
+
+            <section id="upload" class="lesson-section">
+                <h2>⬆️ Sending a Photo</h2>
+                <p>shoreline-api's <code>POST /api/photos</code> takes a photo in either of two forms: a multipart form with the image in a field named <code>photo</code> (what a browser's form sends), or the image itself as the request body, with its type in <code>Content-Type</code>. Either way it answers <code>201</code> with the saved photo, and its <code>id</code> is what a debris log's <code>photoIds</code> lists. Try the second form with curl and any small JPEG (<code>dev-volunteer</code> is the API's test token for Theo; in PowerShell, write <code>curl.exe</code>):</p>
+                <pre class="terminal"><code class="language-bash">curl -i -X POST http://localhost:4000/api/photos -H "Authorization: Bearer dev-volunteer" -H "Content-Type: image/jpeg" --data-binary "@debris.jpg"</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>HTTP/1.1 201 Created
+cache-control: no-store
+content-type: application/json; charset=utf-8
+location: /api/photos/pmwgb5thp1
+vary: Origin
+Date: Sat, 14 Nov 2026 11:14:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{
+  "id": "pmwgb5thp1",
+  "url": "http://localhost:4000/api/photos/pmwgb5thp1",
+  "contentType": "image/jpeg",
+  "bytes": 16892,
+  "uploadedBy": "v04",
+  "createdAt": "2026-11-14T11:14:10.957Z"
+}</code></pre>
+                </div>
+                <p>The <code>url</code> serves the photo back to anyone (<code>GET /api/photos/:id</code> needs no sign-in), built from the address you used, so a phone asking <code>http://192.168.1.42:4000</code> gets photo links it can open. Your id and time will differ. Photos live in the API's memory, like everything else in it: restart the API and they are gone.</p>
+                <p>The HQ (in the web course) sent the multipart form: <code>body.append('photo', file)</code> with the browser's <code>File</code>. On a phone there is no browser <code>File</code>, and for years the React Native answer was a special object, <code>{ uri, name, type }</code>, appended to a <code>FormData</code>. You will find it in most answers online. With Expo SDK 58 it no longer works (see <a href="#mistakes">Common Mistakes</a>), because in SDK 58 the global <code>fetch</code> on a phone is Expo's own, from <code>expo/fetch</code> (Lesson 1.3), and that <code>fetch</code> sends <code>Blob</code>s, not file addresses.</p>
+                <p>Shoreline Crew's <code>postPhoto</code> therefore sends the photo itself as the body: on a phone the expo-file-system <code>File</code> (a <code>Blob</code>), in the web preview the browser's <code>Blob</code>. One function, the API's second form, nothing special:</p>
+                <pre data-snippet><code class="language-ts">// On a phone: the file in the app's documents. Sent as it is: a File is a Blob
+const photo = new File(Paths.document, 'log-photos', 'example.jpg');
+const saved = await postPhoto(photo, 'image/jpeg');
+console.log(saved.id); // goes into the log's photoIds</code></pre>
+            </section>
+
+            <section id="offline" class="lesson-section">
+                <h2>🧳 Photos in the Dry Bag</h2>
+                <p>When should a photo be uploaded? The HQ uploaded each photo the moment it was chosen, which suits an office with Wi-Fi. On the beach, the moment the photo is taken is exactly when there may be no signal. There are two honest designs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Upload when chosen, attach to the log later</th><th>Queue the photos with their log (Shoreline Crew)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Offline when chosen</td><td>Needs its own waiting list for photos, and a way to attach the ids once they exist</td><td>Nothing special: the log waits anyway, and its photos wait with it</td></tr>
+                            <tr><td>Volunteer removes a photo or never sends the log</td><td>The server already has a photo nobody uses</td><td>Nothing was sent</td></tr>
+                            <tr><td>Who sends</td><td>Two senders that must agree</td><td>One: Lesson 5.5's <code>sendWaitingLogs</code>, which already knows about sign-ins, answers and retries</td></tr>
+                            <tr><td>Cost</td><td>Photos may be on the server before the volunteer presses Send</td><td>A log with photos takes a little longer to send</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Shoreline Crew queues them. Each queued log gets a list of photos, <code>{ uri, type, photoId }</code>, with <code>photoId: null</code> until the upload works. The sender handles a log in this order:</p>
+<div class="mermaid">
+graph TD
+    A["Photo chosen or taken"] --> B["Checked, moved to documents"]
+    B --> C["Send: log + photos queued"]
+    C --> D{"Signal?"}
+    D -->|"no"| E["Waits on the phone"]
+    E -->|"back online"| D
+    D -->|"yes"| F["Each photo without an id: upload"]
+    F --> G["Its id saved in the queue"]
+    G --> H["The log, with photoIds"]
+    H --> I["Logbook, then files deleted"]
+</div>
+                <p>Three details make it safe to repeat, like 5.5's queue:</p>
+                <ul>
+                    <li><strong>Each photo id is saved the moment it arrives.</strong> Photos have no <code>clientId</code>: shoreline-api stores every upload as a new photo. If the photos went up but the log's answer was lost, the next try must send the log with the saved ids instead of uploading the photos again.</li>
+                    <li><strong>A photo answer is an answer like any other.</strong> A <code>413</code> or <code>415</code> will not change on the next try, so the log is marked refused with the server's words, exactly like 5.5's <code>403</code>. (The check when a photo is added makes this rare.)</li>
+                    <li><strong>Per volunteer, as before.</strong> The sender still checks that the signed-in volunteer owns each log before it sends anything, photos included, so on a shared phone Maya's sign-in never uploads Theo's photos. The files themselves stay in the app's documents until Theo's own sign-in sends them, and only his Logbook shows them.</li>
+                </ul>
+                <p>Queuing photos also changes what the queue saves on the phone. A volunteer who updates the app may have logs waiting from yesterday, saved without a <code>photos</code> list, and Lesson 5.5's <code>merge</code> check would throw those away. Zustand's <code>persist</code> has the tool for this: a <code>version</code> number saved with the data, and a <code>migrate</code> function that persist calls when the saved version is older. Version 1 gives every old log an empty photo list. (The queue's other version-0 checks from Lesson 5.5 keep passing, because they now go through <code>migrate</code>.)</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each mistake below was measured on this course's machine: with curl against shoreline-api, in the web preview, or by running Expo's own code, as each one says.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ The classic React Native upload, from older answers</h3>
+                    <pre data-snippet><code class="language-ts">// Don't: React Native's old FormData trick (a file address instead of a Blob)
+const body = new FormData();
+body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+await fetch(`${apiBaseUrl()}/api/photos`, { method: 'POST', body });</code></pre>
+                    <p>TypeScript stops it first. Written in <code>postPhoto</code>, <code>npx tsc --noEmit</code> printed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/api/client.ts:452:8 - error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: string, value: string | Blob): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+  Overload 2 of 3, '(name: string, value: string): void', gave the following error.
+    Argument of type '{ uri: string; name: string; type: string; }' is not assignable to parameter of type 'string'.
+  Overload 3 of 3, '(name: string, blobValue: Blob, filename?: string | undefined): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+
+452   body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+           ~~~~~~
+
+
+...</code></pre>
+                    </div>
+                    <p>Read the overloads: <code>append</code> takes a string or a <code>Blob</code>, and the object is neither. The same old answers then suggest silencing TypeScript with a cast (<code>as unknown as Blob</code>). Do not: the error is right. SDK 58's <code>fetch</code> turns a <code>FormData</code> into bytes itself, part by part, and a part that is neither text nor a <code>Blob</code> stops it. Running that code from <code>node_modules/expo</code> (<code>convertFormData</code>) on a form built this way gave:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>old way: Error: Unsupported FormDataPart implementation</code></pre>
+                    </div>
+                    <p>The error happens inside <code>fetch</code>, so Shoreline Crew's client would report it the way it reports every <code>fetch</code> that fails without an answer: as a <code>NetworkError</code>, "Could not reach the server at…". The queue would count a try and wait for a signal that is already there, forever. When an upload "cannot reach the server" while everything else can, suspect the body. Send a <code>Blob</code> (an expo-file-system <code>File</code> is one), as <code>postPhoto</code> does.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Listing photos the server has never seen</h3>
+                    <p>It is tempting to skip the upload and put the photo's address on the log (<code>photoIds: [photo.uri]</code>), or to send the log before its photos. The API checks every id in <code>photoIds</code>. With curl, a log naming a file address:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>{
+  "error": "validation_failed",
+  "message": "Some fields need attention.",
+  "fieldErrors": {
+    "photoIds": [
+      "Upload each photo first and send the ids it returned."
+    ]
+  }
+}</code></pre>
+                    </div>
+                    <p>In the app, that <code>400</code> is a "no" that will never change, so the queue marks the log refused, with the API's general message (measured in the web preview, with a queued log whose photo id was a file address): "Not sent: Some fields need attention." The log is stuck until the volunteer removes it. Bags first, then the tally sheet: photos up, ids back, then the log.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Sending what the phone gives you, as it is</h3>
+                    <p>Without <code>quality</code> and the "compatible" option, an iPhone can hand over a full-size HEIC photo. Sent with its real type and with a big PNG, curl measured shoreline-api's two answers:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code># Content-Type: image/heic
+HTTP/1.1 415 Unsupported Media Type
+...
+{
+  "error": "unsupported_media_type",
+  "message": "Photos must be JPEG, PNG or WebP images."
+}
+
+# a 9 MB PNG
+HTTP/1.1 413 Payload Too Large
+...
+{
+  "error": "payload_too_large",
+  "message": "Photos must be 5 MB or smaller."
+}</code></pre>
+                    </div>
+                    <p>Both are final for that photo, and in the queue they would make the whole log refused. Make photos small when they are taken, and check type and size when a photo is added, while the volunteer can still choose another.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Photos on the Debris Log</h2>
+                <p>You install the picker and the file system with Shoreline Crew's words for the camera, write the three photo-file functions (and their web stand-ins), build a thumbnail strip and the <strong>Photos (optional)</strong> section with both buttons, teach the client to upload a photo, and let the queue carry photos with their log. Then you try it in the web preview and on your phone. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install the picker and the file system, and write the camera's words <span class="step-time">(10 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac), then:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-image-picker expo-file-system</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 2 SDK 58.0.0 compatible native modules using npm
+&gt; npm install
+
+added 2 packages, and audited 814 packages in 2s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>Two SDK 58 native modules (expo-file-system was already in <code>node_modules</code>, as part of <code>expo</code>; now your project names it), and, as with expo-location in Lesson 6.1, no "Added config plugin": expo-image-picker's plugin is one Expo applies by itself, with default words. Give it yours, at the end of <code>plugins</code> in <code>app.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">         }
++      ],
++      [
++        "expo-image-picker",
++        {
++          "cameraPermission": "Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.",
++          "photosPermission": false,
++          "microphonePermission": false
++        }
+       ]</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>cameraPermission</code></strong> is the iPhone's purpose string for the camera question (in your own builds; Expo Go shows its own words, as Lesson 6.1 explained).</li>
+                        <li><strong><code>photosPermission: false</code></strong>: the library picker needs no permission, so Shoreline Crew declares none.</li>
+                        <li><strong><code>microphonePermission: false</code></strong>: the picker can record videos with sound; Shoreline Crew takes photos only. On Android, <code>false</code> also removes the <code>RECORD_AUDIO</code> permission the plugin would add.</li>
+                    </ul>
+                    <p>Check the result without building anything, as in Lesson 6.1's Exercise 3: run <code>npx expo config --type introspect</code> and search the output for <code>UsageDescription</code> and <code>RECORD_AUDIO</code> (and the line under it):</p>
+                    <div class="card card-output">
+                        <h4>Expected output (the matching lines)</h4>
+                        <pre><code>NSCameraUsageDescription: 'Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.',
+NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+NSFaceIDUsageDescription: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',
+...
+'android:name': 'android.permission.RECORD_AUDIO',
+'tools:node': 'remove'</code></pre>
+                    </div>
+                    <p>One camera sentence in Shoreline Crew's words, and the microphone permission marked for removal. Without the entry (measured in a copy of the project), the plugin adds photo-library, camera and microphone strings in its default words, plus <code>RECORD_AUDIO</code>. The camera permission itself on Android comes from the library's own manifest, which is merged in when a build is made.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Keep the photos safe, on the phone and in the web preview <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/utils/photoFiles.ts</code>, the phone's version:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/photoFiles.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/photoFiles.ts"><code class="language-ts">// The photos a volunteer adds to a debris log, as files on this phone (new). The picker leaves each
+// photo in the app's cache, which the phone may empty when storage runs low. A log can wait days
+// for a signal, so its photos move into the app's documents until the log is sent.
+import { randomUUID } from 'expo-crypto';
+import { Directory, File, Paths } from 'expo-file-system';
+
+const folder = new Directory(Paths.document, 'log-photos');
+
+/** Move a picked photo out of the cache into the app's documents: where it is now, and its size */
+export async function keepPhoto(uri: string): Promise&lt;{ uri: string; bytes: number }&gt; {
+  folder.create({ idempotent: true }); // no error when the folder is already there
+  const photo = new File(uri);
+  await photo.move(new File(folder, `${randomUUID()}${photo.extension}`)); // photo.uri changes
+  return { uri: photo.uri, bytes: photo.size };
+}
+
+/** The photo, ready to send (expo-file-system's File is a Blob), or null when the file is gone */
+export async function readPhoto(uri: string): Promise&lt;Blob | null&gt; {
+  const photo = new File(uri);
+  return photo.exists ? photo : null;
+}
+
+/** Delete a kept photo: its log was sent, or the volunteer took it out */
+export function forgetPhoto(uri: string): void {
+  const photo = new File(uri);
+  if (photo.exists) {
+    photo.delete();
+  }
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>keepPhoto</code></strong> moves the picker's file (in the cache) into <code>log-photos</code> in the app's documents, under a new random name (expo-crypto's <code>randomUUID</code>, from Lesson 5.4), keeping its extension. <code>create({ idempotent: true })</code> makes the folder the first time and does nothing after that. It returns the new address and the file's real size, which is what the server will receive.</li>
+                        <li><strong><code>readPhoto</code></strong> gives the sender the file, or <code>null</code> if it is gone. The <code>File</code> itself is returned: it is a <code>Blob</code>.</li>
+                        <li><strong><code>forgetPhoto</code></strong> deletes a photo once the server has it, or when the volunteer takes it out of the log.</li>
+                    </ul>
+                    <p>Then the web preview's version, next to it, with the same three functions:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/photoFiles.web.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/photoFiles.web.ts"><code class="language-ts">// The web preview's version of photoFiles.ts: a browser has no file system for the app. A picked
+// photo stays at the blob: address the browser gave it, which lasts until the page reloads.
+
+/** Nothing to move on the web: read the photo once for its size */
+export async function keepPhoto(uri: string): Promise&lt;{ uri: string; bytes: number }&gt; {
+  const photo = await (await fetch(uri)).blob();
+  return { uri, bytes: photo.size };
+}
+
+/** The photo, ready to send, or null when the address no longer works (after a reload) */
+export async function readPhoto(uri: string): Promise&lt;Blob | null&gt; {
+  try {
+    return await (await fetch(uri)).blob();
+  } catch {
+    return null;
+  }
+}
+
+/** Let the browser free a blob: photo */
+export function forgetPhoto(uri: string): void {
+  if (uri.startsWith('blob:')) {
+    URL.revokeObjectURL(uri);
+  }
+}</code></pre>
+                    </div>
+                    <p>In a browser, <code>fetch</code> can read a <code>blob:</code> address, so <code>keepPhoto</code> only measures the photo, and <code>readPhoto</code> catches the one failure the web preview has: after a reload the <code>blob:</code> address is dead (measured: a waiting log was then sent without its photo, as <code>uploadPhotos</code> in Step 3 decides). TypeScript type-checks the phone's file (imports of <code>@/utils/photoFiles</code> resolve to it), which is why the two must keep the same exports.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Upload a photo, and let the queue carry photos <span class="step-time">(25 min)</span></h3>
+                    <p>In <code>src/api/client.ts</code>, import the API's <code>Photo</code> type, copy the HQ's <code>isPhoto</code> check, and add <code>postPhoto</code> at the end:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   PageInfo,
++  Photo,
+   Role,
+ // ...
+     isStringArray(value.photoIds)
++  );
++}
++
++/** A photo the API has saved, as POST /api/photos answers (copied) */
++function isPhoto(value: unknown): value is Photo {
++  return (
++    isRecord(value) &amp;&amp;
++    typeof value.id === 'string' &amp;&amp;
++    typeof value.url === 'string' &amp;&amp;
++    typeof value.contentType === 'string' &amp;&amp;
++    typeof value.bytes === 'number'
+   );
+ // ...
+ }
++
++/**
++ * POST /api/photos: upload one photo, and get back its id for a debris log's photoIds.
++ * The photo itself is the body, and Content-Type says what kind of image it is (rewritten: the HQ
++ * sent a FormData with the browser's File). Too big is an ApiError 413, another kind of file 415.
++ */
++export async function postPhoto(photo: Blob, contentType: string): Promise&lt;Photo&gt; {
++  const response = await request('/photos', {
++    method: 'POST',
++    headers: { 'Content-Type': contentType },
++    body: photo,
++  });
++  const data: unknown = await response.json();
++  if (!isPhoto(data)) {
++    throw new Error('Unexpected data from POST /api/photos');
++  }
++  return data;
++}</code></pre>
+                    </div>
+                    <p><code>postPhoto</code> goes through the same <code>request</code> as everything else, so it gets the sign-in token, <code>NetworkError</code> when there is no answer, and <code>ApiError</code> with the API's words for <code>413</code> and <code>415</code>. The body is the <code>Blob</code>; the <code>Content-Type</code> header is the type the picker reported.</p>
+                    <p>Next, in <code>src/state/logQueue.ts</code>, give each queued log its photos, a way to save an uploaded photo's id, a check for saved photos, and version 1 with its <code>migrate</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/logQueue.ts</div>
+                        <pre data-src="shoreline-crew/src/state/logQueue.ts" data-match="diff"><code class="language-diff-ts"> 
++/** A photo for a log: the file on this phone, its kind, and its id on the server once uploaded */
++export type LogPhoto = {
++  uri: string;
++  type: string; // 'image/jpeg', 'image/png' or 'image/webp': what the API takes
++  photoId: string | null; // null until the upload worked
++};
++
+ /** One log in the queue: what to send, whose it is, and how sending it has gone so far */
+ export type QueuedLog = LogToSend &amp; {
++  photos: LogPhoto[]; // sent before the log, which then lists their ids
+   volunteerId: string; // the volunteer who wrote it: only their sign-in may send it
+ // ...
+   sending: boolean;
+-  add: (volunteerId: string, item: LogToSend) =&gt; void;
++  add: (volunteerId: string, item: LogToSend, photos: LogPhoto[]) =&gt; void;
+   change: (clientId: string, changes: Partial&lt;QueuedLog&gt;) =&gt; void;
++  setPhotoId: (clientId: string, uri: string, photoId: string) =&gt; void;
+   remove: (clientId: string) =&gt; void;
+ // ...
+ };
++
++function isLogPhoto(value: unknown): value is LogPhoto {
++  return (
++    typeof value === 'object' &amp;&amp;
++    value !== null &amp;&amp;
++    'uri' in value &amp;&amp;
++    typeof value.uri === 'string' &amp;&amp;
++    'type' in value &amp;&amp;
++    typeof value.type === 'string' &amp;&amp;
++    'photoId' in value &amp;&amp;
++    (value.photoId === null || typeof value.photoId === 'string')
++  );
++}
+ 
+ // ...
+     typeof value.attempts === 'number' &amp;&amp;
++    'photos' in value &amp;&amp;
++    Array.isArray(value.photos) &amp;&amp;
++    value.photos.every(isLogPhoto) &amp;&amp;
+     'event' in value &amp;&amp;
+ // ...
+       sending: false,
+-      add: (volunteerId, item) =&gt;
++      add: (volunteerId, item, photos) =&gt;
+         set(({ logs }) =&gt; {
+ // ...
+             ...item,
++            photos,
+             volunteerId,
+ // ...
+         })),
++      setPhotoId: (clientId, uri, photoId) =&gt;
++        set(({ logs }) =&gt; ({
++          logs: logs.map((item) =&gt;
++            item.log.clientId === clientId
++              ? {
++                  ...item,
++                  photos: item.photos.map((photo) =&gt;
++                    photo.uri === uri ? { ...photo, photoId } : photo,
++                  ),
++                }
++              : item,
++          ),
++        })),
+       remove: (clientId) =&gt;
+ // ...
+       partialize: ({ logs }) =&gt; ({ logs }),
++      // Version 1 (Lesson 6.2) added photos. persist calls migrate when the saved version is older:
++      // a log saved by version 0 gets an empty photo list, so it passes the check and is kept
++      version: 1,
++      migrate: (saved, version) =&gt; {
++        const logs = typeof saved === 'object' &amp;&amp; saved !== null &amp;&amp; 'logs' in saved ? saved.logs : [];
++        return {
++          logs: (Array.isArray(logs) ? logs : [])
++            .map((item) =&gt; (version === 0 ? { ...item, photos: [] } : item))
++            .filter(isQueuedLog),
++        };
++      },
+       // Keep only the saved logs that pass the check</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>LogPhoto</code></strong> is what the queue saves for a photo: the file's address, never the image data. AsyncStorage holds text; a few photos as base64 text would be megabytes of it, read at every start.</li>
+                        <li><strong><code>setPhotoId</code></strong> changes one photo of one log, so each id is saved (and persisted) the moment the server answers.</li>
+                        <li><strong><code>migrate</code></strong> runs before <code>merge</code>, only for data saved with an older version. It gives old logs an empty <code>photos</code> list, then keeps the ones that pass the check.</li>
+                    </ul>
+                    <p>In <code>src/state/sendLogs.ts</code>, upload the photos before the log, and delete the files after it:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/sendLogs.ts</div>
+                        <pre data-src="shoreline-crew/src/state/sendLogs.ts" data-match="diff"><code class="language-diff-ts"> 
+-import { ApiError, postLog, readSession } from '@/api/client';
++import { ApiError, postLog, postPhoto, readSession } from '@/api/client';
+ import { queryClient } from '@/api/queries';
+ import { markSignInEnded } from '@/auth/ended';
+-import { useLogQueue } from '@/state/logQueue';
++import { type QueuedLog, useLogQueue } from '@/state/logQueue';
+ import { saveSentLogs } from '@/storage/logbook';
++import { forgetPhoto, readPhoto } from '@/utils/photoFiles';
++
++/**
++ * Upload a log's photos that the server does not have yet, and return the ids of all of them.
++ * Each new id is saved in the queue at once: when the log itself fails, the next try sends the
++ * log with that id instead of uploading the photo a second time.
++ */
++async function uploadPhotos({ log, photos }: QueuedLog): Promise&lt;string[]&gt; {
++  const photoIds: string[] = [];
++  for (const photo of photos) {
++    let photoId = photo.photoId;
++    if (photoId === null) {
++      const file = await readPhoto(photo.uri);
++      if (file === null) {
++        continue; // the file is gone (the web preview after a reload): the log goes without it
++      }
++      photoId = (await postPhoto(file, photo.type)).id;
++      useLogQueue.getState().setPhotoId(log.clientId, photo.uri, photoId);
++    }
++    photoIds.push(photoId);
++  }
++  return photoIds;
++}
+ 
+ // ...
+         // but its answer was lost. Either way the server has it once.
+-        const saved = await postLog(item.event.id, item.log);
++        // Photos first: the log lists their ids (the API checks that each one exists)
++        const photoIds = await uploadPhotos(item);
++        const saved = await postLog(item.event.id, { ...item.log, photoIds });
+         await saveSentLogs([{ log: saved, event: item.event }]);
+         useLogQueue.getState().remove(clientId);
++        item.photos.forEach((photo) =&gt; forgetPhoto(photo.uri)); // the server has them now
+       } catch (error) {
+ // ...
+         if (error instanceof ApiError &amp;&amp; error.status &lt; 500) {
+-          // A "no" (403 no spot, 409 not yet, 400 a field): sending again gets the same answer
++          // A "no" (403 no spot, 409 not yet, 400 a field, 413/415 a photo): the same answer again
+           useLogQueue.getState().change(clientId, { status: 'refused', problem: error.message });</code></pre>
+                    </div>
+                    <p>Everything else in the sender stays as Lesson 5.5 wrote it, and that is the point: <code>uploadPhotos</code> runs inside the same <code>try</code>, so a photo's <code>413</code> lands in the same "refused" branch as a <code>403</code>, no answer lands in "count a try and stop", and a <code>401</code> still ends the sign-in. A photo whose file is gone is skipped, so the counts still reach the server.</p>
+                    <p>Run <code>npx tsc --noEmit</code> now. The queue's <code>add</code> takes three arguments, and TypeScript finds the one place that still passes two:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/log/[id].tsx:133:5 - error TS2554: Expected 3 arguments, but got 2.
+
+133     addLog(viewer, { event, log });
+        ~~~~~~
+
+  src/state/logQueue.ts:33:47
+    33   add: (volunteerId: string, item: LogToSend, photos: LogPhoto[]) =&gt; void;
+                                                     ~~~~~~~~~~~~~~~~~~
+    An argument for 'photos' was not provided.
+
+
+Found 1 error in src/app/log/[id].tsx:133</code></pre>
+                    </div>
+                    <p>Leave it for Step 6: the form will pass its photos there. A changed function signature turning into a list of every call site to fix is one of the best things TypeScript does for you.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A strip of thumbnails, in the Logbook first <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/components/PhotoStrip.tsx</code>. It shows any list of photos, and adds a <strong>Remove</strong> under each one only when it is given <code>onRemove</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/PhotoStrip.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/PhotoStrip.tsx"><code class="language-tsx">import { Image } from 'expo-image';
+import { StyleSheet, View } from 'react-native';
+
+import { Button } from '@/components/Button';
+import { createThemedStyles } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+type PhotoStripProps = {
+  photos: { uri: string }[];
+  onRemove?: (uri: string) =&gt; void; // with it, each photo gets a Remove button
+};
+
+// A row of small photos (they wrap to the next line on a narrow phone)
+export function PhotoStrip({ photos, onRemove }: PhotoStripProps) {
+  const themed = useStyles();
+  if (photos.length === 0) {
+    return null;
+  }
+  return (
+    &lt;View style={styles.strip}&gt;
+      {photos.map((photo, index) =&gt; (
+        &lt;View key={photo.uri} style={styles.item}&gt;
+          &lt;Image
+            source={{ uri: photo.uri }} // a file on this phone (or a blob: in the web preview)
+            style={[styles.photo, themed.photo]}
+            contentFit="cover" // fill the square, cropping the edges
+            accessibilityLabel={`Debris photo ${index + 1} of ${photos.length}`}
+          /&gt;
+          {onRemove &amp;&amp; (
+            &lt;Button
+              label="Remove"
+              accessibilityLabel={`Remove photo ${index + 1}`}
+              onPress={() =&gt; onRemove(photo.uri)}
+            /&gt;
+          )}
+        &lt;/View&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  strip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  item: {
+    gap: spacing.xs,
+  },
+  photo: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.picture,
+  },
+});
+
+const useStyles = createThemedStyles(({ colors }) =&gt;
+  StyleSheet.create({
+    photo: {
+      backgroundColor: colors.picture, // shows while the photo loads
+    },
+  }),
+);</code></pre>
+                    </div>
+                    <ul>
+                        <li>expo-image (Lesson 2.3) shows a local file as easily as a URL: the <code>source</code> is the photo's <code>uri</code>. A fixed 96 by 96 square with <code>contentFit="cover"</code> keeps every photo the same size whatever its shape, and the <code>picture</code> color fills the square while it loads.</li>
+                        <li>Each photo gets an <code>accessibilityLabel</code> ("Debris photo 1 of 2"; in the web preview it becomes the image's alt text, measured), and each Remove says which photo it removes. Lesson 8.1 checks the whole app with a real screen reader.</li>
+                        <li><code>flexWrap: 'wrap'</code>: three squares fit on a phone, and on a narrow one the third moves to the next line instead of off the screen.</li>
+                    </ul>
+                    <p>The Logbook's waiting cards show their photos, and <strong>Remove</strong> on a refused log deletes them too, in <code>src/app/(tabs)/logbook.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { LoadingView } from '@/components/LoadingView';
++import { PhotoStrip } from '@/components/PhotoStrip';
+ import { Screen } from '@/components/Screen';
+ // ...
+ import { formatDate } from '@/utils/format';
++import { forgetPhoto } from '@/utils/photoFiles';
+ 
+ // ...
+         &lt;AppText&gt;{amounts({ pieces, bags: log.bags, weightKg: log.weightKg })}&lt;/AppText&gt;
++        &lt;PhotoStrip photos={item.photos} /&gt;
+         {item.status === 'waiting' ? (
+ // ...
+               accessibilityLabel={`Remove the log for ${event.title}`}
+-              onPress={() =&gt; removeLog(log.clientId)}
++              onPress={() =&gt; {
++                removeLog(log.clientId);
++                item.photos.forEach((photo) =&gt; forgetPhoto(photo.uri)); // its photos go too
++              }}
+             /&gt;</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Take a photo, choose photos <span class="step-time">(20 min)</span></h3>
+                    <p>Create <code>src/components/LogPhotos.tsx</code>, the whole <strong>Photos (optional)</strong> section:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/LogPhotos.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/LogPhotos.tsx"><code class="language-tsx">import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { PermissionGate } from '@/components/PermissionGate';
+import { PhotoStrip } from '@/components/PhotoStrip';
+import { usePermission } from '@/hooks/usePermission';
+import type { LogPhoto } from '@/state/logQueue';
+import { spacing } from '@/theme/spacing';
+import { forgetPhoto, keepPhoto } from '@/utils/photoFiles';
+
+const maxPhotos = 3;
+// What shoreline-api takes (POST /api/photos answers 415 and 413 otherwise)
+const photoTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const maxBytes = 5 * 1024 * 1024;
+
+// Small files for one bar of signal: JPEG at 60% quality, no EXIF data (it can hold where and
+// when the photo was taken), and on an iPhone a JPEG copy of a HEIC photo
+const pickerOptions: ImagePicker.ImagePickerOptions = {
+  mediaTypes: ['images'],
+  quality: 0.6,
+  exif: false,
+  preferredAssetRepresentationMode:
+    ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+};
+
+// Said before the phone's camera question (Lesson 6.1's gate)
+const cameraReason =
+  'Shoreline Crew opens the camera only when you press Take a photo, to photograph what you ' +
+  'collected. Your photos go to the server with your log, nowhere else.';
+
+type LogPhotosProps = {
+  photos: LogPhoto[];
+  onChange: (photos: LogPhoto[]) =&gt; void;
+};
+
+// "Photos (optional)" on the debris log: take one with the camera (asks for permission first) or
+// choose from the photo library (no permission needed), see them, take them out again
+export function LogPhotos({ photos, onChange }: LogPhotosProps) {
+  // Reading the camera answer asks nobody (Lesson 6.1): read it now, so a yes from before
+  // opens the camera at once
+  const camera = usePermission(ImagePicker.useCameraPermissions());
+  const [askingCamera, setAskingCamera] = useState(false);
+  const [problem, setProblem] = useState&lt;string | null&gt;(null);
+  const room = maxPhotos - photos.length;
+
+  // Keep the photos the server will take; say so when one does not fit
+  async function add(result: ImagePicker.ImagePickerResult) {
+    setAskingCamera(false);
+    if (result.canceled) {
+      return; // the volunteer closed the camera or the library without a photo
+    }
+    const added: LogPhoto[] = [];
+    let refused = 0;
+    for (const asset of result.assets.slice(0, room)) {
+      const type = asset.mimeType ?? '';
+      const kept = await keepPhoto(asset.uri);
+      if (photoTypes.includes(type) &amp;&amp; kept.bytes &lt;= maxBytes) {
+        added.push({ uri: kept.uri, type, photoId: null });
+      } else {
+        forgetPhoto(kept.uri);
+        refused += 1;
+      }
+    }
+    setProblem(
+      refused === 0
+        ? null
+        : `${refused === 1 ? 'One photo was' : `${refused} photos were`} not added: ` +
+            'the server takes JPEG, PNG or WebP photos of 5 MB or smaller.',
+    );
+    onChange([...photos, ...added]);
+  }
+
+  async function openCamera() {
+    await add(await ImagePicker.launchCameraAsync(pickerOptions));
+  }
+
+  async function choosePhotos() {
+    await add(
+      await ImagePicker.launchImageLibraryAsync({
+        ...pickerOptions,
+        allowsMultipleSelection: true,
+        selectionLimit: room, // the library stops the volunteer at the room that is left
+      }),
+    );
+  }
+
+  // Straight to the camera after a yes; otherwise the permission step first
+  function takePhoto() {
+    if (camera.step === 'granted') {
+      void openCamera();
+    } else {
+      setAskingCamera(true);
+    }
+  }
+
+  function removePhoto(uri: string) {
+    forgetPhoto(uri);
+    onChange(photos.filter((photo) =&gt; photo.uri !== uri));
+  }
+
+  return (
+    &lt;View style={styles.box}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Photos (optional)
+      &lt;/AppText&gt;
+      &lt;AppText variant="muted"&gt;
+        Up to {maxPhotos} photos of what you collected. They are sent with the log.
+      &lt;/AppText&gt;
+      &lt;PhotoStrip photos={photos} onRemove={removePhoto} /&gt;
+      {problem !== null &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {problem}
+        &lt;/AppText&gt;
+      )}
+      {askingCamera ? (
+        &lt;PermissionGate
+          permission={camera}
+          what="your camera"
+          why={cameraReason}
+          onNotNow={() =&gt; setAskingCamera(false)}
+        &gt;
+          &lt;Button label="Open the camera" variant="primary" onPress={() =&gt; void openCamera()} /&gt;
+        &lt;/PermissionGate&gt;
+      ) : (
+        room &gt; 0 &amp;&amp; (
+          &lt;View style={styles.actions}&gt;
+            &lt;Button label="Take a photo" onPress={takePhoto} /&gt;
+            &lt;Button label="Choose photos" onPress={() =&gt; void choosePhotos()} /&gt;
+          &lt;/View&gt;
+        )
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    gap: spacing.sm,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The camera goes through Lesson 6.1's step, unchanged:</strong> <code>usePermission(ImagePicker.useCameraPermissions())</code> and a <code>PermissionGate</code> with "your camera" and its reason. Unlike the distance panel, this component reads the answer as soon as it appears. Reading never asks (Lesson 6.1), and it lets <strong>Take a photo</strong> open the camera at once when the answer is already yes. Otherwise the press shows the gate: the explanation and <strong>Continue</strong>, then <strong>Open the camera</strong> after a yes.</li>
+                        <li><strong>The library needs no gate:</strong> <strong>Choose photos</strong> goes straight to <code>launchImageLibraryAsync</code>, several at a time, with <code>selectionLimit</code> set to the room left (three in all). After a no to the camera, <strong>Not now</strong> brings the buttons back, and choosing a photo taken with the camera app is the other way round.</li>
+                        <li><strong><code>add</code></strong> handles both results: nothing on <code>canceled</code>; for each photo, keep it (Step 2), then check the type the picker reported and the kept file's size against the API's rules. A photo that fails is deleted again, and one sentence says how many were not added and why.</li>
+                        <li><strong><code>pickerOptions</code></strong> are the three size options from <a href="#size">Photos for One Bar of Signal</a>, shared by both buttons.</li>
+                        <li><strong><code>void openCamera()</code></strong>: an <code>onPress</code> does not wait for a promise, and <code>void</code> says so on purpose (the same pattern as Lesson 5.5's <code>void sendWaitingLogs(viewer)</code>).</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Photos on the debris log <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/app/log/[id].tsx</code>, keep the photos next to the form, show the section above the error line and <strong>Send the log</strong>, hand the photos to the queue with the log, and count them on the screen after Send:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/log/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/log/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { LoadingView } from '@/components/LoadingView';
++import { LogPhotos } from '@/components/LogPhotos';
+ import { Screen } from '@/components/Screen';
+ // ...
+ import { useSession } from '@/hooks/useSession';
+-import { type QueuedLog, useLogQueue } from '@/state/logQueue';
++import { type LogPhoto, type QueuedLog, useLogQueue } from '@/state/logQueue';
+ import { sendWaitingLogs } from '@/state/sendLogs';
+ // ...
+   const [handedOver, setHandedOver] = useState&lt;NewCleanupLog | null&gt;(null);
++  // The photos are files, not typed text: plain state next to the form, not a form field
++  const [photos, setPhotos] = useState&lt;LogPhoto[]&gt;([]);
+   const queued = useLogQueue((state) =&gt; state.logs.find((item) =&gt; item.log.clientId === clientId));
+ // ...
+     const log = toNewLog(data, clientId, new Date());
+-    addLog(viewer, { event, log });
++    addLog(viewer, { event, log }, photos);
+     setHandedOver(log);
+ // ...
+   if (handedOver !== null) {
+-    return &lt;LogHandedOver event={event} log={handedOver} queued={queued} sending={sending} /&gt;;
++    return (
++      &lt;LogHandedOver
++        event={event}
++        log={handedOver}
++        photoCount={photos.length}
++        queued={queued}
++        sending={sending}
++      /&gt;
++    );
+   }
+ // ...
+       /&gt;
++      &lt;LogPhotos photos={photos} onChange={setPhotos} /&gt;
+       {errors.root !== undefined &amp;&amp; (
+ // ...
+   log: NewCleanupLog;
++  photoCount: number;
+   queued: QueuedLog | undefined; // undefined: it has left the queue, so the server has it
+ // ...
+ // After Send: sent, still waiting (saved on the phone), or refused, read from the queue
+-function LogHandedOver({ event, log, queued, sending }: HandedOverProps) {
++function LogHandedOver({ event, log, photoCount, queued, sending }: HandedOverProps) {
+   const pieces = log.items.reduce((sum, item) =&gt; sum + item.count, 0);
+ // ...
+         {event.title}: {pieces} {pieces === 1 ? 'piece' : 'pieces'}, {log.bags}{' '}
+-        {log.bags === 1 ? 'bag' : 'bags'}, {log.weightKg} kg.
++        {log.bags === 1 ? 'bag' : 'bags'}, {log.weightKg} kg
++        {photoCount &gt; 0 &amp;&amp; `, ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`}.
+       &lt;/AppText&gt;</code></pre>
+                    </div>
+                    <p>The photos are plain state, not a React Hook Form field: the form's fields hold what the volunteer types and the schema checks (Lesson 5.4), while photos are files that <code>LogPhotos</code> checks as they arrive. <code>addLog(viewer, { event, log }, photos)</code> is the line Step 3's <code>tsc</code> pointed at: run <code>npx tsc --noEmit</code> again and it prints nothing.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Try it in the web preview and on your phone, then check and commit <span class="step-time">(15 min)</span></h3>
+                    <p>Start Metro (<code>npx expo start</code>), press <kbd>w</kbd>, sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>) and open today's cleanup, Tide Pool Morning Cleanup. Press <strong>Log what you collected</strong> and scroll to <strong>Photos (optional)</strong>. Press <strong>Choose photos</strong>: in the web preview, the browser's file chooser opens. Choose two small JPEG or PNG images:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_21/21-photos.png" alt="The Log debris screen in the web preview, scrolled to Photos (optional): the line Up to 3 photos of what you collected. They are sent with the log., two square photos of a beach side by side, each with a Remove button under it, then the buttons Take a photo and Choose photos; the section is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>Two photos chosen: they show at once as small squares, each with its own Remove, and nothing has been sent yet. (In the web preview Choose photos opens the browser's file chooser; a phone opens its photo library.)</figcaption>
+</figure>
+                    <p>Now press <strong>Choose photos</strong> again and pick a GIF, or an image over 5 MB, with a JPEG:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_21/21-refused.png" alt="The Photos (optional) section of the Log debris screen in the web preview: one photo with Remove, then the sentence 2 photos were not added: the server takes JPEG, PNG or WebP photos of 5 MB or smaller., outlined in red, above Take a photo and Choose photos." width="420" height="814" loading="lazy">
+    <figcaption>A GIF and a 9 MB PNG were chosen with a JPEG: only the JPEG was added, and one sentence says why, before anything is sent.</figcaption>
+</figure>
+                    <p>Remove photos until you have two, count something, fill in the weight and press <strong>Send the log</strong>. The screen says "Log sent. Thank you!" and the amounts end with "2 photos". The API terminal should show two <code>POST /api/photos</code> before the <code>POST /api/events/e17/logs</code> (measured: the log arrived with both photo ids, and <code>GET /api/photos/:id</code> served the first photo back). <strong>Take a photo</strong> in the web preview also opens a file chooser; there is no camera screen and no permission question on the web.</p>
+                    <p>Then the offline case, as in Lesson 5.5: stop the API, add two photos to a new log and send it. The screen says "Saved on this phone", and the Logbook shows the waiting log with its photos (with the API stopped, the card also counts one try; the picture below was taken with the browser offline instead):</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_21/21-waiting.png" alt="The Logbook tab in the web preview, dark theme: Not sent yet, Saved on this phone. Waiting logs go to the server by themselves when you are back online., then a card for Tide Pool Morning Cleanup with 1 piece, 0 bags, 0.4 kg, two small beach photos and Waiting to be sent, outlined in red, and a Send now button." width="420" height="814" loading="lazy">
+    <figcaption>Sent with no connection: the log waits in the queue with its photos, which stay on the phone until the server has them.</figcaption>
+</figure>
+                    <p>Start the API again and press <strong>Send now</strong> (or wait for the next chance): the photos go first, then the log, and the card moves into the logbook.</p>
+                    <p><strong>On your phone</strong> (Expo Go, shoreline-api running <code>--host</code>, as in Lesson 5.1):</p>
+                    <ol>
+                        <li><strong>Take a photo</strong>: the explanation, <strong>Continue</strong>, the phone's camera question (Expo Go's words), then <strong>Open the camera</strong>. Take a photo of anything, "Use Photo" (iPhone) or the check mark (Android). The thumbnail appears. Press <strong>Take a photo</strong> again: this time the camera opens at once.</li>
+                        <li><strong>Choose photos</strong>: no question at all; the library lets you pick up to the room left.</li>
+                        <li>Send the log, and look at the <code>bytes</code> of your photos: in the API terminal they are not printed, but <code>curl http://192.168.1.42:4000/api/photos/PHOTO_ID -o check.jpg</code> (your address and id) downloads one so you can see its size. Compare it with the camera app's original from last lesson's task.</li>
+                        <li>Turn on airplane mode (iPhone: Wi-Fi off too), add a photo to a log, send, force-quit Expo Go, reopen, open the Logbook: the log and its thumbnail are still there. Turn the connection back on: it is sent.</li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The camera and library screens, the question naming Expo Go, the file sizes and the photos surviving a force-quit in the app's documents are from Expo's and the platforms' documentation and could not be run here. If something does not match, write down what your phone did: every path in the code (canceled, refused, kept, sent) also runs in the web preview.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🧭 For your own app</h3>
+                    <p>If your final project handles photos or files, write down the four answers this lesson gave for Shoreline Crew: how big may a file be (and how do you make it smaller before it leaves the phone)? Where does it wait (cache or documents) and who deletes it? When is it uploaded: when chosen, or with the thing it belongs to? And what happens on a retry: does the server recognize a file it already has, or must the app remember the id?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ expo-image-picker and expo-file-system installed with <code>npx expo install</code>; <code>app.json</code> has the camera's purpose string and <code>false</code> for photos and the microphone</li>
+                        <li>☐ <code>photoFiles.ts</code> moves picked photos into the app's documents (and <code>photoFiles.web.ts</code> stands in for the web preview)</li>
+                        <li>☐ The debris log's <strong>Photos (optional)</strong> section takes photos through the permission step, chooses photos with none, refuses files the API would refuse, and shows a strip you can remove from</li>
+                        <li>☐ <code>postPhoto</code> uploads a photo as the request body, and the queue uploads a log's photos before the log, saving each id</li>
+                        <li>☐ The saved queue is version 1, and logs saved before still load</li>
+                        <li>☐ You sent a log with photos online and offline in the web preview, and took a photo on your phone</li>
+                        <li>☐ <code>tsc</code> and <code>expo lint</code> are clean, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the requests</h3>
+                    <p>Without running anything, list the requests Shoreline Crew sends to shoreline-api, in order, for each case (Theo is signed in, and has a spot at today's cleanup):</p>
+                    <ol>
+                        <li>Online: two photos chosen, then <strong>Send the log</strong>.</li>
+                        <li>No signal: two photos, <strong>Send the log</strong>; an hour later the signal is back.</li>
+                        <li>Both photos were uploaded, then the connection dropped before the log was sent. The next chance comes.</li>
+                        <li>A 6 MB PNG screenshot is chosen with one JPEG, then <strong>Send the log</strong>.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Follow the Mermaid diagram in <a href="#offline">Photos in the Dry Bag</a>, and remember what <code>add</code> in <code>LogPhotos</code> does before anything is queued.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) <code>POST /api/photos</code>, <code>POST /api/photos</code>, <code>POST /api/events/e17/logs</code> with both ids (measured). (2) Nothing at first; then the same three, when the online manager says the phone is back (measured with the web preview offline). (3) Only <code>POST /api/events/e17/logs</code>: both ids were saved in the queue with <code>setPhotoId</code>, so <code>uploadPhotos</code> skips the uploads. (4) One <code>POST /api/photos</code> (the JPEG), then the log: the PNG never got into the log, because it is over 5 MB (measured with a GIF and a 9 MB PNG: "2 photos were not added…" appeared, and no request was sent for them).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A square crop</h3>
+                    <p>Organizers want every photo in their report to be a square. expo-image-picker can show its own crop screen after a photo is taken. Find the two options in <code>node_modules/expo-image-picker/src/ImagePicker.types.ts</code>, add them to <code>openCamera</code> only, and say why they would not work for <strong>Choose photos</strong> as Shoreline Crew calls it.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Search the file for <code>allowsEditing</code>, and read the notes on <code>aspect</code> and <code>allowsMultipleSelection</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">async function openCamera() {
+  // A crop screen after the photo; a square (on iPhone the crop is always a square)
+  await add(
+    await ImagePicker.launchCameraAsync({ ...pickerOptions, allowsEditing: true, aspect: [1, 1] }),
+  );
+}</code></pre>
+                        <p>For <strong>Choose photos</strong>, the types say cropping several photos is not supported: with <code>allowsMultipleSelection</code>, <code>allowsEditing</code> is ignored, and expo-image-picker prints a warning that says so. The web preview ignores both options (its web code only reads the media types, multiple selection and base64). Check the crop screen on your phone.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A crew photo (Stretch)</h3>
+                    <p>At the end of a cleanup, the crew wants one group photo with the volunteer in it. Add a third button, <strong>Crew selfie</strong>, that opens the camera with the front camera first. It goes through the same permission step as <strong>Take a photo</strong>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for <code>cameraType</code> in the types file, and reuse <code>takePhoto</code>'s idea: straight to the camera after a yes, the gate otherwise. Think about which camera the gate's <strong>Open the camera</strong> button should open.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">const [selfie, setSelfie] = useState(false); // the camera the gate's button opens after a yes
+
+async function openCamera(cameraType = ImagePicker.CameraType.back) {
+  await add(await ImagePicker.launchCameraAsync({ ...pickerOptions, cameraType }));
+}
+
+function takePhoto(front: boolean) {
+  const cameraType = front ? ImagePicker.CameraType.front : ImagePicker.CameraType.back;
+  setSelfie(front);
+  if (camera.step === 'granted') {
+    void openCamera(cameraType);
+  } else {
+    setAskingCamera(true);
+  }
+}</code></pre>
+                        <p>The buttons call <code>takePhoto(false)</code> and <code>takePhoto(true)</code>, and the gate's <strong>Open the camera</strong> calls <code>openCamera(selfie ? ImagePicker.CameraType.front : ImagePicker.CameraType.back)</code>: by the time the gate shows, <code>selfie</code> has been re-rendered with the choice. In the web preview, expo-image-picker's web code turns the front camera into <code>capture="user"</code> on its file input. The option documentation warns that on Android the result "may vary based on the camera app installed": check on your phone.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Which of Shoreline Crew's photo features goes through the permission step from Lesson 6.1?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which screen runs outside the app on current iPhones and Android phones, so it needs no permission?">
+                                A) Choose photos, which opens the photo library
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The camera needs the camera permission, so Take a photo goes through usePermission and PermissionGate. The library picker needs no permission on current phones, and uploading or showing your own files needs none either.">
+                                B) Take a photo, which opens the camera
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does sending data to your own server ever need a permission question?">
+                                C) Uploading the photos to shoreline-api
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The photos are files in the app's own documents. Does reading your own files need a question?">
+                                D) Showing the thumbnails in the Logbook
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> On a beach with no signal, Theo adds two photos to his log and presses <strong>Send the log</strong>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 5.5 made sure nothing a volunteer creates is thrown away for lack of a signal.">
+                                A) The log is saved but the photos are lost, because they could not be uploaded
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the volunteer want to stand on the beach waiting for a signal?">
+                                B) The form stays open until the photos are uploaded
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="AsyncStorage holds text. What does the queue save for each photo?">
+                                C) The photos are saved inside the queue as image data
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The log and its photos' file addresses go into the queue, and the files wait in the app's documents. When the phone is back online, the sender uploads each photo, saves its id, then sends the log with those ids.">
+                                D) The log waits in the queue with its photos' file addresses; back online, the photos are uploaded first, then the log with their ids
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Why does Shoreline Crew move each photo out of the cache into the app's documents?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The phone may empty an app's cache when storage runs low, and a queued log can wait days for a signal. Documents are left alone, and Shoreline Crew deletes each photo itself once the server has it.">
+                                A) The phone may empty the cache when storage runs low, and a log can wait a long time to be sent
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did reading the picker's file need anything extra?">
+                                B) Files in the cache cannot be uploaded
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Do the volunteer's other apps see Shoreline Crew's documents folder?">
+                                C) So the photos appear in the phone's photo gallery
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is moving a file the same as compressing it?">
+                                D) Moving a photo makes it smaller
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> What does <code>postPhoto</code> send to <code>POST /api/photos</code> from a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What did running Expo's own convertFormData code say about a part that is an object with a uri?">
+                                A) A FormData with the object { uri, name, type }
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Could the server read a file that is on the phone?">
+                                B) The photo's file address, for the server to fetch
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The body is the photo itself: an expo-file-system File, which is a Blob, with Content-Type set to the type the picker reported. shoreline-api accepts a raw image body as well as a multipart form, and SDK 58's fetch sends Blobs.">
+                                C) The photo's bytes as the body (an expo-file-system File is a Blob), with Content-Type such as image/jpeg
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Theo's two photos were uploaded, and then the answer to the log itself was lost. On the next try, what does the sender do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="setPhotoId saved each id in the queue the moment it arrived, so uploadPhotos skips both uploads and the log goes with the saved ids. The log's clientId then makes a resend safe, as in Lesson 5.5: the API answers 200 with the log it already has.">
+                                A) It sends the log again with the two saved photo ids, without uploading the photos again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does shoreline-api recognize a photo it already has, the way it recognizes a log's clientId?">
+                                B) It uploads both photos again; the server ignores the copies
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is a lost answer a no from the server?">
+                                C) It marks the log refused
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="When are the files deleted: before or after the server has the log?">
+                                D) It sends the log without photos, because their files were already deleted
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Can volunteers add a video instead?</summary>
+                    <p>expo-image-picker can record and pick videos (<code>mediaTypes: ['videos']</code>), but Shoreline Crew turned the microphone off in <code>app.json</code>, and shoreline-api takes JPEG, PNG and WebP images only, up to 5 MB. A video of a minute is easily many times that. Apps that do take videos usually upload them in the background in pieces, to storage made for large files, which is a project of its own.</p>
+                </details>
+
+                <details class="card">
+                    <summary>What if a volunteer adds photos and then leaves the form without sending?</summary>
+                    <p>The photos stay in <code>log-photos</code> in the app's documents, named by nobody. It is a small leak, and the Bonus Challenge below fixes it. Deleting them when the form closes is harder than it looks, because a form also closes after Send, when the photos must stay.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Android closed Shoreline Crew while the camera was open. What happened to the photo?</summary>
+                    <p>A camera app takes a lot of memory, and Android may stop the app that opened it in the meantime. expo-image-picker's documentation describes <code>getPendingResultAsync()</code> for this: called when the app starts again, it returns the result that was lost. You can try it with "Don't keep activities" in Android's developer options. Shoreline Crew does not use it; the volunteer simply takes the photo again.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Do the photos still say where they were taken?</summary>
+                    <p><code>exif: false</code> means the picker does not give your code the EXIF data. With <code>quality</code> below 1, the picker also writes a new JPEG (iOS's <code>jpegData</code>, Android's <code>Bitmap.compress</code> in expo-image-picker's source), which generally carries no location. That is reading code, not a measurement on a phone: before you promise it in a privacy policy (Lesson 9.4), check a photo the app uploaded with an EXIF viewer.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Where would the photos go in a real app?</summary>
+                    <p>shoreline-api keeps them in memory, which is why they disappear when it restarts (and why a queued log whose photo ids came from an earlier run of the API is refused with "Some fields need attention."). A real back end puts files in object storage (such as Amazon S3 or Cloudflare R2) and often lets the phone upload straight to it with a short-lived signed URL. The phone side stays the same: small files, kept safely, uploaded before the record that names them.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Tidy the photo folder. When the app starts (after the queue has loaded, behind the splash screen), list the files in <code>log-photos</code> with expo-file-system's <code>Directory.list()</code> and delete every file that no queued log names, whoever's log it is. Put the function in <code>photoFiles.ts</code>, give <code>photoFiles.web.ts</code> a version that does nothing, and decide what must never be deleted: what about a photo the volunteer has just added to a form that is still open?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Follow one photo through Shoreline Crew, from the moment the volunteer presses <strong>Take a photo</strong> to the moment its file is deleted. Write down every place it lives (with its address), every check it passes, and every request that carries it. Then pick one step and write what would go wrong for the volunteer if that step were missing.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>expo-image-picker opens the phone's own camera (after the camera permission: Lesson 6.1's step) and photo library (no permission on current phones); both answer <code>{ canceled, assets }</code> with a file <code>uri</code> per photo</li>
+                        <li>Make photos small when they are taken (<code>quality</code>, <code>exif: false</code>, the "compatible" JPEG on iPhone) and check the server's rules (type, size) when a photo is added, not when the upload fails</li>
+                        <li>The picker's file lives in the cache, which the phone may empty; a photo that has to wait moves into the app's documents (expo-file-system <code>File</code>, <code>Directory</code>, <code>Paths</code>) and is deleted once the server has it</li>
+                        <li>With SDK 58's <code>fetch</code>, upload a <code>Blob</code> (an expo-file-system <code>File</code> is one), not the old <code>{ uri, name, type }</code> form part</li>
+                        <li>Offline first with files: queue addresses, not image data; upload the files before the record that names them; save each id the moment it arrives; bump the saved queue's <code>version</code> and <code>migrate</code> old data</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up every picker option and result field</td><td><a href="https://docs.expo.dev/versions/latest/sdk/imagepicker/">Expo: ImagePicker</a></td></tr>
+                            <tr><td>Read about files, folders and uploads</td><td><a href="https://docs.expo.dev/versions/latest/sdk/filesystem/">Expo: FileSystem</a></td></tr>
+                            <tr><td>Build your own viewfinder or scan codes</td><td><a href="https://docs.expo.dev/versions/latest/sdk/camera/">Expo: Camera</a></td></tr>
+                            <tr><td>Read about versions and migrations of saved state</td><td><a href="https://zustand.docs.pmnd.rs/integrations/persisting-store-data">Zustand: Persisting store data</a></td></tr>
+                            <tr><td>Read Android's guide to its photo picker</td><td><a href="https://developer.android.com/training/data-storage/shared/photopicker">Android Developers: Photo picker</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Volunteers can photograph what they collected, or choose photos they took earlier, right on the debris log</li>
+                        <li>The camera asks politely through the permission step you built last lesson, and the library asks nothing</li>
+                        <li>Photos are small, checked before they are added, and kept safe on the phone until the server has them</li>
+                        <li>Lesson 5.5's queue now carries files too, uploads them first, and never uploads one twice</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>The log can now show what was collected. In <a href="lesson_22.html">Lesson 6.3: Location and Maps</a>, it is the volunteer's turn to be counted: checking in at the beach on the day with the organizer's code, and a map of the meeting point that shows the blue dot once the location permission from Lesson 6.1 is granted.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone, including the airplane-mode send, and commit your work</li>
+                    <li>Open a map app on your phone at a beach or park you know, and notice how close the blue dot gets to where you really are (and how long it takes to settle): Lesson 6.3 decides whether a phone's location is good enough to prove someone came</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's feature looks like two buttons and three thumbnails. Under them you made decisions that senior mobile developers argue about: when to upload, where files wait, what a retry may repeat, how saved data changes shape between versions. You also read library source (the picker's iOS code, Expo's <code>fetch</code>) to find out what no tutorial told you. If the order of uploads and ids still feels fiddly, trace one photo on paper once more; it clicks the first time you watch your own phone send a log that waited all afternoon.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_20.html" class="prev-lesson">← Previous: Permissions Done Right</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_22.html" class="next-lesson">Next: Location and Maps →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

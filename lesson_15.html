@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Reaching a local API from Expo Go on a phone: what localhost means on each device, starting shoreline-api with --host, your computer's network address, 10.0.2.2 for the Android emulator, EXPO_PUBLIC_API_URL per device, why native apps need no CORS, image URLs that follow the address, WSL2 networking and firewalls, address-aware errors, a connection check, and signing in as a volunteer from a real phone. React Native &amp; Expo: Build and Ship a Mobile App Lesson 5.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Reaching the API from a Phone - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+        <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📶 Lesson 5.1: Reaching the API from a Phone</h1>
+                <p class="lead">Since Lesson 1.3, Shoreline Crew has had a quiet secret: on your phone it has never shown a single cleanup. Every list, picture and sign-in you built came to life in the web preview, while Expo Go on the phone said "Could not reach the server". Today the phone joins the crew. By the end of this lesson you will hold your phone, see the week's cleanups with their beach pictures, and sign in as Theo, a real volunteer account, over your own Wi-Fi.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain what <code>localhost</code> means on a computer, a phone, an Android emulator and an iOS Simulator, and pick the right API address for each</li>
+                        <li>Open shoreline-api to your network with <code>--host</code>, find your computer's network address, and test it before the app is involved</li>
+                        <li>Point the app at an address through <code>EXPO_PUBLIC_API_URL</code> per device, and rebuild the bundle so the change takes effect</li>
+                        <li>Say why a phone app needs no CORS while the web preview does, and why the API's picture addresses work on every device</li>
+                        <li>Make the HQ's typed client name the address that failed and suggest a fix, and add a connection check you can use on any device</li>
+                        <li>Get past Windows and WSL networking, firewalls and Wi-Fi that keeps devices apart</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_14.html">Lesson 4.4: Deep Links</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew on your phone with real data: the API opened to your Wi-Fi, an address per device, errors that say which address failed and what to try, and a Connection section on Profile with a <strong>Check the connection</strong> button</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58.0.31, shoreline-api (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone on the same Wi-Fi as your computer (or the Android emulator); the web preview still works; shoreline-api with <code>--host</code> in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-15-start.zip">lesson-15-start.zip</a> · Finished code: <a href="downloads/lesson-15-end.zip">lesson-15-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: The Phone Joins the Crew</a></li>
+                        <li><a href="#localhost" class="toc-link">Where Is localhost?</a></li>
+                        <li><a href="#host" class="toc-link">Opening the API to Your Network</a></li>
+                        <li><a href="#env" class="toc-link">One Variable, Many Devices</a></li>
+                        <li><a href="#cors" class="toc-link">No CORS on a Phone, and Pictures That Follow</a></li>
+                        <li><a href="#client" class="toc-link">A Client That Knows About Addresses</a></li>
+                        <li><a href="#wsl" class="toc-link">Windows, WSL, Firewalls and Fussy Wi-Fi</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew on Your Phone</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: The Phone Joins the Crew</h2>
+                <p>The HQ web app never had this problem. Its browser, its API and you were all on one computer, so <code>http://localhost:4000</code> was simply "this computer". A phone is a second computer, in your hand, talking over Wi-Fi. It has its own <code>localhost</code>, and shoreline-api is not on it. That is the whole reason the phone has been showing an error since Lesson 1.3, and fixing it properly is mostly about <em>addresses</em>, not code.</p>
+                <p>By the end of today:</p>
+                <ul>
+                    <li><strong>You know which address reaches the API</strong> from the web preview, the iOS Simulator, the Android emulator and a real phone, and why each one differs.</li>
+                    <li><strong>shoreline-api listens on your network</strong> with <code>--host</code>, and you have tested it from the phone's own browser before the app gets involved.</li>
+                    <li><strong>The app reads the right address</strong> from <code>.env.local</code>, and you know how to switch it per device.</li>
+                    <li><strong>The client you copied from the HQ</strong> says which address failed and what to try on this kind of device, and Profile has a <strong>Check the connection</strong> button.</li>
+                    <li><strong>You sign in as Theo on the phone</strong>, and the links from Lesson 4.4 open real cleanups.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "it works on my machine but not on the phone" is the first wall every mobile developer hits, and the people who can say <em>why</em> (which address, which network, which firewall) are the ones teams send it to. The same thinking applies later to staging servers, cloud APIs and the Wi-Fi at a client's office.</p>
+                <p><strong>Why it matters for the volunteers:</strong> on a beach the app will run on mobile data, far from your desk. Today's habit of naming the address and saying what to try is what turns "Something went wrong" into a message a volunteer, or a teammate helping them, can act on.</p>
+                <div class="card card-accent">
+                    <h4>🌱 A different kind of lesson</h4>
+                    <p>Most of today's work happens outside your editor: in terminals, network settings and a phone's browser. If something refuses to connect, that is not a sign you are bad at this. Networks hide what they do, and every developer has lost an afternoon to a firewall. Today you get a method: test one link of the chain at a time, and read what each tool tells you.</p>
+                </div>
+            </section>
+
+            <section id="localhost" class="lesson-section">
+                <h2>🏠 Where Is localhost?</h2>
+                <p><code>localhost</code> (and its number, <code>127.0.0.1</code>) always means "the device this code is running on". It never travels. So the same <code>EXPO_PUBLIC_API_URL=http://localhost:4000</code> points at different machines depending on where the app runs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The app runs in</th><th>There, <code>localhost</code> is</th><th>Address that reaches your API</th><th>Start the API with</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>The web preview (your computer's browser)</td><td>Your computer</td><td><code>http://localhost:4000</code></td><td><code>node server.ts</code></td></tr>
+                            <tr><td>iOS Simulator (on a Mac)</td><td>The Mac: the Simulator shares its network</td><td><code>http://localhost:4000</code></td><td><code>node server.ts</code></td></tr>
+                            <tr><td>Android emulator</td><td>The emulator, a separate virtual phone</td><td><code>http://10.0.2.2:4000</code>: the emulator's built-in name for your computer</td><td><code>node server.ts</code></td></tr>
+                            <tr><td>Expo Go on a real phone, same Wi-Fi</td><td>The phone</td><td><code>http://192.168.1.42:4000</code>: your computer's address on the Wi-Fi (yours will differ)</td><td><code>node server.ts --host</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The web preview row is what you have used all along (measured). The Simulator and emulator rows come from Apple's, Google's and Expo's documentation: the course could not run either here, so check them on your own machine. The phone row is today's main job, and the computer's half of it was measured here: the API listening with <code>--host</code> and answering on the computer's network address.</p>
+<div class="mermaid">
+graph TD
+    P["Phone running Expo Go"] -->|"localhost:4000"| N["The phone itself: no API"]
+    P -->|"192.168.1.42:4000"| R["Your Wi-Fi router"]
+    R --> C["Your computer"]
+    C --> A["shoreline-api, --host"]
+</div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the meeting point</h4>
+                    <p>Every cleanup has a meeting point, and how you describe it depends on who is asking. To a volunteer already in the car park, "over here" is enough. To someone driving in from Calder Bay, you give the road and the landmark. <code>localhost</code> is "over here": perfect for the web preview, which stands next to the API on your computer, and useless to a phone, which is "driving in" over Wi-Fi. The API is in the same place either way; only the directions change. Today you write the right directions for each device.</p>
+                </div>
+                <p>A phone also needs your computer to <em>accept</em> visitors. By default shoreline-api listens only on <code>localhost</code>, so even with the right address a phone would be turned away at the door. That is what <code>--host</code> changes.</p>
+            </section>
+
+            <section id="host" class="lesson-section">
+                <h2>🚪 Opening the API to Your Network</h2>
+                <p>A server chooses which network addresses it listens on. <code>node server.ts</code> listens on <code>localhost</code> only: programs on your computer can reach it, other devices cannot. <code>node server.ts --host</code> listens on every address your computer has (written <code>0.0.0.0</code>), including its Wi-Fi address, and prints that address for you:</p>
+                <pre class="terminal"><code class="language-bash">node server.ts --host</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>Shoreline Crew API running at http://localhost:4000/api
+  on your network:  http://192.168.1.42:4000/api
+  sample sign-in: maya.okafor@example.com (organizer) or theo.nakamura@example.com (volunteer), password shoreline-demo
+Press Ctrl+C to stop.</code></pre>
+                </div>
+                <p>The <code>on your network</code> line is the address a phone on the same Wi-Fi uses (yours will differ; a computer with several network connections may print more than one line, and the Wi-Fi one usually starts with <code>192.168.</code> or <code>10.</code>). Metro prints the same computer address under its QR code, which is how Expo Go found your project back in Lesson 1.2:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Starting project at ~/shoreline/shoreline-crew
+...
+› Scan the QR code above to open in Expo Go.
+› Metro: exp://192.168.1.42:8081
+› Web: http://localhost:8081
+...</code></pre>
+                </div>
+                <p>The part between <code>exp://</code> and <code>:8081</code> is your computer's address; the API is at the same address on port 4000. If you prefer to ask your computer directly: on Windows, <code>ipconfig</code> lists an "IPv4 Address" under your Wi-Fi adapter; on a Mac, <code>ipconfig getifaddr en0</code> usually prints the Wi-Fi address; on Linux, <code>hostname -I</code> prints the computer's addresses (these come from each system's documentation; the two lines above are what the course measured).</p>
+                <h3>Test the road before the app drives on it</h3>
+                <p>Before touching the app, prove the API answers on that address. From the computer itself, with the API started with <code>--host</code>:</p>
+                <pre class="terminal"><code class="language-bash">curl http://192.168.1.42:4000/api/health</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>{
+  "ok": true,
+...
+}</code></pre>
+                </div>
+                <p><code>/api/health</code> is a tiny endpoint that answers <code>ok</code> and the date the sample data is built around (the line left out above). In PowerShell, type <code>curl.exe</code> instead of <code>curl</code>, because <code>curl</code> on its own is a different PowerShell command. Started <em>without</em> <code>--host</code>, the same request was refused straight away (measured: curl reported <code>Connection refused</code>), while <code>http://localhost:4000/api/health</code> still worked: the API was running, but not listening on that address.</p>
+                <p>Then the real test: open <code>http://192.168.1.42:4000/api/health</code> (with your address) in the <strong>phone's browser</strong>. If the phone shows the same little JSON, the network path works and anything left is in the app. If it spins or fails, no change to the app can help: look at the Wi-Fi, the firewall and WSL (<a href="#wsl">Windows, WSL, Firewalls and Fussy Wi-Fi</a>). This one check splits every connection problem in half, and it is the step experienced developers do first.</p>
+                <div class="card card-danger">
+                    <h4>🛑 <code>--host</code> opens the door to everyone on the Wi-Fi</h4>
+                    <p>With <code>--host</code>, any device on your network can use the API, which is the point. shoreline-api holds only sample data and demo passwords, but treat the habit seriously: use it on networks you trust (home, not a café), stop the API with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac) when you are done, and never start a real server with real data this way on a public network.</p>
+                </div>
+            </section>
+
+            <section id="env" class="lesson-section">
+                <h2>🔀 One Variable, Many Devices</h2>
+                <p>The app learns the address from <code>EXPO_PUBLIC_API_URL</code> in <code>.env.local</code>, as in Lesson 1.3. Remember the rule from that lesson: the value is <strong>copied into the JavaScript bundle</strong> when Metro builds it. Two consequences matter today:</p>
+                <ol>
+                    <li><strong>Change the file, restart Metro with <code>--clear</code>.</strong> Saving <code>.env.local</code> does not reach a running app. Stop Metro and run <code>npx expo start --clear</code>; the phone then downloads a fresh bundle with the new address.</li>
+                    <li><strong>One Metro, one address.</strong> The phone and the web preview get bundles built from the same <code>.env.local</code>, so they use the same address.</li>
+                </ol>
+                <p>The second point sounds like a problem, but it is good news. With the API started with <code>--host</code>, the course measured the web preview using the computer's network address too: it loaded the cleanups and their pictures from <code>http://192.168.1.42:4000</code> (shown with the course's example address) without a single error. So while a phone is in the game, keep <strong>your computer's network address</strong> in <code>.env.local</code>, and the phone and the web preview both work. On a web-preview-only day, <code>localhost</code> is fine.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>You are testing on</th><th><code>EXPO_PUBLIC_API_URL</code> in <code>.env.local</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>The web preview only, or the iOS Simulator</td><td><code>http://localhost:4000</code></td></tr>
+                            <tr><td>The Android emulator only</td><td><code>http://10.0.2.2:4000</code> (or your computer's network address, if the API runs with <code>--host</code>)</td></tr>
+                            <tr><td>A phone (plus the web preview, if you like)</td><td><code>http://192.168.1.42:4000</code> with your computer's address, API with <code>--host</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Your computer's network address can change: home and office Wi-Fi give out addresses as devices join, and another network means another address. When the phone suddenly cannot connect after a weekend away, compare the address in <code>.env.local</code> with the one Metro prints today.</p>
+                <h3>Switching for one session</h3>
+                <p>Editing the file is the everyday way. For a quick switch, say ten minutes on the Android emulator, a variable set in the terminal wins over the file. The course measured it: a web export built with <code>.env.local</code> saying <code>localhost</code> and <code>EXPO_PUBLIC_API_URL=http://10.0.2.2:4000</code> set in the shell contained only the <code>10.0.2.2</code> address.</p>
+                <pre class="terminal"><code class="language-bash">EXPO_PUBLIC_API_URL=http://10.0.2.2:4000 npx expo start --clear</code></pre>
+                <p>In PowerShell the variable is set first, and stays set in that window until you close it (or remove it with <code>Remove-Item Env:EXPO_PUBLIC_API_URL</code>):</p>
+                <pre class="terminal"><code class="language-bash">$env:EXPO_PUBLIC_API_URL = "http://10.0.2.2:4000"
+npx expo start --clear</code></pre>
+                <p>You can tell which value won from Metro's first lines. With the value from the file, Metro starts with <code>env: load .env.local</code> and <code>env: export EXPO_PUBLIC_API_URL</code>. With the shell variable set, those two lines were missing (measured):</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>Starting project at ~/shoreline/shoreline-crew
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+...</code></pre>
+                </div>
+                <p>Finally, make the next person's life easy. <code>.env.example</code> is the file that is committed, so it is where the table above belongs. Step 4 of the project rewrites it.</p>
+            </section>
+
+            <section id="cors" class="lesson-section">
+                <h2>🌐 No CORS on a Phone, and Pictures That Follow</h2>
+                <p>In the HQ course, CORS was the browser's rule that a page from one origin may read answers from another origin only if the server says so in an <code>Access-Control-Allow-Origin</code> header. shoreline-api says so for pages on <code>http://localhost:</code> any port, which is why the web preview works. A phone app is not a web page: Expo's native <code>fetch</code> sends no <code>Origin</code> header and does not look for the answer header. The course checked what the API sends back for a request to the computer's network address:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The request comes from</th><th><code>Origin</code> sent</th><th><code>Access-Control-Allow-Origin</code> in the answer (measured)</th><th>Result</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Shoreline Crew in Expo Go (native fetch)</td><td>none</td><td>none</td><td>Works: CORS is a browser rule, and there is no browser</td></tr>
+                            <tr><td>The web preview on your computer</td><td><code>http://localhost:8081</code></td><td><code>http://localhost:8081</code></td><td>Works (measured with the LAN address too)</td></tr>
+                            <tr><td>The web preview opened on <em>another</em> device, at <code>http://192.168.1.42:8081</code></td><td><code>http://192.168.1.42:8081</code></td><td>none</td><td>Blocked by that device's browser</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So the phone needs nothing from CORS, and the web preview is for your computer's own browser. That last row is a mistake worth knowing (Common Mistakes): the web preview is not a way to put the app on a phone. Expo Go is.</p>
+                <h3>Pictures follow the address</h3>
+                <p>Lesson 2.3 showed site pictures from URLs inside the API's answers. Would a phone get <code>http://localhost:4000/images/…</code>, an address that does not work there? No: the API builds each picture's URL from the address the request arrived at. Asked at the network address, it answered (measured):</p>
+                <pre class="terminal"><code class="language-bash">curl http://192.168.1.42:4000/api/sites</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>...
+      "url": "http://192.168.1.42:4000/images/sites/pelican-point.jpg",
+      "url": "http://192.168.1.42:4000/images/sites/driftwood-cove.jpg",
+...</code></pre>
+                </div>
+                <p>Asked at <code>localhost</code>, the same list says <code>http://localhost:4000/images/…</code>, and a request that arrived as <code>10.0.2.2:4000</code> got <code>http://10.0.2.2:4000/images/…</code> (all measured). The pictures always use whichever address worked for the list. That is why Lesson 2.3 promised that this lesson needs no picture code: get the address right once, and everything inside the answers follows.</p>
+            </section>
+
+            <section id="client" class="lesson-section">
+                <h2>🧭 A Client That Knows About Addresses</h2>
+                <p>The client you adapted from the HQ in Lesson 1.3 already turns a failed request into a <code>NetworkError</code>, and <code>describeError</code> words it as "Could not reach the server. Check that shoreline-api is running, then try again." On a computer that was the whole story. On a phone it is not enough, because the most common cause is not a stopped API but a <em>wrong address</em>, and the message does not even say which address it tried. Three small changes make the client a better crew-mate:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Change</th><th>Before (the Lesson 4.4 code, measured)</th><th>After (measured in the web preview)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Check the address before sending anything (<code>AddressError</code>)</td><td><code>http://localhost:4000/api</code> or a trailing <code>/</code> asked the API for <code>/api/api/events</code> or <code>//api/events</code>: "Nothing was found at this address. Check the link."</td><td>"EXPO_PUBLIC_API_URL is "…/api": leave out the /api at the end (the app adds it)." A trailing <code>/</code> is simply removed</td></tr>
+                            <tr><td>Remember which address failed (<code>NetworkError.address</code>)</td><td>"Could not reach the server. Check that shoreline-api is running, then try again."</td><td>"Could not reach the server at http://localhost:4000. Check that shoreline-api is running, then try again."</td></tr>
+                            <tr><td>Advice for this kind of device (<code>addressAdvice</code> + <code>Platform.OS</code>)</td><td>The same words on every device</td><td>On Android with <code>localhost</code>: "On Android, localhost is the device itself. Put your computer's network address in .env.local (10.0.2.2 on the emulator)."</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The advice for each device comes from a small function with no React and no fetch in it, so the course ran it directly with Node for every address and platform (the Android sentence above is its real output; on a phone it should appear exactly so). And Profile gets a <strong>Connection</strong> section: which address this build talks to, and a button that asks the API's <code>/api/health</code> for an answer right now. When a volunteer says "the app shows nothing", the first question is "what does Connection say?"</p>
+                <p>The client stays the HQ's in spirit: the same <code>ApiError</code>, <code>NetworkError</code> and <code>describeError</code> shapes, the same type guards, now with one more guard (<code>isHealth</code>) for one more answer. What is new is phone knowledge: which addresses mean "this device", and that <code>Platform.OS</code> says which device the app is on. Steps 5 to 7 of the project build it.</p>
+            </section>
+
+            <section id="wsl" class="lesson-section">
+                <h2>🧱 Windows, WSL, Firewalls and Fussy Wi-Fi</h2>
+                <p>When the phone's browser test fails, the problem is between the phone and your computer. These are the usual suspects, roughly in order of how often they bite.</p>
+                <h3>Windows with WSL 2</h3>
+                <p>If you run the course's commands inside WSL (Linux on Windows), WSL's default networking (NAT) gives Linux its own private address, often starting <code>172.</code>, that only Windows can reach. Expo then prints that <code>172.…</code> address under the QR code, and the API's <code>on your network</code> line shows it too: a phone cannot reach either. You have three ways out (from Microsoft's and Expo's documentation; see also <a href="troubleshooting.html#wsl">Troubleshooting: WSL</a>):</p>
+                <ol>
+                    <li><strong>Run Node in Windows instead.</strong> Install Node for Windows and run the API and Metro from PowerShell in a Windows folder. Simplest, and nothing special to configure.</li>
+                    <li><strong>Turn on mirrored networking</strong> (Windows 11, version 22H2 or newer): WSL then shares Windows' own addresses. Create or edit <code>.wslconfig</code> in your Windows user folder (<code>%UserProfile%</code>), then run <code>wsl --shutdown</code> in PowerShell and open WSL again.</li>
+                    <li><strong>Use the Android emulator</strong> on Windows, which reaches your computer at <code>10.0.2.2</code> whatever WSL does.</li>
+                </ol>
+                <pre data-snippet><code class="language-ini"># %UserProfile%\.wslconfig (Windows): WSL shares Windows' network addresses
+[wsl2]
+networkingMode=mirrored</code></pre>
+                <p>The course's own machine runs WSL in mirrored mode (<code>wslinfo --networking-mode</code> printed <code>mirrored</code>), and there the API and Metro both printed the computer's real Wi-Fi address, the one the phone's browser test needs. Microsoft's documentation also describes a separate Hyper-V firewall for WSL in mirrored mode; if the phone still cannot connect, the next item applies to you twice.</p>
+                <h3>Firewalls</h3>
+                <p>Your computer's firewall decides which visitors get in. The first time Node listens on the network, Windows and macOS usually ask whether to allow it: allow it on <strong>private</strong> networks (your home Wi-Fi), not public ones. If you said no, or never saw the question, allow Node.js (or ports 8081 for Metro and 4000 for the API) in Windows Security's firewall settings, or in macOS's Network settings under Firewall. The exact menus change between system versions, so follow your system's help if the names differ.</p>
+                <h3>Wi-Fi that keeps devices apart</h3>
+                <p>Many guest, school, office, hotel and café networks put every device in its own bubble ("client isolation"), so the phone and the computer cannot see each other even with the right address. You cannot fix that from your side. Options: use your home network; turn on your phone's hotspot and connect the computer to it (then use the address your computer gets on the hotspot); use the Android emulator; or develop in the web preview for the day. <code>npx expo start --tunnel</code> can carry Metro's traffic through the internet, but only Metro's: the API would still need an address the phone can reach, so it does not solve today's problem on its own.</p>
+                <h3>The iPhone's Local Network permission</h3>
+                <p>iOS asks the first time an app talks to devices on your local network. According to Apple's and Expo's documentation, Expo Go needs that permission to reach Metro and the API: if you tapped <strong>Don't Allow</strong>, turn it on in Settings, Privacy &amp; Security, Local Network, Expo Go. Android has no such switch for local addresses in Expo Go.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone: plain <code>http://</code> is fine for now</h4>
+                    <p>shoreline-api speaks plain <code>http://</code>, not <code>https://</code>. Expo Go and development builds allow that for local development, according to Expo's documentation. Store builds are stricter: Android release builds block plain <code>http</code> by default, and iOS requires secure connections unless the app declares exceptions. A real Shoreline Crew would talk to an <code>https://</code> server; Module 9 comes back to this when you make builds.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Network mistakes are frustrating because nothing crashes: the app just waits, then says it could not connect. Each mistake below was made on purpose with the finished project and quoted as the tools showed it, except where a phone is needed (said so).</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Leaving <code>localhost</code> in <code>.env.local</code> for a phone</h4>
+                    <p>The web preview works, so it feels finished. On a phone, the request goes to the phone itself. With today's client, the Cleanups tab on an Android phone should say (the advice text is the function's real output; the course could not show it on a phone):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>Could not reach the server at http://localhost:4000. On Android, localhost is the device itself. Put your computer's network address in .env.local (10.0.2.2 on the emulator).</code></pre>
+                    </div>
+                    <p>On an iPhone the second sentence reads "On a phone, localhost is the phone itself (only the iOS Simulator shares your computer's)." Put your computer's network address in <code>.env.local</code> and restart Metro with <code>--clear</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The right address, but the API started without <code>--host</code></h4>
+                    <p>The address is correct and the API is running, yet nothing connects: without <code>--host</code> it listens on <code>localhost</code> only. curl from the computer says <code>Connection refused</code>, and the web preview, built with the network address, showed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>Could not reach the server at http://192.168.1.42:4000. Check that shoreline-api is running (with --host for this address), then try again.</code></pre>
+                    </div>
+                    <p>(Measured with the course's ports, then shown with yours.) Stop the API and start it again with <code>node server.ts --host</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Copying the address with <code>/api</code> on the end</h4>
+                    <p>The API prints <code>on your network:  http://192.168.1.42:4000/api</code>, and copying the whole thing is natural. The app adds <code>/api</code> itself, so the Lesson 4.4 code asked for <code>/api/api/events</code>, and the API answered 404 (<code>No API route for GET /api/api/events.</code>), which the screen showed as "Nothing was found at this address. Check the link.": true, and no help at all. Today's client checks the address first:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_15/15-address-error.png" alt="The Cleanups tab in dark mode in the web preview, built with EXPO_PUBLIC_API_URL set to http://192.168.1.42:4000/api: under Upcoming cleanups, the message EXPO_PUBLIC_API_URL is http://192.168.1.42:4000/api: leave out the /api at the end (the app adds it), outlined in red, and a Try again button." width="420" height="814" loading="lazy">
+    <figcaption>An address copied with the API's <code>/api</code> still on the end. The app checks the address before it sends anything and says what to fix, instead of a puzzling "Nothing was found at this address".</figcaption>
+</figure>
+                    <p>Remove the <code>/api</code>, restart with <code>--clear</code>. A missing <code>http://</code> gets the same treatment: <code>EXPO_PUBLIC_API_URL is "localhost:4000": start it with http://, as in http://192.168.1.42:4000.</code> (measured with the course's port, then shown with yours).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Editing <code>.env.local</code> without restarting Metro</h4>
+                    <p>You fix the address, save, shake the phone and reload: still the old address. The bundle Metro already built has the old value inside it (Lesson 1.3 measured this on the development server). The Connection section on Profile shows the address the running bundle was built with, so it tells you at once. Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> and run <code>npx expo start --clear</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Opening the web preview on the phone's browser</h4>
+                    <p>Metro serves the web preview, so <code>http://192.168.1.42:8081</code> in a phone's browser seems like a shortcut. The page loads, but its requests to the API are blocked, because the page's origin is not <code>localhost</code>. The browser's console said (measured on the computer's own address, then shown with yours):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>Access to fetch at 'http://192.168.1.42:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5' from origin 'http://192.168.1.42:8081' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+Failed to load resource: net::ERR_FAILED</code></pre>
+                    </div>
+                    <p>and the screen showed "Could not reach the server". Read the console's words: "blocked by CORS policy", not "refused". The API answered; the browser refused to hand the answer to the page. Use Expo Go on the phone, and the web preview in the computer's browser.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew on Your Phone</h2>
+                <p>You open the API to your Wi-Fi, test the road from the phone's browser, point the app at your computer, teach the client about addresses, add a connection check to Profile, and then use Shoreline Crew on your phone for real. Work in the <code>shoreline</code> folder: the API commands run in <code>shoreline-api</code>, everything else in <code>shoreline-crew</code>. No packages to install today. If you have no phone with you, do Steps 1, 2 and 4 to 7 with the web preview (and the Android emulator if you have one), and come back to Steps 3 and 8 when you do.</p>
+
+                <div class="card">
+                    <h3>Step 1: Find your computer's address <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Connect your phone and your computer to the <strong>same Wi-Fi network</strong> (your home network, not a guest network).</li>
+                        <li>In <code>shoreline-crew</code>, start Metro as usual with <code>npx expo start</code> and read the line under the QR code: <code>› Metro: exp://192.168.1.42:8081</code>. The part between <code>exp://</code> and <code>:8081</code> is your computer's address. Write it down.</li>
+                        <li>On Windows with WSL: if it starts with <code>172.</code>, stop here and choose one of the three ways out in <a href="#wsl">Windows, WSL, Firewalls and Fussy Wi-Fi</a> first. A <code>172.</code> address is WSL's private one, and a phone cannot reach it.</li>
+                    </ol>
+                    <p>Leave Metro running; you restart it in Step 4.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Open the API to your network <span class="step-time">(10 min)</span></h3>
+                    <p>In the terminal that runs shoreline-api, stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then start it so other devices can reach it:</p>
+                    <pre class="terminal"><code class="language-bash">node server.ts --host</code></pre>
+                    <p>Check that the <code>on your network</code> line shows the same address as Metro's (plus <code>:4000/api</code>). If your system asks whether Node.js may accept connections, allow it on private networks. Then, from a third terminal on the computer, with your address:</p>
+                    <pre class="terminal"><code class="language-bash">curl http://192.168.1.42:4000/api/health</code></pre>
+                    <p>You should see <code>"ok": true</code> (in PowerShell, <code>curl.exe</code>). If it says <code>Connection refused</code>, the API is not running with <code>--host</code>.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Test the road from the phone's browser <span class="step-time">(5 min)</span></h3>
+                    <p>On the phone, open the browser (Safari, Chrome) and type <code>http://192.168.1.42:4000/api/health</code> with your address. You should see the same small JSON with <code>"ok": true</code>, and the API's terminal prints a <code>GET /api/health 200</code> line for the visit.</p>
+                    <ul>
+                        <li><strong>It works:</strong> the network is fine. Anything left is in the app, and the next steps handle it.</li>
+                        <li><strong>It spins, then fails:</strong> the phone cannot reach the computer. Check the firewall, the Wi-Fi (guest networks keep devices apart) and WSL, in that order. A phone hotspot is a quick way to test whether your Wi-Fi is the problem.</li>
+                    </ul>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The course could not hold a phone, so this step and Step 8 come from the Expo, Apple and Android documentation; the computer's half (the API listening on the network address and answering it) was measured. Some phone browsers try <code>https://</code> first and complain about the connection: type the <code>http://</code> yourself.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Point the app at your computer <span class="step-time">(15 min)</span></h3>
+                    <p>First, let <code>.env.example</code> (the committed file) tell the next person which address each device needs. Replace its contents:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.env.example</div>
+                        <pre data-src="shoreline-crew/.env.example"><code class="language-ini"># Where the app finds shoreline-api. Copy this file to .env.local and change it there,
+# then restart Metro with: npx expo start --clear
+#   Web preview, iOS Simulator:  http://localhost:4000
+#   Android emulator:            http://10.0.2.2:4000
+#   Expo Go on a phone:          your computer's address, such as http://192.168.1.42:4000
+#                                (start the API with: node server.ts --host)
+EXPO_PUBLIC_API_URL=http://localhost:4000</code></pre>
+                    </div>
+                    <p>Then edit <code>.env.local</code> (your machine's file, not committed) so the one line uses your computer's address:</p>
+                    <pre data-snippet><code class="language-ini">EXPO_PUBLIC_API_URL=http://192.168.1.42:4000</code></pre>
+                    <p>No <code>/api</code> at the end and no space around the <code>=</code>. Now stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> and start it again without its cache, so the new value goes into the bundle:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo start --clear</code></pre>
+                    <p>Press <kbd>w</kbd>: the web preview should still show the cleanups, now fetched from your network address (measured, as long as the API runs with <code>--host</code>). If you only have the Android emulator today, use <code>http://10.0.2.2:4000</code> instead and press <kbd>a</kbd>.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Addresses the client understands <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/api/address.ts</code>. It has no React and no fetch in it, only knowledge about addresses, so it is easy to read and to check:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/address.ts</div>
+                        <pre data-src="shoreline-crew/src/api/address.ts"><code class="language-ts">// Which address reaches shoreline-api depends on where the app runs (new: the HQ only ever ran
+// in the browser next to the API). The meeting point is the same; the directions differ.
+import type { PlatformOSType } from 'react-native';
+
+/** EXPO_PUBLIC_API_URL is missing or written wrongly: no request can work until it is fixed */
+export class AddressError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AddressError';
+  }
+}
+
+/** The host part of an address, such as "192.168.1.42" in http://192.168.1.42:4000 */
+export function hostOf(address: string): string | null {
+  const match = /^https?:\/\/(\[[^\]]+\]|[^/:?#]+)/i.exec(address);
+  return match === null ? null : match[1].toLowerCase();
+}
+
+/** What is wrong with the address in .env.local, or null when it is written correctly */
+export function addressProblem(address: string): string | null {
+  if (address === '') {
+    return 'EXPO_PUBLIC_API_URL is not set: copy .env.example to .env.local, then restart Metro.';
+  }
+  if (hostOf(address) === null) {
+    return `EXPO_PUBLIC_API_URL is "${address}": start it with http://, as in http://192.168.1.42:4000.`;
+  }
+  if (/\/api\/?$/.test(address)) {
+    return `EXPO_PUBLIC_API_URL is "${address}": leave out the /api at the end (the app adds it).`;
+  }
+  return null;
+}
+
+// Names that always mean "this device itself"
+const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+
+/**
+ * What to try next when a request to `address` got no answer, for the platform the app runs on.
+ * The client adds it to "Could not reach the server" (describeError).
+ */
+export function addressAdvice(address: string, platform: PlatformOSType): string {
+  const host = hostOf(address);
+  const local = host !== null &amp;&amp; loopbackHosts.includes(host);
+  if (platform === 'web') {
+    // The web preview runs in your computer's browser, next to the API
+    if (host === '10.0.2.2') {
+      return '10.0.2.2 works only inside the Android emulator: the web preview uses localhost.';
+    }
+    return local
+      ? 'Check that shoreline-api is running, then try again.'
+      : 'Check that shoreline-api is running (with --host for this address), then try again.';
+  }
+  if (local) {
+    return platform === 'android'
+      ? `On Android, ${host} is the device itself. Put your computer's network address in .env.local (10.0.2.2 on the emulator).`
+      : `On a phone, ${host} is the phone itself (only the iOS Simulator shares your computer's). Put your computer's network address in .env.local.`;
+  }
+  if (host === '10.0.2.2') {
+    return platform === 'android'
+      ? 'Check that shoreline-api is running, then try again. (10.0.2.2 works on the emulator, not on a phone.)'
+      : "10.0.2.2 works only inside the Android emulator. Put your computer's network address in .env.local.";
+  }
+  return 'Check that shoreline-api is running with --host and that this device is on the same Wi-Fi as your computer, then try again.';
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>AddressError</code></strong> is a separate error class for "the app was built with a wrong address", so <code>describeError</code> can tell it apart from a network failure and from the API's own errors.</li>
+                        <li><strong><code>hostOf</code></strong> pulls the host out with a regular expression rather than <code>new URL()</code>: it returns <code>null</code> for an address without <code>http://</code> instead of throwing, and needs nothing from the runtime.</li>
+                        <li><strong><code>addressProblem</code></strong> catches the three mistakes you can spot without sending anything: no address, no <code>http://</code>, and the API's <code>/api</code> copied along.</li>
+                        <li><strong><code>addressAdvice</code></strong> takes the platform as a parameter, typed with React Native's <code>PlatformOSType</code> (<code>'ios' | 'android' | 'web' | …</code>). Passing it in, instead of reading <code>Platform.OS</code> inside, is what let the course run this function for every device on a computer.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Errors that name the address <span class="step-time">(10 min)</span></h3>
+                    <p>Now <code>src/api/client.ts</code> uses it. At the top, import <code>Platform</code> and the new helpers, and the <code>DateString</code> type for the health answer:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts"> // Data from the API is unknown until a check proves its shape.
++import { Platform } from 'react-native';
++
++import { AddressError, addressAdvice, addressProblem } from '@/api/address';
+ import type {
+   ApiErrorBody,
+   CleanupEvent,
+   CleanupEventDetail,
++  DateString,
+   ErrorCode,</code></pre>
+                    </div>
+                    <p>A type guard for <code>/api/health</code>, next to the other guards, in the same style as the HQ's:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">+/** What GET /api/health answers: the API is up, and the date it builds its sample data around */
++export interface Health {
++  ok: true;
++  today: DateString;
++}
++
++function isHealth(value: unknown): value is Health {
++  return isRecord(value) &amp;&amp; value.ok === true &amp;&amp; typeof value.today === 'string';
++}
++
+ function isApiErrorBody(value: unknown): value is ApiErrorBody {</code></pre>
+                    </div>
+                    <p><code>NetworkError</code> remembers the address, and <code>describeError</code> learns two things: an <code>AddressError</code> says exactly what to fix, and a network failure names the address and adds the advice for this platform:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts"> export class NetworkError extends Error {
+-  constructor(cause: unknown) {
+-    super('Could not reach the API', { cause });
++  // The API address the request went to, so the message can say which one did not answer
++  readonly address: string;
++
++  constructor(cause: unknown, address: string) {
++    super(`Could not reach the API at ${address}`, { cause });
+     this.name = 'NetworkError';
++    this.address = address;
+   }
+ }
+
+ /** What to tell people when a request failed */
+ export function describeError(error: unknown): string {
++  if (error instanceof AddressError) {
++    // The app was built with a wrong address: say exactly what to fix (a developer's mistake)
++    return error.message;
++  }
+   if (error instanceof ApiError &amp;&amp; error.status === 401) {
+ // ...
+   if (error instanceof NetworkError) {
+-    return 'Could not reach the server. Check that shoreline-api is running, then try again.';
++    // Which address, and what to try next on this platform (src/api/address.ts)
++    return `Could not reach the server at ${error.address}. ${addressAdvice(error.address, Platform.OS)}`;
+   }</code></pre>
+                    </div>
+                    <p><code>apiBaseUrl()</code> checks the address, drops a trailing slash, and is exported so Profile can show it. <code>request()</code> passes the address to <code>NetworkError</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">-function apiBaseUrl(): string {
++/** The API's address, from .env.local (the one this bundle was built with) */
++export function apiBaseUrl(): string {
+   // Expo copies EXPO_PUBLIC_ variables into the bundle when Metro builds it (rewritten)
+-  const url = process.env.EXPO_PUBLIC_API_URL;
+-  if (url === undefined || url === '') {
+-    throw new Error('EXPO_PUBLIC_API_URL is not set: copy .env.example to .env.local');
++  const url = process.env.EXPO_PUBLIC_API_URL ?? '';
++  const problem = addressProblem(url);
++  if (problem !== null) {
++    throw new AddressError(problem);
+   }
+-  return url;
++  return url.replace(/\/+$/, ''); // a trailing slash would make //api
+ }
+ // ...
+ async function request(path: string, init: RequestInit = {}): Promise&lt;Response&gt; {
+-  const url = `${apiBaseUrl()}/api${path}`;
++  const base = apiBaseUrl();
++  const url = `${base}/api${path}`;
+ // ...
+-    throw new NetworkError(error);
++    throw new NetworkError(error, base);</code></pre>
+                    </div>
+                    <p>Finally, the request for the health answer, above <code>getSites</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">+/** GET /api/health: a tiny answer that proves this device can reach the API */
++export function getHealth(signal?: AbortSignal): Promise&lt;Health&gt; {
++  return getJSON('/health', isHealth, signal);
++}
++
+ export function getSites(signal?: AbortSignal): Promise&lt;Site[]&gt; {</code></pre>
+                    </div>
+                    <p>Notice what did <em>not</em> change: every screen. The Cleanups list, the cleanup screen and the sign-in form already show <code>describeError(error)</code>, so they all gained the better words at once. That is the payoff of the HQ's "one place turns errors into words" design.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: A connection check on Profile <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/components/ConnectionCheck.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/ConnectionCheck.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/ConnectionCheck.tsx"><code class="language-tsx">import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { apiBaseUrl, describeError, getHealth } from '@/api/client';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { spacing } from '@/theme/spacing';
+
+type Check =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  | { kind: 'connected'; ms: number }
+  | { kind: 'failed'; message: string };
+
+// A wrong address on a Wi-Fi network can hang for a long time instead of failing: give up after this
+const timeoutMs = 8000;
+
+/** The address this build of the app talks to, or what is wrong with it */
+function currentAddress(): string {
+  try {
+    return apiBaseUrl();
+  } catch (error) {
+    return describeError(error);
+  }
+}
+
+// Which API this app talks to, and a button that asks it for an answer right now
+export function ConnectionCheck() {
+  const [check, setCheck] = useState&lt;Check&gt;({ kind: 'idle' });
+
+  async function run() {
+    setCheck({ kind: 'checking' });
+    const controller = new AbortController();
+    const timer = setTimeout(() =&gt; controller.abort(), timeoutMs);
+    const started = Date.now();
+    try {
+      await getHealth(controller.signal);
+      setCheck({ kind: 'connected', ms: Date.now() - started });
+    } catch (error) {
+      setCheck({ kind: 'failed', message: describeError(error) });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return (
+    &lt;View style={styles.box}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Connection
+      &lt;/AppText&gt;
+      &lt;AppText&gt;This app talks to shoreline-api at:&lt;/AppText&gt;
+      &lt;AppText selectable style={styles.address}&gt;
+        {currentAddress()}
+      &lt;/AppText&gt;
+      &lt;Button
+        label={check.kind === 'checking' ? 'Checking…' : 'Check the connection'}
+        onPress={run}
+        disabled={check.kind === 'checking'}
+      /&gt;
+      {check.kind === 'connected' &amp;&amp; (
+        &lt;AppText accessibilityLiveRegion="polite"&gt;
+          Connected: the server answered in {check.ms} ms.
+        &lt;/AppText&gt;
+      )}
+      {check.kind === 'failed' &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {check.message}
+        &lt;/AppText&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    gap: spacing.sm,
+  },
+  address: {
+    fontWeight: '600',
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>A union for the check's state</strong>, as in the HQ: TypeScript lets the screen read <code>check.ms</code> only when <code>kind</code> is <code>'connected'</code>.</li>
+                        <li><strong>An eight-second timeout.</strong> A refused connection fails at once, but a request to an address that nobody answers can hang far longer (curl gave up on an unused address on the course's network after about three seconds; across networks it can take much longer). <code>AbortController</code> stops the wait, the client turns the abort into a <code>NetworkError</code>, and the volunteer sees the advice. The course checked it with <code>10.0.2.2</code> in the web preview: the check gave up and showed "10.0.2.2 works only inside the Android emulator: the web preview uses localhost."</li>
+                        <li><strong>The address is <code>selectable</code></strong>, so you can copy it into a message to whoever is helping you.</li>
+                        <li><strong>Accessibility:</strong> the result line is a polite live region and the failure an alert, like the sign-in form's messages; the button is the usual 48-tall <code>Button</code>, disabled with "Checking…" while it waits.</li>
+                    </ul>
+                    <p>Then put it at the bottom of Profile, for guests and signed-in volunteers alike:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { Button } from '@/components/Button';
++import { ConnectionCheck } from '@/components/ConnectionCheck';
+ import { Screen } from '@/components/Screen';
+ // ...
+       &lt;Link href="/before-you-go" asChild&gt;
+         &lt;Button label="Before you go" /&gt;
+       &lt;/Link&gt;
++      {/* Which API this build talks to: the first thing to check when a phone shows no cleanups */}
++      &lt;ConnectionCheck /&gt;
+     &lt;/Screen&gt;</code></pre>
+                    </div>
+                    <p>In the web preview, open Profile and press <strong>Check the connection</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_15/15-connected.png" alt="The Profile tab in the web preview, signed in as Theo Nakamura, with a Connection section: This app talks to shoreline-api at http://192.168.1.42:4000, a Check the connection button, and the line Connected: the server answered in a few milliseconds, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The Connection section on Profile, in a web preview built with the course's example address <code>http://192.168.1.42:4000</code> (yours will differ). On your phone it shows the same address, and the answer usually takes longer over Wi-Fi.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 8: Shoreline Crew on your phone <span class="step-time">(15 min)</span></h3>
+                    <p>Scan Metro's QR code (Android: the <strong>Scan QR code</strong> button in Expo Go; iPhone: the Camera app), as in Lesson 1.2. Then walk through the app as a volunteer would:</p>
+                    <ol>
+                        <li><strong>Cleanups:</strong> the list loads, with the beach pictures. Pull it down to refresh, scroll to load more (Lessons 3.1 and 3.2, finally with real data on a phone).</li>
+                        <li><strong>A cleanup:</strong> tap <strong>Open</strong> on Weekend Cove. Try the platform's back gesture (Lesson 4.1).</li>
+                        <li><strong>Profile, Connection:</strong> it shows your network address. Press <strong>Check the connection</strong>; the answer over Wi-Fi usually takes longer than in the web preview.</li>
+                        <li><strong>Sign in</strong> as <code>theo.nakamura@example.com</code> with the password <code>shoreline-demo</code>. Profile shows Theo Nakamura.</li>
+                        <li><strong>Close Expo Go completely</strong> (swipe it away in the app switcher) and open the project again: Theo should still be signed in, because Lesson 4.3 kept the session in SecureStore, which the web preview cannot do.</li>
+                        <li><strong>Share this cleanup</strong> on Weekend Cove: the phone's share sheet opens with the message and an <code>exp://</code> link (Lesson 4.4). Send it to yourself and tap it.</li>
+                        <li><strong>Break it on purpose:</strong> stop the API with <kbd>Ctrl</kbd>+<kbd>C</kbd>, pull the list down to refresh, and read the message. Start the API again with <code>--host</code> and press <strong>Try again</strong>.</li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>This walk-through follows the Expo documentation and the earlier lessons' code; the course's checks ran the same screens in the web preview against the API on its network address. Things that only a phone shows, such as the session surviving a restart, the share sheet and the pull-to-refresh spinner, are what earlier lessons promised for this moment. If one of them behaves differently on your phone, write down what you saw: it is exactly the kind of note a team's bug report needs.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 9: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Then commit. <code>.env.local</code> stays out of Git as before; the new <code>.env.example</code> goes in.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, write down where its data will come from during development (a local server like shoreline-api, a hosted test server, or both) and the address each device needs. Put that table in your project's <code>.env.example</code>, and decide where your app shows "which server am I talking to" so you can find it on a phone in ten seconds.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ You know your computer's network address, and the API answers <code>/api/health</code> on it from the computer and from the phone's browser</li>
+                        <li>☐ <code>.env.example</code> lists the address for each device, and <code>.env.local</code> holds the one you use, with Metro restarted with <code>--clear</code></li>
+                        <li>☐ <code>src/api/address.ts</code> checks the address and gives advice per platform; <code>describeError</code> names the address that failed</li>
+                        <li>☐ Profile has a Connection section that shows the address and checks it, with an eight-second limit</li>
+                        <li>☐ On your phone (or the emulator): the cleanups and their pictures load, and you can sign in as Theo</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards (keep your <code>.env.local</code>); the next lesson starts from the project as Step 9 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the advice</h3>
+                    <p>Without running anything, write what the second sentence of the error would be for each pair, then check your answers against <code>addressAdvice</code>: <code>http://localhost:4000</code> on an iPhone; <code>http://10.0.2.2:4000</code> in the web preview; <code>http://10.0.2.2:4000</code> on Android; <code>http://192.168.1.42:4000</code> on Android.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Follow the function from the top: is the platform <code>'web'</code>? Is the host a "this device" name? Is it <code>10.0.2.2</code>? Otherwise, the last line.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The function's real output, run with Node for every pair:</p>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr><th>Address, platform</th><th>Advice</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>localhost</code>, iOS</td><td>On a phone, localhost is the phone itself (only the iOS Simulator shares your computer's). Put your computer's network address in .env.local.</td></tr>
+                                    <tr><td><code>10.0.2.2</code>, web</td><td>10.0.2.2 works only inside the Android emulator: the web preview uses localhost.</td></tr>
+                                    <tr><td><code>10.0.2.2</code>, Android</td><td>Check that shoreline-api is running, then try again. (10.0.2.2 works on the emulator, not on a phone.)</td></tr>
+                                    <tr><td><code>192.168.1.42</code>, Android</td><td>Check that shoreline-api is running with --host and that this device is on the same Wi-Fi as your computer, then try again.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p>The function cannot tell an iPhone from the iOS Simulator, or an Android phone from the emulator, so its words cover both honestly instead of guessing.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Ten minutes on the emulator address</h3>
+                    <p>Start Metro with <code>EXPO_PUBLIC_API_URL</code> set to <code>http://10.0.2.2:4000</code> in the shell (One Variable, Many Devices), without editing <code>.env.local</code>. Predict what the web preview's Connection section shows, and what <strong>Check the connection</strong> does there. Then stop Metro and start it normally: which address is back?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Which value wins, the shell's or the file's? And what can <code>10.0.2.2</code> mean to a browser on your computer?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The shell's value wins (measured), and Metro leaves out its <code>env:</code> lines. Connection shows <code>http://10.0.2.2:4000</code>. In the web preview, the check waits until the eight-second limit, then says "Could not reach the server at http://10.0.2.2:4000. 10.0.2.2 works only inside the Android emulator: the web preview uses localhost." (measured with the course's port). On the Android emulator, the same build should connect. Restarted without the variable, the address from <code>.env.local</code> is back. In PowerShell, remember the variable stays set in that window until you remove it.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: What day is it on the server?</h3>
+                    <p><code>/api/health</code> also answers the date the sample data is built around. Show it in the connected line: "Connected: the server answered in 12 ms. Its date is …", with the date written like the cards write theirs.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>getHealth</code> already returns a typed <code>Health</code>. Add the date to the <code>'connected'</code> member of the union, and format it with <code>formatDate</code> from <code>src/utils/format.ts</code>, like the cards do.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Four changes in <code>ConnectionCheck.tsx</code> (type-checked, linted and run in the web preview):</p>
+                        <pre data-snippet><code class="language-diff-tsx"> import { Button } from '@/components/Button';
++import { formatDate } from '@/utils/format';
+ // ...
+-  | { kind: 'connected'; ms: number }
++  | { kind: 'connected'; ms: number; today: string }
+ // ...
+-      await getHealth(controller.signal);
+-      setCheck({ kind: 'connected', ms: Date.now() - started });
++      const health = await getHealth(controller.signal);
++      setCheck({ kind: 'connected', ms: Date.now() - started, today: health.today });
+ // ...
+-          Connected: the server answered in {check.ms} ms.
++          Connected: the server answered in {check.ms} ms. Its date is {formatDate(check.today)}.</code></pre>
+                        <p>The line then read "Connected: the server answered in 9 ms. Its date is" followed by the date in the cards' format. If a teammate starts the API with <code>--today</code> to rehearse a cleanup day, this line shows it.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Let Metro tell the app the address (Stretch)</h3>
+                    <p>Expo Go loaded the app from Metro, so in development the app already knows an address the phone can reach: Metro's. Write a function that builds the API's address from it, using <code>Constants.expoConfig?.hostUri</code> from <code>expo-constants</code> (already installed with the template). What should happen in the web preview, and in a store build?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>In Expo Go, <code>hostUri</code> is Metro's host and port, such as <code>192.168.1.42:8081</code>. Keep the host, use the API's port. When there is no <code>hostUri</code>, return <code>null</code> and let <code>.env.local</code> decide.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">import Constants from 'expo-constants';
+
+/**
+ * Development only: the API on the computer that runs Metro. Expo Go loaded the app from that
+ * computer, so its address (hostUri, such as "192.168.1.42:8081") is one the phone can reach.
+ */
+export function metroApiAddress(apiPort = 4000): string | null {
+  const host = Constants.expoConfig?.hostUri?.split(':')[0];
+  return host === undefined ? null : `http://${host}:${apiPort}`;
+}</code></pre>
+                        <p>It type-checks and lints in the project. In the web preview, the course measured <code>hostUri</code> as <code>null</code> (so the function returns <code>null</code>); in Expo Go, the Expo documentation describes it as Metro's address. A store build is not loaded from Metro at all, so it has no such address: this trick is for development only, and a real app reads its server's address from configuration (Lesson 9.1). That is why Shoreline Crew keeps <code>EXPO_PUBLIC_API_URL</code> as the one source, and you could use this function only as a fallback while developing.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> <code>.env.local</code> says <code>EXPO_PUBLIC_API_URL=http://localhost:4000</code>, and the API runs on your computer. You open Shoreline Crew in Expo Go on an Android phone. What does the Cleanups tab show?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Where does the phone look for localhost?">
+                                A) The cleanups, as in the web preview
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="On the phone, localhost is the phone itself, where no API runs. The client names the address and, on Android, explains that localhost is the device itself and suggests your computer's network address.">
+                                B) Could not reach the server at http://localhost:4000, with advice that localhost is the device itself
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="CORS is a browser rule. Is Expo Go a browser?">
+                                C) A CORS error
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The address is written correctly, so the address check passes. Does any request get an answer?">
+                                D) EXPO_PUBLIC_API_URL is not set
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> You start the API with <code>node server.ts</code> (no <code>--host</code>) and put your computer's network address in <code>.env.local</code>. Even the web preview on the same computer cannot load the cleanups. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The web preview's origin is localhost, which the API allows. Look at what curl said.">
+                                A) The API's CORS rules block the network address
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the browser on another device?">
+                                B) Browsers cannot use network addresses for their own computer
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Without --host the API listens on localhost only, so a connection to the network address is refused, even from the same computer. Start it with node server.ts --host.">
+                                C) Without <code>--host</code>, the API listens only on localhost, so the network address refuses the connection
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> You fix <code>.env.local</code>, save it and reload the app on the phone. The Connection section still shows the old address. What is going on?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="EXPO_PUBLIC_ values are copied into the bundle when Metro builds it. Reloading gets the same bundle; stop Metro and start it with npx expo start --clear.">
+                                A) The old value is inside the bundle Metro already built: restart with <code>npx expo start --clear</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="SecureStore holds the session. Where does the address come from?">
+                                B) The phone saved the old address in SecureStore
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is .env.local read by the phone, or by Metro on your computer?">
+                                C) The phone reads .env.local only once a day
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The API sends no <code>Access-Control-Allow-Origin</code> header to requests without an <code>Origin</code>. Why does Shoreline Crew in Expo Go still get its data?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The API is the same for both. What is different about who asks?">
+                                A) Expo Go adds the header for you
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="--host changes which addresses the API listens on, not its headers.">
+                                B) <code>--host</code> turns CORS off
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="It is not about the port. Is there a browser involved?">
+                                C) Port 4000 is exempt from CORS
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="CORS is enforced by browsers for web pages. A native app's fetch sends no Origin and does not check the answer's CORS headers, so it simply reads the answer.">
+                                D) CORS is a browser rule; a native app's fetch sends no <code>Origin</code> and ignores the header
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Theo's phone loads the cleanups from <code>http://192.168.1.42:4000</code>. Which address do the beach pictures in the answer use?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The API builds picture addresses for each request. From what?">
+                                A) <code>http://localhost:4000/images/…</code>, so the app must rewrite them
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a phone on Wi-Fi reach 10.0.2.2?">
+                                B) <code>http://10.0.2.2:4000/images/…</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The API builds each picture's address from the address the request arrived at, so the phone gets http://192.168.1.42:4000/images/... and the pictures load with no extra code.">
+                                C) <code>http://192.168.1.42:4000/images/…</code>, the address the request arrived at
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Can I use <code>localhost</code> on the Android emulator after all?</summary>
+                    <p>Yes, with one extra command. Android's <code>adb</code> tool can forward a port from the emulator (or a phone connected by USB) to your computer: <code>adb reverse tcp:4000 tcp:4000</code> makes <code>localhost:4000</code> on the device reach port 4000 on the computer, according to Android's documentation. It has to be repeated when the emulator restarts, so <code>10.0.2.2</code> is the simpler habit; the course could not run the emulator here to measure either.</p>
+                </details>
+                <details>
+                    <summary>Why not put the address in the code, with <code>Platform.OS === 'android' ? '10.0.2.2' : 'localhost'</code>?</summary>
+                    <p>Because the platform does not tell you the <em>device</em>: an Android phone is not an emulator, and an iPhone is not the Simulator. A real phone needs your computer's network address, which is different on every network and for every learner. An address in <code>.env.local</code> is one line to change and never committed; an address in the code is a commit every time you change Wi-Fi.</p>
+                </details>
+                <details>
+                    <summary>Is <code>--tunnel</code> a way around all this?</summary>
+                    <p>Partly. <code>npx expo start --tunnel</code> sends Metro's traffic through a service on the internet, so Expo Go can load the app even when the Wi-Fi keeps devices apart (it asks to install a helper the first time). But only Metro goes through it. The app's requests to <code>EXPO_PUBLIC_API_URL</code> still need an address the phone can reach, and shoreline-api has no tunnel. A phone hotspot or the emulator is usually quicker.</p>
+                </details>
+                <details>
+                    <summary>Is it safe that the API address is visible inside the app?</summary>
+                    <p>Yes: an address is not a secret, and every app's servers can be found by watching its traffic. What must never be in an <code>EXPO_PUBLIC_</code> variable is a secret, such as a private key or a password (Lesson 1.3). The volunteer's token stays in SecureStore, and the API decides what each token may do.</p>
+                </details>
+                <details>
+                    <summary>What changes when the API is on the internet instead of my computer?</summary>
+                    <p>Only the address, which becomes an <code>https://</code> address the same on every device: no <code>--host</code>, no <code>10.0.2.2</code>, no Wi-Fi rules. Module 9 sets up different addresses for development and production builds. Everything you added today still helps: an <code>https://</code> server can be down too, and the Connection section shows which one the build talks to.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make a one-page "Phone can't connect" checklist for your team, in the order of the chain: same Wi-Fi? Address in <code>.env.local</code> equals Metro's? Metro restarted with <code>--clear</code>? API started with <code>--host</code>? <code>curl</code> to the network address from the computer? <code>/api/health</code> in the phone's browser? Firewall, WSL, guest network? For each line, write the exact command or screen to look at and what "good" looks like. Then try it on a friend's setup: a checklist is only good if someone else can follow it.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Draw the path of one request, from Theo's thumb on <strong>Check the connection</strong> to the API's terminal and back: the phone, the Wi-Fi, your computer's firewall, WSL if you use it, the API's <code>--host</code>, and the answer. Mark where each mistake from today would break the path, and which tool or screen would tell you.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><code>localhost</code> means "this device": your computer for the web preview and the iOS Simulator, the device itself on a phone or the Android emulator</li>
+                        <li>Addresses: web preview and Simulator <code>http://localhost:4000</code>; Android emulator <code>http://10.0.2.2:4000</code>; a phone <code>http://YOUR-ADDRESS:4000</code> with <code>node server.ts --host</code></li>
+                        <li>Test the network before the app: <code>curl</code> to the network address, then <code>/api/health</code> in the phone's browser</li>
+                        <li><code>EXPO_PUBLIC_API_URL</code> is copied into the bundle: change <code>.env.local</code>, restart with <code>npx expo start --clear</code>; a shell variable wins over the file</li>
+                        <li>Native apps send no <code>Origin</code>, so CORS does not apply; the web preview belongs in the computer's own browser. Picture addresses follow the address the request used</li>
+                        <li>Errors name the address and suggest a fix per platform; a Connection check shows which server a build talks to</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up the address for each device, and the API's options</td><td><a href="api.html#addresses">API reference: Which address</a></td></tr>
+                            <tr><td>Fix a phone that cannot connect, or WSL networking</td><td><a href="troubleshooting.html#phone-cannot-connect">Troubleshooting</a></td></tr>
+                            <tr><td>Read Expo's guide to environment variables</td><td><a href="https://docs.expo.dev/guides/environment-variables/" target="_blank" rel="noopener">Expo: Environment variables</a></td></tr>
+                            <tr><td>Read Microsoft's guide to WSL networking</td><td><a href="https://learn.microsoft.com/windows/wsl/networking" target="_blank" rel="noopener">Microsoft: Accessing network applications with WSL</a></td></tr>
+                            <tr><td>Read how the Android emulator reaches your computer</td><td><a href="https://developer.android.com/studio/run/emulator-networking" target="_blank" rel="noopener">Android: Set up Android Emulator networking</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew runs on your phone with real cleanups, pictures and a real sign-in, for the first time</li>
+                        <li>You opened a server to your network on purpose, tested it link by link, and know how to close it again</li>
+                        <li>You can give the right address to the web preview, a simulator, an emulator and a phone, and switch between them</li>
+                        <li>The client you copied from the HQ now explains network failures in words that point to the fix, on every screen at once</li>
+                        <li>You have a method for "it works on my computer but not on the phone" that you will use for the rest of your career</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>The phone has data now, but each screen still fetches it by hand with <code>useEffect</code>, and nothing notices when the app comes back from the background or the signal returns. In <a href="lesson_16.html">Lesson 5.2: TanStack Query on Mobile</a>, the Query you know from the HQ takes over: caching, refetching when the app returns to the foreground (<code>AppState</code>) and when the connection comes back (NetInfo), and signing up for a cleanup, and cancelling, as mutations.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the phone (or the emulator) shows the cleanups, and commit your work</li>
+                    <li>Try the app on your phone away from the computer for a moment: turn on airplane mode, pull to refresh, and read the message. Then turn it off and try again. Next lesson makes the app notice by itself</li>
+                    <li>Look at the HQ's <code>src/api/queries.ts</code> if you have it: next lesson adapts it</li>
+                    <li>Write today's journal entry, with your request's path</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>If the phone connected on the first try, enjoy it: it does not always happen. If it took you an hour of firewalls and Wi-Fi settings, you learned the more valuable lesson. Networking problems feel personal because the screen just says "no", but they always have a cause, and today you learned to walk the chain one link at a time until you find it. The next time a teammate says "the app works for me but not on my phone", you will be the calm one who asks, "What does Connection say?"</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_14.html" class="prev-lesson">← Previous: Deep Links</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_16.html" class="next-lesson">Next: TanStack Query on Mobile →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

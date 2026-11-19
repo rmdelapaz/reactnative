@@ -1,0 +1,66 @@
+{
+  "title": "An outbox of hazard reports: persist on AsyncStorage, safe retries, useShallow",
+  "lesson": "5.5",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter",
+      "dir": "starter",
+      "cmd": "npm test",
+      "exit": "nonzero",
+      "expect": [
+        "Cannot read properties of undefined (reading 'setItem')",
+        "Tests:       8 failed, 8 total"
+      ]
+    },
+    {
+      "name": "typecheck-as-shipped",
+      "dir": "starter",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "starter-task1-done",
+      "dir": "starter",
+      "files": {
+        "src/hazardQueue.ts": "// The hazard reports waiting to be sent: a Zustand store that saves itself on the phone, so a\n// report written with no signal survives closing the app (sendReports.ts sends it later)\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport { create } from 'zustand';\nimport { createJSONStorage, persist } from 'zustand/middleware';\n\nimport type { HazardReport } from './types';\n\nexport type QueuedReport = {\n  report: HazardReport;\n  volunteerId: string; // only this volunteer's sign-in may send it\n  status: 'waiting' | 'refused';\n  attempts: number; // tries that got no answer\n  problem: string | null; // the server's words, when it refused\n};\n\ntype HazardQueue = {\n  reports: QueuedReport[];\n  sending: boolean;\n  add: (volunteerId: string, report: HazardReport) => void;\n  change: (clientId: string, changes: Partial<QueuedReport>) => void;\n  remove: (clientId: string) => void;\n  setSending: (sending: boolean) => void;\n};\n\n// A saved report is checked before the app trusts it: an older version may have saved another shape\nfunction isQueuedReport(value: unknown): value is QueuedReport {\n  return (\n    typeof value === 'object' &&\n    value !== null &&\n    'volunteerId' in value &&\n    typeof value.volunteerId === 'string' &&\n    'status' in value &&\n    (value.status === 'waiting' || value.status === 'refused') &&\n    'attempts' in value &&\n    typeof value.attempts === 'number' &&\n    'report' in value &&\n    typeof value.report === 'object' &&\n    value.report !== null &&\n    'clientId' in value.report &&\n    typeof value.report.clientId === 'string'\n  );\n}\n\nexport const QUEUE_KEY = 'shoreline-lab-hazard-queue';\n\nexport const useHazardQueue = create<HazardQueue>()(\n  persist(\n    (set) => ({\n      reports: [],\n      sending: false,\n      add: (volunteerId, report) =>\n        set(({ reports }) =>\n          reports.some((item) => item.report.clientId === report.clientId)\n            ? {} // the same report twice is still one report\n            : { reports: [...reports, { report, volunteerId, status: 'waiting', attempts: 0, problem: null }] },\n        ),\n      change: (clientId, changes) =>\n        set(({ reports }) => ({\n          reports: reports.map((item) =>\n            item.report.clientId === clientId ? { ...item, ...changes } : item,\n          ),\n        })),\n      remove: (clientId) =>\n        set(({ reports }) => ({ reports: reports.filter((item) => item.report.clientId !== clientId) })),\n      setSending: (sending) => set({ sending }),\n    }),\n    {\n      name: QUEUE_KEY,\n      // A phone has no localStorage: say where the queue lives\n      storage: createJSONStorage(() => AsyncStorage),\n      // Save the reports only: \"sending right now\" ends when the app closes\n      partialize: ({ reports }) => ({ reports }),\n      // Keep only the saved reports that pass the check\n      merge: (saved, current) => {\n        const reports =\n          typeof saved === 'object' && saved !== null && 'reports' in saved ? saved.reports : [];\n        return { ...current, reports: Array.isArray(reports) ? reports.filter(isQueuedReport) : [] };\n      },\n      // Reading AsyncStorage is async: the app loads the queue itself, behind its splash screen\n      skipHydration: true,\n    },\n  ),\n);\n\n/** Read the saved queue back. Call it once, when the app starts. */\nexport function loadHazardQueue(): Promise<void> {\n  return useHazardQueue.persist.rehydrate();\n}\n"
+      },
+      "cmd": "npm test",
+      "exit": "nonzero",
+      "expect": [
+        "Maximum update depth exceeded",
+        "Tests:       3 failed, 5 passed, 8 total"
+      ]
+    },
+    {
+      "name": "solution",
+      "dir": "solution",
+      "cmd": "npm test",
+      "exit": 0,
+      "expect": [
+        "Tests:       8 passed, 8 total"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-lint",
+      "dir": "solution",
+      "cmd": "npm run lint",
+      "exit": 0,
+      "absent": [
+        "problem"
+      ]
+    }
+  ]
+}

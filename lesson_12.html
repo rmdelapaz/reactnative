@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tabs, nesting and modals with Expo Router in an Expo app: a JavaScript tab bar from expo-router/js-tabs with icons and themed colors, a (tabs) group inside the root stack, screens that open on top of the tabs, the back button's words, safe-area edges above a tab bar, and a modal screen with a Done button, as Shoreline Crew gets its four tabs. React Native &amp; Expo: Build and Ship a Mobile App Lesson 4.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Tabs, Nesting and Modals - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🗂️ Lesson 4.2: Tabs, Nesting and Modals</h1>
+                <p class="lead">Open almost any app on your phone and look at the bottom of the screen: a row of tabs, the handful of places you go back to all day. Above them, screens slide in from the side, and now and then one slides up from the bottom, asks for a moment of your attention, and goes away again. Today Shoreline Crew gets all three. You will see that each is a navigator, that navigators sit inside each other like boxes, and that where you put a screen decides what is around it: a tab bar, a back arrow, or neither.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Build a tab bar with Expo Router's JavaScript <code>Tabs</code>, with an icon, a title and themed colors for each tab, and explain how it differs from the template's <code>NativeTabs</code></li>
+                        <li>Use a group folder, <code>(tabs)</code>, to nest the tab navigator inside the root stack without changing any address</li>
+                        <li>Decide where a screen belongs: on top of the tabs (no tab bar), inside a tab (tab bar stays), or as a modal, and say which edges of the phone each one touches</li>
+                        <li>Present a screen as a modal, close it with a button that works however it was opened, and describe how iPhones, Android phones and the web preview show it</li>
+                        <li>Read the warnings and odd headers that a mismatch between a layout and its files produces, and fix them</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_11.html">Lesson 4.1: File-Based Routing</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's tab bar (Cleanups, My cleanups, Logbook, Profile) in a <code>(tabs)</code> group, honest placeholder screens for the three new tabs, cleanup screens that open on top of the tabs with a clear back button, and a <strong>Before you go</strong> safety briefing presented as a modal</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58.0.31 (<code>expo-router/js-tabs</code>), expo-symbols 58.0.5 for the tab icons, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone shows the native modal and back gestures once it can reach the API (Lesson 5.1)</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-12-start.zip">lesson-12-start.zip</a> · Finished code: <a href="downloads/lesson-12-end.zip">lesson-12-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Four Places to Come Back To</a></li>
+                        <li><a href="#tabs" class="toc-link">Tabs</a></li>
+                        <li><a href="#nesting" class="toc-link">Navigators Inside Navigators</a></li>
+                        <li><a href="#modals" class="toc-link">Modals</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Four Tabs and a Safety Briefing</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Four Places to Come Back To</h2>
+                <p>In Lesson 4.1, Shoreline Crew became a stack: the Cleanups list at the bottom, a cleanup's own screen pushed on top. That works for "look something up and come back". It does not work for the other things a volunteer does with the app: checking which cleanups they signed up for, recording what the crew collected, seeing who they are signed in as. Those are not "on top of" the list; they are places of their own. By the end of today:</p>
+                <ul>
+                    <li><strong>A tab bar</strong> along the bottom: <strong>Cleanups</strong>, <strong>My cleanups</strong>, <strong>Logbook</strong> and <strong>Profile</strong>, each with an icon from the <code>Icon</code> component you built in Lesson 2.3.</li>
+                    <li><strong>Placeholder tabs that say what is coming.</strong> My cleanups, the Logbook and Profile need data the app cannot get yet: signing in (Lesson 4.3), sign-ups (Lesson 5.2), the logbook kept on the phone (Lessons 5.3 and 5.5). Each tab says so honestly instead of pretending.</li>
+                    <li><strong>Cleanups that open on top of the tabs</strong>, with a back button that says "Back" instead of a folder name you will meet in Common Mistakes.</li>
+                    <li><strong>A modal</strong>: <strong>Before you go</strong>, the crew's safety briefing (what to bring, what never to pick up, watching the tide), sliding up over whatever screen opened it, with a <strong>Done</strong> button.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> almost every app you will be asked to build has this shape, tabs at the top level, stacks for drilling in, modals for short tasks. "Where should this screen go?" is a question you will answer in design reviews, and the answer changes what users see: whether the tab bar stays, what the back button says, how a screen closes. Getting the nesting right early saves rewiring later, when deep links (Lesson 4.4) and sign-in (Lesson 4.3) depend on it.</p>
+                <p><strong>Why it matters for the volunteers:</strong> on a windy beach with gloves on, nobody wants to hunt through menus. One thumb tap reaches any of the four places, and the safety briefing is two taps away from any cleanup.</p>
+                <p>If you did the React + TypeScript course: the web version of this is nested routes with a shared layout and an <code>&lt;Outlet /&gt;</code> (React Router, Lessons 6.1 and 6.2 of that course). The idea carries over. What changes on a phone is that each layer is a <em>navigator</em> with its own behavior: tabs keep every visited screen alive, stacks pile screens up, and a modal is a stack screen presented a different way.</p>
+            </section>
+
+            <section id="tabs" class="lesson-section">
+                <h2>📑 Tabs</h2>
+                <p>A tab navigator shows one screen at a time and a bar of buttons to switch between them. It behaves differently from the stack you know:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Stack (Lesson 4.1)</th><th>Tabs (today)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Opening a screen</td><td>Pushes it on top of the pile</td><td>Switches to it; the others stay where they are</td></tr>
+                            <tr><td>Screens you left</td><td>Stay mounted underneath</td><td>Stay mounted once visited, with their state (scroll position, search text, loaded pages)</td></tr>
+                            <tr><td>A screen you never opened</td><td>Does not exist yet</td><td>Is not drawn until its first visit ("lazy")</td></tr>
+                            <tr><td>Back</td><td>Pops the top screen</td><td>Goes to the first tab, Cleanups (the default; on Android, the system back gesture or button)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The course measured those last rows in the web preview: type "calder" in the Cleanups search, switch to Profile and back, and the search still says "calder" with its three cleanups. Load <code>/logbook</code> directly and the Cleanups screen is not drawn at all until you tap its tab. And the browser's back button after a few tab switches went to Cleanups, not through every tab you visited.</p>
+
+                <h3>Two tab bars to choose from</h3>
+                <p>Expo Router 58 offers two. The template you started from in Lesson 1.2 used the second one before you reset it:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>JavaScript tabs: <code>expo-router/js-tabs</code></th><th>Native tabs: <code>expo-router/native-tabs</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Who draws the bar</td><td>React Native views (React Navigation's bottom tabs)</td><td>The phone itself: iOS's tab bar, Android's bottom navigation</td></tr>
+                            <tr><td>Looks</td><td>The same on every phone, styled with your theme</td><td>Exactly like the system's own apps, including newer system styles</td></tr>
+                            <tr><td>Headers</td><td>Each tab can have a header bar, like a stack screen</td><td>No headers of its own: a tab that needs one puts a stack inside</td></tr>
+                            <tr><td>Web preview</td><td>Works like on a phone (measured)</td><td>The course measured a small floating switcher at the top of the page, with no icons, and a "tree hydrated but some attributes … didn't match" error in the dev server: the template ships a separate web version (<code>app-tabs.web.tsx</code>) for that reason</td></tr>
+                            <tr><td>Icons</td><td>Any React element: Shoreline Crew's <code>Icon</code></td><td><code>NativeTabs.Trigger.Icon</code> with an SF Symbol (<code>sf</code>) and a Material name (<code>md</code>)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Shoreline Crew uses the JavaScript tabs: one bar that you can see and check in the web preview, themed for dark mode by the <code>ThemeProvider</code> you already have, with headers per tab and the icon component you already wrote. For comparison, here is what the template's style looks like (it type-checks in the Shoreline Crew project; you will not use it):</p>
+                <pre data-snippet><code class="language-tsx">import { NativeTabs } from 'expo-router/native-tabs';
+
+// The template's tab bar: the phone's own tab bar, drawn by iOS and Android
+export default function TabLayout() {
+  return (
+    &lt;NativeTabs&gt;
+      &lt;NativeTabs.Trigger name="index"&gt;
+        &lt;NativeTabs.Trigger.Label&gt;Cleanups&lt;/NativeTabs.Trigger.Label&gt;
+        &lt;NativeTabs.Trigger.Icon sf="list.bullet" md="format_list_bulleted" /&gt;
+      &lt;/NativeTabs.Trigger&gt;
+      &lt;NativeTabs.Trigger name="profile"&gt;
+        &lt;NativeTabs.Trigger.Label&gt;Profile&lt;/NativeTabs.Trigger.Label&gt;
+        &lt;NativeTabs.Trigger.Icon sf="person.crop.circle" md="account_circle" /&gt;
+      &lt;/NativeTabs.Trigger&gt;
+    &lt;/NativeTabs&gt;
+  );
+}</code></pre>
+                <p>The native look is a real advantage, and you may prefer it in an app of your own once you have a phone or emulator to check it on. The navigation ideas in this lesson are the same for both.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: Tabs from 'expo-router' is deprecated</h4>
+                    <p>Many articles and older projects write <code>import { Tabs } from 'expo-router'</code>. In Expo Router 58 that export still works, but its type definition is marked <code>@deprecated</code> with the message "Use <code>import { Tabs } from 'expo-router/js-tabs'</code> instead." The course measured that neither <code>tsc</code> nor <code>expo lint</code> mentions it: only your editor does, by striking the name through. Import from <code>expo-router/js-tabs</code>.</p>
+                </div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tables in the crew tent</h4>
+                    <p>At a big cleanup, the crew tent has four tables: sign-in, gear, the logbook, first aid. You walk between them; each one keeps its own papers spread out exactly as you left them, and nobody stacks the gear table on top of the sign-in table. That is a tab navigator. A stack is what happens <em>at</em> one table: the crew leader puts one clipboard on top of another. And a modal is the safety card someone hands you to read before you head down to the water: you hold it up in front of everything, then hand it back.</p>
+                </div>
+            </section>
+
+            <section id="nesting" class="lesson-section">
+                <h2>🪆 Navigators Inside Navigators</h2>
+                <p>A layout file holds a navigator, and a navigator's screens can themselves be layouts with navigators inside. Shoreline Crew's tree after today:</p>
+<div class="mermaid">
+graph TD
+    R["Root Stack"] --> T["(tabs): Tabs"]
+    R --> D["A cleanup, the modal"]
+    T --> C["Cleanups, My cleanups"]
+    T --> L["Logbook, Profile"]
+</div>
+                <p>The root <code>Stack</code> (in <code>src/app/_layout.tsx</code>) has four screens: the whole tab navigator counts as <em>one</em> of them, next to the cleanup screen, the modal, and the not-found screen (left out of the picture). That has consequences you can see:</p>
+                <ul>
+                    <li><strong>A cleanup opens on top of the tabs.</strong> It is pushed onto the root stack, above the screen that holds the tab bar, so the tab bar is hidden while you read about the cleanup, and back returns you to the tab you came from, as you left it.</li>
+                    <li><strong>The folder <code>(tabs)</code> adds nothing to the address.</strong> Parentheses make a <strong>group</strong>: <code>src/app/(tabs)/index.tsx</code> is still <code>/</code>, and <code>(tabs)/profile.tsx</code> is <code>/profile</code>. The group exists only so the four files can share a layout. (Typed routes accept <code>/profile</code> and <code>/(tabs)/profile</code>; the course writes the short form.)</li>
+                    <li><strong>Each navigator draws its own headers.</strong> The root stack would draw a header above the tab navigator too, titled with its route name, so the root layout hides it: <code>&lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;</code>. Inside, the tab navigator draws a header for each tab, except Cleanups, which has its banner.</li>
+                </ul>
+                <h3>On top of the tabs, or inside a tab?</h3>
+                <p>The other way to nest is to put a stack <em>inside</em> a tab: a folder <code>(tabs)/logbook/</code> with its own <code>_layout.tsx</code> holding a <code>Stack</code>. Screens pushed there stay above the tab bar. Both are right for different screens:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Put the screen…</th><th>The tab bar</th><th>Good for</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>In the root stack, next to <code>(tabs)</code></td><td>Hidden while it is open</td><td>A screen reached from several tabs, or from a link from outside (one address, one place); reading or doing one thing</td><td>A cleanup: opened from Cleanups today, from My cleanups later, from a shared link in Lesson 4.4</td></tr>
+                            <tr><td>In a stack inside one tab</td><td>Stays; switching tabs and back keeps that tab's pile</td><td>Drilling deeper within one area of the app, while the other tabs stay one tap away</td><td>Exercise 4: a "How the logbook works" page inside the Logbook tab</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Edges, one more time</h3>
+                <p>The rule from Lesson 2.3 now has every case: a screen leaves out each edge that a bar already covers.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Screen</th><th>Top</th><th>Bottom</th><th><code>edges</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Cleanups (no header, above the tab bar)</td><td>Its own: the status bar</td><td>The tab bar</td><td><code>['top', 'left', 'right']</code></td></tr>
+                            <tr><td>My cleanups, Logbook, Profile</td><td>The tab's header</td><td>The tab bar</td><td><code>['left', 'right']</code></td></tr>
+                            <tr><td>A cleanup, the modal, not found</td><td>The stack's header</td><td>Its own: the home indicator</td><td><code>['bottom', 'left', 'right']</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The JavaScript tab bar keeps itself clear of the home indicator (it adds the bottom inset to its own height), and so does each header for the status bar, which is exactly why the screen must not add them again.</p>
+            </section>
+
+            <section id="modals" class="lesson-section">
+                <h2>🪟 Modals</h2>
+                <p>A <strong>modal</strong> is a screen for a short task or a quick read, presented over everything else and dismissed when you are done. In Expo Router it is an ordinary route in a stack, with one option: <code>presentation: 'modal'</code>. It has an address like any screen (<code>/before-you-go</code>), and it is pushed and popped like any screen; only the way it appears changes. According to the React Navigation and Expo Router documentation, and what the course measured in the web preview:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>iPhone</th><th>Android phone</th><th>Web preview</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>How it appears</td><td>Slides up as a card; the screen behind shrinks back slightly</td><td>Slides or fades in over the whole screen</td><td>An ordinary screen with a back arrow (measured)</td></tr>
+                            <tr><td>How it closes</td><td>Swipe the card down, or your own button</td><td>The system back gesture or button, or your own button</td><td>The back arrow, the browser's back button, or your own button</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Because the ways to close differ, and because swiping a card down is not obvious to everyone, a modal should always have a visible way out: Shoreline Crew's has a <strong>Done</strong> button. And like the cleanup screen in Lesson 4.1, a modal can be opened from its address with nothing underneath (a link, or the web preview's address bar), so Done uses the same pattern: <code>router.back()</code> when there is something to go back to, <code>router.replace('/')</code> when there is not.</p>
+                <h3>Sheets</h3>
+                <p>A stack screen can also be presented as a <strong>sheet</strong> that covers only part of the screen and snaps to set heights (detents), the way many map and music apps show details:</p>
+                <pre data-snippet><code class="language-tsx">import { Stack } from 'expo-router';
+
+// Inside the root Stack: a sheet that stops at half the screen, and can be pulled up to full height
+export function SheetScreen() {
+  return (
+    &lt;Stack.Screen
+      name="before-you-go"
+      options={{
+        presentation: 'formSheet',
+        sheetAllowedDetents: [0.5, 1],
+        sheetGrabberVisible: true,
+        title: 'Before you go',
+      }}
+    /&gt;
+  );
+}</code></pre>
+                <p>It type-checks, and the course measured that the web preview shows it as an ordinary screen, the same as a modal. The half-height sheet, the grabber and the pull-up are phone features, described in the docs (try it in Expo Go once your phone has data in Lesson 5.1). Shoreline Crew's briefing is a long read, so it stays a full modal.</p>
+                <h3>A modal route or React Native's Modal component?</h3>
+                <p>React Native also has a <code>&lt;Modal&gt;</code> component, which shows content over the current screen from inside it. Use it for something small that belongs to one screen and does not need an address (a "Cancel your sign-up?" question, for instance). Use a modal <em>route</em> when the content is a screen of its own: it has an address, so another screen, a link or a test can open it, and back and Done work the way they work everywhere else.</p>
+                <div class="card card-info">
+                    <h4>💡 Why a modal and not a tab or a pushed screen?</h4>
+                    <p>A modal says "this is a short detour, and you will be right back where you were". The safety briefing is read before a cleanup, from the cleanup's screen or from Profile, and then closed: a modal. Things volunteers return to all the time are tabs; things they drill into are pushed screens. In Lessons 4.3 and 5.4 the same reasoning makes sign-in and the new debris log modals too.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Navigation mistakes rarely stop the app: it still runs, it just shows something odd. So the clues are a yellow warning in Metro's terminal, a strange word in a header, or a tab that is not there. Each one below was produced on purpose in the finished project and is quoted the way Metro printed it. Reading these is how you find which layout and which file disagree.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ A header that says "(tabs)"</h4>
+                    <p>Move the Cleanups screen into <code>(tabs)</code> but leave the root layout's old line, <code>&lt;Stack.Screen name="index" … /&gt;</code>, as it was. Open the web preview and look at Metro's terminal:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+λ  WARN  [Layout children]: No route named "index" exists in nested children: [ '+not-found', 'before-you-go', '(tabs)', 'cleanups/[id]' ]
+...
+Web  WARN  [Layout children]: No route named "index" exists in nested children: ["+not-found", "before-you-go", "(tabs)", "cleanups/[id]"]
+...</code></pre>
+                    </div>
+                    <p>The root stack has no screen called <code>index</code> any more: its children are the four listed, and one of them is <code>(tabs)</code>. The <code>λ</code> line comes from the server rendering the page for the web preview, the <code>Web</code> line from the browser; with a phone connected you should see an <code>iOS</code> or <code>Android</code> line too. Worse, nothing hides the root stack's header above the tabs: the course measured a header titled <strong>(tabs)</strong>, the group's route name, at the top of every tab, and on Profile a second header under it. The fix is the line from Step 2: <code>&lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A back button that says "(tabs)"</h4>
+                    <p>A stack's back button is labeled with the title of the screen underneath. Under the cleanup screen is the tab navigator, whose title nobody set, so the label falls back to its route name. The course measured it in the web preview, where the arrow has no visible words but a screen reader hears its <code>aria-label</code>: <code>"(tabs), back"</code>. The React Navigation source uses the same label on an iPhone, where it is printed next to the chevron. The fix, <code>headerBackTitle: 'Back'</code> in the root stack's <code>screenOptions</code> (Step 5), makes it "Back" on an iPhone and "Go back" for screen readers in the web preview.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A tab that disappears</h4>
+                    <p>Write <code>name="my-cleanup"</code> (one letter short) in <code>(tabs)/_layout.tsx</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+λ  WARN  [Layout children]: No route named "my-cleanup" exists in nested children: [ 'index', 'logbook', 'my-cleanups', 'profile' ]
+...
+Web  WARN  [Layout children]: No route named "my-cleanup" exists in nested children: ["index", "logbook", "my-cleanups", "profile"]
+...</code></pre>
+                    </div>
+                    <p>The course measured more than a warning: the web preview's tab bar had only three tabs, and My cleanups was gone. The name in a <code>Tabs.Screen</code> must be the file's name, without <code>.tsx</code>; the warning even lists the names that exist. <code>tsc</code> says nothing here, because screen names are plain strings, not typed routes: Metro's terminal is where this shows up.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Copied instead of moved</h4>
+                    <p>If <code>src/app/index.tsx</code> is still there next to the new <code>src/app/(tabs)/index.tsx</code>, both claim the address <code>/</code>. The course measured what the web preview does: the root file wins, so the Cleanups screen opens with no tab bar at all and a header titled <strong>index</strong>, and Metro prints no warning about it. If the tab bar is missing on the first screen, look for a leftover <code>index.tsx</code>. Moving with <code>git mv</code> (Step 2) avoids it, and Git records it as a move.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The bottom inset twice</h4>
+                    <p>A screen above the tab bar that keeps the <code>'bottom'</code> edge adds the home indicator's height (about 34 points on a notched iPhone) inside its content, right above a tab bar that already made room for it: an empty strip at the end of every list. The web preview has no insets, so you will not see it there; it is the edges table in Navigators Inside Navigators, applied: above a tab bar, leave out <code>'bottom'</code>.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Four Tabs and a Safety Briefing</h2>
+                <p>You add the tab icons, move the Cleanups screen into a <code>(tabs)</code> group with a tab layout, build the Before you go modal, fill the three new tabs with honest placeholders, and fix the back button for screens that open on top of the tabs. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd>): Metro keeps the route types fresh as you add files, and its terminal shows the warnings from Common Mistakes. Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Icons for the tab bar <span class="step-time">(5 min)</span></h3>
+                    <p>Every icon in the app goes through <code>src/components/Icon.tsx</code> (Lesson 2.3), named by its job, with an SF Symbol for iOS and a Material Symbol for Android and the web. Add four, one per tab:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">   clear: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
++  // The tab bar
++  cleanups: { ios: 'list.bullet', android: 'format_list_bulleted', web: 'format_list_bulleted' },
++  myCleanups: { ios: 'calendar.badge.checkmark', android: 'event_available', web: 'event_available' },
++  logbook: { ios: 'book.closed', android: 'menu_book', web: 'menu_book' },
++  profile: { ios: 'person.crop.circle', android: 'account_circle', web: 'account_circle' },
+ } satisfies Record&lt;string, SymbolViewProps['name']&gt;;</code></pre>
+                    </div>
+                    <p>The <code>satisfies</code> line from Lesson 2.3 checks every name: a misspelled symbol is a <code>tsc</code> error, not a blank tab. <code>Icon</code> already takes a <code>color</code> and a <code>size</code>, which is exactly what a tab bar hands to its icons. The icons stay hidden from screen readers: each tab's title is read instead.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The (tabs) group and its tab bar <span class="step-time">(20 min)</span></h3>
+                    <p>Make the folder and move the Cleanups screen into it. <code>git mv</code> is the same command in PowerShell, macOS and Linux; the quotes keep the shell from reading the parentheses:</p>
+                    <pre class="terminal"><code class="language-bash">mkdir "src/app/(tabs)"
+git mv src/app/index.tsx "src/app/(tabs)/index.tsx"</code></pre>
+                    <p>The Cleanups screen now sits above a tab bar, which covers the bottom of the screen. In <code>src/app/(tabs)/index.tsx</code>, pass the edges it still touches to <code>useScreenScroll</code> (every other line of the file stays as it is: its imports start with <code>@/</code>, so moving the file breaks none of them):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/index.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/index.tsx" data-match="excerpt"><code class="language-tsx">  // The frame (page color, safe areas) goes on a View around the list; FlashList takes the rest.
+  // The tab bar covers the bottom of the screen, so the list leaves out the 'bottom' edge.
+  const { style: frame, ...scroll } = useScreenScroll(['top', 'left', 'right']);</code></pre>
+                    </div>
+                    <p>Now the layout for the group. Create <code>src/app/(tabs)/_layout.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/_layout.tsx"><code class="language-tsx">import { Tabs } from 'expo-router/js-tabs';
+
+import { Icon } from '@/components/Icon';
+import { useTheme } from '@/hooks/useTheme';
+import { fonts } from '@/theme/typography';
+
+// The tab bar: the four places a volunteer goes back to all the time.
+// The (tabs) folder adds nothing to the address: this tab's Cleanups screen is still "/".
+export default function TabLayout() {
+  const { colors } = useTheme();
+
+  return (
+    &lt;Tabs
+      screenOptions={{
+        headerTitleStyle: { fontFamily: fonts.heading },
+        tabBarActiveTintColor: colors.action, // the tab you are on
+        tabBarInactiveTintColor: colors.textMuted, // the others, still easy to read
+      }}
+    &gt;
+      &lt;Tabs.Screen
+        name="index"
+        options={{
+          title: 'Cleanups',
+          headerShown: false, // the Cleanups screen draws its own banner
+          tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="cleanups" color={color} size={size} /&gt;,
+        }}
+      /&gt;
+      &lt;Tabs.Screen
+        name="my-cleanups"
+        options={{
+          title: 'My cleanups',
+          tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="myCleanups" color={color} size={size} /&gt;,
+        }}
+      /&gt;
+      &lt;Tabs.Screen
+        name="logbook"
+        options={{
+          title: 'Logbook',
+          tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="logbook" color={color} size={size} /&gt;,
+        }}
+      /&gt;
+      &lt;Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="profile" color={color} size={size} /&gt;,
+        }}
+      /&gt;
+    &lt;/Tabs&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>Tabs</code> from <code>expo-router/js-tabs</code></strong> (not from <code>expo-router</code>: the version note). It works like <code>Stack</code>: <code>screenOptions</code> for every tab, a <code>Tabs.Screen</code> per file in this folder, in the order the tabs appear.</li>
+                        <li><strong><code>title</code></strong> is used twice: as the tab's label and as the header's title. Cleanups hides its header, as it did in the stack.</li>
+                        <li><strong><code>tabBarIcon</code></strong> is a function: the tab bar calls it with the color for the tab's state (selected or not) and a size, and draws what it returns.</li>
+                        <li><strong>Colors.</strong> The bar's background and border come from the navigation theme your root layout gives <code>ThemeProvider</code> (Lesson 2.5), so it follows dark mode. The selected tab would be the theme's <code>primary</code> color anyway; naming <code>colors.action</code> keeps it obvious, and <code>colors.textMuted</code> for the others gives readable labels in both themes (the course's axe checks pass in light and dark).</li>
+                    </ul>
+                    <p>Last, the root layout. The stack's first screen is no longer <code>index</code> but the whole group, and its header must stay hidden (the first Common Mistake shows what happens otherwise):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">-        {/* ...and these to one. The Cleanups screen draws its own banner, so it hides the header bar;
+-            its title still names it (an iPhone's back button says "Cleanups") */}
+-        &lt;Stack.Screen name="index" options={{ title: 'Cleanups', headerShown: false }} /&gt;
++        {/* ...and these to one. The tabs are ONE screen of this stack, with their own headers */}
++        &lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;
+         {/* Until the cleanup has loaded and its screen sets its own title */}</code></pre>
+                    </div>
+                    <p>Everything else in the root layout stays: the fonts and splash hold, the navigation theme, <code>ThemeProvider</code> and the status bar. Reload the web preview: the Cleanups screen, with a tab bar under it. Its address is still <code>/</code>. The tab layout names three files you have not created yet, so for now the bar has one tab, and Metro prints a warning for each missing one:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+λ  WARN  [Layout children]: Too many screens defined. Route "my-cleanups" is extraneous.
+λ  WARN  [Layout children]: Too many screens defined. Route "logbook" is extraneous.
+λ  WARN  [Layout children]: Too many screens defined. Route "profile" is extraneous.
+...
+Web  WARN  [Layout children]: Too many screens defined. Route "my-cleanups" is extraneous.
+Web  WARN  [Layout children]: Too many screens defined. Route "logbook" is extraneous.
+Web  WARN  [Layout children]: Too many screens defined. Route "profile" is extraneous.
+...</code></pre>
+                    </div>
+                    <p>It is the warning Lesson 4.1 showed when its layout named files that did not exist yet. This time you expect it: Step 4 creates the three files and it goes away.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The Before you go modal <span class="step-time">(20 min)</span></h3>
+                    <p>A modal is a route of the root stack, so its file goes in <code>src/app</code> itself, not in the group. Create <code>src/app/before-you-go.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/before-you-go.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/before-you-go.tsx"><code class="language-tsx">import { router } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { spacing } from '@/theme/spacing';
+
+type Tips = { heading: string; tips: string[] };
+
+// The crew's safety briefing, in three parts
+const briefing: Tips[] = [
+  {
+    heading: 'Bring',
+    tips: [
+      'Closed shoes you do not mind getting wet',
+      'Water, a hat and sunscreen',
+      'A warm layer: the coast is often colder than town',
+    ],
+  },
+  {
+    heading: 'On the beach',
+    tips: [
+      'Wear the gloves we bring whenever you pick something up',
+      'Never pick up needles or broken glass: mark the spot and tell your crew leader',
+      'Watch the tide, and stay off wet rocks',
+      'Give birds, seals and nests plenty of space',
+    ],
+  },
+  {
+    heading: 'Afterwards',
+    tips: ['Wash your hands before you eat', 'Log what the crew collected'],
+  },
+];
+
+// A modal screen: it slides up over whatever was showing, and Done puts it away again
+export default function BeforeYouGoScreen() {
+  // Opened from inside the app, the screen underneath is still there; opened from its
+  // address, nothing is underneath, so the Cleanups screen takes its place
+  function done() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
+  return (
+    // The modal has its own header bar at the top
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText&gt;Read this before your first cleanup, and again when the weather turns.&lt;/AppText&gt;
+      {briefing.map(({ heading, tips }) =&gt; (
+        &lt;View key={heading} style={styles.part}&gt;
+          &lt;AppText variant="heading" accessibilityRole="header"&gt;
+            {heading}
+          &lt;/AppText&gt;
+          {tips.map((tip) =&gt; (
+            &lt;View key={tip} style={styles.tip}&gt;
+              &lt;AppText aria-hidden&gt;•&lt;/AppText&gt;
+              &lt;AppText style={styles.text}&gt;{tip}&lt;/AppText&gt;
+            &lt;/View&gt;
+          ))}
+        &lt;/View&gt;
+      ))}
+      &lt;Button label="Done" variant="primary" onPress={done} /&gt;
+    &lt;/Screen&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  part: {
+    gap: spacing.sm,
+  },
+  tip: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  text: {
+    flex: 1, // the tip wraps beside its bullet
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The briefing is data</strong>, typed, and drawn with <code>map</code>: three headings, each with its tips. Adding a tip is one line, and no layout code changes.</li>
+                        <li><strong>The bullet is hidden from screen readers</strong> (<code>aria-hidden</code>): they read each tip as its own line, with no "bullet" before it.</li>
+                        <li><strong><code>done()</code></strong> is Lesson 4.1's <code>leave()</code> pattern: back to whatever opened the modal, or, opened from its address with nothing underneath, the Cleanups screen in its place.</li>
+                        <li><strong>Edges:</strong> the modal has a header bar (the stack draws one for it), so it leaves out <code>'top'</code>; nothing covers its bottom.</li>
+                    </ul>
+                    <p>Then tell the root stack to present it as a modal, under the not-found screen:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">         &lt;Stack.Screen name="+not-found" options={{ title: 'Not found' }} /&gt;
++        {/* A modal: it slides up over the tabs or a cleanup, instead of being pushed from the side */}
++        &lt;Stack.Screen
++          name="before-you-go"
++          options={{ presentation: 'modal', title: 'Before you go' }}
++        /&gt;
+       &lt;/Stack&gt;</code></pre>
+                    </div>
+                    <p>Try it at <code>http://localhost:8081/before-you-go</code>. Opened from its address, there is nothing underneath: no back arrow, and <strong>Done</strong> takes you to the Cleanups tab. In the next step, Profile opens it the way volunteers will.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Three honest tabs <span class="step-time">(15 min)</span></h3>
+                    <p>My cleanups, the Logbook and Profile all need things the app does not have yet. Rather than fake data, each one says plainly what it will hold. Each sits under its tab's header and above the tab bar, so it touches only the left and right edges. Create the three files in <code>src/app/(tabs)</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/my-cleanups.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/my-cleanups.tsx"><code class="language-tsx">import { Link } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+
+// My cleanups: the cleanups you signed up for. Empty until volunteers can sign in and sign up.
+export default function MyCleanupsScreen() {
+  return (
+    // The header bar covers the top and the tab bar the bottom: only the sides are left
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        No sign-ups yet
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        When you sign up for a cleanup, it is listed here, with your place on the waiting list if
+        it is full. Signing in and signing up are coming to Shoreline Crew soon.
+      &lt;/AppText&gt;
+      {/* "/" is the Cleanups tab: a link to a tab's address switches to that tab */}
+      &lt;Link href="/" asChild&gt;
+        &lt;Button label="Find a cleanup" variant="primary" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx"><code class="language-tsx">import { AppText } from '@/components/AppText';
+import { Screen } from '@/components/Screen';
+
+// The logbook: debris logs recorded at cleanups, kept on the phone until they are sent
+export default function LogbookScreen() {
+  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Your logbook is empty
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        At a cleanup, you will record what the crew collected here: counts, bags and weight. The
+        logbook keeps every record on your phone, even with no signal, and sends it when you are
+        back online.
+      &lt;/AppText&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx"><code class="language-tsx">import { Link } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+
+// Profile: who you are and your settings. Until volunteers can sign in, the beach safety guide.
+export default function ProfileScreen() {
+  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Not signed in
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        Signing in is coming to Shoreline Crew soon. Then this tab shows who you are, and your
+        settings.
+      &lt;/AppText&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Before every cleanup
+      &lt;/AppText&gt;
+      &lt;AppText&gt;What to bring, and how to stay safe on the beach.&lt;/AppText&gt;
+      {/* A modal: it slides up over the tabs, and closes back to this tab */}
+      &lt;Link href="/before-you-go" asChild&gt;
+        &lt;Button label="Before you go" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <p>Which lesson fills each one:</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Tab</th><th>Today</th><th>Filled in</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>My cleanups</td><td>"No sign-ups yet" and a link back to the list</td><td>Lesson 4.3 (signing in), Lesson 5.2 (your sign-ups from the API, cancelling)</td></tr>
+                                <tr><td>Logbook</td><td>What the logbook will do</td><td>Lesson 5.3 (stored on the phone), Lesson 5.5 (queued offline, sent when back online)</td></tr>
+                                <tr><td>Profile</td><td>"Not signed in", and the Before you go button</td><td>Lesson 4.3 (who you are, sign out), Lesson 5.3 (theme choice), Lesson 6.4 (reminders)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>Two links to notice. <strong>Find a cleanup</strong> links to <code>/</code>, the Cleanups tab's address: a link to a tab switches to that tab. <strong>Before you go</strong> on Profile links to the modal. Reload: four tabs, the warnings gone. Open Profile and press <strong>Before you go</strong>: the modal covers the tab bar; <strong>Done</strong> brings you back to Profile.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_12/12-tabs.png" alt="The web preview of the Cleanups screen in a phone frame: the Shoreline Crew banner, the search field, the two switches, Upcoming cleanups with 5 of 8 cleanups, the first cleanup card, and at the bottom a tab bar, outlined in red, with four tabs: Cleanups (selected, in Sea Teal), My cleanups, Logbook and Profile, each an icon above its label." width="420" height="814" loading="lazy">
+    <figcaption>The tab bar from <code>(tabs)/_layout.tsx</code>: four tabs, each an icon from <code>Icon.tsx</code> above its title. The selected tab is in the action color. This is the JavaScript tab bar, so a phone shows the same bar. (The frame gives it the bottom inset a notched iPhone would; the web preview has none.)</figcaption>
+</figure>
+                    <figure class="screenshot">
+    <img src="images/lesson_12/12-profile-dark.png" alt="The Profile tab in dark mode in the web preview: a dark header bar titled Profile, the heading Not signed in with a sentence saying signing in is coming soon, the heading Before every cleanup, and an outlined Before you go button, outlined in red. The tab bar at the bottom has Profile selected in light teal." width="420" height="814" loading="lazy">
+    <figcaption>A tab with a header: the tab navigator draws it, in the heading font, with the theme's colors. Profile is a placeholder until Lesson 4.3 signs volunteers in; its Before you go button opens the modal. As in the first picture, the tab bar gets a pretend 34-point bottom inset so the frame's home indicator doesn't cover the labels.</figcaption>
+</figure>
+                    <figure class="screenshot">
+    <img src="images/lesson_12/12-modal.png" alt="The Before you go screen in dark mode in the web preview: a header bar with a back arrow and the title Before you go, a sentence, then three headings, Bring, On the beach and Afterwards, each with bulleted safety tips, and a filled Done button, outlined in red. No tab bar." width="420" height="814" loading="lazy">
+    <figcaption>The web preview shows the modal as an ordinary screen with a back arrow. On a phone it slides up from the bottom instead (an iPhone shows it as a card you can swipe down); <strong>Done</strong> closes it on every platform.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Cleanups on top of the tabs <span class="step-time">(10 min)</span></h3>
+                    <p>Press <strong>Open</strong> on Weekend Cove. The cleanup screen still opens: it is a route of the root stack, so it is pushed on top of the whole tab navigator, and the tab bar is hidden until you go back. But right-click its back arrow and choose <strong>Inspect</strong>: the link is named <code>(tabs), back</code> (the second Common Mistake). Give every back button in the root stack plain words:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">-      &lt;Stack screenOptions={{ headerTitleStyle: { fontFamily: fonts.heading } }}&gt;
++      &lt;Stack
++        screenOptions={{
++          headerTitleStyle: { fontFamily: fonts.heading },
++          // The back button's words. Left alone, it shows the previous screen's title, and under
++          // the tabs that is the folder's name, "(tabs)"
++          headerBackTitle: 'Back',
++        }}
++      &gt;</code></pre>
+                    </div>
+                    <p>Then give the cleanup screen a way to the briefing, under "We bring". In <code>src/app/cleanups/[id].tsx</code>, import <code>Link</code> and <code>Button</code> and add the link:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">-import { router, Stack, useLocalSearchParams } from 'expo-router';
++import { Link, router, Stack, useLocalSearchParams } from 'expo-router';
+ // ...
+ import { Badge } from '@/components/Badge';
++import { Button } from '@/components/Button';
+ // ...
+         &lt;AppText variant="muted"&gt;We bring: {event.suppliesProvided.join(', ')}&lt;/AppText&gt;
+       )}
++      {/* The safety briefing opens as a modal over this screen */}
++      &lt;Link href="/before-you-go" asChild&gt;
++        &lt;Button label="Before you go" /&gt;
++      &lt;/Link&gt;</code></pre>
+                    </div>
+                    <figure class="screenshot">
+    <img src="images/lesson_12/12-over-tabs.png" alt="The Weekend Cove Cleanup screen in the web preview: a header bar with a back arrow, outlined in red, and the cleanup&#x27;s title, the Driftwood Cove picture, the badges and detail rows. There is no tab bar at the bottom." width="420" height="814" loading="lazy">
+    <figcaption>The cleanup screen belongs to the root stack, so it opens on top of the whole tab navigator: no tab bar while you read it. The back arrow is named "Go back" for screen readers, from <code>headerBackTitle</code>.</figcaption>
+</figure>
+                    <p>Press <strong>Before you go</strong> on the cleanup screen and then <strong>Done</strong>: you are back on Weekend Cove, and its back arrow returns you to the Cleanups tab. That is three navigators at work: the modal and the cleanup in the root stack, the list in the tab navigator underneath.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Check, walk every path, commit <span class="step-time">(5 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing; <code>expo lint</code> only the two <code>env:</code> lines. Metro's terminal should have no yellow warnings left. Then walk the paths: type "calder" in the search, switch to Profile and back (the search is still there); My cleanups → <strong>Find a cleanup</strong>; Profile → Before you go → Done; a cleanup → Before you go → Done → back; <code>/before-you-go</code> typed in → Done. Commit.</p>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>Expo Go still cannot reach the API (Lesson 5.1), but the tabs, the placeholders and the modal need no data: open Profile and Before you go. The documentation describes what to look for: on an iPhone, the modal slides up as a card with the screen behind it pushed back, and swiping the card down closes it like Done; on an Android phone, it covers the screen and the system back gesture closes it. The tab bar should sit above the home indicator or gesture bar on its own, with no gap between the list and the bar.</p>
+                    </div>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, list the three to five places your users return to all the time: those are your tabs. For each other screen, decide: does it open on top of the tabs (reached from several places, or from a link), inside one tab's stack (drilling into one area), or as a modal (a short task with a clear end)? Write each screen's file path and its <code>edges</code>.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>Icon.tsx</code> has the four tab icons, and the tab bar shows Cleanups, My cleanups, Logbook and Profile, each with its icon</li>
+                        <li>☐ The Cleanups screen lives in <code>src/app/(tabs)/index.tsx</code>, its address is still <code>/</code>, and it leaves out the <code>'bottom'</code> edge</li>
+                        <li>☐ The root layout hides the <code>(tabs)</code> header, keeps fonts, splash, status bar and theme, and labels back buttons "Back"</li>
+                        <li>☐ My cleanups, Logbook and Profile say what they will hold, with <code>edges={['left', 'right']}</code></li>
+                        <li>☐ <strong>Before you go</strong> opens as a modal from Profile and from a cleanup, and <strong>Done</strong> closes it, even when it was opened from its address</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, Metro shows no warnings, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo the code changes afterwards; the course's next lesson starts from the project as Step 6 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: A shorter tab label</h3>
+                    <p>On a small phone, "My cleanups" is the longest label in the bar. Make the tab say <strong>Mine</strong> while the header above the screen still says <strong>My cleanups</strong>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>title</code> feeds both the label and the header. The tab bar has an option of its own for the label, and it wins over the title.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>tabBarLabel: 'Mine',</code> after <code>title: 'My cleanups',</code> in that <code>Tabs.Screen</code>'s options. The course measured it in the web preview: the tab reads "Mine", the header "My cleanups", and <code>tsc</code> and ESLint are clean. Screen readers read the tab's label, so "Mine" is what they hear too; if that is too vague, <code>tabBarAccessibilityLabel</code> can say "My cleanups" to them while the bar shows the short word.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Close from the header</h3>
+                    <p>Long briefings scroll, and Done is at the end. Add a <strong>Close</strong> button to the right side of the modal's header bar that does the same as Done.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Lesson 4.1 set a screen's title from inside the screen with <code>&lt;Stack.Screen options={…} /&gt;</code>. Header options include <code>headerRight</code>, a function that returns an element.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Import <code>Stack</code> next to <code>router</code>, and put <code>&lt;Stack.Screen options={{ headerRight: () =&gt; &lt;Button label="Close" onPress={done} /&gt; }} /&gt;</code> as the first child of the <code>Screen</code>. Inside the component it can use <code>done</code>, which the layout could not. Measured in the web preview: Profile → Before you go → Close returns to Profile; it type-checks and lints clean. On an iPhone, a header button on the right is where people look for Close or Done in a modal.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Which edges?</h3>
+                    <p>Without running anything, write the <code>edges</code> for each screen: (a) a Settings screen pushed inside the Profile tab's own stack, with a header; (b) a full-screen photo viewer presented as a modal with <code>headerShown: false</code>; (c) a Map tab with no header that draws the map to every edge but keeps its buttons clear of the notch.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>For each edge ask: does a header bar or the tab bar already cover it? If yes, leave it out.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(a) <code>['left', 'right']</code>: a header above, and inside a tab the tab bar stays below. (b) All four, the default: no header, no tab bar (a modal covers it). (c) The map itself ignores insets on purpose (it is a background), and the buttons laid over it use <code>['top', 'left', 'right']</code>: the status bar and notch are above, the tab bar below.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: A stack inside the Logbook tab (Stretch)</h3>
+                    <p>Give the Logbook tab a "How the logbook works" page that opens <em>inside</em> the tab, so the tab bar stays visible. Turn <code>(tabs)/logbook.tsx</code> into a folder with its own stack.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Move <code>logbook.tsx</code> to <code>(tabs)/logbook/index.tsx</code> (the address stays <code>/logbook</code>) and add <code>(tabs)/logbook/_layout.tsx</code> with a <code>Stack</code>, plus <code>(tabs)/logbook/how-it-works.tsx</code>. Then count the header bars.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The layout:</p>
+                        <pre data-snippet><code class="language-tsx">import { Stack } from 'expo-router';
+
+import { fonts } from '@/theme/typography';
+
+// A stack inside the Logbook tab: its screens open on top of each other, and the tab bar stays
+export default function LogbookLayout() {
+  return (
+    &lt;Stack screenOptions={{ headerTitleStyle: { fontFamily: fonts.heading }, headerBackTitle: 'Back' }}&gt;
+      &lt;Stack.Screen name="index" options={{ title: 'Logbook' }} /&gt;
+      &lt;Stack.Screen name="how-it-works" options={{ title: 'How the logbook works' }} /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+                        <p>The new page, with a header above and the tab bar below:</p>
+                        <pre data-snippet><code class="language-tsx">import { AppText } from '@/components/AppText';
+import { Screen } from '@/components/Screen';
+
+// Pushed inside the Logbook tab: a header above, the tab bar below
+export default function HowItWorksScreen() {
+  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText&gt;
+        Every debris log is saved on your phone first. When there is signal, the app sends it to the
+        crew, and it stays in your logbook.
+      &lt;/AppText&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                        <p>In <code>logbook/index.tsx</code>, add a <code>&lt;Link href="/logbook/how-it-works" asChild&gt;&lt;Button label="How the logbook works" /&gt;&lt;/Link&gt;</code> (import <code>Link</code> and <code>Button</code>). The course measured the result in the web preview: the page opens at <code>/logbook/how-it-works</code>, the tab bar stays, and the back arrow returns to the logbook. But there are <strong>two</strong> header bars, "Logbook" from the tab navigator above "How the logbook works" from the new stack. In <code>(tabs)/_layout.tsx</code>, add <code>headerShown: false</code> to the Logbook tab's options, so the stack draws the only header. With that, it type-checks and lints clean.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Which file draws the My cleanups tab, and what is its address?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is there a folder called tabs, without parentheses, in Shoreline Crew?">
+                                A) <code>src/app/tabs/my-cleanups.tsx</code>, at <code>/tabs/my-cleanups</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What do the parentheses around a folder name do to the address?">
+                                B) <code>src/app/(tabs)/my-cleanups.tsx</code>, only at <code>/(tabs)/my-cleanups</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A folder in parentheses is a group: it lets the files share a layout, the tab bar, and adds nothing to the address.">
+                                C) <code>src/app/(tabs)/my-cleanups.tsx</code>, at <code>/my-cleanups</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A volunteer presses Open on a cleanup and the tab bar disappears. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The root stack holds the whole tab navigator as one screen. The cleanup is pushed onto that stack, on top of it, so the tab bar is covered until the volunteer goes back.">
+                                A) The cleanup screen belongs to the root stack, which holds the whole tab navigator as one screen underneath it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Nothing in the cleanup screen mentions the tab bar. Where is its file?">
+                                B) The cleanup screen hides the tab bar with an option
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Only one Cleanups screen exists. Where does the cleanup screen sit in the tree?">
+                                C) Opening a cleanup switches to a different tab that has no bar
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> The Logbook screen has the tab's header bar above it and the tab bar below it. Which <code>edges</code> should its <code>Screen</code> keep clear?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which bars already cover the top and the bottom?">
+                                A) All four, the default
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is there a header above this screen?">
+                                B) <code>['top', 'left', 'right']</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What sits below this screen?">
+                                C) <code>['bottom', 'left', 'right']</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The header covers the top and the tab bar covers the bottom, each with its own inset, so only the sides are left for the screen to keep clear.">
+                                D) <code>['left', 'right']</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> On the cleanup screen, a screen reader announces the back button as "(tabs), back". What fixes it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What would a folder without parentheses do to every address?">
+                                A) Rename the folder from <code>(tabs)</code> to <code>tabs</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The label falls back to the route name of the screen underneath, the tab group. headerBackTitle in the root stack's screenOptions gives every back button plain words instead.">
+                                B) <code>headerBackTitle: 'Back'</code> in the root stack's <code>screenOptions</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The tabs' titles are already set. Whose title does the back button use?">
+                                C) A <code>title</code> on each <code>Tabs.Screen</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Which of these belongs in a modal rather than in a tab or a pushed screen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="A modal is a short detour with a clear end: read or do one thing, then close it and be back where you were. The briefing fits; lists people come back to are tabs.">
+                                A) The safety briefing a volunteer reads before a cleanup and then closes
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is this a short detour, or a place volunteers come back to again and again?">
+                                B) The list of cleanups a volunteer signed up for
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does the app open, and how often is it used?">
+                                C) The list of upcoming cleanups
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>How many tabs should an app have?</summary>
+                    <p>Apple's and Google's design guidelines both suggest three to five. Fewer, and a tab bar is not worth the space; more, and the labels get too small to read and too narrow to tap. If you have more places than that, some of them probably belong inside a tab or behind Profile. Shoreline Crew's four are the four things a volunteer does: find a cleanup, see their own, log what they collected, manage themselves.</p>
+                </details>
+                <details>
+                    <summary>Does switching tabs reload the data?</summary>
+                    <p>No. A tab you visited stays mounted with its state, so switching back shows it exactly as it was, without asking the API again. That is usually what you want, but the data can get old: someone else signs up while you were on Profile. Lesson 5.2's TanStack Query refreshes data when a screen comes back into view; Expo Router also exports <code>useFocusEffect</code> for running code each time a screen gets focus.</p>
+                </details>
+                <details>
+                    <summary>Can I hide the tab bar on one screen inside a tab?</summary>
+                    <p>There are options for it (<code>tabBarStyle</code> with <code>display: 'none'</code>), but the documentation recommends the structure you built today instead: a screen that should not show the tab bar belongs in the root stack, on top of the tabs, like the cleanup screen. Hiding the bar from inside a tab makes it jump in and out as screens change.</p>
+                </details>
+                <details>
+                    <summary>Why does the modal have a header with a back arrow in the web preview?</summary>
+                    <p>Because on the web, the stack draws a modal like any other screen (the course measured that, and a sheet the same way). Phones present it differently (the table in Modals), and the documentation describes the closing gestures, not an arrow, as the usual way out there. That difference is one reason the modal has its own Done button: it works the same everywhere.</p>
+                </details>
+                <details>
+                    <summary>Should every tab have its own stack?</summary>
+                    <p>Only tabs that drill down. Many apps give each tab a stack so that, for example, a cleanup opened from My cleanups keeps the tab bar. Shoreline Crew keeps its cleanup screen in the root stack instead, so one address (<code>/cleanups/e08</code>) always opens the same screen, which matters for links from outside the app (Lesson 4.4). Exercise 4 shows the other way, for a page that only makes sense inside its tab.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Read the Expo Router documentation on modals and try presenting Before you go as a <code>formSheet</code> with <code>sheetAllowedDetents: [0.5, 1]</code> (the snippet in Modals) in Expo Go on your phone. What does the half-height sheet show first, and how do you reach the rest? Would a volunteer standing on a beach prefer the sheet or the full modal for a safety briefing, and why? (The web preview will not show the difference: you need the phone.)</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Draw Shoreline Crew's navigator tree as boxes inside boxes: the root stack, the tab navigator inside it, and every screen. Mark where the tab bar is visible and where it is not, and write each screen's edges next to it. Then add one screen from your own app idea to the drawing: where does it go, and why there?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>A tab navigator switches between screens that stay mounted once visited; back goes to the first tab. Import <code>Tabs</code> from <code>expo-router/js-tabs</code>: the same bar on every phone and in the web preview; <code>NativeTabs</code> is the system's own bar</li>
+                        <li>Navigators nest: the root stack holds the <code>(tabs)</code> group as one screen. A group folder in parentheses shares a layout and adds nothing to the address</li>
+                        <li>Where a screen lives decides what surrounds it: in the root stack it covers the tabs, in a stack inside a tab the bar stays, as a modal it slides up over everything</li>
+                        <li>Each navigator draws its own headers: hide the root stack's header for <code>(tabs)</code>, and name the back button with <code>headerBackTitle</code></li>
+                        <li>Edges: leave out every edge a header or the tab bar already covers (<code>['left', 'right']</code> between both)</li>
+                        <li>A modal is a stack route with <code>presentation: 'modal'</code>: it has an address, and it needs a visible Done that works however it was opened</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up a term (tab navigator, group, nesting, modal)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read Expo Router's guides to tabs, nesting and modals</td><td><a href="https://docs.expo.dev/router/introduction/" target="_blank" rel="noopener">Expo Router documentation</a></td></tr>
+                            <tr><td>See every option a tab takes</td><td><a href="https://reactnavigation.org/docs/bottom-tab-navigator/" target="_blank" rel="noopener">React Navigation: Bottom Tabs Navigator</a></td></tr>
+                            <tr><td>Fix a warning you met today</td><td><a href="troubleshooting.html">Troubleshooting</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew has the shape of a real app: four tabs, screens on top of them, and a modal</li>
+                        <li>You moved a working screen into a group without changing its address or breaking an import</li>
+                        <li>You built placeholders that tell volunteers the truth, and know which lesson fills each one</li>
+                        <li>You wrote a modal that closes correctly whether it was opened from a tab, from a cleanup, or from its address</li>
+                        <li>You read Metro's layout warnings and two odd "(tabs)" labels back to their causes</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_13.html">Lesson 4.3: Sign-In Flows and Protected Routes</a> the Profile tab's "Not signed in" becomes real. You will keep a volunteer's session in the phone's secure storage, present a sign-in screen as a modal (the same <code>presentation: 'modal'</code> you used today), guard routes with <code>Stack.Protected</code> so screens only exist for the right people, close the sign-in screen back to wherever it was opened from, and sign out.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Walk every path from Step 6 once more and commit</li>
+                    <li>Open <code>http://localhost:8081/_sitemap</code>: four new routes, and the <code>(tabs)</code> group's files listed under their own addresses</li>
+                    <li>Think about which Shoreline Crew screens a volunteer should only see when signed in, and which a guest can use</li>
+                    <li>Write today's journal entry, with your navigator tree</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Nested navigators are where many people's mental picture of an app gets blurry for a while: which header is which, why a bar vanishes, why a button says "(tabs)". If you had to stop and draw the tree today, that is not a sign you are slow; it is exactly how experienced developers work through navigation. The warnings you read today were the router telling you, in plain words, which layout and which file disagreed. Each one you trace back makes the next one quicker.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_11.html" class="prev-lesson">← Previous: File-Based Routing</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_13.html" class="next-lesson">Next: Sign-In Flows and Protected Routes →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

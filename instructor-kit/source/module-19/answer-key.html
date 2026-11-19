@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 19</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 19: Motion Polish and Accessible Apps</h1>
+    <p class="sub">Answers and reasoning for every Session 19 item: the warm-up, both self-checks, the predict-then-check items, the lab reference outputs, the lesson pages' own quizzes and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>19</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Warm-up</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>Tally counts every frame on the UI thread. Why is its number a shared value and not React state? **Answer:** State would re-render the component on the JS thread every frame (60 times a second or more), competing with everything else React does; a shared value changes on the UI thread, and only the number to show reaches React, through <code class="inline">scheduleOnRN</code> (Lesson 7.1, the skipper and the helm).</li>
+  <li>A gesture callback calls a React setter directly. Why does the web preview not catch it? **Answer:** The web preview runs worklets on the JS thread, so the call works there; on a phone the callback runs on the UI thread and needs <code class="inline">scheduleOnRN</code> (Lesson 7.1's mistakes; 7.2's callbacks are worklets too).</li>
+  <li>Why does every waiting card have a visible Remove button when the swipe already removes it? **Answer:** Every gesture needs another way (WCAG 2.5.1): screen-reader users, switch users and anyone who never discovers the swipe press the button (Lesson 7.2). Today's 8.1 audit relies on that.</li>
+</ol>
+
+  <div class="sec"><h2>7.3 · Motion Polish: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">Every time Theo opens the Logbook, all ten cards fade in. Which change stops that and still lets a log that arrives while he watches fade in?</div><div class="opts"><div class="opt">A) Remove <code class="inline">entering={FadeIn}</code> from the cards</div><div class="opt correct">B) Wrap the content in <code class="inline">&lt;LayoutAnimationConfig skipEntering&gt;</code></div><div class="opt">C) Render <code class="inline">&lt;ReducedMotionConfig mode={ReduceMotion.Always} /&gt;</code> on the Logbook</div><div class="opt">D) Give each card a new <code class="inline">key</code> on every render</div></div><div class="why"><b>Why:</b> <code class="inline">skipEntering</code> skips the entering animations of everything inside while the wrapper itself first mounts; views that mount later still animate (Lesson 7.3, The first render is not news).<br><b>A</b> is wrong: Then a real arrival does not fade in either.<br><b>C</b> is wrong: That stops all motion, for everyone, everywhere.<br><b>D</b> is wrong: A new key makes React mount a new view every render: more fading, not less.</div></div>
+  <div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">Only <code class="inline">lottie-react-native</code> was installed. The phone is fine, tsc and the linter are silent, and <code class="inline">npx expo export --platform web</code> ends like this. What fixes it?</div><pre class="code">Error: Unable to resolve module @lottiefiles/dotlottie-react from ~/shoreline/shoreline-crew/node_modules/lottie-react-native/lib/module/LottieView/index.web.js: @lottiefiles/dotlottie-react could not be found …
+...
+Import stack:
+ ...
+ src/components/LogSentMark.tsx
+ | import "lottie-react-native"
+
+ src/app/log/[id].tsx
+ | import "@/components/LogSentMark"</pre><div class="opts"><div class="opt correct">A) <code class="inline">npx expo install @lottiefiles/dotlottie-react</code></div><div class="opt">B) A development build: Lottie is not in Expo Go</div><div class="opt">C) Import the JSON file with <code class="inline">require()</code> instead of <code class="inline">import</code></div><div class="opt">D) <code class="inline">npx expo start --clear</code></div></div><div class="why"><b>Why:</b> Read the import stack from the bottom up: the screen imports LogSentMark, which imports lottie-react-native, whose web file needs the dotLottie player, an optional companion npm does not install for you. The kit removed it from a copy of the finished app and ran the lesson's command for real.<br><b>B</b> is wrong: lottie-react-native is part of Expo Go, and the phone was fine: only the web bundle fails.<br><b>C</b> is wrong: The JSON is not in the stack; the missing package is.<br><b>D</b> is wrong: Nothing is cached wrong: the package is not there.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Maya's phone has Reduce Motion on. In Profile she turns "Reduce motion in this app" off, then sends a log. What does she see, with Lesson 7.3's code?</div><div class="opts"><div class="opt">A) The check mark draws itself: the switch is off</div><div class="opt">B) Nothing at all: no mark and no heading</div><div class="opt correct">C) A still check mark: <code class="inline">useReduceMotion()</code> is <code class="inline">phone || reduceMotion</code></div><div class="opt">D) The animation, at half speed</div></div><div class="why"><b>Why:</b> The app's switch only ADDS: the phone's setting is the person's word for every app and always wins. LogSentMark reads <code class="inline">useReduceMotion()</code> and shows the still <code class="inline">sent</code> icon.<br><b>A</b> is wrong: That would be the three-way choice the lesson rejects: never turn motion back on against the phone.<br><b>B</b> is wrong: The heading always says it in words; only the mark changes.<br><b>D</b> is wrong: No setting slows Lottie down.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">Why does the root Stack get <code class="inline">animation: reduceMotion ? 'fade' : 'default'</code>, when <code class="inline">&lt;ReducedMotionConfig&gt;</code> is already rendered?</div><div class="opts"><div class="opt">A) ReducedMotionConfig only works in development</div><div class="opt">B) The web preview needs it to slide screens</div><div class="opt">C) Fades are faster to bundle than slides</div><div class="opt correct">D) Screens slide with the phone's native navigation, not with Reanimated, so ReducedMotionConfig never reaches them</div></div><div class="why"><b>Why:</b> The lesson's motion inventory: Reanimated functions and layout animations follow ReducedMotionConfig; Lottie and native screen transitions do not, so <code class="inline">useReduceMotion()</code> covers them. Expo Router's types say the option works only on iOS and Android: check it on a phone.<br><b>A</b> is wrong: It works in any build; only its warning is development-only.<br><b>B</b> is wrong: The web preview has no slide to begin with.<br><b>C</b> is wrong: Bundling has nothing to do with it.</div></div>
+  <div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Lab 7.3's starter decides <code class="inline">reduceMotionFrom(phoneReduces, appSwitch)</code> with <code class="inline">return appSwitch</code>. Who does that hurt, and what is the one-line fix?</div><div class="opts"><div class="opt correct">A volunteer whose PHONE asks for less motion and whose app switch is off gets full motion back; <code class="inline">return phoneReduces || appSwitch</code></div></div><div class="why"><b>Why:</b> The switch may only add to the phone's setting (Lesson 7.3, An In-App Switch: The Decision). The lab's first test fails on exactly that case: <code class="inline">reduceMotionFrom(true, false)</code> must be true.</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">A teammate found a lovely free confetti animation on a marketplace for the final project. What do you check before it ships in a store app?</div><div class="opts"><div class="opt correct">A) Who made it, and that its license allows your use, commercial use included</div><div class="opt">B) Only that it is a JSON file and not a GIF</div><div class="opt">C) That it loops, so the celebration lasts</div><div class="opt">D) Nothing: free files on marketplaces are free to use</div></div><div class="why"><b>Why:</b> A Lottie file is artwork, and artwork has an owner. Each file has its own license (LottieFiles shows one on every animation: read it); keep the source and license next to the file (Lesson 7.3, Where did this animation come from?).<br><b>B</b> is wrong: Being JSON says nothing about who owns it.<br><b>C</b> is wrong: Play once at the moment that matters, and stop (battery, and motion with a job).<br><b>D</b> is wrong: Some "free" files on other sites were simply copied from someone else.</div></div>
+
+  <div class="sec"><h2>7.3 · Motion Polish: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">Predict, then check.</div><pre class="code">npx expo export --platform web</pre><div class="opts"><div class="opt correct"><pre class="out">Error: Unable to resolve module @lottiefiles/dotlottie-react from ~/shoreline/shoreline-crew/node_modules/lottie-react-native/lib/module/LottieView/index.web.js: @lottiefiles/dotlottie-react could not be found …
+...
+Import stack:
+ ...
+ src/components/LogSentMark.tsx
+ | import "lottie-react-native"
+
+ src/app/log/[id].tsx
+ | import "@/components/LogSentMark"</pre></div></div><div class="why"><b>Why:</b> The phone is fine (lottie-react-native uses the native players, part of Expo Go) and tsc and the linter are silent: only the web bundle needs the dotLottie player, an optional companion npm does not install for you. The kit removed it from a copy of the finished app and ran the command (trimmed: the first error line and the import stack from the app's own files). <code class="inline">npx expo install @lottiefiles/dotlottie-react</code> fixes it.</div></div>
+
+  <div class="sec"><h2>8.1 · Accessible Mobile Apps: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7" data-kind="short"><div class="qn">Q7</div><div class="qt">Lesson 8.1's mental model is the radio call. Name the parts a screen reader says for one element, in order, and the prop (or props) React Native gives you for each.</div><div class="opts"><div class="opt correct">Label (<code class="inline">accessibilityLabel</code>, or the text inside), role (<code class="inline">accessibilityRole</code>), state (<code class="inline">aria-checked</code>, <code class="inline">aria-expanded</code>, <code class="inline">aria-disabled</code>…), value (<code class="inline">accessibilityValue</code>) and sometimes a hint (<code class="inline">accessibilityHint</code>)</div></div><div class="why"><b>Why:</b> A good call is short, never repeats itself, and never makes the listener guess; decoration is radio silence (<code class="inline">aria-hidden</code>). The exact words and order belong to each screen reader.</div></div>
+  <div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this after a change in Icon.tsx. What fixes it?</div><pre class="code">src/components/Icon.tsx:35:6 - error TS2322: Type '{ name: …; size: …; tintColor: …; "aria-hi...' is not assignable to type 'ViewProps'.
+  Types of property '"aria-hidden"' are incompatible.
+    Type 'string' is not assignable to type 'boolean | undefined'.
+
+35     &lt;SymbolView
+        ~~~~~~~~~~
+
+
+Found 1 error in src/components/Icon.tsx:35</pre><div class="opts"><div class="opt">A) Change <code class="inline">SymbolView</code> to <code class="inline">View</code></div><div class="opt correct">B) Write <code class="inline">aria-hidden</code> on its own (it means true), not <code class="inline">aria-hidden="true"</code></div><div class="opt">C) Add <code class="inline">// @ts-ignore</code> above the line</div><div class="opt">D) Remove <code class="inline">accessibilityElementsHidden</code></div></div><div class="why"><b>Why:</b> In HTML, ARIA attributes are strings; in React Native, <code class="inline">aria-hidden</code> is a boolean. The kit's run is Lesson 8.1's card word for word; Lab 8.1 shows the same error on a Text.<br><b>A</b> is wrong: SymbolView is right; only the value's type is wrong.<br><b>C</b> is wrong: That hides the error and keeps a string where a boolean belongs.<br><b>D</b> is wrong: Icon keeps that prop on purpose: SymbolView on iPhone is Expo's own native view (Lesson 8.1, Step 3).</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">Before Lesson 8.1, Maya (VoiceOver) heard nothing when her waiting log was sent; Theo (TalkBack) heard "Log sent. Thank you!". Which change made the iPhone speak?</div><div class="opts"><div class="opt">A) <code class="inline">aria-live="polite"</code> instead of accessibilityLiveRegion</div><div class="opt">B) <code class="inline">accessibilityRole="alert"</code> on every text</div><div class="opt">C) A bigger font for the heading</div><div class="opt correct">D) On iOS, AppText calls <code class="inline">AccessibilityInfo.announceForAccessibilityWithOptions(words, { queue: true })</code></div></div><div class="why"><b>Why:</b> <code class="inline">accessibilityLiveRegion</code> is Android only (React Native's documentation); iPhone needs to be asked. Because all 21 live texts go through AppText, one effect there covers them; <code class="inline">queue: true</code> lets VoiceOver finish what it is saying (Lab 8.1, Task 2 does the same on a new component).<br><b>A</b> is wrong: That is the web's attribute: react-native-web makes it from accessibilityLiveRegion; VoiceOver on a phone never sees it.<br><b>B</b> is wrong: An alert role on everything would make every text urgent.<br><b>C</b> is wrong: Size has nothing to do with being announced.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">At the largest text size, two tide times side by side run into each other. Which fix comes FIRST?</div><div class="opts"><div class="opt">A) <code class="inline">allowFontScaling={false}</code> on both times</div><div class="opt">B) A fixed width and height for each tile</div><div class="opt correct">C) When <code class="inline">useWindowDimensions().fontScale</code> is large, put the tiles on top of each other</div><div class="opt">D) A smaller font size for everyone</div></div><div class="why"><b>Why:</b> Layouts that let text grow first, a different layout at a large fontScale second, <code class="inline">maxFontSizeMultiplier</code> only on text that is already big, <code class="inline">allowFontScaling={false}</code> never (Lesson 8.1, The Phone's Text Size; Lab 8.1, Task 3).<br><b>A</b> is wrong: It switches the person's setting off, for exactly the person who needed it.<br><b>B</b> is wrong: A fixed size for text is the problem, not the fix ("M ee t").<br><b>D</b> is wrong: Everyone loses so that nothing changes shape.</div></div>
+  <div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">In Lab 8.1's solution, a test does <code class="inline">screen.getByText('☑')</code> on a packed row. Jest prints this. Why?</div><pre class="code">● the picture of the state, found like a screen reader would
+  Unable to find an element with text: ☑</pre><div class="opts"><div class="opt correct">A) The ☑ is <code class="inline">aria-hidden</code>, and Testing Library, like a screen reader, skips hidden elements unless a query asks for them</div><div class="opt">B) Jest cannot render emoji</div><div class="opt">C) The row was never rendered</div><div class="opt">D) <code class="inline">getByText</code> only finds buttons</div></div><div class="why"><b>Why:</b> React Native Testing Library finds elements the way a screen reader meets them. The picture of the state is decoration: the checkbox's role and <code class="inline">aria-checked</code> already say it. <code class="inline">{ includeHiddenElements: true }</code> finds it anyway, which is how the lab's tests check that it is there.<br><b>B</b> is wrong: It is a plain Unicode character, rendered like any text.<br><b>C</b> is wrong: The checkbox called Gloves is on the screen in the same test.<br><b>D</b> is wrong: getByText finds any text a screen reader could reach.</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">The audit found every Profile setting read twice ("Reduce motion in this app", then "…, switch, off"), and only the 40 by 20 switch answered a finger. What did Lesson 8.1 do?</div><div class="opts"><div class="opt">A) Wrapped each row in a View with <code class="inline">accessible</code>, so the row and the switch are one element</div><div class="opt correct">B) The row became a Pressable that flips the value (not a stop of its own); the words are aria-hidden; the switch keeps its label and takes no touches</div><div class="opt">C) Removed the words and kept only the switch</div><div class="opt">D) Made the switch bigger with transform scale</div></div><div class="why"><b>Why:</b> One row, one target, one stop: <code class="inline">accessible={false}</code> and <code class="inline">tabIndex={-1}</code> on the row, <code class="inline">aria-hidden</code> words, the Switch with <code class="inline">accessibilityLabel={label}</code> and <code class="inline">pointerEvents: 'none'</code> (measured: a tap on the words, the gap or the switch flips it once).<br><b>A</b> is wrong: Grouping a control away: an accessible view hides the switch inside it from screen readers as a control of its own.<br><b>C</b> is wrong: People need the words; voice control users say them.<br><b>D</b> is wrong: A scaled switch is still a small target with words that do nothing.</div></div>
+
+  <div class="sec"><h2>8.1 · Accessible Mobile Apps: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Predict, then check.</div><pre class="code">npx tsc --noEmit</pre><div class="opts"><div class="opt correct"><pre class="out">src/components/Icon.tsx:35:6 - error TS2322: Type '{ name: { ios: "calendar"; android: "calendar_today"; web: "calendar_today"; } | { ios: "mappin.and.ellipse"; android: "location_on"; web: "location_on"; } | { ios: "person.2"; android: "group"; web: "group"; } | ... 7 more ... | { ...; }; size: number; tintColor: string | ... 1 more ... | NativeColorValue; "aria-hi...' is not assignable to type 'ViewProps'.
+  Types of property '"aria-hidden"' are incompatible.
+    Type 'string' is not assignable to type 'boolean | undefined'.
+
+35     &lt;SymbolView
+        ~~~~~~~~~~
+
+
+Found 1 error in src/components/Icon.tsx:35</pre></div></div><div class="why"><b>Why:</b> In React Native <code class="inline">aria-hidden</code> is a boolean; a string is a type error. Word for word Lesson 8.1's card. Write <code class="inline">aria-hidden</code> alone.</div></div>
+<div class="q"><div class="qn">P3</div><div class="qt">Predict, then check.</div><pre class="code">npm test -- src/hidden.test.tsx</pre><div class="opts"><div class="opt correct"><pre class="out">● the picture of the state, found like a screen reader would
+  Unable to find an element with text: ☑</pre></div></div><div class="why"><b>Why:</b> Fail: the ☑ is <code class="inline">aria-hidden</code>, and React Native Testing Library, like a screen reader, skips hidden elements. That is the point of hiding it: the checkbox's role and <code class="inline">aria-checked</code> already say the state. <code class="inline">{ includeHiddenElements: true }</code> finds it.</div></div>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, in a terminal like a learner's, in a fresh copy of the lab folder with the kit's shared install). Test durations are left out; everything else is as printed.</p>
+<div class="blk lab"><div class="h">Lab 7.3 (guided): labs/module-19/l7_3-motion-polish/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> in <code class="inline">starter/</code> (each failure's first line); <code class="inline">npm run typecheck</code> passes (nothing in the starter is a type error):</p>
+<pre class="out">● Task 1: the phone asks for less motion: less motion, whatever the switch says
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: full motion: the mark draws itself once
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: less motion: a still mark, and no animation at all
+  expect(received).toBeNull()
+● Task 2: screen readers skip the mark (the heading says it in words)
+  Unable to find an element with text: ✓
+● Task 3: every tag arrives, leaves to the left and glides into place
+  expect(received).toBe(expected) // Object.is equality
+● Task 3: the box around the tags has no layout transition of its own
+  expect(received).toBeUndefined()
+● Task 3: the first render is not news (skipEntering)
+  expect(jest.fn()).toHaveBeenCalled()</pre><p>The solution: <code class="inline">npm test</code> (and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: the phone asks for less motion: less motion, whatever the switch says
+  ✓ Task 1: the phone does not: the app switch decides
+  ✓ Task 2: full motion: the mark draws itself once
+  ✓ Task 2: less motion: a still mark, and no animation at all
+  ✓ Task 2: screen readers skip the mark (the heading says it in words)
+  ✓ Task 3: every tag arrives, leaves to the left and glides into place
+  ✓ Task 3: the box around the tags has no layout transition of its own
+  ✓ Task 3: the first render is not news (skipEntering)
+  ✓ Task 3: pressing Remove asks for that tag
+Tests:       9 passed, 9 total</pre><p>And it bundles for the web preview (<code class="inline">npx expo export --platform web --output-dir dist --clear</code>, the last line):</p>
+<pre class="out">Exported: dist</pre><p>What each task shows: (1) <code class="inline">phoneReduces || appSwitch</code>: the switch only adds; watch for <code class="inline">appSwitch ?? phoneReduces</code> or an if/else that lets the switch win; (2) <code class="inline">loop={false}</code>, the still twin when <code class="inline">reduceMotion</code> (no LottieView at all, so nothing plays behind it), <code class="inline">aria-hidden</code> on the wrapper (accept the iPhone and Android props only as an addition: the web preview ignores them, Lesson 7.3's last Common Mistake); (3) each tag an <code class="inline">Animated.View</code> with <code class="inline">entering={FadeIn}</code>, <code class="inline">exiting={FadeOutLeft}</code>, <code class="inline">layout={LinearTransition}</code>, the box a plain View, and <code class="inline">&lt;LayoutAnimationConfig skipEntering&gt;</code> around it. The setup: Reanimated's <code class="inline">jest.mock(...)</code> stand-in renders Animated views as plain views and keeps their props, and the <code class="inline">resolver</code> in package.json loads react-native-worklets' Jest files (without it the test file stops before any test with a TurboModule error).</p>
+</div>
+<div class="blk lab"><div class="h">Lab 8.1 (guided): labs/module-19/l8_1-accessible-mobile-apps/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (each failure's first line):</p>
+<pre class="out">● Task 1: one stop: a checkbox called Gloves, with its state
+  Unable to find an element with role: checkbox, name: Gloves
+● Task 1: the whole row is a finger-sized target
+  Unable to find an element with role: checkbox, name: Gloves
+● Task 2: VoiceOver hears a new message, queued
+  expect(received).toEqual(expected) // deep equality
+● Task 2: the same words are not said twice, and nothing is said for no words
+  expect(jest.fn()).toHaveBeenCalledTimes(expected)
+● Task 3: every text grows with the phone setting
+  expect(received).not.toBe(expected) // Object.is equality
+● Task 3: side by side at the normal size, stacked at large text
+  expect(instance).toHaveStyle()</pre><p>The solution (<code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: one stop: a checkbox called Gloves, with its state
+  ✓ Task 1: the whole row is a finger-sized target
+  ✓ Task 2: VoiceOver hears a new message, queued
+  ✓ Task 2: the same words are not said twice, and nothing is said for no words
+  ✓ Task 3: every text grows with the phone setting
+  ✓ Task 3: side by side at the normal size, stacked at large text
+Tests:       6 passed, 6 total</pre><p>Two demonstration runs on the solution (in <code class="inline">lab.json</code>): <code class="inline">aria-hidden="true"</code> on the ☑, then <code class="inline">npm run typecheck</code>, the lesson's TS2322 on a Text (first line):</p>
+<pre class="out">src/PackingItem.tsx:18:8 - error TS2322: Type '{ children: string; "aria-hidden": string; style: { fontSize: number; }; }' is not assignable to type 'Omit&lt;TextProps, "ref"&gt;'.
+Found 1 error in src/PackingItem.tsx:18</pre><p>…and a test that looks for the hidden ☑ the way a screen reader would (<code class="inline">npm test -- src/hidden.test.tsx</code>):</p>
+<pre class="out">● the picture of the state, found like a screen reader would
+  Unable to find an element with text: ☑</pre><p>What each task shows: (1) the row is one Pressable with role checkbox, <code class="inline">aria-checked</code>, <code class="inline">accessibilityLabel={label}</code> (without it the name would include the ☑ picture) and <code class="inline">minHeight: 48</code>; the ☑ is <code class="inline">aria-hidden</code>; a Pressable may be the control here because no native Switch is inside (Lesson 8.1's switch row keeps the Switch as the control); (2) <code class="inline">useEffect</code> on <code class="inline">[message]</code>: on iOS and for a non-empty message, <code class="inline">announceForAccessibilityWithOptions(message, { queue: true })</code>; the same words twice are not said twice (the effect does not rerun); (3) no <code class="inline">allowFontScaling={false}</code> anywhere; <code class="inline">fontScale &gt;= 1.5</code> stacks the tiles; <code class="inline">maxFontSizeMultiplier={1.75}</code> on the two times only (accept none at all: it is a judgment, not a rule).</p>
+</div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 7.3 · Motion Polish</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="7.3">
+  <li><b>B</b> layout={LinearTransition} on the cards that move: A layout transition animates a view whose position or size changed because something else changed. The second card moved up, and LinearTransition on it turned the jump into a glide.</li>
+  <li><b>D</b> The first screenful fades in once; rows scrolled into view and removed rows do not animate: FlashList recycles rows instead of mounting and unmounting them. Only the first screenful mounts, so it fades in; rows scrolled into view and removed rows do not animate at all (measured: 38, 0 and 0 animations).</li>
+  <li><b>A</b> A still check mark above Log sent. Thank you!: loadMotion subscribed to reduceMotionChanged, so the store already knows. useReduceMotion returns true, and LogSentMark shows the still check mark. No restart is needed, unlike Lesson 7.1.</li>
+  <li><b>C</b> Lottie's own player draws the check mark, and it never hears Reanimated's setting: ReducedMotionConfig changes what ReduceMotion.System means for Reanimated's animations. The check mark is drawn by Lottie's own player, which knows nothing about Reanimated, so the component has to decide itself, with the same hook.</li>
+  <li><b>A</b> They still show their totals at once: the phone's setting wins: The app's switch only adds: useReduceMotion returns phone OR switch, so the phone's setting still wins, and the note under the switch says so. An app should never turn motion back on against an accessibility setting.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 8.1 · Accessible Mobile Apps</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="8.1">
+  <li><b>C</b> The words and the switch were two elements; the words are now hidden and the row presses the switch: The words were a text element and the switch, with the same words as its label, was a second one. Hiding the words with aria-hidden leaves one stop, the switch, and the row as a Pressable makes the whole row the touch target.</li>
+  <li><b>A</b> accessibilityLiveRegion is Android only; iPhone needs announceForAccessibility: React Native's documentation lists accessibilityLiveRegion as Android only. On iPhone an app asks VoiceOver to speak with AccessibilityInfo.announceForAccessibility, which AppText now does for every live text.</li>
+  <li><b>D</b> A different layout when fontScale is large: two tallies to a row: Change the layout, not the text: with fontScale at 1.5 or more, each tally takes at least 40 percent of the row and the row wraps, so they sit two to a row. A cap like maxFontSizeMultiplier is for text that is already large, and only after the layout works.</li>
+  <li><b>B</b> The mechanical problems axe can find are fixed; a screen reader and large text on a phone are still needed: Automated checks catch part of the mechanical problems, and on React Native they check the web translation of the props. Reading order, what the screen readers really say, announcements and large text need a person with a phone.</li>
+  <li><b>A</b> "Logbook (2), not sent yet": Label in Name: the accessible name contains the visible words, at the start, so speaking what you see matches. The extra not sent yet helps screen-reader users without getting in the way.</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>The phone wins:</b> no, the tally does not count. <code class="inline">useReduceMotion()</code> is <code class="inline">phone || reduceMotion</code>, true; ReducedMotionConfig switches to Always and the tally's withTiming jumps to its end. The app's switch can only add.</li>
+  <li><b>Beyond Reanimated:</b> the Lottie log-sent mark (LogSentMark shows the still <code class="inline">sent</code> icon from <code class="inline">useReduceMotion()</code>) or the native screen transitions (the root Stack's <code class="inline">animation: 'fade'</code>, phones only). The tally's CSS color highlight is kept on purpose (a dissolve in place).</li>
+  <li><b>Only a phone:</b> what VoiceOver or TalkBack actually say and in which order; whether announcements arrive (iPhone); how the largest text lays out (the web preview's text size is always 1); whether targets are easy to hit with a thumb; native headers and tab bars (any two).</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 A.</b> Removes motion instead of choosing when it plays. Show the demo: open the Logbook (nothing moves), then Send now (the new entry fades in).</li>
+  <li><b>Q2 B.</b> Thinks every new package needs a development build. The phone was fine: the stack names a <code class="inline">.web.js</code> file.</li>
+  <li><b>Q3 A.</b> Expects the app's switch to override the phone. Back to the decision table: never turn motion back on against the phone.</li>
+  <li><b>Q8 C.</b> Silences the checker instead of reading it. Read the LAST line of the error first.</li>
+  <li><b>Q10 A.</b> The most common real-world "fix". Ask whose setting it switches off.</li>
+  <li><b>Q12 A.</b> Groups the control away: the lesson's Elements section and the 4.1 decision to keep two buttons on the card.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 19 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

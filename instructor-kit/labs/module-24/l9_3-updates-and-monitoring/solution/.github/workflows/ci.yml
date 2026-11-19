@@ -1,0 +1,30 @@
+# Tidepool Count's checks on every push (a volunteers' app like Shoreline Crew, built with Expo SDK 58).
+# Its package.json "test" script is "jest --watchAll", like the course app's.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Types, lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # exactly the versions in package-lock.json (npm install may choose newer ones)
+      - run: npm ci
+      # a fresh checkout has no expo-env.d.ts and no route types: write them without starting Metro
+      - run: npx expo customize tsconfig.json
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      # once, then stop: the script's --watchAll would wait for changes that never come
+      - run: npm test -- --watchAll=false

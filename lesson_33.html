@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Building your own Expo app: when Expo Go is not enough, development builds with expo-dev-client, eas.json build profiles for development, preview and production, EAS Build in the cloud and its free plan, installing builds on Android phones and iPhones, and local builds. React Native &amp; Expo: Build and Ship a Mobile App Lesson 9.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Development Builds and EAS Build - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+        <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🏗️ Lesson 9.2: Development Builds and EAS Build</h1>
+                <p class="lead">Since Lesson 1.2, Shoreline Crew has borrowed someone else's app: Expo Go. Today it gets its own. You turn the project into a development build that carries Shoreline Crew's name, icon, ids and permission sentences, describe your three variants as build profiles, and let Expo's build servers turn your code into an app you install on a phone, with an honest look at what the free plan gives you and what costs money.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Say when Expo Go is no longer enough, and which parts of Shoreline Crew need a build of their own</li>
+                        <li>Explain what a development build is, add <code>expo-dev-client</code>, and say which changes need a new build and which only need Metro</li>
+                        <li>Write <code>eas.json</code> with development, preview and production profiles that set <code>APP_VARIANT</code> and the API address, and test them on your computer</li>
+                        <li>Link the project to an Expo account by hand when the config is <code>app.config.ts</code>, and keep keys in EAS environment variables</li>
+                        <li>Start a cloud build, read its queue and limits honestly, install the result on an Android phone or emulator, and name what an iPhone build costs</li>
+                        <li>Choose between a cloud build and a local build, and say what each needs on your computer</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes (about 30 of them waiting for builds; the steps say what to do meanwhile)</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_32.html">Lesson 9.1: App Config and Environments</a>; a free Expo account (expo.dev); an Android phone or the Android emulator (Lesson 1.2's optional sidebar) to install the builds</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's first real apps: <code>expo-dev-client</code>, an <code>eas.json</code> with three build profiles, a test that checks each profile against <code>app.config.ts</code> (51 tests), the project linked to your Expo account, and Shoreline Dev and Shoreline Preview installed on Android</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88), expo-dev-client 58.0, EAS CLI 27.10 through <code>npx eas-cli@latest</code> (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your terminal and Expo's build servers; the builds on an Android phone or emulator; <code>npx expo start</code> serves the JavaScript to the development build. iPhone builds are described, not required</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-33-start.zip">lesson-33-start.zip</a> · Finished code: <a href="downloads/lesson-33-end.zip">lesson-33-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: An App of Your Own</a></li>
+                        <li><a href="#expo-go-limits" class="toc-link">When Expo Go Is Not Enough</a></li>
+                        <li><a href="#dev-build" class="toc-link">What a Development Build Is</a></li>
+                        <li><a href="#eas-build" class="toc-link">How EAS Build Works, and What It Costs</a></li>
+                        <li><a href="#profiles" class="toc-link">Build Profiles in eas.json</a></li>
+                        <li><a href="#installing" class="toc-link">Installing Builds on Phones</a></li>
+                        <li><a href="#local" class="toc-link">Building on Your Own Computer</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew's First Builds</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: An App of Your Own</h2>
+                <p>Lesson 9.1 wrote the label for three apps: Shoreline Dev, Shoreline Preview and Shoreline Crew, each with its own id, icon, permission sentences and settings. Nothing on your phone shows any of it yet, because Expo Go is one app that opens many projects and keeps its own label. Today the label goes on a real bag.</p>
+                <p>By the end of this lesson:</p>
+                <ul>
+                    <li><strong>Shoreline Dev</strong> is installed on an Android phone or emulator: your own development app, with Shoreline Crew's icon and sentences, still loading your JavaScript from Metro with Fast Refresh.</li>
+                    <li><strong>Shoreline Preview</strong> sits next to it: a release build with the JavaScript inside, the kind of app a crew leader tests before volunteers get it.</li>
+                    <li><strong><code>eas.json</code></strong> describes how each variant is built, and a test proves each profile produces the app it should, before you spend a single cloud build on it.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> most real React Native jobs work with development builds, not Expo Go, because real apps use native libraries Expo Go does not carry. "Can you make a build for the client to try?" is one of the first things a new mobile developer is asked, and knowing what a build costs in time and money, and what it needs from Apple and Google, is what lets you answer with a date instead of a guess.</p>
+
+                <div class="card card-accent">
+                    <h4>🌱 Builds fail, and that is normal</h4>
+                    <p>Your first cloud build may fail. Almost everyone's does: a missing setting, a typo in a profile, an answer to a prompt you were not sure about. A failed build costs you a few minutes and gives you a log that names the problem. Today you will also catch the most common profile mistakes on your own computer first, in a second, with a test. Read the first error, fix one thing, try again: that is the whole skill.</p>
+                </div>
+            </section>
+
+            <section id="expo-go-limits" class="lesson-section">
+                <h2>🧰 When Expo Go Is Not Enough</h2>
+                <p>Expo Go is an app in the stores with a fixed set of native modules inside, built for one Expo SDK. Your JavaScript can use everything in that set and nothing else. For learning, that is perfect: no build, no account, a QR code. For shipping, it stops at a few walls, and Shoreline Crew has reached several of them:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>What Shoreline Crew needs</th><th>In Expo Go</th><th>In your own build</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Its name, icon, splash and ids (Lesson 9.1)</td><td>Expo Go's name and icon; it runs as <code>host.exp.Exponent</code></td><td>Shoreline Dev, Preview or Crew, each with its own id</td></tr>
+                            <tr><td>Its own permission sentences, no Face ID sentence (6.1 to 6.3, 9.1)</td><td>Expo Go asks in its own words, once for every project</td><td>Your sentences; nothing asked that the app does not use</td></tr>
+                            <tr><td>The white notification icon and Sea Teal color (6.4, 9.1)</td><td>Expo Go's icon</td><td>Yours</td></tr>
+                            <tr><td>Google Maps in Android builds (6.3)</td><td>Works with Expo Go's own key</td><td>Needs your key (<code>ANDROID_GOOGLE_MAPS_API_KEY</code>)</td></tr>
+                            <tr><td>Plain http for the preview variant (9.1)</td><td>Allowed for development</td><td>Set per variant by <code>expo-build-properties</code></td></tr>
+                            <tr><td>Push notifications from a server (6.4)</td><td>Not on Android</td><td>Possible: a build, an EAS project id and push credentials</td></tr>
+                            <tr><td>A native library Expo Go does not include (such as the keyboard library Lesson 5.4's FAQ mentioned)</td><td>Red screen: the native module is missing</td><td>Included, because your build compiles what you installed</td></tr>
+                            <tr><td>An older or newer Expo SDK than the store Expo Go</td><td>Expo Go runs one SDK at a time</td><td>Your build runs the SDK it was built with, for as long as you like</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>None of this means Expo Go was a mistake. Everything Shoreline Crew does so far still runs in it, and you can keep using it for quick checks (Step 2 shows how to switch). From now on, though, the app you test is the app you ship.</p>
+            </section>
+
+            <section id="dev-build" class="lesson-section">
+                <h2>🧪 What a Development Build Is</h2>
+                <p>A <strong>development build</strong> is a debug build of your own app with Expo's developer tools added by the <code>expo-dev-client</code> package. It behaves like Expo Go in the ways you care about while coding: it loads your JavaScript from Metro on your computer, Fast Refresh works, <kbd>m</kbd> opens the developer menu and <kbd>j</kbd> the debugger (Lesson 8.4). But the native part is yours: your native modules, your config plugins, your name and icon.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Expo Go</th><th>Development build</th><th>Release build (preview, production)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Native code</td><td>Expo's fixed set</td><td>Yours</td><td>Yours</td></tr>
+                            <tr><td>JavaScript</td><td>From Metro</td><td>From Metro</td><td>Inside the app (Hermes bytecode, Lesson 1.1)</td></tr>
+                            <tr><td>Developer menu, Fast Refresh</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+                            <tr><td>Who installs it</td><td>Anyone, from a store</td><td>You and your team</td><td>Testers (preview) or everyone (production)</td></tr>
+                            <tr><td>Built by</td><td>Expo</td><td>You, once, and again when native code changes</td><td>You, for every release</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The last row is the question you will ask most often: <strong>does this change need a new build?</strong> The rule is simple once you see the split. JavaScript (screens, hooks, styles, tests, <code>EXPO_PUBLIC_</code> values for Metro) travels from Metro every time you open the app: no build. Native things are compiled into the app: installing a package with native code, adding or changing a config plugin's options, and changing the native fields of <code>app.config.ts</code> (name, ids, icons, permissions) all need a new development build.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: your own field kit</h4>
+                    <p>Lesson 1.1 called the native modules an app carries its field kit. Expo Go is the rental kit at the beach hut: well stocked, with the hut's label on the bag, and you cannot add a tool to it. A development build is your own kit, packed with exactly the tools Shoreline Crew uses and your label stitched on. The plan for the day (your JavaScript) still arrives by radio from Metro, so you can change the plan without repacking. Add a new tool, and you pack the bag again: that is a new build.</p>
+                </div>
+                <p><code>expo-dev-client</code> also changes what <code>npx expo start</code> does. Once it is installed, the QR code opens your development build instead of Expo Go, and the terminal says so (Step 2). Its launcher screen, the first thing the development build shows, lists the Metro servers it finds on your network and lets you type an address, so the same Wi-Fi and WSL rules from Lessons 1.2 and 5.1 still apply.</p>
+            </section>
+
+            <section id="eas-build" class="lesson-section">
+                <h2>☁️ How EAS Build Works, and What It Costs</h2>
+                <p>Building an Android app needs the Android SDK and a Java toolchain; building an iPhone app needs a Mac with Xcode. <strong>EAS Build</strong> (EAS: Expo Application Services) runs those builds on Expo's servers, so a Windows or Linux computer can produce both. You drive it with <strong>EAS CLI</strong>, a command-line tool you run with <code>npx eas-cli@latest</code>, the same way you run <code>create-expo-app</code>: always the current version, nothing installed globally (the template's <code>AGENTS.md</code> says the same).</p>
+<div class="mermaid">
+graph TD
+    A["npx eas-cli build"] --> B["Read eas.json and config"]
+    B --> C["Upload the project"]
+    C --> D["Wait in the queue"]
+    D --> E["Install, prebuild, compile"]
+    E --> F["Sign the app"]
+    F --> G["Link and QR to install"]
+</div>
+                <ol>
+                    <li><strong>On your computer</strong>, EAS CLI reads the build profile from <code>eas.json</code> and evaluates <code>app.config.ts</code> with that profile's variables. It does not load <code>.env.local</code> for this (read in EAS CLI's source for this lesson), so <code>APP_VARIANT</code> and the API address must come from the profile. Your Lesson 9.1 guards run here: a bad profile stops before anything is uploaded.</li>
+                    <li><strong>It uploads your project</strong>, leaving out what <code>.gitignore</code> lists: <code>node_modules</code>, <code>.env.local</code>, the <code>android</code> and <code>ios</code> folders. Your keys in <code>.env.local</code> stay on your computer.</li>
+                    <li><strong>The build waits in a queue</strong> for a free build server.</li>
+                    <li><strong>The server</strong> runs <code>npm ci</code>, generates the native projects with prebuild (everything you read with <code>--type introspect</code> in Lesson 9.1), and compiles them.</li>
+                    <li><strong>It signs the app.</strong> Android apps are signed with a keystore, which EAS can create and keep for you; iPhone apps need certificates and profiles from Apple.</li>
+                    <li><strong>You get a link</strong> (and a QR code in the terminal) to install the build, and the build's page on expo.dev with its logs.</li>
+                </ol>
+                <h3>The free plan, honestly</h3>
+                <p>EAS Build has a free plan, and it is enough for this course. What it includes changes over time, so read Expo's pricing page before you plan around it. When this lesson was written, the page listed for the Free plan: up to 15 Android and 15 iOS builds per month (the billing docs say the limits reset monthly), a <strong>low-priority queue</strong>, and a 45-minute build timeout. The cheapest paid plan was Starter at $19 a month plus usage, which adds a high-priority queue and build credit. None of these numbers are promises: check the page.</p>
+                <p>The number that shapes your day is the queue. A small Android build takes a few minutes of actual building; on the free plan, it can wait in line before that, sometimes briefly and sometimes much longer, depending on how busy Expo's servers are. EAS CLI shows the wait while it happens (it prints "Waiting in Free tier queue" and an estimate). This lesson plans about 30 minutes of waiting for two Android builds and gives you work to do meanwhile; if your queue is longer, nothing is wrong, and the build will finish while you do something else.</p>
+                <p>A build counts against the monthly limit whether it succeeds or fails, which is one more reason to test profiles on your own computer first (Step 4).</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>What it costs</th><th>When you need it</th><th>Needed for this lesson?</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Expo account</td><td>Every EAS command</td><td>Yes: free</td></tr>
+                            <tr><td>Android builds on the free plan</td><td>Development and preview builds</td><td>Yes: free, within the monthly limit</td></tr>
+                            <tr><td>Apple Developer Program (Expo's docs name $99 a year)</td><td>Any build that installs on a real iPhone; the App Store</td><td>No</td></tr>
+                            <tr><td>Google Play developer account (Expo's docs name a one-time $25)</td><td>Publishing to Google Play (Lesson 9.4)</td><td>No: Android builds install without it</td></tr>
+                            <tr><td>A paid Expo plan</td><td>Shorter queues, more builds</td><td>No</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h4>🧩 Version note: EAS Build or Expo Build</h4>
+                    <p>This lesson was checked with EAS CLI 27.10.0 (<code>npx eas-cli@latest</code> picks the newest, so your version may be higher). Expo's website has started to call the services "Expo Build" and "Expo Update" while the command is still <code>eas</code> and the docs still say EAS in many places. They are the same service; if a page or a prompt words something differently from this lesson, the newer wording wins.</p>
+                </div>
+            </section>
+
+            <section id="profiles" class="lesson-section">
+                <h2>📋 Build Profiles in <code>eas.json</code></h2>
+                <p><code>eas.json</code>, next to <code>package.json</code>, tells EAS how to build. Its <code>build</code> section has one <strong>build profile</strong> per kind of build, and you pick one with <code>--profile</code>. Shoreline Crew's three profiles match Lesson 9.1's three variants:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Profile</th><th>Key settings</th><th>What you get</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>development</code></td><td><code>developmentClient: true</code>, <code>distribution: "internal"</code>, <code>APP_VARIANT</code> development</td><td>Shoreline Dev: a debug build with the dev client, installed from a link</td></tr>
+                            <tr><td><code>preview</code></td><td><code>distribution: "internal"</code>, <code>APP_VARIANT</code> preview, the API address</td><td>Shoreline Preview: a release build with the JavaScript inside, installed from a link</td></tr>
+                            <tr><td><code>production</code></td><td><code>APP_VARIANT</code> production, store distribution (the default), <code>autoIncrement</code></td><td>Shoreline Crew for the stores (Lesson 9.4): an Android App Bundle and an App Store build</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li><strong><code>distribution: "internal"</code></strong> means "installed directly, not from a store". For Android, EAS then makes an APK (the file a phone installs from a link) instead of the App Bundle Google Play wants (read in EAS CLI's source). For iPhones, it means ad hoc signing for registered devices ("Installing Builds on Phones").</li>
+                    <li><strong><code>env</code></strong> sets environment variables for this profile: while EAS CLI evaluates <code>app.config.ts</code> on your computer, and on the build server. This is where Lesson 9.1's promise is kept: each profile sets <code>APP_VARIANT</code>.</li>
+                    <li><strong><code>environment</code></strong> names a set of <strong>EAS environment variables</strong>, values you store on expo.dev for the project (development, preview, production). They are the build service's secret drawer: the right home for the Google Maps key. If a name is in both places, the profile's <code>env</code> wins (EAS CLI warns about it).</li>
+                    <li><strong><code>cli.appVersionSource: "remote"</code></strong> and <code>autoIncrement</code> let EAS count build numbers for you. That is what <code>eas build:configure</code> writes too; Lesson 9.3 explains versions.</li>
+                </ul>
+                <p>The preview profile carries <code>EXPO_PUBLIC_API_URL</code> because a preview build has its JavaScript inside: Metro will not be there to read your <code>.env.local</code>. The address is baked in when the build is made, so the preview build talks to that address until you build again (or, in Lesson 9.3, send it an update). It is not a secret (Lesson 9.1), so it may live in <code>eas.json</code>, which you commit.</p>
+                <p>The production profile has no API address at all. That is on purpose: there is no https server for Shoreline Crew yet, and Lesson 9.1's guard refuses to make a production config without one. The profile is ready for the day there is one (Lesson 9.4 and your own app in Module 10).</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the packing list</h4>
+                    <p><code>app.config.ts</code> is the label on each bag; <code>eas.json</code> is the packing list the crew at the depot follows: "for the practice kit, add the radio; for the testers' kit, write today's meeting point inside the lid". The depot never sees your desk drawer (<code>.env.local</code>), so anything the kit needs must be on the list or in the depot's own locked drawer (EAS environment variables).</p>
+                </div>
+            </section>
+
+            <section id="installing" class="lesson-section">
+                <h2>📲 Installing Builds on Phones</h2>
+                <h3>Android: a link and a tap</h3>
+                <p>An internal Android build is an APK file. When a build finishes, EAS CLI prints a QR code and a link to the build's page; open it on the phone (scan the QR code with the camera, or send yourself the link), tap <strong>Install</strong>, and download the APK. Android then asks you to allow installing apps from that browser (the setting is called something like "Install unknown apps", and the wording varies by phone maker) and may show a Google Play Protect warning, because the app did not come from the store. Allow it for your own builds only. On the Android emulator, EAS CLI offers to install and open the build for you when it finishes; you can also drag the APK onto the emulator window.</p>
+                <p>Because Lesson 9.1 gave each variant its own id, Shoreline Dev and Shoreline Preview install side by side, and installing a newer build of the same variant replaces only that one.</p>
+                <h3>iPhone: an Apple account first</h3>
+                <p>Apple decides what runs on an iPhone. There are three ways in, and only one is free:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Way</th><th>What it needs</th><th>Cost</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>iOS Simulator build (<code>"ios": { "simulator": true }</code> in a profile)</td><td>A Mac with Xcode to run the Simulator</td><td>No Apple membership</td></tr>
+                            <tr><td>Internal (ad hoc) build for real iPhones</td><td>Apple Developer Program; each iPhone registered first with <code>npx eas-cli@latest device:create</code> (a link or QR code you open on the iPhone); a new build after adding a device; Developer Mode turned on in the iPhone's settings</td><td>Apple Developer Program (Expo's docs name $99 a year)</td></tr>
+                            <tr><td>TestFlight and the App Store (Lesson 9.4)</td><td>Apple Developer Program, App Store Connect</td><td>The same membership</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Expo's docs add a few honest details: ad hoc builds are limited to 100 registered iPhones a year, Apple can take a day or more to accept a newly registered device on a new membership, and EAS CLI can create the certificates and profiles for you once you sign in with your Apple account. You do not need any of this to finish the course. If an iPhone is your only phone and you do not have a Mac, use the Android emulator for builds, and keep using Expo Go on the iPhone for JavaScript work.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The first time Shoreline Dev opens, you should see its own splash (Sand, or night blue in dark mode), then the development launcher: a list of development servers, and a field to enter a URL. Choose your computer's server. Later, asking for location on the cleanup screen shows Shoreline Crew's sentence, and a reminder shows the white sun-and-waves icon. None of this could be checked on the machine this course was written on (no Android emulator or phone); if your build shows something different, trust the build and Expo's docs.</p>
+                </div>
+            </section>
+
+            <section id="local" class="lesson-section">
+                <h2>💻 Building on Your Own Computer</h2>
+                <p>Cloud builds are not the only way. With the native tools installed, your computer can build too, with no queue and no monthly limit:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Command</th><th>What it does</th><th>What it needs</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>npx expo run:android</code></td><td>Runs prebuild (creates <code>android/</code>), compiles a debug build, installs it on the emulator or a phone connected by USB, starts Metro</td><td>Android Studio (with its SDK and Java), several GB of disk, a connected device or the emulator. No Expo account</td></tr>
+                            <tr><td><code>npx expo run:ios</code></td><td>The same for the iOS Simulator or a connected iPhone</td><td>A Mac with Xcode; a real iPhone also needs signing (a free Apple account works for your own iPhone for a short time; check Apple's current rules)</td></tr>
+                            <tr><td><code>npx eas-cli@latest build --local</code></td><td>Runs the same build steps as the cloud, on your computer, using <code>eas.json</code></td><td>macOS or Linux (Windows is not supported; WSL is not officially tested), Node, the Android SDK and NDK (Android), Xcode, fastlane and CocoaPods (iOS), and an Expo login</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>For learners, the trade is clear: local builds cost setup time and disk space and save queue time; cloud builds cost queue time and save setup. Many teams use both: <code>npx expo run:android</code> during the day, EAS for builds other people install. Shoreline Crew's <code>.gitignore</code> already lists <code>/android</code> and <code>/ios</code>, so the folders a local build creates never reach your repository (Lesson 9.1's Exercise 3 met them).</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The outputs below were printed by the real tools on this course's project. Commands that need an Expo account could not be run for this lesson; for those, the messages are quoted from EAS CLI 27.10's source code, and your terminal may word them slightly differently.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting EAS to write the project id into <code>app.config.ts</code></h3>
+                    <p>With <code>app.json</code>, <code>eas init</code> (and the first <code>eas build</code>) save the new project's id in the file for you. With a dynamic config they cannot, exactly as <code>npx expo install</code> could not add plugins in Lesson 9.1. EAS CLI creates the project on expo.dev, then prints a warning that begins "Your project uses dynamic app configuration, and the EAS project ID can't automatically be added to it", shows the id inside a small JSON block, and stops with "Cannot automatically write to dynamic config at: app.config.ts". The project exists; only the id is missing. Copy it into <code>easProject</code> in <code>app.config.ts</code> (Step 5) and run the command again. Running it again without pasting just repeats the message.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Counting on <code>.env.local</code> in a cloud build</h3>
+                    <p><code>.env.local</code> is in <code>.gitignore</code>, so it is never uploaded, and EAS CLI does not load it when it reads your config either. A preview profile without <code>EXPO_PUBLIC_API_URL</code> builds fine, and then the installed app shows Lesson 5.1's message on every screen that loads data: <code>EXPO_PUBLIC_API_URL is not set: copy .env.example to .env.local, then restart Metro.</code> That advice is right for Metro and useless for an installed build: the fix is the profile's <code>env</code> (or an EAS environment variable) and a new build. Step 4's test catches it before you build: it checks that the preview profile has an address.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Building the production profile before there is an https server</h3>
+                    <p>Lesson 9.1's guard runs wherever the config is read, and EAS CLI reads it on your computer before uploading anything. You can see exactly what it sees by reading the config the way EAS does, with the profile's variables and without <code>.env.local</code> (<code>EXPO_NO_DOTENV=1</code> tells Expo to skip it):</p>
+                    <pre class="terminal"><code class="language-bash">EXPO_NO_DOTENV=1 APP_VARIANT=production npx expo config --type public</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the start)</h4>
+                        <pre><code>Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "".
+Error: A production build needs an https:// EXPO_PUBLIC_API_URL, not "".
+...</code></pre>
+                    </div>
+                    <p>That is the guard doing its job: <code>not ""</code> because the production profile sets no address at all. <code>npx eas-cli@latest build --profile production</code> stops with the same message, and no build is used up. Production builds wait for an https home for the API.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A typo in <code>eas.json</code></h3>
+                    <p>EAS CLI checks <code>eas.json</code> against its own rules before it builds. Write <code>"distribution": "interal"</code> or <code>"devClient": true</code>, and it stops with <code>eas.json is not valid.</code> and one line per problem, such as <code>"build.preview.distribution" must be one of [store, internal]</code> or <code>"build.development.devClient" is not allowed</code> (checked for this lesson with EAS CLI's own <code>eas.json</code> reader). Read the path in quotes: it names the profile and the key. A misspelled <em>value</em> inside <code>env</code>, such as <code>"APP_VARIANT": "prevue"</code>, passes that check, because EAS cannot know your variants; that is what Step 4's test is for.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Adding a native package and not rebuilding</h3>
+                    <p>After <code>npx expo install</code> of a package with native code, Metro happily bundles the JavaScript that imports it, and the development build you installed last week has no native half for it. The app shows a red screen saying a native module cannot be found (the exact words depend on the package). Nothing is wrong with your code: make a new development build. The reverse mistake costs time instead: a JavaScript-only change never needs a build, only Metro.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ The development build cannot find Metro</h3>
+                    <p>A development build still loads JavaScript over your network, so everything Lesson 1.2 said about Expo Go applies: same Wi-Fi, a firewall that allows port 8081, and on Windows with WSL either mirrored networking or Node in Windows (<a href="troubleshooting.html#wsl">Troubleshooting: WSL</a>). If the launcher lists no server, type the address from the <code>› Metro:</code> line's <code>http://…:8081</code> part into its URL field, or scan the QR code from <code>npx expo start</code>.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew's First Builds</h2>
+                <p>You sign in to EAS, add the development client, write and test the build profiles, link the project, start two Android builds, and install Shoreline Dev and Shoreline Preview. Steps 6 to 8 overlap: the builds run on Expo's servers while you work. You need a free Expo account, and an Android phone or the Android emulator for Steps 8 and 9. With only an iPhone and no paid Apple membership, do Steps 1 to 7, then read Steps 8 and 9 and the exercises: the builds are optional, the understanding is not.</p>
+
+                <div class="card">
+                    <h3>Step 1: An Expo account and EAS CLI <span class="step-time">(10 min)</span></h3>
+                    <p>If you have not yet, create a free account at expo.dev (an email address, a username and a password). Your username becomes part of your project's address on expo.dev, so pick one you are happy to show a client.</p>
+                    <p>EAS CLI runs through <code>npx</code>. The first time, npm asks before downloading it:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest --version</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed; your version may be newer)</h4>
+                        <pre><code>Need to install the following packages:
+eas-cli@27.10.0
+Ok to proceed? (y) y
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+...
+eas-cli/27.10.0 wsl-x64 node-v24.22.2</code></pre>
+                    </div>
+                    <p>The <code>npm warn deprecated</code> lines are about packages inside EAS CLI, not your project: warnings, not errors. Now ask who you are, then sign in:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest whoami
+npx eas-cli@latest login</code></pre>
+                    <figure class="screenshot">
+    <img src="images/lesson_33/33-eas-login.png" alt="A terminal with two commands. npx eas-cli@latest whoami prints Not logged in. npx eas-cli@latest init prints the warning An Expo user account is required to proceed, then Log in to EAS with email or username, and waits at the prompt Email or username." width="893" height="239" loading="lazy">
+    <figcaption>Without an account, EAS CLI says so, and any command that needs Expo's servers asks you to log in first. <code>npx eas-cli@latest login</code> does the same through your browser.</figcaption>
+</figure>
+                    <p><code>whoami</code> prints <code>Not logged in</code> until you sign in. <code>login</code> opens your browser to sign in to expo.dev (its <code>--help</code> says the browser is the default; <code>--no-browser</code> asks for your username and password in the terminal instead, and <code>--device</code> gives you a code to enter in a browser on any device, handy in WSL). Run <code>npx eas-cli@latest whoami</code> again: it should print your username. EAS CLI remembers the sign-in on this computer.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Add the development client <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>shoreline-crew</code>:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-dev-client</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 7 packages, and audited 1432 packages in 6s
+...</code></pre>
+                    </div>
+                    <p>Notice what is missing: no "Cannot automatically write to dynamic config" this time. <code>expo-dev-client</code> has a config plugin, but Expo applies it automatically for every project that has the package installed (it is on Expo's own list of plugins it adds by itself), so there is nothing to paste into <code>app.config.ts</code>. You can see what it adds with Lesson 9.1's introspect: search the output for <code>exp+</code>.</p>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type introspect</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (excerpts: the iOS URL schemes, then the Android intent filter)</h4>
+                        <pre><code>              CFBundleURLSchemes: [
+                'shorelinecrew',
+                'com.example.shorelinecrew.dev'
+              ]
+            },
+            {
+              CFBundleURLSchemes: [
+                'exp+shoreline-crew'
+              ]
+...
+                            '$': {
+                              'android:scheme': 'shorelinecrew'
+                            }
+                          },
+                          {
+                            '$': {
+                              'android:scheme': 'exp+shoreline-crew'
+                            }
+                          }
+...</code></pre>
+                    </div>
+                    <p>Next to Shoreline Crew's own <code>shorelinecrew</code> scheme (Lesson 4.4), the development build gets a second one, <code>exp+shoreline-crew</code> (from the slug). The QR code from <code>npx expo start</code> uses it to open your development build. Start Metro and look:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo start</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: the QR code left out; your address will differ)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Starting project at ~/shoreline/shoreline-crew
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+...
+› Scan the QR code above to open in a development build. (Learn more: https://expo.fyi/start)
+› Metro: exp+shoreline-crew://?__expo_url=http%3A%2F%2F192.168.1.42%3A8081
+› Web: http://localhost:8081
+
+› Using development build
+› Press s │ switch to Expo Go
+...</code></pre>
+                    </div>
+                    <p>"Using development build": the QR code now opens Shoreline Dev, which you do not have yet. Until Step 8, press <kbd>s</kbd> to switch to Expo Go, and Expo Go works exactly as before. Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also on a Mac).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Write <code>eas.json</code> <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>eas.json</code> in <code>shoreline-crew</code>, next to <code>package.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/eas.json</div>
+                        <pre data-src="shoreline-crew/eas.json"><code class="language-json">{
+  "cli": {
+    "version": "&gt;= 27.10.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "APP_VARIANT": "development"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "preview",
+        "EXPO_PUBLIC_API_URL": "http://192.168.1.42:4000"
+      }
+    },
+    "production": {
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>Each profile's <code>env</code> sets <code>APP_VARIANT</code>, so <code>--profile preview</code> builds Shoreline Preview with the <code>.preview</code> id, and so on.</li>
+                        <li><code>developmentClient: true</code> makes the development profile a debug build with the launcher and developer menu.</li>
+                        <li><code>environment</code> picks which set of EAS environment variables the build gets (Step 5 adds one).</li>
+                        <li>The <code>cli</code> section and <code>autoIncrement</code> are what <code>npx eas-cli@latest build:configure</code> would write for a new project; Lesson 9.3 explains version numbers, and <code>submit</code> is for Lesson 9.4.</li>
+                    </ul>
+                    <p>Now make the preview address yours. <code>192.168.1.42</code> is the course's example; put the address your phone already uses in <code>.env.local</code> (Lesson 5.1: your computer's network address and port 4000). It is not a secret, but it is yours, and it changes if your computer gets a new address on the Wi-Fi.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Test the profiles before you spend a build <span class="step-time">(10 min)</span></h3>
+                    <p>A cloud build takes minutes and counts against your month. A test takes a quarter of a second. This one reads each profile's <code>env</code> and runs <code>app.config.ts</code> with it, the way EAS CLI does (no <code>.env.local</code>):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.test.ts</div>
+                        <pre data-src="shoreline-crew/app.config.test.ts"><code class="language-ts">import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+import easJson from './eas.json';
+
+// Each build profile in eas.json must make the app config produce the right app (Lesson 9.2).
+// The test reads the config the way EAS does: only the profile's env, no .env.local.
+const settings = ['APP_VARIANT', 'EXPO_PUBLIC_API_URL', 'ANDROID_GOOGLE_MAPS_API_KEY'];
+
+function configFor(env: Record&lt;string, string&gt;): ExpoConfig {
+  const saved = { ...process.env };
+  for (const name of settings) delete process.env[name];
+  Object.assign(process.env, env);
+  try {
+    let config: ExpoConfig | undefined;
+    jest.isolateModules(() =&gt; {
+      // app.config.ts reads process.env when it loads, so load a fresh copy for every profile
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { default: makeConfig } = require('./app.config') as {
+        default: (context: ConfigContext) =&gt; ExpoConfig;
+      };
+      config = makeConfig({ config: {} } as ConfigContext);
+    });
+    if (!config) throw new Error('app.config.ts returned nothing');
+    return config;
+  } finally {
+    process.env = saved;
+  }
+}
+
+it('builds Shoreline Dev from the development profile', () =&gt; {
+  const config = configFor(easJson.build.development.env);
+  expect(config.name).toBe('Shoreline Dev');
+  expect(config.android?.package).toBe('com.example.shorelinecrew.dev');
+});
+
+it('builds Shoreline Preview from the preview profile, with an API address', () =&gt; {
+  const { env } = easJson.build.preview;
+  const config = configFor(env);
+  expect(config.name).toBe('Shoreline Preview');
+  expect(config.ios?.bundleIdentifier).toBe('com.example.shorelinecrew.preview');
+  expect(env.EXPO_PUBLIC_API_URL).toMatch(/^https?:\/\//);
+});
+
+it('refuses the production profile until it has an https API address', () =&gt; {
+  expect(() =&gt; configFor(easJson.build.production.env)).toThrow(
+    'A production build needs an https:// EXPO_PUBLIC_API_URL',
+  );
+  const config = configFor({
+    ...easJson.build.production.env,
+    EXPO_PUBLIC_API_URL: 'https://crew-api.example.org',
+  });
+  expect(config.android?.package).toBe('com.example.shorelinecrew');
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>import easJson from './eas.json'</code>: TypeScript reads JSON files and types them, so <code>easJson.build.preview.env.EXPO_PUBLIC_API_URL</code> is a typed string.</li>
+                        <li><code>app.config.ts</code> reads <code>process.env</code> once, when it loads. <code>jest.isolateModules</code> loads a fresh copy for each profile (it is the same idea as Lesson 8.2's fresh module for each test), and <code>require</code> inside it is the one place the course allows a <code>require</code> (the lint comment says so, as in <code>src/test/server.ts</code>).</li>
+                        <li>The <code>finally</code> puts the environment back, so other tests never see a profile's variables.</li>
+                        <li>The third test checks the guard both ways: the production profile alone is refused, and with an https address it would build Shoreline Crew.</li>
+                    </ul>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false app.config</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false app.config
+
+ PASS  ./app.config.test.ts
+  ✓ builds Shoreline Dev from the development profile (7 ms)
+  ✓ builds Shoreline Preview from the preview profile, with an API address (1 ms)
+  ✓ refuses the production profile until it has an https API address (7 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        0.239 s, estimated 1 s
+Ran all test suites matching app.config.</code></pre>
+                    </div>
+                    <p>Now break it on purpose: in <code>eas.json</code>, change the preview profile's <code>"APP_VARIANT": "preview"</code> to <code>"prevue"</code> and run the same command.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_33/33-profile-typo.png" alt="A terminal running npm test -- --watchAll=false app.config: FAIL ./app.config.test.ts, two tests with green check marks and one with a red cross, builds Shoreline Preview from the preview profile, failing with APP_VARIANT must be development, preview or production, not prevue, and a code frame pointing at the throw in app.config.ts line 21." width="1029" height="608" loading="lazy">
+    <figcaption>One misspelled word in <code>eas.json</code>, caught in a quarter of a second on your computer instead of minutes into a cloud build. The message is the one you wrote in Lesson 9.1.</figcaption>
+</figure>
+                    <p>Put <code>"preview"</code> back and run the test again until all three pass.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Link the project to your account <span class="step-time">(15 min)</span></h3>
+                    <p>EAS needs a project on expo.dev to attach builds to. <code>app.config.ts</code> gets a place for its two values, empty until you have them:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.ts</div>
+                        <pre data-src="shoreline-crew/app.config.ts" data-match="diff"><code class="language-diff-ts"> 
++// Your project on expo.dev (Lesson 9.2). `npx eas-cli@latest init` creates it and prints both values,
++// but cannot write them into a dynamic config: paste them here. They name the project; they are not secrets.
++const easProject: { owner?: string; projectId?: string } = {};
++
+ export default ({ config }: ConfigContext): ExpoConfig =&gt; ({
+ // ...
+   slug: 'shoreline-crew',
++  owner: easProject.owner,
+   version: '1.0.0',
+ // ...
+   ],
++  extra: {
++    ...config.extra,
++    eas: { projectId: easProject.projectId },
++  },
+   experiments: {</code></pre>
+                    </div>
+                    <p><code>owner</code> is the Expo account the project belongs to, and <code>extra.eas.projectId</code> is where EAS looks for the project's id. <code>...config.extra</code> keeps whatever <code>extra</code> already holds, the same habit as <code>...config</code> at the top (Expo Router adds its own <code>router</code> section to <code>extra</code> afterwards, as <code>npx expo config --type public</code> shows). Run the type check, then create the project:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit
+npx eas-cli@latest init</code></pre>
+                    <p>EAS CLI asks whether to create a project named after your account and the slug (<code>@your-expo-username/shoreline-crew</code>): answer <strong>y</strong>. It creates it, then, because the config is dynamic, prints the warning from Common Mistakes with the new id in a block like <code>{ "expo": { "extra": { "eas": { "projectId": "…" } } } }</code> and stops. Copy the id, and fill in <code>easProject</code> with your username and that id:</p>
+                    <pre data-snippet><code class="language-ts">const easProject: { owner?: string; projectId?: string } = {
+  owner: 'your-expo-username',
+  projectId: 'the-id-eas-init-printed',
+};</code></pre>
+                    <p>Run <code>npx eas-cli@latest init</code> once more. With the id in place it should report the project as already linked, and with <code>owner</code> set it has nothing more to ask (without it, it stops once more asking you to add <code>owner</code>). The id is not a secret: it names the project, and it is committed with the code. Your project now has a page on expo.dev where builds will appear.</p>
+                    <p><strong>Only if you have a Google Maps key</strong> (Lesson 9.1): store it as an EAS environment variable for the development and preview builds, so maps draw on Android:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest env:set --name ANDROID_GOOGLE_MAPS_API_KEY --value your-key-from-google-cloud --environment development --environment preview --visibility sensitive</code></pre>
+                    <p><code>sensitive</code> hides it in build logs while EAS CLI can still read it when it evaluates your config. Expo also offers <code>secret</code>, which nothing outside Expo's servers can read; Expo's docs reserve it for values that only the build itself uses (such as a token to download private packages), because a key that ends up inside the app is readable in the app anyway (Lesson 9.1's 🛑 card). Without a key, skip this: everything else works, and maps stay empty in Android builds.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Start two cloud builds <span class="step-time">(10 min)</span></h3>
+                    <p>Commit your work first (<code>git add</code> and <code>git commit</code>): EAS uploads what is in your project folder, and a commit is how you will know later exactly what a build contained. Then start the development build for Android:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest build --profile development --platform android</code></pre>
+                    <p>What to expect, from EAS CLI's source and Expo's docs (this lesson could not run a build):</p>
+                    <ol>
+                        <li>It names the environment variables it loaded: none from EAS (unless you set the Maps key), and <code>APP_VARIANT</code> from the profile's <code>env</code>.</li>
+                        <li>The first Android build asks <strong>Generate a new Android Keystore?</strong> Answer <strong>y</strong>: EAS creates the key that signs your app and keeps it for you. Every later build of this app is signed with it.</li>
+                        <li>It compresses and uploads the project, prints a link to the build's page on expo.dev, and waits. On the free plan you should see <strong>Waiting in Free tier queue</strong> with a progress bar and an estimate, then the build's progress.</li>
+                    </ol>
+                    <p>You do not have to watch. Open a second terminal (the build keeps running on Expo's servers either way; you can also follow it on its page) and start the preview build without waiting:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest build --profile preview --platform android --no-wait</code></pre>
+                    <p>It goes through the same steps, reuses the keystore, and returns as soon as the upload is done. On the free plan your builds may run one after the other.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: While they build <span class="step-time">(10 min)</span></h3>
+                    <p>Run the whole suite, the type check, lint and the doctor; the new test makes 17 files and 51 tests:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false
+npx tsc --noEmit
+npx expo lint
+npx expo-doctor</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the end of the tests, then the doctor)</h4>
+                        <pre><code>...
+Test Suites: 17 passed, 17 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        2.29 s
+Ran all test suites.
+20/20 checks passed. No issues detected!</code></pre>
+                    </div>
+                    <p>Then open the development build's page on expo.dev (the link EAS CLI printed, or <code>npx eas-cli@latest build:list</code>). Read the log's phases as they appear: installing dependencies, the prebuild that writes the native projects from <code>app.config.ts</code>, the Gradle build. If a build fails, this is where the first red line is: read it like a red screen, fix one thing, and build again.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 8: Install Shoreline Dev and develop in it <span class="step-time">(20 min, mostly waiting)</span></h3>
+                    <p>When the development build finishes, install it ("Installing Builds on Phones"): scan the QR code EAS CLI printed with your Android phone and tap <strong>Install</strong> on the build's page, or let EAS CLI install it on the running emulator. Then start the API and Metro as in Lesson 5.1 (your <code>.env.local</code> holds your computer's address):</p>
+                    <pre class="terminal"><code class="language-bash">node server.ts --host</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo start</code></pre>
+                    <p>The first command runs in <code>shoreline-api</code>, the second in <code>shoreline-crew</code>. On the phone, open <strong>Shoreline Dev</strong> from the home screen (not Expo Go), and pick your computer in the launcher's list, or scan the QR code from the terminal. Then check what Lesson 9.1 configured, now on a real phone:</p>
+                    <ul>
+                        <li>The home screen shows the Shoreline icon with the name Shoreline Dev; the splash is Sand (night blue in dark mode).</li>
+                        <li>Profile ends with "Shoreline Dev, version 1.0.0".</li>
+                        <li>On a cleanup's screen, "How far is it?" (Lesson 6.1) asks for location with Shoreline Crew's sentence.</li>
+                        <li>With reminders on, Profile's test reminder (development builds only, Lesson 6.4) arrives with the white sun-and-waves icon.</li>
+                        <li>Change a word on the Cleanups screen and save: Fast Refresh updates it without a new build, as in Expo Go.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 9: Install Shoreline Preview <span class="step-time">(10 min)</span></h3>
+                    <p>When the preview build finishes, install it the same way. It appears next to Shoreline Dev as a second app. Keep the API running with <code>--host</code>, stop Metro, and open Shoreline Preview: there is no launcher, because its JavaScript is inside. The Cleanups list should load from the address in the preview profile (Android allows plain http for this variant only, Lesson 9.1), and Profile ends with "Shoreline Preview, version 1.0.0".</p>
+                    <p>Now stop the API and pull to refresh: the app shows Lesson 5.1's "Could not reach the server at" message with the address from <code>eas.json</code>. That is what a crew leader sees at home, away from your Wi-Fi: the reason teams give preview builds a staging server (Lesson 9.1), and the reason the next lesson's updates matter.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>npx eas-cli@latest whoami</code> prints your username</li>
+                        <li><code>expo-dev-client</code> is installed and <code>npx expo start</code> says "Using development build" (<kbd>s</kbd> still switches to Expo Go)</li>
+                        <li><code>eas.json</code> has development, preview and production profiles, each setting <code>APP_VARIANT</code>; the preview profile has your API address</li>
+                        <li><code>app.config.test.ts</code> passes (51 tests in all), and a misspelled variant in <code>eas.json</code> fails it</li>
+                        <li><code>easProject</code> holds your username and project id, and <code>npx eas-cli@latest init</code> reports the project as linked</li>
+                        <li>Shoreline Dev and Shoreline Preview are installed side by side on an Android phone or emulator (or, iPhone only: you can explain what Steps 8 and 9 need from Apple)</li>
+                        <li>Your own app: write down which of its features need a development build, and which build profiles it will need</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes ten to twenty minutes. The next lesson starts from the project as Step 9 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: New build or just Metro?</h3>
+                    <p>Shoreline Dev is installed. For each change, decide: does it need a new development build, or does saving the file (and maybe restarting Metro) do it?</p>
+                    <ol>
+                        <li>A new "Thank you" line on the Logbook screen</li>
+                        <li><code>npx expo install expo-camera</code>, to scan a QR code on the check-in screen</li>
+                        <li>A new sentence for the location question in <code>app.config.ts</code></li>
+                        <li>A new address in <code>.env.local</code>, because your computer's Wi-Fi address changed</li>
+                        <li>A new Zod rule in <code>src/api/schemas.ts</code></li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask of each one: is it JavaScript that Metro sends, or something compiled into the app or written by prebuild into the native projects?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>1: Metro (JavaScript). 2: a new build: the package has native code, and a development build without it shows a missing native module. 3: a new build: permission sentences are written into the native projects by a config plugin. 4: Metro, restarted with <code>npx expo start --clear</code> (Lesson 5.1): a development build reads the JavaScript and its inlined <code>EXPO_PUBLIC_</code> values from Metro. A preview build would need a new build instead, with the address in its profile. 5: Metro.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A profile for the iOS Simulator</h3>
+                    <p>A teammate with a Mac wants Shoreline Dev in the iOS Simulator, which needs no Apple membership. Add a profile named <code>development-simulator</code> to <code>eas.json</code> that is the development profile plus one iOS setting, without copying the development profile's keys. Then extend <code>app.config.test.ts</code> so it checks the new profile builds Shoreline Dev too.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A profile can start from another with <code>"extends"</code>. The iOS setting lives in an <code>"ios"</code> object inside the profile. Does the new profile need its own <code>env</code>?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Inside <code>build</code>, after <code>development</code>:</p>
+                        <pre data-snippet><code class="language-json">"development-simulator": {
+  "extends": "development",
+  "ios": {
+    "simulator": true
+  }
+},</code></pre>
+                        <p>Checked for this lesson with EAS CLI's own <code>eas.json</code> reader: the new profile gets everything from development (<code>developmentClient</code>, <code>distribution</code>, <code>environment</code>, <code>env</code> with <code>APP_VARIANT</code>) plus <code>"simulator": true</code> for iOS. Build it with <code>npx eas-cli@latest build --profile development-simulator --platform ios</code>; the result is an app for the Simulator only, which no iPhone can install. In the test, <code>extends</code> means the new profile has no <code>env</code> of its own in the JSON: test it with <code>configFor(easJson.build.development.env)</code>, or (better) write a small helper that follows <code>extends</code>. <code>npx eas-cli@latest build:dev</code> uses a profile with this name by default to find or make a simulator build.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A local development build (Stretch)</h3>
+                    <p>If you have Android Studio installed (Lesson 1.2's emulator sidebar), build Shoreline Dev on your own computer and compare it with the cloud: <code>npx expo run:android</code> with the emulator running. Time it, and note what appeared in your project folder.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The first local build downloads Gradle and its dependencies and takes much longer than the next ones. Look for a new folder, and check whether Git sees it.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Expo's docs describe it: <code>run:android</code> runs prebuild, which creates <code>android/</code> from <code>app.config.ts</code> (development variant, since <code>APP_VARIANT</code> is not set), compiles a debug build, installs it on the emulator, and starts Metro. <code>android/</code> is in <code>.gitignore</code>, so <code>git status</code> shows only <code>package.json</code> if prebuild changed its <code>android</code> and <code>ios</code> scripts (Lesson 9.1's Exercise 3 saw that: <code>git restore package.json</code>). The first build is slow, later ones are quick, and there is no queue: the trade from "Building on Your Own Computer". This could not be run for this lesson (no Android SDK on the machine it was written on), so your timings are the real answer.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Shoreline Dev is installed on your phone. You change the text of a button on the Cleanups screen and save. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Where does a development build get its JavaScript from while you work?">
+                                A) Nothing until you make a new development build
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A development build loads JavaScript from Metro, like Expo Go, so Fast Refresh shows the change. Only native changes, such as a new native package or a config plugin setting, need a new build.">
+                                B) Fast Refresh shows the new text, as it did in Expo Go
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a development build depend on EAS after it is installed?">
+                                C) EAS starts a new cloud build automatically
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Your preview build opens, and every screen that loads data says EXPO_PUBLIC_API_URL is not set. Expo Go works fine with the same code. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the message about reaching the server, or about the address being missing?">
+                                A) The API is not running with --host
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 9.1 allowed cleartext for one variant. Which one is this?">
+                                B) Android blocks plain http in the preview build
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the name of the variable change between Expo Go and a build?">
+                                C) The variable must be renamed without the EXPO_PUBLIC_ prefix for builds
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation=".env.local is gitignored, so it is not uploaded, and EAS CLI does not load it either. A build with its JavaScript inside gets EXPO_PUBLIC_API_URL only from the profile env or an EAS environment variable. Add it to the preview profile and build again; the profile test catches this before a build.">
+                                D) The address was in .env.local only, which a cloud build never sees
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> What tells EAS that <code>npx eas-cli@latest build --profile preview</code> should produce Shoreline Preview with the <code>.preview</code> app id?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="eas.json is the packing list and app.config.ts the label: the preview profile sets APP_VARIANT, and app.config.ts turns that one value into the name, the ids and the cleartext setting.">
+                                A) The preview profile sets APP_VARIANT in its env, and app.config.ts picks the name and ids from it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does EAS know anything about the names of your variants, or only about what your config returns?">
+                                B) EAS adds .preview to the id of any profile named preview
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is .env.local uploaded or read for a cloud build?">
+                                C) APP_VARIANT=preview in .env.local
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> A classmate has only an iPhone, no Mac and no paid Apple membership. What can they do with this lesson?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What do internal builds for real iPhones need from Apple, according to the table?">
+                                A) Build an internal iOS build on the free EAS plan and install it on the iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does an iOS Simulator build run?">
+                                B) Make an iOS Simulator build and install it on the iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Builds for real iPhones need the Apple Developer Program, and simulator builds need a Mac. The Android emulator runs on Windows, macOS and Linux, so the classmate can install the Android builds there and keep using Expo Go on the iPhone for JavaScript work. Paying is never required for the course.">
+                                C) Install the Android builds in the Android emulator on their computer, and keep using Expo Go on the iPhone
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> You add <code>react-native-keyboard-controller</code>, a library with native code, with <code>npx expo install</code>, restart Metro and open your old Shoreline Dev. It shows a red screen about a native module that cannot be found. What do you do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the problem in the JavaScript Metro sends, or in what the app has inside?">
+                                A) Clear Metro's cache with npx expo start --clear
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The installed build was compiled before the library existed in the project, so it has no native half for it. A new development build (cloud or local) includes it. JavaScript-only changes never need this.">
+                                B) Make a new development build, which compiles the new native code in
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would Expo Go contain a native library it was not built with?">
+                                C) Switch to Expo Go with s, which includes every library
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the plugin entry change what is compiled into the build you already have?">
+                                D) Add the library to the plugins array in app.config.ts
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Can I keep using Expo Go?</summary>
+                    <p>Yes, for as long as the app uses only what Expo Go includes. Shoreline Crew still does, so <kbd>s</kbd> in <code>npx expo start</code> switches the QR code back to Expo Go. The difference is what you are testing: in Expo Go, someone else's app around your JavaScript; in Shoreline Dev, the app you ship. The day you add a native library Expo Go does not have, only the development build will run the project.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why npx eas-cli@latest and not a global install?</summary>
+                    <p>Expo's docs offer both: <code>npm install --global eas-cli</code>, then <code>eas build</code>, or <code>npx eas-cli@latest build</code>. The course uses <code>npx</code> for the same reason as <code>create-expo-app</code>: always the current version, which matters because the build service changes on Expo's side too, and nothing global to update or forget. Commands are longer to type; your shell's history helps. Never add <code>eas-cli</code> to the project's own dependencies.</p>
+                </details>
+
+                <details class="card">
+                    <summary>How often do I need a new development build?</summary>
+                    <p>When the native side changes: a new package with native code, a changed config plugin option, new icons, ids or permission sentences, a new Expo SDK. In a typical week of work on screens and data, never. Expo can also compare "fingerprints" of the native side of your project and existing builds (<code>npx eas-cli@latest build:dev</code> uses that to reuse a build when nothing native changed), and Lesson 9.3 uses the same idea to decide when an update is safe.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Is my code safe on Expo's servers? What about my keys?</summary>
+                    <p>EAS uploads the files Git would track (everything not in <code>.gitignore</code>), builds them on a fresh machine, and keeps the result and logs on your project's page. Keys never belong in those files anyway (Lesson 9.1): <code>.env.local</code> stays on your computer, and the keys a build needs live in EAS environment variables, hidden in logs when <code>sensitive</code> or <code>secret</code>. The Android keystore EAS created is stored in your account; <code>npx eas-cli@latest credentials</code> lets you download a backup, which is worth doing before Lesson 9.4.</p>
+                </details>
+
+                <details class="card">
+                    <summary>My build failed. Where do I start?</summary>
+                    <p>On the build's page on expo.dev, open the first phase marked with an error and read its first red line. The common causes, in order: a profile or config error (the test and <code>npx expo config</code> would have shown it), dependency problems (<code>npx expo-doctor</code> and <code>npx expo install --check</code>), and native compile errors after adding a library (check that library's install notes for Expo). Fix one thing and build again; each try costs one build from your month, so try the fix locally first where you can.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Lesson 8.3's Maestro flow (<code>.maestro/sign-in.yaml</code>) names Expo Go's app id. Make a copy that targets Shoreline Dev, with <code>appId: com.example.shorelinecrew.dev</code> (Lesson 9.1 noted it in the comment), and run it with Maestro against the development build in the Android emulator while Metro and the API are running. What, if anything, did you have to change besides the id? Expo's docs also describe running Maestro flows on EAS as part of a workflow; read how a team could run your flow on every build.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> You are asked on a Monday, "Can the client try the app on their phone by Friday?" Using what you measured today (your queue wait, your build time, which phone the client has), write your honest answer: what you would build, which profile, what it costs, what could delay it, and what you would need from the client (an Android phone, an iPhone's registration, an Apple account).</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Expo Go is a borrowed app with a fixed native kit; a development build is your own app with Expo's developer tools (<code>expo-dev-client</code>), still loading JavaScript from Metro</li>
+                        <li>JavaScript changes need only Metro; native changes (packages with native code, plugin options, ids, icons, permission sentences) need a new build</li>
+                        <li><code>eas.json</code> profiles are the packing list: each sets <code>APP_VARIANT</code> (and the preview's API address), and <code>app.config.ts</code> turns that into the app. A test checks every profile before a build is spent</li>
+                        <li>Cloud builds never see <code>.env.local</code>: values come from the profile's <code>env</code> or EAS environment variables (<code>sensitive</code> for a key that ships in the app)</li>
+                        <li>With <code>app.config.ts</code>, EAS cannot write the project id: paste <code>owner</code> and <code>extra.eas.projectId</code> yourself</li>
+                        <li>The free plan builds Android and iOS within a monthly limit in a low-priority queue; real iPhones need the paid Apple Developer Program, Android builds install from a link for free; local builds trade setup for queue time</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Expo's guide to development builds</td><td><a href="https://docs.expo.dev/develop/development-builds/introduction/">Expo: Introduction to development builds</a></td></tr>
+                            <tr><td>Look up every key of <code>eas.json</code></td><td><a href="https://docs.expo.dev/eas/json/">Expo: Configure with eas.json</a></td></tr>
+                            <tr><td>Share builds with testers</td><td><a href="https://docs.expo.dev/build/internal-distribution/">Expo: Internal distribution</a></td></tr>
+                            <tr><td>Store keys for builds</td><td><a href="https://docs.expo.dev/eas/environment-variables/">Expo: Environment variables in EAS</a></td></tr>
+                            <tr><td>Build on your own computer</td><td><a href="https://docs.expo.dev/build-reference/local-builds/">Expo: Run builds locally</a></td></tr>
+                            <tr><td>Check today's limits and prices</td><td><a href="https://expo.dev/pricing">Expo: Pricing</a></td></tr>
+                            <tr><td>Revisit a question from this lesson</td><td><a href="#faq">Common Questions</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew is no longer a guest in Expo Go: it has a development build of its own</li>
+                        <li>Three build profiles match the three variants, and a test proves each one before it reaches a build server</li>
+                        <li>The project is linked to your Expo account by hand, the way a dynamic config needs</li>
+                        <li>You started cloud builds, waited in the queue knowingly, and installed Shoreline Dev and Shoreline Preview side by side</li>
+                        <li>You can say what an iPhone build costs and what a local build needs, before anyone asks</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Shoreline Preview has one weakness you saw in Step 9: everything inside it, even an address, is frozen until the next build. In <a href="lesson_34.html">Lesson 9.3: Updates and Monitoring</a>, you send new JavaScript to installed builds with EAS Update, learn the version and build numbers <code>autoIncrement</code> started counting today, and see how crash reports tell you what went wrong on a volunteer's phone.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code> once more, and commit (<code>eas.json</code>, <code>app.config.ts</code> with your project id, the new test)</li>
+                    <li>Keep Shoreline Preview installed: Lesson 9.3 installs a build that can take updates over it</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today you did the thing many tutorials skip: you turned a project into an app with your name on it, on a real phone, with honest numbers for time and money. If a build failed along the way, you also learned to read a build log, which is a skill teams value more than a perfect first try. Every app in every store started as somebody's first slow build in a queue. Yours is done.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_32.html" class="prev-lesson">← Previous: App Config and Environments</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_34.html" class="next-lesson">Next: Updates and Monitoring →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

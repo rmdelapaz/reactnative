@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Workbook: Session 13</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Student workbook —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">write in it · bring it to every session</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Participant Workbook</div>
+    <h1>Session 13: Storage and Mobile Forms</h1>
+    <p class="sub">Your workbook for Session 13: a warm-up, the key ideas of Lessons 5.3 and 5.4, worked examples, the guided labs, predict-then-check practice, a self-check for each lesson, Checkpoint 2 and your exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Lessons <b>5.3–5.4</b></span>
+      <span class="chip">Checkpoint <b>2</b></span>
+      <span class="chip">Session <b>13</b> · 3 hours</span>
+      <span class="chip">Name: ____________________</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Session Goals</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Pick AsyncStorage, SecureStore or SQLite for a piece of data, and say what survives a restart, an update and an uninstall.</li>
+  <li>Save a setting, check it when you read it back, and write SQL with <code class="inline">?</code> values, a primary key and a version-numbered migration.</li>
+  <li>Read phone data through the query cache with <code class="inline">networkMode: 'always'</code>.</li>
+  <li>Show what you can do with Modules 4 and 5 in Checkpoint 2.</li>
+  <li>Connect React Hook Form to React Native fields with useController, give each field its keyboard and return key, and send a log with an id made on the phone.</li>
+</ul>
+
+  <div class="sec"><h2>Warm-up: Session 12 Retrieval</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">W1</div><div class="qt">A phone on your Wi-Fi shows "Could not reach the server at http://localhost:4000". What two changes fix it?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W2</div><div class="qt">The phone is offline and a query needs to fetch. What happens?</div><div class="write"></div></div>
+<div class="q"><div class="qn">W3</div><div class="qt">After a force-quit, what did Shoreline Crew still know, and what did it load again?</div><div class="write"></div></div>
+
+  <div class="sec"><h2>Lessons</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">5.3</span><h3>Storing Data on the Device</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Choose between AsyncStorage, SecureStore and SQLite for a piece of data, and say what survives a restart, an update and an uninstall</li>
+  <li>Save a small setting with AsyncStorage, check it when you read it back, and apply it before the first screen appears</li>
+  <li>Create a SQLite table, write rows with ? values, and ask questions across them (newest first, totals)</li>
+  <li>Give a database a version number and a migration, so a later version of the app can change its tables safely</li>
+  <li>Read data from the phone through the TanStack Query cache, without waiting for a network it does not need</li>
+  <li>Set up the web preview for SQLite and know where it differs from a phone</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>Three places:</b> AsyncStorage (text under a key, not protected: settings, flags), SecureStore (short secrets: tokens), SQLite (tables of rows you search, sort, total). All three are asynchronous.</li>
+  <li><b>The phone keeps copies, the server keeps the truth.</b> Storage survives a force-quit and an update; uninstalls and new phones are another story (the platforms' documentation).</li>
+  <li><b>Read saved data like API data:</b> keep only values this version knows, fall back to defaults, never reject. Load what the first frame needs behind the splash screen. Never a token or a password in AsyncStorage.</li>
+  <li><b>Four statements:</b> CREATE TABLE (with a PRIMARY KEY), INSERT OR REPLACE, SELECT … WHERE … ORDER BY, COUNT/SUM/COALESCE. Every value goes in a <code class="inline">?</code>; only your own fixed text goes in the SQL.</li>
+  <li><b>Migrations from day one:</b> <code class="inline">PRAGMA user_version</code>, one step per version, in a transaction; never delete a user's database, never edit a shipped step.</li>
+  <li><b>Phone data in the cache:</b> <code class="inline">networkMode: 'always'</code> (never paused offline), <code class="inline">staleTime: Infinity</code> + invalidate after every write. The web preview needs <code class="inline">wasm</code> in Metro's asset types and one tab at a time.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the logbook's SQL on a real log</div>
+<p>The logbook keeps a copy of the logs the server has. Theo's one sent log, as the API gives it (trimmed):</p>
+<pre class="out">{
+  "clientId": "seed-log-1",
+  "eventId": "e07",
+  "volunteerId": "v04",
+  "bags": 1,
+  "weightKg": 2.5,
+  "note": "Lots of wrappers by the stairs."
+}</pre><p>The logbook's own SQL (<code class="inline">src/storage/logbook.ts</code>) on SQLite, with that log inserted twice; then the totals and the entries:</p>
+<pre class="code">node sql-demo.mjs</pre>
+<pre class="out">{ logs: 1, pieces: 42, bags: 1, weightKg: 2.5 }
+[ 'Sunset Stairs Cleanup: Lots of wrappers by the stairs.' ]</pre><p>One row: the primary key <code class="inline">(volunteer_id, client_id)</code> is the API's own way to recognize a log. And the same run with a note built into the SQL text instead of a <code class="inline">?</code> value:</p>
+<pre class="out">Error: near "s": syntax error</pre><p>The table is made by a migration with a version number, so a later version of the app can change it on every phone:</p>
+<div class="codefile">shoreline-crew/src/storage/logbook.ts</div>
+<pre class="code" data-src="shoreline-crew/src/storage/logbook.ts" data-stage="lesson_17" data-match="excerpt"><span class="k">async</span> <span class="k">function</span> migrate(db: SQLite.SQLiteDatabase) {
+  <span class="k">const</span> row = <span class="k">await</span> db.getFirstAsync&lt;{ user_version: <span class="k">number</span> }&gt;(<span class="s">'PRAGMA user_version'</span>);
+  <span class="k">const</span> version = row?.user_version ?? <span class="s">0</span>;
+  <span class="k">if</span> (version &gt;= schemaVersion) {
+    <span class="k">return</span>;
+  }
+  <span class="c">// All or nothing: if a step fails, the file keeps its old tables and its old number</span>
+  <span class="k">await</span> db.withTransactionAsync(<span class="k">async</span> () =&gt; {
+    <span class="k">if</span> (version &lt; <span class="s">1</span>) {
+      <span class="k">await</span> db.execAsync(<span class="s">`
+        CREATE TABLE sent_logs (
+          volunteer_id TEXT NOT NULL,
+          client_id TEXT NOT NULL,
+          event_id TEXT NOT NULL,
+          event_title TEXT NOT NULL,
+          event_date TEXT NOT NULL,
+          pieces INTEGER NOT NULL,
+          bags INTEGER NOT NULL,
+          weight_kg REAL NOT NULL,
+          note TEXT NOT NULL,
+          recorded_at TEXT NOT NULL,
+          PRIMARY KEY (volunteer_id, client_id)
+        );
+      `</span>);
+    }
+    <span class="c">// A PRAGMA takes no ? values; schemaVersion is our own number, never user input</span>
+    <span class="k">await</span> db.execAsync(<span class="s">`PRAGMA user_version = ${schemaVersion}`</span>);
+  });
+}</pre></div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-13/l5_3-storing-data-on-the-device/TASKS.md</code>. A terminal in <code class="inline">starter</code>, <code class="inline">npm test</code>: six of eight fail. Read the first failure of each task.</li>
+  <li>Task 1: <code class="inline">loadPrefs</code> in <code class="inline">src/state/prefs.ts</code> (unit <code class="inline">kg</code> or <code class="inline">lb</code>, <code class="inline">tipsSeen</code> a boolean, the defaults and a warning for text that is not JSON; it never rejects).</li>
+  <li>Task 2: <code class="inline">addNote</code> and <code class="inline">notesFor</code> in <code class="inline">src/storage/notes.ts</code> with <code class="inline">?</code> values, newest first. Task 3 (at home): a version number and one step per version.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which failing test's message did SQLite write?</td><td></td></tr>
+<tr><td>Why does Task 3 fail only on a phone that had version 1?</td><td></td></tr>
+<tr><td>What do notes from version 1 get in the new column?</td><td></td></tr>
+</tbody>
+</table>
+<ul class="tick">
+  <li>Done when <code class="inline">npm test</code> says <code class="inline">Tests:       8 passed, 8 total</code> and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write both predictions first. The answer key has the real runs (the logbook's own SQL on SQLite, with Theo's log from the course API).</p>
+<div class="q"><div class="qn">P1</div><div class="qt">Theo's one sent log is inserted twice (Bring in pressed twice). How many logs do the totals count? Predict, then check (the answer key has the real runs).</div><pre class="code">INSERT OR REPLACE INTO sent_logs (...) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)</pre><div class="write"></div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">A note written straight into the SQL text. What does SQLite say? Predict, then check (the answer key has the real runs).</div><pre class="code">INSERT INTO sent_logs (note) VALUES ('Theo's bag split by the stairs')</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Settings and a Logbook</b> (lesson page, "Project: Settings and a Logbook"). In class: Step 1. At home: Steps 2 to 9.</p>
+<ul class="tick">
+  <li>☐ Step 1: AsyncStorage and expo-sqlite installed with <code class="inline">npx expo install</code>; <code class="inline">metro.config.js</code> adds <code class="inline">wasm</code>; the web preview loads</li>
+  <li>☐ Steps 2 to 4: <code class="inline">src/state/settings.ts</code> behind the splash screen; useTheme follows the choice; Theme on Profile</li>
+  <li>☐ Step 5: <code class="inline">getEventLogs</code> in the client</li>
+  <li>☐ Steps 6 and 7: <code class="inline">src/storage/logbook.ts</code> (migration, <code class="inline">?</code> values); <code class="inline">logbookQuery</code> and the bring-in mutation</li>
+  <li>☐ Step 8: the Logbook screen (MyLogbook for the signed-in part)</li>
+  <li>☐ Step 9: theme and logbook survive a force-quit; the logbook opens offline; tsc and lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">Shoreline Crew wants to remember that a volunteer has already seen the "Before you go" briefing, so it is not shown again. Where should that live?</div><div class="opts"><div class="opt">A) SecureStore: everything on the phone should be encrypted</div><div class="opt">B) AsyncStorage: a small flag, not secret, one key</div><div class="opt">C) SQLite: a table with one row</div><div class="opt">D) Only the query cache</div></div></div>
+<div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The logbook's own <code class="inline">INSERT OR REPLACE</code> runs twice with Theo's one sent log ("Bring in my sent logs" pressed twice). The kit then ran the totals query. What does it print?</div><pre class="code">INSERT OR REPLACE INTO sent_logs (...) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)   -- the same log, twice
+SELECT COUNT(*) AS logs, ... FROM sent_logs WHERE volunteer_id = ?</pre><div class="opts"><div class="opt">A) <code class="inline">{ logs: 2, pieces: 84, bags: 2, weightKg: 5 }</code></div><div class="opt">B) An error: the row already exists</div><div class="opt">C) <code class="inline">{ logs: 1, pieces: 42, bags: 1, weightKg: 2.5 }</code></div><div class="opt">D) <code class="inline">{ logs: 0, pieces: 0, bags: 0, weightKg: 0 }</code></div></div></div>
+<div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">A note is put straight into the SQL text. What does SQLite answer?</div><pre class="code">db.exec(<span class="s">`INSERT INTO sent_logs (note) VALUES ('Theo's bag split by the stairs')`</span>);</pre><div class="opts"><div class="opt">A) <code class="inline">Error: near "s": syntax error</code></div><div class="opt">B) It saves the note without the apostrophe</div><div class="opt">C) It saves the note as written</div><div class="opt">D) <code class="inline">SQLITE_CONSTRAINT: NOT NULL</code></div></div></div>
+<div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">A query reads only the phone's database. Offline, its screen says "Opening your logbook…" until the connection returns. What fixes it?</div><div class="opts"><div class="opt">A) <code class="inline">retry: false</code></div><div class="opt">B) <code class="inline">staleTime: 0</code></div><div class="opt">C) A useEffect instead of useQuery</div><div class="opt">D) <code class="inline">networkMode: 'always'</code> on that query</div></div></div>
+<div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt">Version 2 of an app adds a column to its table by changing <code class="inline">CREATE TABLE IF NOT EXISTS</code>. What happens on a phone that already has version 1's database?</div><div class="opts"><div class="opt">A) The table is rebuilt with the new column</div><div class="opt">B) The table exists, so the statement is skipped, and the first query that names the new column fails</div><div class="opt">C) SQLite adds the column by itself</div><div class="opt">D) The app deletes the old file and starts over</div></div></div>
+<div class="q" data-sc="6" data-kind="short"><div class="qn">Q6</div><div class="qt">Why is the signed-in part of the Logbook screen its own component, MyLogbook, instead of more code at the top of the screen?</div><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: draw memory, AsyncStorage, SecureStore and SQLite as four boxes and write in each what lives there and what would happen if it were lost. Which loss would a volunteer notice first? Which would worry you most as the developer?</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Checkpoint 2: Modules 4 and 5 So Far</h2><span class="rule"></span></div>
+<div class="blk lab"><div class="h">Your task (30 minutes, on your own, open book)</div>
+<p>In <code class="inline">labs/module-13/checkpoint-2/starter</code>: three small pieces of a beach-sites app. <code class="inline">TASKS.md</code> has the details; <code class="inline">npm test</code> tells you when each task works (the first run takes up to a minute).</p>
+<ul class="tick">
+  <li>☐ <b>Task 1 (Lessons 4.1, 4.4):</b> <code class="inline">/sites/driftwood-cove</code> opens that site; pressing a site in the list goes to the right address (typed routes)</li>
+  <li>☐ <b>Task 2 (Lessons 5.1, 5.2):</b> when the request fails, the API's sentence and a Try again button that asks again</li>
+  <li>☐ <b>Task 3 (Lessons 5.2, 5.3):</b> saved favorites checked like API data; the favorites open with no connection</li>
+  <li>☐ <b>Checks:</b> <code class="inline">npm test</code>, <code class="inline">npm run typecheck</code>, <code class="inline">npm run lint</code></li>
+</ul>
+<table class="timing">
+<thead><tr><th>Write here</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>My last <code class="inline">Tests:</code> line</td><td></td></tr>
+<tr><td>Which of the starter's mistakes did <code class="inline">npm run typecheck</code> catch?</td><td></td></tr>
+<tr><td>Which lesson will I reread first?</td><td></td></tr>
+</tbody>
+</table>
+<p>Your instructor scores five rows, 0 to 2 each: routes and addresses, every state of a network screen, data on the phone checked, phone data in the cache, checks and reasons.</p>
+</div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">5.4</span><h3>Mobile Forms</h3></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">By the end you can</div>
+<ul class="tick">
+  <li>Connect React Hook Form to React Native text fields with useController and Controller, and explain why register is a web tool</li>
+  <li>Pick the keyboard for each field (inputMode, autoComplete, secureTextEntry) and know which keys a phone's number pads leave out</li>
+  <li>Build a return-key focus chain with enterKeyHint, submitBehavior, onSubmitEditing and setFocus</li>
+  <li>Keep every field visible above the keyboard with KeyboardAvoidingView, and say what differs on Android and iOS</li>
+  <li>Replace a keyboard with a stepper where a thumb does better, accessibly</li>
+  <li>Validate a debris log with Zod on the phone and send it to the API with a device clientId, in a shape Lesson 5.5 can queue</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Key ideas</div>
+<ul class="tick">
+  <li><b>useController, never register:</b> the form hands each field its value, onChange (→ onChangeText), onBlur, ref (focus) and error. Lesson 5.4's <code class="inline">ControlledField</code> wraps it; take <code class="inline">field</code> apart where you get it (the linter's <code class="inline">react-hooks/refs</code>).</li>
+  <li><b><code class="inline">const send = handleSubmit(submit)</code></b> and <code class="inline">() =&gt; send()</code> for the button and the last field: handleSubmit's function wants a web event (TS2322 otherwise).</li>
+  <li><b>A keyboard per field:</b> <code class="inline">inputMode</code> email / numeric / decimal, <code class="inline">autoComplete</code>, <code class="inline">autoCapitalize="none"</code>, <code class="inline">secureTextEntry</code>, multiline + maxLength. Decimal keys may type a comma; the iPhone's number pads have no return key (the documentation).</li>
+  <li><b>Next, Next, Go:</b> <code class="inline">enterKeyHint</code>, <code class="inline">submitBehavior="submit"</code>, <code class="inline">onSubmitEditing={() =&gt; setFocus('next')}</code>; the last field submits; the ref also focuses the first problem.</li>
+  <li><b>Out of the keyboard's way:</b> <code class="inline">FormScreen</code> = KeyboardAvoidingView (<code class="inline">behavior="padding"</code> on both, the header's height as <code class="inline">keyboardVerticalOffset</code>) around a ScrollView. A stepper beats a keyboard for small counts.</li>
+  <li><b>One id per log, made on the phone:</b> expo-crypto's <code class="inline">randomUUID()</code> once when the form opens; a resend answers 200 with the saved log, never a duplicate. The schema uses the API's messages.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Worked example: the debris log's schema, and a form for one thumb</div>
+<p>The stage's <code class="inline">debrisLogSchema</code>, run with Node: a log with <code class="inline">lots</code> in Glass and no weight, then a good one with the weight typed <code class="inline">2,5</code>:</p>
+<pre class="code">node demo/run.mts</pre>
+<pre class="out">counts.glass: Count must be a whole number from 0 to 100000.
+weightKg: Weight must be a number of kilograms from 0 to 5000.
+{"bags":1,"weightKg":2.5,"note":"By the stairs","items":[{"category":"plastic-bottles","count":12},{"category":"bottle-caps","count":4}]}</pre><p>The messages are the API's own; the comma became a decimal point; only the kinds that were found became <code class="inline">items</code>. On the screen, every field connects through useController, and the return key walks the form:</p>
+<div class="codefile">shoreline-crew/src/app/sign-in.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/app/sign-in.tsx" data-stage="lesson_18" data-match="excerpt">      &lt;ControlledField
+        control={control}
+        name=<span class="s">"email"</span>
+        label=<span class="s">"Email"</span>
+        inputMode=<span class="s">"email"</span> <span class="c">// the keyboard with @ and .</span>
+        autoComplete=<span class="s">"email"</span>
+        autoCapitalize=<span class="s">"none"</span>
+        autoCorrect={<span class="k">false</span>}
+        enterKeyHint=<span class="s">"next"</span> <span class="c">// the return key says Next...</span>
+        submitBehavior=<span class="s">"submit"</span> <span class="c">// ...keeps the keyboard up...</span>
+        onSubmitEditing={() =&gt; setFocus(<span class="s">'password'</span>)} <span class="c">// ...and moves to the password</span>
+      /&gt;</pre><p>The submit function is made once and called with no event, by the button and by the last field's Go key:</p>
+<div class="codefile">shoreline-crew/src/app/sign-in.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/app/sign-in.tsx" data-stage="lesson_18" data-match="excerpt">  <span class="c">// Check, then submit. Called with no arguments: React Hook Form's handleSubmit expects a web</span>
+  <span class="c">// form event, and a phone's press and return key send different events</span>
+  <span class="k">const</span> send = handleSubmit(submit);</pre></div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<ul class="tick">
+  <li>Open <code class="inline">labs/module-13/l5_4-mobile-forms/TASKS.md</code>. A terminal in <code class="inline">starter</code>; run <code class="inline">npm test</code>, <code class="inline">npm run lint</code> and <code class="inline">npm run typecheck</code>. Which tool found which problem?</li>
+  <li>Task 1: take <code class="inline">field</code> and <code class="inline">fieldState</code> apart in <code class="inline">src/ControlledInput.tsx</code>, then use it for the three fields. Task 2: the hours rule accepts <code class="inline">2,5</code> (<code class="inline">src/schema.ts</code>).</li>
+  <li>Task 3 (at home): Next, Next, Go, and <code class="inline">const send = handleSubmit(onSend)</code>.</li>
+</ul>
+<table class="timing">
+<thead><tr><th>Question</th><th>Your answer</th></tr></thead>
+<tbody>
+<tr><td>Which problem did tsc and the linter both miss?</td><td></td></tr>
+<tr><td>Where in the hours rule must the comma become a point?</td><td></td></tr>
+<tr><td>Why does the Send report button stay when Hours has a Go key?</td><td></td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Predict, then check</div>
+<p>Write your predictions first; the answer key has the API's real answers and the schema's real messages.</p>
+<div class="q"><div class="qn">P3</div><div class="qt">Same clientId both times. What does the API answer each time, and how many logs does e17 have afterwards? Predict, then check (the answer key has the real runs).</div><pre class="code">POST /api/events/e17/logs   (the same body twice, as Theo)</pre><div class="write"></div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">Which fields get a message, and in whose words? Predict, then check (the answer key has the real runs).</div><pre class="code">debrisLogSchema.safeParse({ counts: { ..., glass: 'lots' }, bags: '1', weightKg: '', note: '' })</pre><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Lesson project: start in class, finish at home</div>
+<p><b>Sign-In and the Debris Log</b> (lesson page, "Project: Sign-In and the Debris Log"). In class: Steps 1 and 2. At home, after 5.3's project: Steps 3 to 10.</p>
+<ul class="tick">
+  <li>☐ Step 1: react-hook-form, zod, @hookform/resolvers and expo-crypto installed with <code class="inline">npx expo install</code></li>
+  <li>☐ Step 2: <code class="inline">src/utils/debris.ts</code> and <code class="inline">src/api/schemas.ts</code>; tsc silent</li>
+  <li>☐ Steps 3 and 4: FormField takes a ref, ControlledField; FormScreen</li>
+  <li>☐ Step 5: sign-in with React Hook Form, Email → Password → signed in with the return key</li>
+  <li>☐ Steps 6 to 8: the stepper, the send, the Log debris modal</li>
+  <li>☐ Step 9: Log what you collected on the cleanup screen; a log sent and in the logbook</li>
+  <li>☐ Step 10: keyboards and the return key on my phone; sent offline, force-quit, gone; tsc and lint clean; committed</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Self-check</div>
+<div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">A field is written the web way, <code class="inline">&lt;TextInput {...register('leader')} /&gt;</code>. Which tool tells you it does not work?</div><div class="opts"><div class="opt">A) <code class="inline">npx tsc --noEmit</code></div><div class="opt">B) <code class="inline">npx expo lint</code></div><div class="opt">C) Metro, when it bundles</div><div class="opt">D) Only running it: a test or the web preview shows nothing is sent</div></div></div>
+<div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">After <code class="inline">onPress={handleSubmit(submit)}</code> and <code class="inline">onSubmitEditing={handleSubmit(submit)}</code>, tsc starts like this. What is the fix?</div><pre class="code">src/app/sign-in.tsx:77:9 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, a...
+  Types of parameters 'e' and 'e' are incompatible.
+...
+Found 2 errors in the same file, starting at: src/app/sign-in.tsx:77</pre><div class="opts"><div class="opt">A) <code class="inline">const send = handleSubmit(submit)</code>, then <code class="inline">onPress={() =&gt; send()}</code> and <code class="inline">onSubmitEditing={() =&gt; send()}</code></div><div class="opt">B) <code class="inline">onPress={handleSubmit(submit) as never}</code></div><div class="opt">C) Wrap the fields in a <code class="inline">&lt;form&gt;</code></div><div class="opt">D) Use <code class="inline">register</code> instead of <code class="inline">useController</code></div></div></div>
+<div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">A ControlledField reads <code class="inline">ref={field.ref}</code>, <code class="inline">value={field.value}</code> and so on. <code class="inline">npx expo lint</code> ends like this. What is the fix?</div><pre class="code">~/shoreline/shoreline-crew/src/components/ControlledField.tsx
+  29:12  error  Error: Cannot access refs during render
+
+&gt; 29 |       ref={field.ref}
+...
+✖ 4 problems (4 errors, 0 warnings)</pre><div class="opts"><div class="opt">A) Turn the rule off for the file</div><div class="opt">B) Call useController inside a useEffect</div><div class="opt">C) Take field apart where you get it: <code class="inline">const { field: { ref, value, onChange, onBlur } } = useController(...)</code></div><div class="opt">D) Use a useRef per field</div></div></div>
+<div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">The stage's <code class="inline">debrisLogSchema</code> checks a log whose weight was typed <code class="inline">2,5</code> on a phone set to German. What does the successful check give back for the weight?</div><pre class="code">debrisLogSchema.safeParse({ counts, bags: '1', weightKg: '2,5', note: ' By the stairs ' })</pre><div class="opts"><div class="opt">A) The message "Weight must be a number of kilograms from 0 to 5000."</div><div class="opt">B) <code class="inline">"weightKg":2.5</code> (and the note trimmed)</div><div class="opt">C) <code class="inline">"weightKg":"2,5"</code></div><div class="opt">D) <code class="inline">"weightKg":25</code></div></div></div>
+<div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Theo's log reached shoreline-api, the answer was lost, and the phone sends the SAME body again (same clientId). The kit sent it twice. What did the API answer the second time?</div><pre class="code">POST /api/events/e17/logs   (as Theo, clientId kit-demo-0001-a7f3)
+HTTP/1.1 201 Created</pre><div class="opts"><div class="opt">A) <code class="inline">HTTP/1.1 201 Created</code>: a second log</div><div class="opt">B) <code class="inline">HTTP/1.1 409 Conflict</code></div><div class="opt">C) <code class="inline">HTTP/1.1 200 OK</code> with the log it already has</div><div class="opt">D) <code class="inline">HTTP/1.1 400 Bad Request</code></div></div></div>
+<div class="q" data-sc="12" data-kind="short"><div class="qn">Q12</div><div class="qt">The debris log's note is its last field. Why does its return key not send the log, and what sends it instead?</div><div class="write"></div></div>
+</div>
+<div class="blk"><div class="h">Journal</div>
+<p>The lesson's prompt: fill in the debris log on your phone standing up, with one hand, as if you were on the beach. Write down every moment you had to stop and think, look for something, or use your other hand. Which could the app fix, and how?</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<p>Three questions, no notes.</p>
+<div class="q"><div class="qn">E1</div><div class="qt">Where does Shoreline Crew keep the theme choice, the session token and the logbook, and why each?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E2</div><div class="qt">Why does <code class="inline">logbookQuery</code> set <code class="inline">networkMode: 'always'</code>?</div><div class="write"></div></div>
+<div class="q"><div class="qn">E3</div><div class="qt">Why <code class="inline">const send = handleSubmit(submit)</code> and <code class="inline">onPress={() =&gt; send()}</code>, not <code class="inline">onPress={handleSubmit(submit)}</code>?</div><div class="write"></div></div>
+
+  <div class="sec"><h2>Notes</h2><span class="rule"></span></div>
+<div class="notes-lines"></div>
+
+  <div class="sec"><h2>Homework Checklist</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ Finish Settings and a Logbook (Steps 2 to 9, the commit)</li>
+  <li>☐ Then finish Sign-In and the Debris Log (Steps 3 to 10, the phone checks, the commit)</li>
+  <li>☐ Checkpoint 2: every task passing, both checks silent; reread my lowest rubric row's lesson section</li>
+  <li>☐ Lesson 5.3 Hands-on Exercises 1 to 3 (Exercise 4 is a stretch)</li>
+  <li>☐ Lesson 5.4 Hands-on Exercises 1 to 3 (Exercise 4 is a stretch)</li>
+  <li>☐ Both Quick Quizzes on the lesson pages</li>
+  <li>☐ Lab 5.3 Task 3; Lab 5.4 Task 3</li>
+  <li>☐ Both journal entries</li>
+  <li>☐ Before the next lesson: send a log offline, force-quit before reconnecting; what happened to it?</li>
+  <li>☐ Bring to Session 14: the course folder at the end of 5.4, committed; my phone with Expo Go (or the web preview); this workbook</li>
+</ul>
+
+  <div class="sec"><h2>Glossary</h2><span class="rule"></span></div>
+<table class="timing">
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>AsyncStorage</td><td>Key-value text storage on the phone (the browser's localStorage in the web preview); asynchronous, not encrypted</td></tr>
+<tr><td>SQLite / expo-sqlite</td><td>A complete SQL database in one file on the phone; expo-sqlite is the JavaScript way in</td></tr>
+<tr><td>table, row, column</td><td>A table holds rows that all have the same columns</td></tr>
+<tr><td>primary key</td><td>What makes a row unique: <code class="inline">(volunteer_id, client_id)</code> in the logbook</td></tr>
+<tr><td><code class="inline">?</code> placeholder</td><td>A value SQLite fills in separately: never read as SQL (prevents SQL injection)</td></tr>
+<tr><td>migration / <code class="inline">PRAGMA user_version</code></td><td>A numbered step that brings an older database file up to date</td></tr>
+<tr><td>transaction</td><td>Several statements that succeed or fail together</td></tr>
+<tr><td><code class="inline">networkMode: 'always'</code></td><td>A query or mutation that never waits for the network (for data on the phone)</td></tr>
+<tr><td>WebAssembly (wasm)</td><td>How the web preview runs SQLite in the browser; Metro must be told to bundle <code class="inline">.wasm</code></td></tr>
+<tr><td>useController / Controller</td><td>React Hook Form's way to connect a field that is not an HTML input</td></tr>
+<tr><td><code class="inline">enterKeyHint</code> / <code class="inline">submitBehavior</code></td><td>The return key's label, and what the keyboard does when it is pressed</td></tr>
+<tr><td>KeyboardAvoidingView</td><td>A View that adds room for the keyboard (<code class="inline">behavior="padding"</code>, <code class="inline">keyboardVerticalOffset</code>)</td></tr>
+<tr><td>stepper</td><td>−, the number, +: a thumb control for small counts, with a box for big ones</td></tr>
+<tr><td>clientId</td><td>An id the phone makes once per log, so the API recognizes a resend</td></tr>
+</tbody>
+</table>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 13 · Participant Workbook · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

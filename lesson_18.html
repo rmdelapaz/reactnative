@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Forms on a phone: React Hook Form and Zod as in the web course, connected with useController instead of register; the right keyboard for each field, a return key that moves to the next field, a form the keyboard never covers (KeyboardAvoidingView), a stepper for counts, and a debris log sent to the API with a device clientId. React Native &amp; Expo: Build and Ship a Mobile App Lesson 5.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Mobile Forms - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+
+            <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📝 Lesson 5.4: Mobile Forms</h1>
+                <p class="lead">On a laptop, a form is a keyboard you already have and a mouse to jump between boxes. On a phone, the keyboard slides up over half the screen, changes shape for every field, and has one key in the corner that decides what happens next. Today you keep the form library you know, React Hook Form with Zod, and teach it the phone: the right keyboard for each field, a return key that walks the volunteer through the form, a screen that moves out of the keyboard's way, and a debris log a volunteer can fill in with one thumb on a windy beach.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Connect React Hook Form to React Native text fields with <code>useController</code> and <code>Controller</code>, and explain why <code>register</code> is a web tool</li>
+                        <li>Pick the keyboard for each field (<code>inputMode</code>, <code>autoComplete</code>, <code>secureTextEntry</code>) and know which keys a phone's number pads leave out</li>
+                        <li>Build a return-key focus chain with <code>enterKeyHint</code>, <code>submitBehavior</code>, <code>onSubmitEditing</code> and <code>setFocus</code></li>
+                        <li>Keep every field visible above the keyboard with <code>KeyboardAvoidingView</code>, and say what differs on Android and iOS</li>
+                        <li>Replace a keyboard with a stepper where a thumb does better, accessibly</li>
+                        <li>Validate a debris log with Zod on the phone and send it to the API with a device <code>clientId</code>, in a shape Lesson 5.5 can queue</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 160 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_17.html">Lesson 5.3: Storing Data on the Device</a> (and React Hook Form + Zod from the web course's Lesson 8.1)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> The sign-in form rebuilt with React Hook Form and Zod (Next and Go keys, checked on the phone), and a <strong>Log debris</strong> modal: a stepper per kind of debris, bags, weight and a note, sent to shoreline-api and copied into the logbook</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-hook-form 7.92, zod 4.6, @hookform/resolvers 7.0, expo-crypto 58.0, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone (the keyboard is the point of today: use a phone or the emulator for Step 10) with shoreline-api running <code>--host</code>; the web preview for the quick checks</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-18-start.zip">lesson-18-start.zip</a> · Finished code: <a href="downloads/lesson-18-end.zip">lesson-18-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: A Form for One Thumb</a></li>
+                        <li><a href="#controller" class="toc-link">React Hook Form Without an input</a></li>
+                        <li><a href="#keyboards" class="toc-link">The Right Keyboard for Each Field</a></li>
+                        <li><a href="#return-key" class="toc-link">The Return Key: Next, Next, Go</a></li>
+                        <li><a href="#avoiding" class="toc-link">Out of the Keyboard's Way</a></li>
+                        <li><a href="#stepper" class="toc-link">A Stepper Instead of a Keyboard</a></li>
+                        <li><a href="#sending" class="toc-link">Checking and Sending a Debris Log</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Sign-In and the Debris Log</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: A Form for One Thumb</h2>
+                <p>If you tried last lesson's "Before the Next Lesson" task, you noticed two things in other apps. The key at the bottom right of the keyboard changes its name (return, Next, Go, Search, Send), and in a good app the screen moves so the box you type in is never under the keyboard. Neither happens by itself in React Native. A web browser does both for an <code>&lt;input&gt;</code>; a phone app has to ask.</p>
+                <p>Shoreline Crew has one form so far, the sign-in from Lesson 4.3, built with <code>useState</code> and checked only by the server. Today it gets the treatment you gave the HQ's forms in the web course (Lesson 8.1 of the React + TypeScript course: React Hook Form, a Zod schema, messages under each field), and then the app gets its most important form: the debris log a volunteer fills in at the end of a cleanup, with sandy fingers, in the wind, maybe with one bar of signal.</p>
+                <p>By the end of today:</p>
+                <ul>
+                    <li><strong>Sign-in checks itself on the phone</strong>, offers the email keyboard, and walks from Email to Password to "signed in" with the return key.</li>
+                    <li><strong>A Log debris modal</strong> opens from today's cleanup: a stepper for each kind of debris, bags, weight and a note, and a keyboard that never covers what you type.</li>
+                    <li><strong>A log reaches shoreline-api</strong> with an id made on the phone, and lands in the logbook you built last lesson.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> forms are where mobile apps lose people. A field under the keyboard, an email box that capitalizes the first letter, a number box with letters on it: each one is a support ticket, a one-star review, or a volunteer who gives up and writes the numbers on paper. Teams notice developers who get these details right without being asked.</p>
+                <p><strong>Why it matters for the volunteers:</strong> the debris log is the data the whole crew works for. Every count typed wrong or not typed at all is a hole in the season's report.</p>
+                <div class="card card-accent">
+                    <h4>🌱 You know more of this than it looks</h4>
+                    <p>The schema, the resolver, <code>handleSubmit</code>, <code>setError</code>, <code>mode: 'onTouched'</code> and the HQ's <code>wholeNumber</code> rule all come across from the web course unchanged. What is new is the part between React Hook Form and the screen. When tsc or the linter complains today, and it will, it is pointing at exactly that seam: read the message for the word that does not exist on a phone.</p>
+                </div>
+            </section>
+
+            <section id="controller" class="lesson-section">
+                <h2>🔌 React Hook Form Without an <code>&lt;input&gt;</code></h2>
+                <p>In the HQ, every field was <code>&lt;input {...register('title')} /&gt;</code>. <code>register</code> returns a <code>name</code>, an <code>onChange</code>, an <code>onBlur</code> and a <code>ref</code>, and React Hook Form leans on the browser: it reads <code>event.target.value</code> when something changes, and the input element itself when it needs the current value or wants to focus it. A React Native <code>TextInput</code> is not an HTML input. Its change event has no <code>target.value</code> (the text arrives in <code>onChangeText</code> as a plain string), and its ref is a native view, not a DOM element.</p>
+                <p>React Hook Form has a second way in, built for exactly this, and you met its name in the web course's FAQ: <strong><code>Controller</code></strong> and its Hook form <strong><code>useController</code></strong>. Instead of the field reporting to the form, the form hands the field what it needs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th><code>useController</code> gives you</th><th>Goes to the TextInput as</th><th>Why</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>field.value</code></td><td><code>value</code></td><td>The text the form holds for this field</td></tr>
+                            <tr><td><code>field.onChange</code></td><td><code>onChangeText</code></td><td>Called with the new text (a string, not an event)</td></tr>
+                            <tr><td><code>field.onBlur</code></td><td><code>onBlur</code></td><td>"The volunteer left the field": what <code>mode: 'onTouched'</code> waits for</td></tr>
+                            <tr><td><code>field.ref</code></td><td><code>ref</code></td><td>Lets React Hook Form call <code>.focus()</code>: the return-key chain and "go to the first problem" need it</td></tr>
+                            <tr><td><code>fieldState.error</code></td><td>the message under the field</td><td>This field's message from the schema (or from <code>setError</code>)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Everything else is the web course: <code>useForm({ resolver: zodResolver(schema), defaultValues, mode })</code>, <code>handleSubmit</code>, <code>formState</code>, <code>setError('root.server', …)</code>, <code>z.input</code> for what the fields hold and <code>z.output</code> for what a successful check gives back.</p>
+                <p>Shoreline Crew wraps this once, in a small component <code>ControlledField</code>: Lesson 4.3's <code>FormField</code> (label, text field, message) connected to a form by <code>control</code> and <code>name</code>. A form then reads almost like the HQ's:</p>
+                <pre data-snippet><code class="language-tsx">&lt;ControlledField control={control} name="email" label="Email" inputMode="email" /&gt;</code></pre>
+                <p><code>name</code> is typed from the form's values (<code>FieldPath</code>), so <code>name="emial"</code> is a tsc error, just as in the web course.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tally sheet and the crew leader</h4>
+                    <p>On the web, each volunteer (an <code>&lt;input&gt;</code>) keeps their own count on their own clipboard, and the crew leader (<code>register</code>) walks around and reads the clipboards when it is time to add up. On a phone, the volunteers have no clipboards. So the crew leader keeps one tally sheet (the form's values), and each volunteer calls out every change ("plus one bottle"): that is <code>useController</code>. The leader always knows the totals, and can point at anyone and say "you next" (the ref, for focus).</p>
+                </div>
+                <h3>handleSubmit wants a web event</h3>
+                <p>One more seam. On the web you wrote <code>&lt;form onSubmit={handleSubmit(save)}&gt;</code>. There is no <code>&lt;form&gt;</code> on a phone; the button's <code>onPress</code> and the return key's <code>onSubmitEditing</code> do the submitting. <code>handleSubmit(save)</code> returns a function typed to take a web form event, and React Native's press and keyboard events are different types, so passing it straight in is a tsc error (quoted in <a href="#mistakes">Common Mistakes</a>; many older articles do it anyway). Make the function once and call it with no arguments:</p>
+                <pre data-snippet><code class="language-tsx">const send = handleSubmit(submit);
+// ...
+&lt;Button label="Sign in" onPress={() =&gt; send()} /&gt;</code></pre>
+            </section>
+
+            <section id="keyboards" class="lesson-section">
+                <h2>⌨️ The Right Keyboard for Each Field</h2>
+                <p>A phone draws a different keyboard for each field, and the field asks for it. Lesson 2.4 introduced the props; here is what each Shoreline Crew field asks for, and why:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Field</th><th>Props</th><th>What the volunteer gets (per the React Native docs)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Email</td><td><code>inputMode="email"</code>, <code>autoComplete="email"</code>, <code>autoCapitalize="none"</code>, <code>autoCorrect={false}</code></td><td>A keyboard with <kbd>@</kbd> and <kbd>.</kbd>; the saved address offered above the keys; no capital first letter, no "corrections" to the address</td></tr>
+                            <tr><td>Password</td><td><code>secureTextEntry</code>, <code>autoComplete="current-password"</code>, <code>autoCapitalize="none"</code></td><td>Dots instead of letters; the phone's password manager offers the saved password</td></tr>
+                            <tr><td>A count (pieces, bags)</td><td><code>inputMode="numeric"</code></td><td>The number pad: digits only</td></tr>
+                            <tr><td>Weight in kg</td><td><code>inputMode="decimal"</code></td><td>Digits and a decimal key, which is a <strong>comma</strong> on phones set to many languages (German, French, Spanish…)</td></tr>
+                            <tr><td>A note</td><td><code>multiline</code>, <code>autoCapitalize="sentences"</code>, <code>maxLength={500}</code></td><td>The full keyboard; return starts a new line; typing stops at the API's limit</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>inputMode</code> is the newer, web-style name; <code>keyboardType</code> (<code>"email-address"</code>, <code>"number-pad"</code>, <code>"decimal-pad"</code>) is the older one you will see in most code. React Native 0.88 translates one into the other (read in its <code>TextInput</code> source: <code>numeric</code> becomes <code>number-pad</code>, <code>decimal</code> becomes <code>decimal-pad</code>), and the web preview turns <code>inputMode</code> into the HTML attribute of the same name (measured). The course uses <code>inputMode</code>, so today's sign-in moves from Lesson 4.3's <code>keyboardType="email-address"</code> to <code>inputMode="email"</code>: the same keyboard.</p>
+                <h3>Two things the number pads leave out</h3>
+                <ul>
+                    <li><strong>The decimal point.</strong> If the phone is set to a language that writes 2,5 for two and a half, the decimal pad offers a comma. A schema that accepts only <code>2.5</code> rejects what the phone's own keyboard typed. Shoreline Crew's weight rule turns a comma into a point before checking it.</li>
+                    <li><strong>The return key, on iPhone.</strong> According to React Native's documentation, the iOS number pad and decimal pad have no return key at all, so <code>enterKeyHint</code> and <code>onSubmitEditing</code> never fire there (Android's number keyboard does have one). Volunteers close it by tapping another field or by dragging the form, which is why Lesson 2.4's <code>keyboardDismissMode="on-drag"</code> matters here. It is also one reason the counts get steppers below.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The web preview cannot show any of this: the computer's keyboard is the same for every field (it only adds the attributes, <code>type="email"</code>, <code>inputmode="decimal"</code> and so on, measured). Step 10 checks each field on a phone. If your phone has a third-party keyboard app installed, it decides how faithfully it follows these hints.</p>
+                </div>
+            </section>
+
+            <section id="return-key" class="lesson-section">
+                <h2>↩️ The Return Key: Next, Next, Go</h2>
+                <p>On a laptop, <kbd>Tab</kbd> moves to the next field. A phone keyboard has no Tab; it has the key in the bottom corner, and three props decide what it does:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Prop</th><th>Says</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>enterKeyHint</code> (older name <code>returnKeyType</code>)</td><td>The key's label: <code>"next"</code>, <code>"go"</code>, <code>"done"</code>, <code>"send"</code>, <code>"search"</code></td><td>Next on every field but the last; Go on the password</td></tr>
+                            <tr><td><code>onSubmitEditing</code></td><td>What pressing it does</td><td>Move the focus to the next field, or submit</td></tr>
+                            <tr><td><code>submitBehavior</code></td><td>What the keyboard does: <code>"blurAndSubmit"</code> (close; the default for one-line fields), <code>"submit"</code> (stay open), <code>"newline"</code> (multiline default)</td><td><code>"submit"</code> on fields that move on, so the keyboard does not drop and rise again between fields</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Moving the focus needs the next field's ref. That is the other reason <code>ControlledField</code> passes <code>field.ref</code> through: React Hook Form keeps every field's ref, so <code>setFocus('password')</code> finds the right TextInput by name, with no <code>useRef</code> per field:</p>
+                <pre data-snippet><code class="language-tsx">&lt;ControlledField
+  control={control}
+  name="email"
+  label="Email"
+  enterKeyHint="next" // the key says Next...
+  submitBehavior="submit" // ...the keyboard stays up...
+  onSubmitEditing={() =&gt; setFocus('password')} // ...and the password field gets the focus
+/&gt;</code></pre>
+                <p>The last field's key submits: <code>enterKeyHint="go"</code> and <code>onSubmitEditing={() =&gt; send()}</code>, the same function as the button.</p>
+<div class="mermaid">
+graph TD
+    A["Email: key says Next"] --> B["setFocus password"]
+    B --> C["Password: key says Go"]
+    C --> D["send: Zod checks"]
+    D --> E["Sign in, or focus the first problem"]
+</div>
+                <p>The ref pays off a third time: when the schema finds problems, React Hook Form focuses the first field with a message (<code>shouldFocusError</code>, on by default). On the web it focused an <code>&lt;input&gt;</code>; with the TextInput's ref it does the same on a phone, which brings the keyboard up right where the volunteer needs to type. Measured in the web preview: Sign in with both boxes empty put the cursor in Email, under the message "Enter an email address."</p>
+                <p>A multiline note is the exception: its return key types a new line, so it never moves on or submits. That is why the debris log's note is the last field, followed by the Send button.</p>
+            </section>
+
+            <section id="avoiding" class="lesson-section">
+                <h2>🌊 Out of the Keyboard's Way</h2>
+                <p>The keyboard takes up to half the screen, and on iOS it is drawn <em>over</em> your app: whatever was in the bottom half is still there, just hidden. On Android, Expo SDK 58 apps are drawn edge to edge, and according to Expo's keyboard guide the window no longer shrinks for the keyboard by itself either. So on both platforms, a field near the bottom of a form can end up under the keys, and the volunteer types blind.</p>
+                <p>React Native's answer is <strong><code>KeyboardAvoidingView</code></strong>: a View that listens for the keyboard and makes room for it. With <code>behavior="padding"</code> it adds padding at its bottom as tall as the keyboard, so whatever is inside (Shoreline Crew's scroll view) now ends at the top of the keys and every field can be scrolled into sight.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>What Expo's keyboard guide says (SDK 58)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>behavior</code></td><td>Set one on both platforms: <code>"padding"</code> usually works best; with no behavior, a view can stay under the keyboard on Android</td></tr>
+                            <tr><td><code>keyboardVerticalOffset</code></td><td>When the view sits under a navigation header, pass the header's height (<code>useHeaderHeight()</code> from <code>expo-router/react-navigation</code>; it includes the status bar)</td></tr>
+                            <tr><td>Android <code>softwareKeyboardLayoutMode: "pan"</code> in app.json</td><td>Do not combine it with <code>behavior="padding"</code>: the window pans and the view adds padding, so the field moves up twice</td></tr>
+                            <tr><td><code>react-native-keyboard-controller</code></td><td>The guide's recommendation for polished forms (<code>KeyboardAwareScrollView</code> scrolls to the focused field, <code>KeyboardToolbar</code> adds Next/Previous/Done), but it is <strong>not in Expo Go</strong>: it needs a development build</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Why the offset? <code>KeyboardAvoidingView</code> learns where the keyboard starts as a distance from the top of the <em>window</em>, but your screen starts below the header. Without the offset, it works out the overlap as if the screen started at the top, and the padding comes out short by the header's height, so the bottom field can still hide under the keys. With the offset it is right.</p>
+                <p>Shoreline Crew puts this in one component, <code>FormScreen</code>: <code>KeyboardAvoidingView</code> (padding, header offset) around a <code>ScrollView</code> with Lesson 3.1's <code>useScreenScroll</code> props, so taps on buttons still work while the keyboard is up (<code>keyboardShouldPersistTaps="handled"</code>) and dragging the form puts the keyboard away (<code>keyboardDismissMode="on-drag"</code>). Both forms use it.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tide line</h4>
+                    <p>Lesson 2.4 called the keyboard the tide coming in. <code>KeyboardAvoidingView</code> is the crew moving the gear bags up the beach as the water rises: the bags (your fields) are still all there, they just sit above the tide line, and the scroll view lets you walk along the line to any of them. The header offset is knowing that the beach starts at the dunes, not at the parking lot.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ What could be checked here, and what could not</h4>
+                    <p>The web preview has no on-screen keyboard, so <code>KeyboardAvoidingView</code> does nothing there (react-native-web's <code>KeyboardAvoidingView</code> is a plain View that ignores <code>behavior</code> and the offset: read in its source). The behavior above comes from Expo's and React Native's documentation; the course could not run it on a phone. Step 10 has you check it on yours, and Common Mistakes says what it looks like when it is wrong.</p>
+                </div>
+            </section>
+
+            <section id="stepper" class="lesson-section">
+                <h2>➕ A Stepper Instead of a Keyboard</h2>
+                <p>A debris log has ten kinds of debris. Ten number boxes means ten trips to the number pad, and on iPhone a number pad with no return key. Most counts are small (three bottles, one net), and a thumb can tap a plus button faster than it can open a keyboard. So each count is a <strong>stepper</strong>: <strong>−</strong>, the number, <strong>+</strong>. Lesson 2.4's Going Further sketched one; today it is <code>src/components/Stepper.tsx</code>.</p>
+                <ul>
+                    <li><strong>The number is still a text field</strong> (<code>inputMode="numeric"</code>, <code>selectTextOnFocus</code> so typing replaces the 0). Some counts are big: nobody taps up to 230 cigarette butts.</li>
+                    <li><strong>The value stays text</strong>, like any field: <code>'3'</code>. The buttons turn it into a number, add or take one, and hand back text. The schema's <code>wholeNumber</code> rule (the HQ's) checks it like a typed count, so "lots" typed into the box gets the API's message.</li>
+                    <li><strong>Each button is 48 tall</strong> (Lesson 2.4's <code>Button</code>) and says what it does to a screen reader: <code>accessibilityLabel="More: Plastic bottles"</code>, not "plus". The minus button is disabled at 0 and the plus at the maximum, and Button already reports disabled as a state.</li>
+                    <li><strong>It connects through <code>Controller</code></strong>, the component form of <code>useController</code>, with a render function: the form's loop over the ten categories renders ten Controllers with names like <code>counts.plastic-bottles</code>, typed from the schema.</li>
+                </ul>
+                <p>The ref goes to the number box, so when the schema rejects "lots" for Glass, React Hook Form focuses Glass's box (measured in the web preview, with one web-only twist that Step 9 explains).</p>
+                <div class="card card-info">
+                    <h4>💡 Why not a slider?</h4>
+                    <p>React Native has no slider in its core any more (Lesson 2.4: community packages), and a slider is the wrong control for a count: it is hard to land on exactly 7 with a thumb, and impossible to reach 230 on a short track. Steppers suit small, exact numbers; a text box suits big ones; this stepper is both.</p>
+                </div>
+            </section>
+
+            <section id="sending" class="lesson-section">
+                <h2>📤 Checking and Sending a Debris Log</h2>
+                <p>shoreline-api has taken debris logs from the phone since the HQ course was built: <code>POST /api/events/:id/logs</code>, for a signed-in volunteer with a spot (signed up or checked in) at a cleanup that has started. The body is the API's <code>NewCleanupLog</code> type, already in <code>src/api/types.ts</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Field</th><th>From</th><th>The API's rule (its message)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>items</code></td><td>The steppers: only kinds with a count above 0</td><td>"Count must be a whole number from 0 to 100000."</td></tr>
+                            <tr><td><code>bags</code></td><td>A stepper</td><td>"Bags must be a whole number from 0 to 500."</td></tr>
+                            <tr><td><code>weightKg</code></td><td>A decimal box</td><td>"Weight must be a number of kilograms from 0 to 5000."</td></tr>
+                            <tr><td><code>note</code></td><td>A multiline box</td><td>"Keep the note to 500 characters or fewer."</td></tr>
+                            <tr><td><code>clientId</code></td><td>Made on the phone</td><td>8 to 64 characters, unique per volunteer</td></tr>
+                            <tr><td><code>recordedAt</code></td><td>Made on the phone: when Send was pressed</td><td>An ISO timestamp</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The schema, <code>debrisLogSchema</code> in <code>src/api/schemas.ts</code>, uses the API's own messages (the HQ's habit), so the phone and the server never disagree. Its last step is a <code>.transform</code> that turns the form's shape (one text per category) into the API's (a list of the categories that were found). So <code>z.input</code> is what the fields hold and <code>z.output</code> is nearly a <code>NewCleanupLog</code>; <code>toNewLog</code> adds the two things only the phone can make.</p>
+                <h3>The clientId: an id made on the phone</h3>
+                <p>A phone on a beach sends a request, the signal drops, and the app never hears the answer. Did the log arrive? The app cannot know, so it sends again. If the server made the ids, it would now have two logs. Instead the phone makes the id, <code>clientId</code>, once per log, and shoreline-api recognizes a second copy: the first send answers <strong>201</strong> with the saved log, a resend with the same <code>clientId</code> answers <strong>200</strong> with the log it already has (the API's README calls this "never a duplicate"). That is what makes retries safe, and it is the base of Lesson 5.5.</p>
+                <p>The id comes from <code>expo-crypto</code>'s <code>randomUUID()</code> (36 characters, made from the phone's secure random source; <code>expo-crypto</code> is in Expo Go). The form makes it once, when it opens (<code>useState(() =&gt; randomUUID())</code>): pressing Send twice, or again after a failure, sends the same log, not a new one.</p>
+                <h3>What today sends, and what Lesson 5.5 adds</h3>
+                <p>Today's <code>sendLogMutation</code> is an ordinary TanStack Query mutation, like Lesson 5.2's sign-up. Its variables are a <code>LogToSend</code>, <code>{ event, log }</code>: the cleanup (for the logbook's title and date) and the finished <code>NewCleanupLog</code>. On success it saves the server's answer into the SQLite logbook with Lesson 5.3's <code>saveSentLogs</code> and invalidates <code>['logbook']</code>, exactly the step 5.3 promised.</p>
+                <p>Offline, the mutation pauses (Lesson 5.2), the screen says "No connection: your log is sent when you are back online. Keep the app open until then.", and it is sent when the connection returns. "Keep the app open" is the honest part: a paused mutation lives in memory, and a force-quit loses it. Lesson 5.5 replaces that memory with a queue of <code>LogToSend</code> items saved on the phone, flushed when the connection comes back, safe to retry because of the <code>clientId</code>. Today's shapes are the ones it queues.</p>
+                <h3>Who sees the form</h3>
+                <p>Lesson 4.4 left a question open: what does a guest see who follows a link to the debris log? A <code>Stack.Protected</code> guard would send them to the Cleanups tab without a word, and after signing in they would have to find the cleanup again. So <code>log/[id]</code> is not guarded. It has faces, like My cleanups and the Logbook tab:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Who</th><th>Sees (measured in the web preview)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A guest</td><td>"Sign in to log what you collected" and a Sign in button. The sign-in modal opens on top; signing in closes it, and the form is waiting underneath.</td></tr>
+                            <tr><td>Signed in, no spot at this cleanup</td><td>"Only volunteers with a spot at this cleanup can log for it." (the API's words) and Go back</td></tr>
+                            <tr><td>Signed in, the cleanup is still ahead</td><td>"This cleanup is on …. Log what you collected on the day."</td></tr>
+                            <tr><td>Signed in, a spot, the day has come</td><td>The form</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The checks read the volunteer's own sign-ups (Lesson 5.2's <code>mySignupsQuery</code>, shared with My cleanups), so the screen knows before the volunteer types anything. The API checks the same rules again when the log arrives: the screen's checks are kindness, the server's are the rules ("the guard hides screens; the API protects data", Lesson 4.3).</p>
+                <p>The way in is a <strong>Log what you collected</strong> button on the cleanup screen, for a volunteer with a spot from the cleanup's day on. In the sample data, Theo is signed up for today's Tide Pool Morning Cleanup (<code>e17</code>).</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each mistake below was made on purpose in a copy of the finished project and quoted as the tools showed it, unless it says it comes from the documentation.</p>
+
+                <div class="card card-warning">
+                    <h4>⚠️ register on a TextInput</h4>
+                    <p>The web habit, <code>&lt;TextInput {...register('email')} /&gt;</code>, is the quiet one: tsc and expo lint both print nothing, because the props <code>register</code> returns happen to fit a TextInput's types. Then the form does not work. Measured in the web preview with the email field written that way: typing a correct email and password and pressing <strong>Sign in</strong> sent no request and showed no message (the form still had no email to check, and a plain TextInput has nowhere to show the schema's answer). A phone fares no better: a TextInput's change event carries the text in <code>nativeEvent.text</code>, not in <code>target.value</code> where <code>register</code> looks (read in React Native's types and React Hook Form's source, not run on a phone). Use <code>useController</code> (here, <code>ControlledField</code>) or <code>Controller</code> for every React Native field.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ handleSubmit straight into onPress</h4>
+                    <p><code>onPress={handleSubmit(submit)}</code> is what most articles (and the web course's <code>onSubmit</code>) suggest. With React Native 0.88's types, tsc rejects it, once for the button and once for the return key (trimmed: the type lines are very long):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/sign-in.tsx:77:9 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, any, any&gt; | undefined) =&gt; Pr...
+  Types of parameters 'e' and 'e' are incompatible.
+    Type 'Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number |...
+      Types of property 'bubbles' are incompatible.
+        Type 'boolean | undefined' is not assignable to type 'boolean'.
+          Type 'undefined' is not assignable to type 'boolean'.
+
+77         onSubmitEditing={handleSubmit(submit)}
+           ~~~~~~~~~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/Components/TextInput/TextInput.flow.d.ts:610:3
+    610   onSubmitEditing?: ((e: TextInputSubmitEditingEvent) =&gt; unknown) | undefined;
+          ~~~~~~~~~~~~~~~
+    The expected type comes from property 'onSubmitEditing' which is declared here on type 'IntrinsicAttrib...
+
+src/app/sign-in.tsx:83:9 - error TS2322: ...
+...
+83         onPress={handleSubmit(submit)}
+           ~~~~~~~
+...
+Found 2 errors in the same file, starting at: src/app/sign-in.tsx:77</code></pre>
+                    </div>
+                    <p>Read it from the bottom of each block: the expected type comes from <code>onSubmitEditing</code> (a TextInput's submit event) and <code>onPress</code> (a press event), and React Hook Form's function wants a web event whose <code>bubbles</code> is always a boolean. The fix is <code>const send = handleSubmit(submit)</code> and <code>() =&gt; send()</code>: the function is called with no event at all, which it accepts.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Reading field.something during render</h4>
+                    <p>A first version of <code>ControlledField</code> wrote <code>ref={field.ref}</code>, <code>value={field.value}</code> and so on, as most examples do. tsc was happy; <code>npx expo lint</code> was not (trimmed):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>~/shoreline/shoreline-crew/src/components/ControlledField.tsx
+  27:12  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of rend...
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx:27:12
+  25 |     &lt;FormField
+  26 |       {...props}
+&gt; 27 |       ref={field.ref}
+     |            ^^^^^^^^^ Cannot access ref value during render
+  28 |       value={field.value}
+  29 |       onChangeText={field.onChange}
+...
+✖ 4 problems (4 errors, 0 warnings)</code></pre>
+                    </div>
+                    <p>The React Compiler's lint rules (on in the Expo template) see an object that holds a <code>ref</code> and treat every read from it as reading a ref during render, which would be a real bug if <code>field</code> were a ref. It is not, but the fix costs nothing: take <code>field</code> apart where you get it, <code>const { field: { ref, value, onChange, onBlur } } = useController(…)</code>, and use the plain names. The Controllers in the log form do the same in their <code>render</code> functions.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ A KeyboardAvoidingView that does not avoid (from the documentation)</h4>
+                    <p>Two forms of the same mistake, described in Expo's keyboard guide and React Native's documentation (the course could not run them on a phone): no <code>behavior</code>, and on Android the keyboard still covers the lower fields, because edge-to-edge apps do not shrink for the keyboard; or no <code>keyboardVerticalOffset</code> under a header, and the bottom field stays partly hidden by about the header's height. The opposite also happens: <code>behavior="padding"</code> together with <code>softwareKeyboardLayoutMode: "pan"</code> in app.json moves the field up twice, leaving a gap. If a field hides on your phone in Step 10, check these three first.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ A new clientId on every press</h4>
+                    <p>Making the id inside the submit function (<code>clientId: randomUUID()</code> right before sending) type-checks and works on a good connection. On a bad one, the first press reaches the server but the answer is lost, the volunteer presses again, and the second request carries a different id: shoreline-api has no way to know it is the same log, and the season's totals count those bottles twice. Measured with the API: the same <code>clientId</code> twice answered 201 and then 200 with the same saved log. Make the id once per log (Shoreline Crew: when the form opens).</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Trusting the decimal point</h4>
+                    <p>A weight rule of <code>/^\d+(\.\d+)?$/</code> alone rejects <code>2,5</code>, which is exactly what the decimal pad types on a phone set to German, French or Spanish. The volunteer did nothing wrong and cannot fix it from that keyboard. Accept what the phone's keyboard can type (Shoreline Crew's schema turns a comma into a point first), and test once with your phone's language changed if you can.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Sign-In and the Debris Log</h2>
+                <p>You install the form libraries, write the two schemas, connect <code>FormField</code> to React Hook Form, build a keyboard-aware screen, rebuild sign-in with a return-key chain, then build the stepper, the send, and the Log debris modal with its way in. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal (with <code>--host</code> when you test on your phone, as in Lesson 5.1).</p>
+
+                <div class="card">
+                    <h3>Step 1: Install the form libraries <span class="step-time">(5 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac). The same three libraries as the HQ, plus <code>expo-crypto</code> for the log's id, with Expo's installer:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install react-hook-form zod @hookform/resolvers expo-crypto</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>› Installing 1 SDK 58.0.0 compatible native module and 3 other packages using npm
+&gt; npm install --save react-hook-form zod @hookform/resolvers
+
+added 8 packages, removed 2 packages, and audited 810 packages in 5s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>"1 SDK 58.0.0 compatible native module" is <code>expo-crypto</code> (in Expo Go, no development build); the "3 other packages" are plain JavaScript, so Expo passes them to npm unchanged, and you get the HQ's versions (react-hook-form ^7.92.0, zod ^4.6.7, @hookform/resolvers ^7.0.6). The vulnerabilities line is npm's audit of the whole project, as in earlier lessons: the install worked.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The schemas <span class="step-time">(15 min)</span></h3>
+                    <p>First the debris categories and their names. If you did the web course, this is the HQ's <code>src/utils/debris.ts</code> in this project's style (semicolons, <code>@/</code> imports); create <code>src/utils/debris.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/debris.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/debris.ts"><code class="language-ts">// The API's debris categories and the app's words for them (copied from the HQ's utils/debris.ts,
+// in this project's style). GET /api/meta lists the same ones.
+import type { DebrisCategory } from '@/api/types';
+
+/** Every category, in the API's order */
+export const debrisCategories: DebrisCategory[] = [
+  'plastic-bottles',
+  'plastic-bags',
+  'food-wrappers',
+  'bottle-caps',
+  'cigarette-butts',
+  'fishing-gear',
+  'glass',
+  'metal',
+  'foam',
+  'other',
+];
+
+/** What the app calls each category */
+export const debrisLabels: Record&lt;DebrisCategory, string&gt; = {
+  'plastic-bottles': 'Plastic bottles',
+  'plastic-bags': 'Plastic bags',
+  'food-wrappers': 'Food wrappers',
+  'bottle-caps': 'Bottle caps',
+  'cigarette-butts': 'Cigarette butts',
+  'fishing-gear': 'Fishing line and nets',
+  glass: 'Glass',
+  metal: 'Metal and cans',
+  foam: 'Foam pieces',
+  other: 'Other',
+};</code></pre>
+                    </div>
+                    <p>Then the schemas, in a new <code>src/api/schemas.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/schemas.ts</div>
+                        <pre data-src="shoreline-crew/src/api/schemas.ts"><code class="language-ts">// Shoreline Crew's Zod schemas (new, in the HQ's style): each one is a form's type AND its checks.
+// The messages are shoreline-api's own, so the phone and the server say the same thing.
+import { z } from 'zod';
+
+import type { CleanupEvent, NewCleanupLog } from '@/api/types';
+import { debrisCategories } from '@/utils/debris';
+
+// ---------------------------------------------------------------- sign in
+
+export const signInSchema = z.object({
+  // Trimmed first: a phone keyboard's autocorrect likes to add a space after an address
+  email: z.string().trim().pipe(z.email('Enter an email address.')),
+  password: z.string().min(1, 'Enter your password.'),
+});
+
+/** What the sign-in form holds and sends (the same: two strings) */
+export type SignInValues = z.input&lt;typeof signInSchema&gt;;
+export type SignInData = z.output&lt;typeof signInSchema&gt;;
+
+// ---------------------------------------------------------------- a debris log
+
+// A count typed into a box: digits only, so an empty box is a message, not a silent 0
+// (the HQ's wholeNumber from Lesson 8.2 of the web course)
+function wholeNumber(max: number, message: string) {
+  return z
+    .string()
+    .trim()
+    .regex(/^\d+$/, message)
+    .transform(Number)
+    .refine((count) =&gt; count &lt;= max, message);
+}
+
+const weightRule = 'Weight must be a number of kilograms from 0 to 5000.';
+
+export const debrisLogSchema = z
+  .object({
+    // One box per kind of debris: { 'plastic-bottles': '12', glass: '0', ... }
+    counts: z.record(
+      z.enum(debrisCategories),
+      wholeNumber(100_000, 'Count must be a whole number from 0 to 100000.'),
+    ),
+    bags: wholeNumber(500, 'Bags must be a whole number from 0 to 500.'),
+    weightKg: z
+      .string()
+      .trim()
+      // Many phones set to other languages offer a comma as the decimal key: 2,5 means 2.5
+      .transform((typed) =&gt; typed.replace(',', '.'))
+      .pipe(z.string().regex(/^\d+(\.\d+)?$/, weightRule))
+      .transform(Number)
+      .refine((kg) =&gt; kg &lt;= 5000, weightRule),
+    note: z.string().trim().max(500, 'Keep the note to 500 characters or fewer.'),
+  })
+  // What the API wants: only the kinds of debris that were found, as a list
+  .transform(({ counts, ...rest }) =&gt; ({
+    ...rest,
+    items: debrisCategories
+      .map((category) =&gt; ({ category, count: counts[category] }))
+      .filter((item) =&gt; item.count &gt; 0),
+  }));
+
+/** What the log form's fields hold: text, as typed */
+export type DebrisLogValues = z.input&lt;typeof debrisLogSchema&gt;;
+
+/** What a successful check gives back: numbers and a list, ready to send */
+export type DebrisLogData = z.output&lt;typeof debrisLogSchema&gt;;
+
+/** A log ready to go: everything POST /api/events/:id/logs needs, plus its cleanup for the logbook.
+ * Lesson 5.5 keeps exactly this in the offline queue. */
+export type LogToSend = { event: CleanupEvent; log: NewCleanupLog };
+
+/** The form's answer as the API's NewCleanupLog. clientId and recordedAt are made on the phone:
+ * the id once per log (a resend is then recognized), the time when the volunteer pressed Send. */
+export function toNewLog(data: DebrisLogData, clientId: string, recordedAt: Date): NewCleanupLog {
+  return { clientId, recordedAt: recordedAt.toISOString(), ...data };
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>signInSchema</code>: the API's two messages, so the phone says exactly what the server would. <code>z.email()</code> is Zod 4's email check, after a trim.</li>
+                        <li><code>counts</code> is a <code>z.record</code> keyed by <code>z.enum(debrisCategories)</code>: in Zod 4 that means every category must be there, so the form's values type has all ten keys, and a field name like <code>counts.glass</code> type-checks while <code>counts.glas</code> does not.</li>
+                        <li><code>wholeNumber</code> is the HQ's from the web course's Lesson 8.2 (digits only, so an empty box is a message, not a silent 0). The weight rule adds the comma step from <a href="#keyboards">The Right Keyboard</a>.</li>
+                        <li>The final <code>.transform</code> runs only when every field passed, and returns the API's shape: <code>items</code> lists only what was found.</li>
+                        <li><code>LogToSend</code> and <code>toNewLog</code> are the hand-off to the API (and to Lesson 5.5's queue).</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: FormField takes a ref, and ControlledField <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 4.3's <code>FormField</code> needs one new prop: a <code>ref</code> it passes to its TextInput, so whoever owns the field can focus it. In React 19 a ref is an ordinary prop of a function component (no <code>forwardRef</code>, as in the web course). Its type is React Native's <code>TextInputInstance</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/FormField.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/FormField.tsx" data-match="diff"><code class="language-diff-tsx">-import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
++import type { Ref } from 'react';
++import {
++  StyleSheet,
++  TextInput,
++  type TextInputInstance,
++  type TextInputProps,
++  View,
++} from 'react-native';
+ 
+ // ...
+   error?: string;
++  // The text field itself, for whoever needs to move the focus to it (React 19: ref is a prop)
++  ref?: Ref&lt;TextInputInstance&gt;;
+ };
+ // ...
+ // A labeled text field, with the reason it needs fixing underneath when there is one
+-export function FormField({ label, error, ...input }: FormFieldProps) {
++export function FormField({ label, error, ref, ...input }: FormFieldProps) {
+   const { colors } = useTheme();
+ // ...
+       &lt;TextInput
++        ref={ref}
+         accessibilityLabel={label}</code></pre>
+                    </div>
+                    <p>Then the connection to React Hook Form, in a new <code>src/components/ControlledField.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/ControlledField.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/ControlledField.tsx"><code class="language-tsx">import type { ComponentProps } from 'react';
+import { type Control, type FieldPath, type FieldValues, useController } from 'react-hook-form';
+
+import { FormField } from '@/components/FormField';
+
+// FormField's props, minus the ones React Hook Form now provides. T is what the fields hold;
+// Out is what the form gives back after the schema's checks (numbers instead of text, ...).
+type ControlledFieldProps&lt;T extends FieldValues, Out&gt; = Omit&lt;
+  ComponentProps&lt;typeof FormField&gt;,
+  'value' | 'onChangeText' | 'onBlur' | 'error' | 'ref'
+&gt; &amp; {
+  control: Control&lt;T, unknown, Out&gt;;
+  name: FieldPath&lt;T&gt;;
+};
+
+// A FormField that belongs to a React Hook Form form. A phone has no HTML input for register()
+// to find, so useController hands over the value, the change and blur handlers, the field's
+// message, and a ref: with it, setFocus('password') and "focus the first field with a problem"
+// work.
+export function ControlledField&lt;T extends FieldValues, Out = T&gt;({
+  control,
+  name,
+  ...props
+}: ControlledFieldProps&lt;T, Out&gt;) {
+  // Taken apart at once: the lint rules treat an object with a ref inside as a ref
+  const {
+    field: { ref, value, onChange, onBlur },
+    fieldState: { error },
+  } = useController({ control, name });
+  return (
+    &lt;FormField
+      {...props}
+      ref={ref}
+      value={value}
+      onChangeText={onChange}
+      onBlur={onBlur}
+      error={error?.message}
+    /&gt;
+  );
+}</code></pre>
+                    </div>
+                    <p>It is generic in two types, like the form it belongs to: <code>T</code>, what the fields hold, which makes <code>name</code> a checked <code>FieldPath&lt;T&gt;</code>, and <code>Out</code>, what the schema gives back. React Hook Form's <code>Control</code> carries both, and a schema with transforms (both of today's) makes them different. Everything else passes through to <code>FormField</code>, so <code>inputMode</code>, <code>enterKeyHint</code> and the rest are written where the field is used.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A screen that makes room for the keyboard <span class="step-time">(5 min)</span></h3>
+                    <p>Create <code>src/components/FormScreen.tsx</code>, the keyboard-aware sibling of <code>&lt;Screen scroll&gt;</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/FormScreen.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/FormScreen.tsx"><code class="language-tsx">import { useHeaderHeight } from 'expo-router/react-navigation';
+import type { ReactNode } from 'react';
+import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
+import type { Edge } from 'react-native-safe-area-context';
+
+import { useScreenScroll } from '@/components/Screen';
+
+type FormScreenProps = {
+  children: ReactNode;
+  edges?: readonly Edge[];
+};
+
+// A screen with a form on it: it scrolls like &lt;Screen scroll&gt;, and it gets out of the keyboard's way.
+// When the keyboard comes up, KeyboardAvoidingView adds padding at the bottom as tall as the
+// keyboard, so the scroll view ends above it and every field can be scrolled into sight.
+export function FormScreen({ children, edges = ['bottom', 'left', 'right'] }: FormScreenProps) {
+  const screen = useScreenScroll(edges);
+  // The keyboard is measured from the top of the window, the screen starts under the header
+  const headerHeight = useHeaderHeight();
+  return (
+    &lt;KeyboardAvoidingView
+      // padding on both: iOS lays the keyboard over the app, and Expo apps on Android are
+      // edge-to-edge, so the window no longer shrinks for the keyboard by itself
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight}
+      style={styles.fill}
+    &gt;
+      &lt;ScrollView {...screen}&gt;{children}&lt;/ScrollView&gt;
+    &lt;/KeyboardAvoidingView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});</code></pre>
+                    </div>
+                    <p>It reuses <code>useScreenScroll</code> from Lesson 3.1 (the page color, padding, safe-area edges and the two keyboard props), and its default edges suit a screen under a header, which both forms are. <code>useHeaderHeight</code> comes from <code>expo-router/react-navigation</code>, Expo Router's copy of React Navigation's helpers.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Sign-in with React Hook Form and a return-key chain <span class="step-time">(15 min)</span></h3>
+                    <p>Replace <code>src/app/sign-in.tsx</code>. The flow from Lesson 4.3 stays (close the modal, then set the session); the four <code>useState</code>s become one <code>useForm</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/sign-in.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/sign-in.tsx"><code class="language-tsx">import { zodResolver } from '@hookform/resolvers/zod';
+import { router } from 'expo-router';
+import { useForm } from 'react-hook-form';
+
+import { ApiError, describeError, postSignIn, setSession } from '@/api/client';
+import { type SignInData, signInSchema } from '@/api/schemas';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { ControlledField } from '@/components/ControlledField';
+import { FormScreen } from '@/components/FormScreen';
+
+// The sign-in modal. It exists only while nobody is signed in (Stack.Protected in _layout.tsx).
+export default function SignInScreen() {
+  const {
+    control,
+    handleSubmit,
+    setFocus,
+    setError,
+    resetField,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: '', password: '' },
+    // Check a field when the volunteer leaves it, then again as they fix it (as in the HQ)
+    mode: 'onTouched',
+  });
+
+  // handleSubmit calls this only when the schema found nothing to fix
+  async function submit(credentials: SignInData) {
+    try {
+      const session = await postSignIn(credentials);
+      // Close the modal first, back to the screen that opened it. Then switch to signed in: the
+      // guard takes this screen away at once, and if it were still open, you would land on the
+      // first tab instead.
+      if (router.canGoBack()) {
+        router.back();
+      }
+      setSession(session);
+    } catch (error) {
+      resetField('password'); // never keep a password around after a try that did not work
+      // 400: fields to fix; 401: wrong email or password. The API's own words fit both.
+      const known = error instanceof ApiError &amp;&amp; (error.status === 400 || error.status === 401);
+      setError('root.server', { message: known ? error.message : describeError(error) });
+    }
+  }
+
+  // Check, then submit. Called with no arguments: React Hook Form's handleSubmit expects a web
+  // form event, and a phone's press and return key send different events
+  const send = handleSubmit(submit);
+
+  return (
+    &lt;FormScreen&gt;
+      &lt;AppText&gt;
+        Sign in with your Shoreline Crew account to sign up for cleanups and see your own.
+      &lt;/AppText&gt;
+      {errors.root?.server !== undefined &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {errors.root.server.message}
+        &lt;/AppText&gt;
+      )}
+      &lt;ControlledField
+        control={control}
+        name="email"
+        label="Email"
+        inputMode="email" // the keyboard with @ and .
+        autoComplete="email"
+        autoCapitalize="none"
+        autoCorrect={false}
+        enterKeyHint="next" // the return key says Next...
+        submitBehavior="submit" // ...keeps the keyboard up...
+        onSubmitEditing={() =&gt; setFocus('password')} // ...and moves to the password
+      /&gt;
+      &lt;ControlledField
+        control={control}
+        name="password"
+        label="Password"
+        secureTextEntry // dots instead of letters
+        autoComplete="current-password" // password managers offer the saved one
+        autoCapitalize="none"
+        enterKeyHint="go" // the last field: the return key signs in
+        onSubmitEditing={() =&gt; send()}
+      /&gt;
+      &lt;Button
+        label={isSubmitting ? 'Signing in…' : 'Sign in'}
+        variant="primary"
+        disabled={isSubmitting}
+        onPress={() =&gt; send()}
+      /&gt;
+    &lt;/FormScreen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>The server's answers go into <code>setError('root.server', …)</code>, the web course's pattern, shown in the alert line. The API's per-field messages for a 400 are no longer needed: the schema checks the same rules before anything is sent.</li>
+                        <li><code>resetField('password')</code> empties the password after a failed try, as Lesson 4.3's <code>setPassword('')</code> did.</li>
+                        <li><code>isSubmitting</code> replaces the <code>sending</code> state: React Hook Form keeps it true while the async <code>submit</code> runs.</li>
+                    </ul>
+                    <p>In the web preview, press <strong>Sign in</strong> with both boxes empty: both messages appear, the cursor is in Email, and the API's terminal shows no request (measured). Type the email and press <kbd>Enter</kbd>: the cursor moves to Password (the web preview's <kbd>Enter</kbd> is the phone's return key; measured). Type <code>shoreline-demo</code> and press <kbd>Enter</kbd> again: you are signed in.</p>
+<figure class="screenshot">
+    <img src="images/lesson_18/18-sign-in-errors.png" alt="The Sign in modal in the web preview after pressing Sign in with both fields empty: the Email field, outlined in red, has a red border, the cursor and the message Enter an email address. under it; the Password field has the message Enter your password." width="420" height="814" loading="lazy">
+    <figcaption>Pressed <strong>Sign in</strong> with nothing typed: the Zod schema answered on the phone, with the API's own words, and React Hook Form put the focus in the first field with a problem. No request went to the server. (The web preview: on a phone the keyboard would be up for the Email field.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The stepper <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/components/Stepper.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Stepper.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Stepper.tsx"><code class="language-tsx">import type { Ref } from 'react';
+import { StyleSheet, TextInput, type TextInputInstance, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { createThemedStyles, useTheme } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+type StepperProps = {
+  label: string;
+  // The count as text, like any text field: what the volunteer typed, or what the buttons made
+  value: string;
+  onChange: (value: string) =&gt; void;
+  onBlur?: () =&gt; void;
+  max: number;
+  error?: string;
+  ref?: Ref&lt;TextInputInstance&gt;;
+};
+
+// A count you change with a thumb: minus, the number, plus. The number is a text field too,
+// for counts too big to tap up to (230 cigarette butts).
+export function Stepper({ label, value, onChange, onBlur, max, error, ref }: StepperProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  // Whatever is in the box, as a number to step from (0 when it is not a whole number yet)
+  const count = /^\d+$/.test(value.trim()) ? Number(value.trim()) : 0;
+
+  return (
+    &lt;View style={styles.stepper}&gt;
+      &lt;View style={styles.row}&gt;
+        &lt;AppText style={styles.label}&gt;{label}&lt;/AppText&gt;
+        &lt;Button
+          label="−"
+          accessibilityLabel={`Fewer: ${label}`}
+          disabled={count === 0}
+          onPress={() =&gt; onChange(String(count - 1))}
+        /&gt;
+        &lt;TextInput
+          ref={ref}
+          value={value}
+          onChangeText={onChange}
+          onBlur={onBlur}
+          accessibilityLabel={label}
+          inputMode="numeric" // digits only: the number pad
+          selectTextOnFocus // typing replaces the 0 instead of adding to it
+          maxLength={6}
+          style={[styles.input, error !== undefined &amp;&amp; styles.invalid]}
+          placeholderTextColor={colors.textMuted}
+        /&gt;
+        &lt;Button
+          label="+"
+          accessibilityLabel={`More: ${label}`}
+          disabled={count &gt;= max}
+          onPress={() =&gt; onChange(String(count + 1))}
+        /&gt;
+      &lt;/View&gt;
+      {error !== undefined &amp;&amp; (
+        &lt;AppText variant="error" accessibilityLiveRegion="polite"&gt;
+          {error}
+        &lt;/AppText&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  stepper: {
+    gap: spacing.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  label: {
+    flex: 1, // the words take what is left, and wrap if they must
+  },
+  input: {
+    width: 72,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  invalid: {
+    borderColor: colors.error,
+    borderWidth: 2,
+  },
+}));</code></pre>
+                    </div>
+                    <p>It knows nothing about forms: a label, a text value, <code>onChange</code>, a maximum. That keeps it reusable (any count, such as your own app's quantities) and easy to test. The minus label is the real minus sign <code>−</code>, which a screen reader would read oddly on its own; the <code>accessibilityLabel</code> says "Fewer: Glass" instead.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Send a log <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/api/client.ts</code>, import one more type and add the request at the end, next to the other sign-up and log functions:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   EventStatus,
++  NewCleanupLog,
+   PageInfo,
+ // ...
+ }
++
++/** POST /api/events/:id/logs: send a debris log. The API answers 201 with the saved log, or 200
++ * with the one it already has when the same clientId comes again (a resend, never a duplicate). */
++export function postLog(eventId: string, log: NewCleanupLog): Promise&lt;CleanupLog&gt; {
++  return sendJSON('POST', `/events/${encodeURIComponent(eventId)}/logs`, log, isCleanupLog);
++}</code></pre>
+                    </div>
+                    <p><code>isCleanupLog</code> is Lesson 5.3's check, now used for a second answer. Then the mutation, in <code>src/api/mutations.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/mutations.ts</div>
+                        <pre data-src="shoreline-crew/src/api/mutations.ts" data-match="diff"><code class="language-diff-ts"> 
+-import { cancelSignup, getEventLogs, postSignup } from '@/api/client';
++import { cancelSignup, getEventLogs, postLog, postSignup } from '@/api/client';
+ import { mySignupsQuery, queryClient } from '@/api/queries';
++import type { LogToSend } from '@/api/schemas';
+ import { saveSentLogs } from '@/storage/logbook';
+ // ...
+ }
++
++/**
++ * Send a debris log from the form (Lesson 5.4), then keep a copy in the logbook on this phone.
++ * Offline it waits, like every mutation, but only in memory: Lesson 5.5 makes the wait survive
++ * closing the app, with a queue of LogToSend items.
++ */
++export function sendLogMutation() {
++  return mutationOptions({
++    mutationFn: ({ event, log }: LogToSend) =&gt; postLog(event.id, log),
++    // The server's answer (the saved log) goes into the logbook with its cleanup
++    onSuccess: async (saved, { event }) =&gt; {
++      await saveSentLogs([{ log: saved, event }]);
++      await queryClient.invalidateQueries({ queryKey: ['logbook'] });
++    },
++  });
++}</code></pre>
+                    </div>
+                    <p><code>onSuccess</code> receives the server's answer (<code>saved</code>, with the id the API gave it) and the variables (<code>{ event }</code>). It saves the server's copy, not the form's, so the logbook holds exactly what shoreline-api has, and returning the promise keeps the mutation pending until the logbook is written.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 8: The Log debris modal <span class="step-time">(20 min)</span></h3>
+                    <p>Create the folder <code>src/app/log</code> and, in it, <code>[id].tsx</code>. Read it in four parts: the guest face, the spot check, the form, the answer.</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/log/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/log/[id].tsx"><code class="language-tsx">import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { randomUUID } from 'expo-crypto';
+import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { StyleSheet, View } from 'react-native';
+
+import { ApiError, describeError } from '@/api/client';
+import { sendLogMutation } from '@/api/mutations';
+import { mySignupsQuery, viewerId } from '@/api/queries';
+import { type DebrisLogValues, debrisLogSchema, toNewLog } from '@/api/schemas';
+import type { CleanupEvent, CleanupLog } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { ControlledField } from '@/components/ControlledField';
+import { EmptyState } from '@/components/EmptyState';
+import { ErrorView } from '@/components/ErrorView';
+import { FormScreen } from '@/components/FormScreen';
+import { LoadingView } from '@/components/LoadingView';
+import { Screen } from '@/components/Screen';
+import { Stepper } from '@/components/Stepper';
+import { useSession } from '@/hooks/useSession';
+import { spacing } from '@/theme/spacing';
+import { debrisCategories, debrisLabels } from '@/utils/debris';
+import { formatDate, toDateString } from '@/utils/format';
+
+// Back to wherever the log was opened from (or to the Cleanups tab after a link)
+function leave() {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace('/');
+  }
+}
+
+// A new debris log for the cleanup with this id: /log/e17 (a modal over the cleanup's screen)
+export default function LogScreen() {
+  const { id } = useLocalSearchParams&lt;'/log/[id]'&gt;();
+  const session = useSession();
+
+  // Open to everyone, so a link always lands here: a guest signs in on top of this screen,
+  // and the form is waiting underneath when the sign-in closes
+  if (session === null) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          Sign in to log what you collected
+        &lt;/AppText&gt;
+        &lt;AppText&gt;Debris logs are for volunteers with a spot at the cleanup.&lt;/AppText&gt;
+        &lt;Link href="/sign-in" asChild&gt;
+          &lt;Button label="Sign in" variant="primary" /&gt;
+        &lt;/Link&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  return &lt;LogForCleanup id={id} viewer={viewerId(session)} /&gt;;
+}
+
+// Signed in: is this your cleanup, and has it happened? Your sign-ups know both.
+function LogForCleanup({ id, viewer }: { id: string; viewer: string }) {
+  const signups = useQuery(mySignupsQuery(viewer));
+
+  if (signups.data === undefined) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        {signups.isError ? (
+          &lt;ErrorView message={describeError(signups.error)} onRetry={() =&gt; signups.refetch()} /&gt;
+        ) : (
+          &lt;LoadingView label="Checking your sign-ups…" /&gt;
+        )}
+      &lt;/Screen&gt;
+    );
+  }
+
+  // A spot at this cleanup: signed up, or already checked in (the API's own rule)
+  const held = signups.data.find(
+    ({ eventId, status }) =&gt; eventId === id &amp;&amp; (status === 'confirmed' || status === 'attended'),
+  );
+  const message =
+    held === undefined
+      ? 'Only volunteers with a spot at this cleanup can log for it.'
+      : held.event.date &gt; toDateString(new Date())
+        ? `This cleanup is on ${formatDate(held.event.date)}. Log what you collected on the day.`
+        : null;
+
+  if (held === undefined || message !== null) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        &lt;EmptyState message={message ?? ''} action={{ label: 'Go back', onPress: leave }} /&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  return &lt;DebrisLogForm event={held.event} /&gt;;
+}
+
+// Every kind of debris starts at 0, as text: the fields hold what the volunteer sees
+const emptyLog: DebrisLogValues = {
+  counts: Object.fromEntries(debrisCategories.map((category) =&gt; [category, '0'])) as Record&lt;
+    (typeof debrisCategories)[number],
+    string
+  &gt;,
+  bags: '0',
+  weightKg: '',
+  note: '',
+};
+
+function DebrisLogForm({ event }: { event: CleanupEvent }) {
+  // One id per log, made on the phone the moment the form opens: if the same log is sent twice
+  // (a retry after a lost answer), the API recognizes it and keeps one
+  const [clientId] = useState(() =&gt; randomUUID());
+  const sendLog = useMutation(sendLogMutation());
+  const {
+    control,
+    handleSubmit,
+    setFocus,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(debrisLogSchema),
+    defaultValues: emptyLog,
+    mode: 'onTouched',
+  });
+
+  // Checked by the schema first; the time is when Send was pressed, not when the form opened
+  const send = handleSubmit((data) =&gt;
+    sendLog.mutate({ event, log: toNewLog(data, clientId, new Date()) }),
+  );
+
+  if (sendLog.isSuccess) {
+    return &lt;LogSent event={event} log={sendLog.data} /&gt;;
+  }
+
+  // The server's "no" in its own words (403 no spot, 409 not yet, 400 fields), else the usual text
+  const error = sendLog.error;
+  const problem =
+    error === null
+      ? null
+      : error instanceof ApiError &amp;&amp; error.status &gt;= 400 &amp;&amp; error.status &lt; 500 &amp;&amp; error.status !== 401
+        ? error.message
+        : describeError(error);
+
+  return (
+    &lt;FormScreen&gt;
+      &lt;View&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          {event.title}
+        &lt;/AppText&gt;
+        &lt;AppText variant="muted"&gt;{formatDate(event.date)}&lt;/AppText&gt;
+      &lt;/View&gt;
+      &lt;AppText&gt;Count what you picked up. Leave a kind at 0 if you found none.&lt;/AppText&gt;
+      &lt;View style={styles.group}&gt;
+        {debrisCategories.map((category) =&gt; (
+          &lt;Controller
+            key={category}
+            control={control}
+            name={`counts.${category}`}
+            render={({ field: { ref, value, onChange, onBlur }, fieldState }) =&gt; (
+              &lt;Stepper
+                ref={ref}
+                label={debrisLabels[category]}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                max={100_000}
+                error={fieldState.error?.message}
+              /&gt;
+            )}
+          /&gt;
+        ))}
+      &lt;/View&gt;
+      &lt;Controller
+        control={control}
+        name="bags"
+        render={({ field: { ref, value, onChange, onBlur }, fieldState }) =&gt; (
+          &lt;Stepper
+            ref={ref}
+            label="Bags filled"
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            max={500}
+            error={fieldState.error?.message}
+          /&gt;
+        )}
+      /&gt;
+      &lt;ControlledField
+        control={control}
+        name="weightKg"
+        label="Weight (kg)"
+        placeholder="For example 2.5"
+        inputMode="decimal" // numbers and a decimal point (or comma)
+        enterKeyHint="next"
+        submitBehavior="submit"
+        onSubmitEditing={() =&gt; setFocus('note')}
+      /&gt;
+      &lt;ControlledField
+        control={control}
+        name="note"
+        label="Note (optional)"
+        multiline // the return key starts a new line here
+        maxLength={500}
+        autoCapitalize="sentences"
+      /&gt;
+      {errors.root !== undefined &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {errors.root.message}
+        &lt;/AppText&gt;
+      )}
+      {sendLog.isPaused &amp;&amp; (
+        &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+          No connection: your log is sent when you are back online. Keep the app open until then.
+        &lt;/AppText&gt;
+      )}
+      {problem !== null &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          Not sent. {problem}
+        &lt;/AppText&gt;
+      )}
+      &lt;Button
+        label={sendLog.isPending ? 'Sending…' : 'Send the log'}
+        variant="primary"
+        disabled={sendLog.isPending}
+        onPress={() =&gt; send()}
+      /&gt;
+    &lt;/FormScreen&gt;
+  );
+}
+
+// After a 201 (or a 200 for a resend): what the server saved, and where to see it
+function LogSent({ event, log }: { event: CleanupEvent; log: CleanupLog }) {
+  const pieces = log.items.reduce((sum, item) =&gt; sum + item.count, 0);
+  return (
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Log sent. Thank you!
+      &lt;/AppText&gt;
+      &lt;AppText accessibilityLiveRegion="polite"&gt;
+        {event.title}: {pieces} {pieces === 1 ? 'piece' : 'pieces'}, {log.bags}{' '}
+        {log.bags === 1 ? 'bag' : 'bags'}, {log.weightKg} kg. It is in your logbook too.
+      &lt;/AppText&gt;
+      &lt;Button label="Done" variant="primary" onPress={leave} /&gt;
+      &lt;Link href="/logbook" dismissTo asChild&gt;
+        &lt;Button label="Open my logbook" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  group: {
+    gap: spacing.md,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Three components, on purpose</strong> (Lesson 5.3's lesson about MyLogbook): signing out unmounts <code>LogForCleanup</code>, and leaving the form unmounts <code>DebrisLogForm</code> with its <code>clientId</code>, so the next log gets a new id.</li>
+                        <li><strong><code>Controller</code> in a loop</strong>: ten steppers from one <code>map</code>, each named <code>counts.${category}</code>, a template literal TypeScript checks against the schema's keys.</li>
+                        <li><strong>The return key</strong>: Weight's Next moves to the note with <code>setFocus('note')</code>; the note is multiline, so its return key types a new line and the button sends.</li>
+                        <li><strong><code>sendLog.mutate</code>, not <code>mutateAsync</code></strong>: offline, the mutation pauses, and an awaited promise would keep the form "submitting" until the connection returned. The screen reads the mutation's own state instead: <code>isPending</code> (Sending…), <code>isPaused</code> (No connection…), <code>error</code>, <code>isSuccess</code>.</li>
+                        <li><strong>The server's "no"</strong>: a 4xx answer's own message (403 no spot, 409 not yet, 400 fields) after "Not sent."; a 401 goes through Lesson 5.2's global handler, which signs the volunteer out and so shows the guest face.</li>
+                    </ul>
+                    <p>Last, register the modal in the root stack, in <code>src/app/_layout.tsx</code>, next to Before you go and outside the <code>Stack.Protected</code> group (the reason is in <a href="#sending">Who sees the form</a>):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">           /&gt;
++          {/* The debris log form. Open to everyone, so a link to it always lands: a guest is asked
++              to sign in on the screen itself (a guarded screen would send them away silently) */}
++          &lt;Stack.Screen name="log/[id]" options={{ presentation: 'modal', title: 'Log debris' }} /&gt;
+           {/* Only for people who are not signed in: signing in takes this screen away */}</code></pre>
+                    </div>
+                    <p>Run <code>npx expo start --clear</code> (new route, new packages) and open <code>/log/e17</code> in the web preview as a guest: "Sign in to log what you collected". Sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>) from that screen: the sign-in closes and the form is there (measured).</p>
+<figure class="screenshot">
+    <img src="images/lesson_18/18-log-form.png" alt="The Log debris modal in the web preview for Tide Pool Morning Cleanup: the date, Count what you picked up, then one row per kind of debris with a minus button, a number box and a plus button: Plastic bottles 3, Plastic bags 0, Food wrappers 1, Bottle caps 12; the first row is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The debris log for today's cleanup. Each kind of debris is a stepper: <strong>−</strong> and <strong>+</strong> for a thumb, and a number box for counts too big to tap up to. (The web preview; on a phone, the number box opens the number pad.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 9: The way in, then send a log <span class="step-time">(5 min)</span></h3>
+                    <p>In <code>src/components/SignupPanel.tsx</code>, offer the log to volunteers with a spot, from the cleanup's day on:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SignupPanel.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SignupPanel.tsx" data-match="diff"><code class="language-diff-tsx">   const signUpLabel = availability.kind === 'full' ? 'Join the waiting list' : 'Sign up';
++  // From the day of the cleanup on, a volunteer with a spot logs what they collected
++  const canLog =
++    event.date &lt;= toDateString(new Date()) &amp;&amp;
++    signups.data.some(
++      ({ eventId, status }) =&gt;
++        eventId === event.id &amp;&amp; (status === 'confirmed' || status === 'attended'),
++    );
+   // The last change that failed, in words (each button forgets the other's failure)
+ // ...
+       )}
++      {canLog &amp;&amp; (
++        &lt;Link href={{ pathname: '/log/[id]', params: { id: event.id } }} asChild&gt;
++          &lt;Button label="Log what you collected" variant="primary" /&gt;
++        &lt;/Link&gt;
++      )}
+       {waiting &amp;&amp; (</code></pre>
+                    </div>
+                    <p>The typed-routes form of the address, <code>{ pathname: '/log/[id]', params: { id } }</code>, makes a misspelled route a tsc error. Now, signed in as Theo, open <strong>Tide Pool Morning Cleanup</strong> (today) and press <strong>Log what you collected</strong>. Type <code>lots</code> in Glass and press <strong>Send the log</strong> with no weight:</p>
+<figure class="screenshot">
+    <img src="images/lesson_18/18-log-errors.png" alt="The log form in the dark theme after Send: the Glass row shows lots in a red-bordered box with the message Count must be a whole number from 0 to 100000., outlined in red, and further down the empty Weight (kg) field shows Weight must be a number of kilograms from 0 to 5000., also outlined." width="420" height="814" loading="lazy">
+    <figcaption><strong>Send the log</strong> with a word in a count box and no weight: the schema stops it on the phone and each message sits under its field. The messages are the API's, so the phone and the server never disagree. (The web preview in dark mode.)</figcaption>
+</figure>
+                    <p>Measured in the web preview: the messages appear and no request is sent. React Hook Form focused Glass, the first problem, and then the web preview took the focus away again: react-native-web treats the browser scrolling to that field as a drag, and <code>keyboardDismissMode="on-drag"</code> closes the "keyboard" (confirmed by turning on-drag off in a copy). On a phone, on-drag reacts only to the volunteer's own drag, so Glass should keep the focus and the keyboard. Fix Glass, type <code>2,5</code> for the weight, add a note, and send:</p>
+<figure class="screenshot">
+    <img src="images/lesson_18/18-log-sent.png" alt="The Log debris modal in the web preview after sending: Log sent. Thank you!, then Tide Pool Morning Cleanup: 16 pieces, 0 bags, 2.5 kg. It is in your logbook too., outlined in red, then a Done button and an Open my logbook button." width="420" height="814" loading="lazy">
+    <figcaption>The API answered <strong>201</strong> with the saved log, and the app copied it into the SQLite logbook from Lesson 5.3. The weight was typed as <code>2,5</code>: the schema read the comma as a decimal point. (The web preview.)</figcaption>
+</figure>
+                    <p>The API's terminal shows one <code>POST /api/events/e17/logs</code> answered 201. <strong>Open my logbook</strong> closes the modal onto the Logbook tab, which now lists the log with its totals (measured: "1 log in all").</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 10: Try it on your phone, then check and commit <span class="step-time">(10 min)</span></h3>
+                    <p>This step is the real test of today: the web preview has no on-screen keyboard. With the API running <code>--host</code> and <code>.env.local</code> on your computer's network address (Lesson 5.1), open the app in Expo Go and check:</p>
+                    <ul>
+                        <li><strong>Sign in:</strong> Email shows the keyboard with <kbd>@</kbd>, no capital letter, and a <strong>Next</strong> key that moves to Password without the keyboard dropping; Password's key says <strong>Go</strong> (or a similar word your keyboard uses) and signs you in.</li>
+                        <li><strong>The log:</strong> tap a count's box: the number pad. Tap Weight: digits and a decimal key (on iPhone, no return key: drag the form to close it). Tap the note near the bottom: the screen makes room and you can see what you type.</li>
+                        <li><strong>Offline:</strong> airplane mode (on iPhone, Wi-Fi off too), press Send: "No connection…", then turn the connection back on and watch it send. Then try it again and force-quit before reconnecting: the log is gone. That is the gap Lesson 5.5 closes.</li>
+                    </ul>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The keyboards, the return keys and the keyboard avoidance were written from the React Native and Expo documentation and could not be run here; the web preview checks of the same code (focus moving on <kbd>Enter</kbd>, the <code>inputmode</code> and <code>enterkeyhint</code> attributes, the messages, the sends) were measured. Keyboard apps differ: the corner key may read "next" with an arrow, "Go", or a checkmark. If a field hides under the keyboard, see the KeyboardAvoidingView card in <a href="#mistakes">Common Mistakes</a>. If Android's keyboard leaves a gap above itself, look for <code>softwareKeyboardLayoutMode</code> in app.json (there is none in Shoreline Crew).</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p>tsc prints nothing, and expo lint only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-info">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, list every form and, for each field, write three things: the keyboard (<code>inputMode</code>, <code>autoComplete</code>), what its return key does, and whether a thumb control (stepper, switch, choice group) would beat typing. Put every form on a <code>FormScreen</code>, and anything that creates a record on the server gets an id made on the phone.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ react-hook-form, zod, @hookform/resolvers and expo-crypto installed with <code>npx expo install</code></li>
+                        <li>☐ <code>signInSchema</code> and <code>debrisLogSchema</code> use the API's messages; a comma works as a decimal point</li>
+                        <li>☐ Sign-in uses <code>ControlledField</code>, checks itself before sending, and moves Email → Password → signed in with the return key</li>
+                        <li>☐ Both forms sit on <code>FormScreen</code> (KeyboardAvoidingView, padding, header offset), and no field hides under the keyboard on your phone</li>
+                        <li>☐ Log what you collected opens the modal for today's cleanup; a guest is asked to sign in there; the steppers, weight and note send a log that lands in the logbook</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 10 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: The check-in code's keyboard</h3>
+                    <p>Lesson 6.3 adds a check-in screen: the volunteer types the day's four-digit code that the organizer reads out (for example <code>4111</code>) and checks in. Without writing code, decide the field's props: which keyboard, which <code>autoComplete</code> and <code>autoCorrect</code>, a <code>maxLength</code>, what its return key says and does, and what an iPhone volunteer presses instead.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Go back to the two things the number pads leave out. Is a code a number you count with, or digits you copy?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>inputMode="numeric"</code> (digits only), <code>autoComplete="off"</code> and <code>autoCorrect={false}</code> (nothing to suggest), <code>maxLength={4}</code>, <code>enterKeyHint="go"</code> with <code>onSubmitEditing={() =&gt; send()}</code> for Android's number keyboard. On iPhone the number pad has no return key, so a visible <strong>Check in</strong> button is required, not optional. In the schema it stays a string (<code>/^\d{4}$/</code>), never a number: a code like <code>0420</code> would lose its zero.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Nothing to log?</h3>
+                    <p>Right now a volunteer can send a log with every count at 0 and no bags. Add a rule to <code>debrisLogSchema</code> that rejects that, with the message "Count at least one piece, or the bags you filled." under the bags stepper.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A rule about several fields belongs to the object (the web course's end-time rule): <code>.refine(check, { path: [...], error })</code>, placed before the final <code>.transform</code>, where <code>counts</code> holds numbers already.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>src/api/schemas.ts</code>, between the <code>z.object({…})</code> and the <code>.transform</code> (type-checked and linted in a copy of the project):</p>
+                        <pre data-snippet><code class="language-ts">  // A log with nothing in it is a mistake: say so under the bags stepper
+  .refine(({ counts, bags }) =&gt; Object.values(counts).some((count) =&gt; count &gt; 0) || bags &gt; 0, {
+    path: ['bags'],
+    error: 'Count at least one piece, or the bags you filled.',
+  })</code></pre>
+                        <p>Measured in the web preview: weight 0 and nothing else, Send showed the message under Bags filled and sent nothing; one press of <strong>+</strong> on Bags filled, Send, and the log went through. The object's refine runs only when every field is valid, which is fine here: with a bad count, that count's own message comes first.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Characters left</h3>
+                    <p>The note stops at 500 characters (<code>maxLength</code>), silently. Show "N characters left" under it while the volunteer types.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The web course's FAQ named the tool: <code>useWatch</code> reads one field's value as it changes. Use the Hook, not <code>watch()</code> (the lint rules warn about <code>watch</code>).</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>DebrisLogForm</code>, import <code>useWatch</code> from react-hook-form, then after <code>useForm</code>:</p>
+                        <pre data-snippet><code class="language-tsx">// The note as the volunteer types it (useWatch re-renders this form on every letter)
+const note = useWatch({ control, name: 'note' });</code></pre>
+                        <p>and under the note's <code>ControlledField</code>: <code>&lt;AppText variant="muted"&gt;{500 - note.length} characters left&lt;/AppText&gt;</code>. tsc and expo lint pass (checked in a copy). The comment is the trade-off: a watched field re-renders its component on every keystroke, so watch in the smallest component you can.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: One control for a screen reader (Stretch)</h3>
+                    <p>With VoiceOver or TalkBack, today's stepper is three stops: "Fewer: Glass, button", "Glass, 0", "More: Glass, button". Platforms have a single control for this, an adjustable one you change by swiping up or down. Make the stepper's row one adjustable control, then decide whether you like the trade-off.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>On the row View: <code>accessible</code>, <code>accessibilityRole="adjustable"</code>, <code>accessibilityValue={{ text: value }}</code>, <code>accessibilityActions</code> with <code>increment</code> and <code>decrement</code>, and <code>onAccessibilityAction</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Replace the row's opening tag in <code>Stepper.tsx</code> (type-checked and linted in a copy of the project; the screen reader behavior is from React Native's accessibility documentation, not run here):</p>
+                        <pre data-snippet><code class="language-tsx">&lt;View
+  style={styles.row}
+  // One control for a screen reader: swipe up or down to change the count
+  accessible
+  accessibilityRole="adjustable"
+  accessibilityLabel={label}
+  accessibilityValue={{ text: value }}
+  accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+  onAccessibilityAction={({ nativeEvent }) =&gt; {
+    if (nativeEvent.actionName === 'increment' &amp;&amp; count &lt; max) {
+      onChange(String(count + 1));
+    } else if (nativeEvent.actionName === 'decrement' &amp;&amp; count &gt; 0) {
+      onChange(String(count - 1));
+    }
+  }}
+&gt;</code></pre>
+                        <p>The trade-off: <code>accessible</code> groups the row into one element, so a screen reader no longer reaches the number box inside, and typing 230 means 230 swipes. One answer is to keep the box outside the adjustable group. Lesson 8.1 tests these choices with a real screen reader.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate copies a field from the HQ: <code>&lt;TextInput {...register('weightKg')} /&gt;</code>. tsc and expo lint are quiet. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="register reads the value where a browser input keeps it. Does a TextInput keep it there?">
+                                A) It works exactly as on the web
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="register is built around HTML inputs: it reads the value from the change event's target and the element itself. A TextInput reports its text differently, so the form never gets it. useController or Controller hands the field value, onChange, onBlur and a ref instead.">
+                                B) It type-checks, but the form never gets what the volunteer types
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson measured what tsc and lint said about it.">
+                                C) The app shows a red error screen as soon as the form opens
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> On an iPhone, a volunteer types the weight and cannot find the Next key that should move to the note. The code has <code>enterKeyHint="next"</code> and <code>onSubmitEditing</code>. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The same props work on the email field.">
+                                A) enterKeyHint only works on Android
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="submitBehavior decides whether the keyboard stays up, not whether the key exists.">
+                                B) submitBehavior should be blurAndSubmit
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Making room for the keyboard does not change its keys.">
+                                C) KeyboardAvoidingView hides the key
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="According to React Native's documentation, the iOS decimal pad and number pad have no return key, so there is nothing to press. Volunteers tap the next field or drag the form to close the keyboard, which is one reason the counts use steppers.">
+                                D) The iOS decimal pad has no return key at all
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> On a phone, the bottom field of a modal with a header is still partly under the keyboard, though the form is inside a KeyboardAvoidingView with <code>behavior="padding"</code>. What is the likely fix?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="KeyboardAvoidingView measures the keyboard from the top of the window, but the screen starts under the header. keyboardVerticalOffset with the header height (useHeaderHeight) makes the padding come out right.">
+                                A) Pass the header's height as <code>keyboardVerticalOffset</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Expo's guide warns about combining pan with padding.">
+                                B) Add <code>softwareKeyboardLayoutMode: "pan"</code> in app.json as well
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the field be any easier to reach without scrolling?">
+                                C) Replace the ScrollView with a plain View
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Theo presses Send on a beach with one bar of signal. The log reaches shoreline-api, but the answer never reaches the phone, and he presses Send again. What does the API do with the second request?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does the second request share with the first?">
+                                A) Saves a second log, so the counts are doubled
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson measured the status of a resend.">
+                                B) Answers 409, and the app shows an error
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The form made the clientId once, so both requests carry the same one. shoreline-api finds the log it already saved for that volunteer and clientId and answers 200 with it: a resend, never a duplicate.">
+                                C) Answers 200 with the log it already has, because the clientId is the same
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> A crew leader texts a link to the debris log for today's cleanup. Amara opens it without being signed in. What does Shoreline Crew show?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That is what a Stack.Protected guard would do. Is log/[id] guarded?">
+                                A) The Cleanups tab, with no explanation
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="log/[id] is not guarded: it has a guest face. Amara signs in on top of it; the sign-in closes and the screen underneath now knows who she is (and, since she has no spot at that cleanup, it says so in the API's words).">
+                                B) "Sign in to log what you collected", with a Sign in button; after signing in she stays on the log screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Links only open screens; the API checks who is asking.">
+                                C) The form, and the API rejects the log when she sends it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+                <details class="card">
+                    <summary>Should I use react-native-keyboard-controller instead?</summary>
+                    <p>For a polished production app, probably: Expo's keyboard guide recommends it, and its <code>KeyboardAwareScrollView</code> scrolls to the focused field by itself while <code>KeyboardToolbar</code> adds Previous/Next/Done buttons above the keyboard (which also solves the iPhone number pad's missing return key). It is a native module that is not in Expo Go, so it needs a development build, which Lesson 9.2 sets up. The course keeps React Native's built-in <code>KeyboardAvoidingView</code> so everything runs in Expo Go; because both forms use <code>FormScreen</code>, switching later means changing one file.</p>
+                </details>
+                <details class="card">
+                    <summary>What about ScrollView's automaticallyAdjustKeyboardInsets?</summary>
+                    <p>It is an iOS-only ScrollView prop that adds the keyboard's height to the scroll view's inset, according to React Native's documentation. It does nothing on Android, where edge-to-edge apps need the padding anyway, so Shoreline Crew uses one approach on both platforms.</p>
+                </details>
+                <details class="card">
+                    <summary>Why does the stepper hold text instead of a number?</summary>
+                    <p>Because its box is a text field, and a text field can hold "1", "12", "" or "lots" while the volunteer types. If the form held a number, an empty box would have to become 0 or <code>NaN</code> the moment it was cleared. Holding text and letting the schema turn it into a number is the HQ's rule from the web course: <code>z.input</code> is what the screen shows, <code>z.output</code> is what you send.</p>
+                </details>
+                <details class="card">
+                    <summary>Can a volunteer edit a log after sending it?</summary>
+                    <p>Not with shoreline-api: it has no endpoint to change or delete a log (see the API reference). A resend with the same <code>clientId</code> returns the saved log unchanged, even if the counts differ. That is why the form checks everything before sending, and why Lesson 5.5's queue keeps logs unchangeable once they are queued.</p>
+                </details>
+                <details class="card">
+                    <summary>Why not show the keyboard as soon as the log opens (autoFocus)?</summary>
+                    <p>The first thing on the log is a stepper, which needs no keyboard, and a keyboard that jumps up over half the form is in the way. <code>autoFocus</code> suits screens with one obvious text field (a search screen, the check-in code). On sign-in it would be reasonable on Email; try it and decide.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make the log faster for the common case: most volunteers fill one or two bags and pick up the same few kinds. Add a "Last time" button that fills the counts from the volunteer's most recent log in the logbook (Lesson 5.3's <code>readLogbook</code> keeps totals, not categories, so decide first: add a column with a migration, or read the log from the API?). Use React Hook Form's <code>reset(values)</code> to fill the form, and think about the <code>clientId</code>: a filled-in form is still a new log.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Fill in the debris log on your phone standing up, with one hand, as if you were on the beach. Write down every moment you had to stop and think, look for something, or use your other hand. Which of those could the app fix, and how?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>React Hook Form and Zod come across unchanged; the fields connect with <code>useController</code> or <code>Controller</code>, never <code>register</code>, and <code>handleSubmit</code> is called as <code>() =&gt; send()</code></li>
+                        <li>Every field asks for its keyboard (<code>inputMode</code>, <code>autoComplete</code>, <code>secureTextEntry</code>); number pads may have no return key (iPhone) and a comma for a decimal point</li>
+                        <li>The return key walks the form: <code>enterKeyHint</code>, <code>submitBehavior="submit"</code> and <code>setFocus</code>; the last field submits; the ref also lets the form focus the first problem</li>
+                        <li><code>KeyboardAvoidingView</code> with <code>behavior="padding"</code> on both platforms and the header's height as the offset keeps fields above the keyboard</li>
+                        <li>Thumb controls (a stepper) beat a keyboard for small counts; keep a text box for big ones</li>
+                        <li>A record made on the phone carries an id made on the phone (<code>clientId</code>), made once, so a resend is recognized, not duplicated</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Expo's keyboard guide</td><td><a href="https://docs.expo.dev/guides/keyboard-handling/" target="_blank" rel="noopener">Expo: Keyboard handling</a></td></tr>
+                            <tr><td>Look up every TextInput prop</td><td><a href="https://reactnative.dev/docs/textinput" target="_blank" rel="noopener">React Native: TextInput</a></td></tr>
+                            <tr><td>Look up useController and Controller</td><td><a href="https://react-hook-form.com/docs/usecontroller" target="_blank" rel="noopener">React Hook Form: useController</a></td></tr>
+                            <tr><td>Look up KeyboardAvoidingView</td><td><a href="https://reactnative.dev/docs/keyboardavoidingview" target="_blank" rel="noopener">React Native: KeyboardAvoidingView</a></td></tr>
+                            <tr><td>Look up the logs endpoint</td><td><a href="api.html#endpoints">API reference: endpoints</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Sign-in checks itself on the phone and moves with the return key</li>
+                        <li>A debris log a volunteer can fill in with one thumb, that the keyboard never covers</li>
+                        <li>Logs reach shoreline-api with an id made on the phone and land in the logbook</li>
+                        <li>You can review any mobile form for keyboards, return keys and keyboard avoidance</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Today a log waits for the connection only as long as the app stays open. In <a href="lesson_19.html">Lesson 5.5: Offline First</a>, the Send button puts the <code>LogToSend</code> into a queue saved on the phone (Zustand's <code>persist</code> with AsyncStorage), the Logbook tab shows what is still waiting, and the queue sends itself when NetInfo says the phone is back online, safe to retry thanks to the <code>clientId</code>. Each sent log still goes into the logbook, as today.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 10's keyboard checks on your phone (or the emulator) and commit your work</li>
+                    <li>Send a log offline, force-quit Expo Go before reconnecting, and notice that the log is gone: remember the feeling, Lesson 5.5 fixes it</li>
+                    <li>Write today's journal entry from your one-handed test</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today the tools stopped you twice, tsc on <code>handleSubmit</code> and the linter on <code>field.ref</code>, and both times they were telling you, correctly, that a habit from the web does not fit a phone. That is what this course is about: you read the message, found the seam, and fixed it. The volunteers will never know how much thought went into a Next key, a stepper and an id made on the phone. They will just finish their log and go home, which is exactly the point.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_17.html" class="prev-lesson">← Previous: Storing Data on the Device</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_19.html" class="next-lesson">Next: Offline First →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 11</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 11: Sign-In Flows and Deep Links</h1>
+    <p class="sub">Answers and reasoning for every Session 11 item: the warm-up, both self-checks, the predict-then-check items, the lab reference outputs, the lesson pages' own quizzes and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>11</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Warm-up</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>**W1.** Which file answers the address <code class="inline">/cleanups/e08</code>, and how does the screen read <code class="inline">e08</code>? **Answer:** <code class="inline">src/app/cleanups/[id].tsx</code>; <code class="inline">useLocalSearchParams&lt;{ id: string }&gt;()</code> (typed params, Lesson 4.1).</li>
+  <li>**W2.** The tabs live in <code class="inline">src/app/(tabs)/</code>. What does the folder name <code class="inline">(tabs)</code> add to an address? **Answer:** Nothing: a group's name is not part of the address (<code class="inline">/profile</code> is <code class="inline">(tabs)/profile.tsx</code>, Lesson 4.2).</li>
+  <li>**W3.** Before you go is a modal. What does <code class="inline">presentation: 'modal'</code> change on a phone, and in the web preview? **Answer:** On a phone the screen slides up over the tabs; the web preview shows it as an ordinary screen with a back arrow (Lesson 4.2).</li>
+  <li>**W4.** Its Done button calls <code class="inline">router.back()</code> only <code class="inline">if (router.canGoBack())</code>. Why the check? **Answer:** A modal opened straight from its address has nothing underneath: back would go nowhere, so it replaces itself with the Cleanups tab (Lesson 4.2). Today that question returns twice.</li>
+</ol>
+
+  <div class="sec"><h2>4.3 · Sign-In Flows and Protected Routes: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">After Theo signs in on a phone, what does Shoreline Crew write to secure storage?</div><div class="opts"><div class="opt">A) His email and password, so it can sign in again at the next start</div><div class="opt correct">B) The session as JSON: the API's token and the user it belongs to</div><div class="opt">C) Only his email; the token stays in memory</div><div class="opt">D) The token, in an <code class="inline">EXPO_PUBLIC_</code> variable</div></div><div class="why"><b>Why:</b> <code class="inline">saveCopy</code> writes <code class="inline">JSON.stringify(session)</code> (token + user) under <code class="inline">shoreline-crew-session</code>; secure storage holds strings, so the object is saved as JSON. The password is sent once and never stored (Lesson 4.3, Never store the password).<br><b>A</b> is wrong: A stolen password works everywhere it was reused; a token can be ended.<br><b>C</b> is wrong: Then a restart would sign him out: the token is what must survive.<br><b>D</b> is wrong: <code class="inline">EXPO_PUBLIC_</code> text is copied into the app's JavaScript when it is built: anyone can read it.</div></div>
+  <div class="q" data-sc="2" data-kind="short"><div class="qn">Q2</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this after a change to Profile. What is it telling you, and what are the two honest fixes?</div><pre class="code">src/app/(tabs)/profile.tsx:14:17 - error TS18047: 'session' is possibly 'null'.
+
+14   const token = session.token;
+                   ~~~~~~~
+
+
+Found 1 error in src/app/(tabs)/profile.tsx:14</pre><div class="opts"><div class="opt correct">A guest has no session, so <code class="inline">session</code> can be <code class="inline">null</code> there: check for null first, or write <code class="inline">session?.token</code> when "no token" is a fine answer (as Profile does)</div></div><div class="why"><b>Why:</b> TS18047 is TypeScript doing its job: <code class="inline">useSession()</code> returns <code class="inline">Session | null</code>. The kit ran it on the app as Lesson 4.3 ends; the output is the lesson's card, word for word.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">What does expo-secure-store 58 do in the web preview?</div><div class="opts"><div class="opt">A) It stores values in localStorage instead</div><div class="opt">B) It stores values in memory until the page reloads</div><div class="opt correct">C) <code class="inline">isAvailableAsync()</code> resolves to false, and get/set reject with a TypeError</div><div class="opt">D) It throws as soon as the module is imported</div></div><div class="why"><b>Why:</b> The lesson measured it: <code class="inline">isAvailableAsync()</code> is false; <code class="inline">getItemAsync</code> rejects with <code class="inline">TypeError: ExpoSecureStore.default.getValueWithKeyAsync is not a function</code>. So <code class="inline">loadSession()</code> asks first and keeps the web preview's session in memory only.<br><b>A</b> is wrong: That would be the unsafe fallback the lesson rejects on purpose: any script on the page can read localStorage.<br><b>B</b> is wrong: The APP keeps it in memory in the web preview; the library itself stores nothing there.<br><b>D</b> is wrong: Importing works; only the calls fail.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">A teammate's sign-in screen calls <code class="inline">setSession(session)</code> and THEN <code class="inline">router.back()</code>. Theo opens it from the Profile tab and signs in. Where does he land?</div><div class="opts"><div class="opt">A) Back on Profile, signed in</div><div class="opt">B) On the sign-in screen, which stays open</div><div class="opt">C) On the not-found screen</div><div class="opt correct">D) On the Cleanups tab: the guard removed the screen before back() ran</div></div><div class="why"><b>Why:</b> The moment the session is set, <code class="inline">Stack.Protected guard={session === null}</code> takes the sign-in route away while it is still open, and Expo Router redirects to the anchor (the first screen). Close first, then set the session (Lesson 4.3, Step 5; measured).<br><b>A</b> is wrong: That is what the lesson's order (back, then setSession) gives.<br><b>B</b> is wrong: A guarded screen cannot stay: its route no longer exists.<br><b>C</b> is wrong: The route did exist when he opened it.</div></div>
+  <div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt"><code class="inline">request()</code> forgets the session on a 401 only <code class="inline">if (response.status === 401 &amp;&amp; session !== null)</code>. Why the second condition?</div><div class="opts"><div class="opt correct">A) A wrong password is also a 401, and that request carried no token: there is nothing to forget</div><div class="opt">B) Guests never get a 401</div><div class="opt">C) The API sends 401 only to signed-in requests</div><div class="opt">D) Without it, TypeScript reports that session is possibly null</div></div><div class="why"><b>Why:</b> POST /api/auth/sign-in with a wrong password answers 401 "Email or password is incorrect." (the kit's demo). That is a failed try, not an ended session; the sign-in screen shows the API's words.<br><b>B</b> is wrong: A guest gets a 401 from a wrong password, and from <code class="inline">/api/auth/me</code> ("Sign in first.").<br><b>C</b> is wrong: The sign-in endpoint answers 401 to a guest.<br><b>D</b> is wrong: <code class="inline">setSession(null)</code> compiles either way.</div></div>
+  <div class="q" data-sc="6" data-kind="short"><div class="qn">Q6</div><div class="qt">Why does <code class="inline">useSession()</code> pass a third function, <code class="inline">() =&gt; null</code>, to <code class="inline">useSyncExternalStore</code>, and what do you see without it?</div><div class="opts"><div class="opt correct">The web preview draws each page on a server first, where nobody is signed in; without it Metro prints <code class="inline">Missing getServerSnapshot, which is required for server-rendered content</code> on every page load (phones never call it)</div></div><div class="why"><b>Why:</b> The page still appears because React gives up on the server's version and draws it again in the browser; tsc and the linter say nothing (Lesson 4.3, the first Common Mistake; Lab 4.3's <code class="inline">useSession.ts</code>).</div></div>
+
+  <div class="sec"><h2>4.3 · Sign-In Flows and Protected Routes: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">Predict, then check.</div><pre class="code">GET http://localhost:4000/api/auth/me</pre><div class="opts"><div class="opt correct"><pre class="out">HTTP/1.1 401 Unauthorized
+cache-control: no-store
+content-type: application/json; charset=utf-8
+vary: Origin
+
+{
+  "error": "unauthorized",
+  "message": "Sign in first."
+}</pre></div></div><div class="why"><b>Why:</b> 401 with "Sign in first.": <code class="inline">/api/auth/me</code> needs a token. Not "Your session has ended": no token was sent, so the client's 401 rule would not forget anything either.</div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Predict, then check.</div><pre class="code">GET http://localhost:4000/api/sites/driftwood-cove
+Authorization: Bearer st_yesterday_v04</pre><div class="opts"><div class="opt correct"><pre class="out">HTTP/1.1 401 Unauthorized
+cache-control: no-store
+content-type: application/json; charset=utf-8
+vary: Origin
+
+{
+  "error": "unauthorized",
+  "message": "Your session has ended. Sign in again."
+}</pre></div></div><div class="why"><b>Why:</b> 401 "Your session has ended. Sign in again." even for a public beach: the API checks a token before routing, because the request claimed to be someone. This is how the Cleanups list can say the sign-in has ended after an API restart.</div></div>
+
+  <div class="sec"><h2>4.4 · Deep Links: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">In the web preview, what does <code class="inline">Linking.createURL('/cleanups/e08')</code> give?</div><div class="opts"><div class="opt">A) <code class="inline">shorelinecrew://cleanups/e08</code></div><div class="opt">B) <code class="inline">exp://192.168.1.42:8081/--/cleanups/e08</code></div><div class="opt">C) <code class="inline">/cleanups/e08</code></div><div class="opt correct">D) <code class="inline">http://localhost:8081/cleanups/e08</code></div></div><div class="why"><b>Why:</b> A browser needs an ordinary web address, measured in the lesson. In Expo Go the documentation gives the <code class="inline">exp://…/--/</code> form, in a build <code class="inline">shorelinecrew://</code>. That is why the app never writes <code class="inline">shorelinecrew://</code> by hand.<br><b>A</b> is wrong: Only a build of the app registers that scheme.<br><b>B</b> is wrong: That is Expo Go's form, for a phone running the project.<br><b>C</b> is wrong: A path alone is not a link anyone can tap.</div></div>
+  <div class="q" data-sc="8" data-kind="short"><div class="qn">Q8</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this. What does the type want, and what is the fix?</div><pre class="code">src/app/cleanups/[id].tsx:97:25 - error TS2345: Argument of type '{ title: string; }' is not assignable to parameter of type 'ShareContent'.
+  Property 'message' is missing in type '{ title: string; }' but required in type '{ title?: string | undefined; url?: string | undefined; message: string; }'.
+
+97       await Share.share({ title: event.title });
+                           ~~~~~~~~~~~~~~~~~~~~~~</pre><div class="opts"><div class="opt correct">ShareContent is "a url, or a message, or both" (two object types joined by |): give it a <code class="inline">message</code> (the lesson puts the link inside it)</div></div><div class="why"><b>Why:</b> TypeScript picked the union member with <code class="inline">message</code> to complain about. The kit's run on the 4.4 app is the lesson's card, word for word.</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">You write <code class="inline">export const unstable_settings = { anchor: 'index' }</code> in the root layout. What do <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> say?</div><div class="opts"><div class="opt">A) TS2322: 'index' is not assignable to the route names</div><div class="opt correct">B) Nothing new: tsc prints nothing, lint only its two env: lines</div><div class="opt">C) One lint error from expo-router's rules</div><div class="opt">D) Metro refuses to start</div></div><div class="why"><b>Why:</b> The setting is a plain object, so no checker knows it is wrong (the kit ran both). Expo Router finds out when it builds the stack: a blank web page and "The initial route name "index" was not found in the layout", with the list of the layout's routes. Lab 4.4 Task 3 shows the same message in Jest.<br><b>A</b> is wrong: The export is not typed against your routes.<br><b>C</b> is wrong: No lint rule reads it.<br><b>D</b> is wrong: Metro starts; the error appears when a page is drawn.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">With the anchor in place, the not-found screen still says <code class="inline">&lt;Link href="/" replace&gt;</code>. A volunteer presses Back to the cleanups. What is on the page?</div><div class="opts"><div class="opt">A) The Cleanups tab, exactly as before</div><div class="opt">B) A blank screen</div><div class="opt correct">C) Two tab bars: a copy of the tabs on top of the ones underneath</div><div class="opt">D) The not-found screen again</div></div><div class="why"><b>Why:</b> The tabs were already underneath (the anchor); replacing the not-found screen with <code class="inline">/</code> put a second copy on top (measured: two tab bars). Nothing warns you. <code class="inline">dismissTo</code> closes screens back to the existing tabs (Step 3).<br><b>A</b> is wrong: It looks like it, which is why this bug is sneaky.<br><b>B</b> is wrong: Something renders: twice.<br><b>D</b> is wrong: The not-found screen was replaced.</div></div>
+  <div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Which of these may a link into Shoreline Crew carry?</div><div class="opts"><div class="opt">A) The volunteer's token, so the friend is signed in at once</div><div class="opt">B) A password-reset code</div><div class="opt correct">C) The id of a cleanup</div><div class="opt">D) <code class="inline">?join=yes</code>, so the cleanup signs the reader up as it opens</div></div><div class="why"><b>Why:</b> Links end up in message histories and screenshots and can be written by anyone: they carry only public ids, and a link only ever opens a screen (Lesson 4.4; Lab 4.4 Task 3 makes <code class="inline">?join=yes</code> harmless).<br><b>A</b> is wrong: Never a token or a password in a link.<br><b>B</b> is wrong: shoreline-api has no such codes, and real ones are short-lived and single-use.<br><b>D</b> is wrong: A link that acts on its own could be sent to anyone.</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt"><code class="inline">npx uri-scheme list</code> prints <code class="inline">Could not find any native URI schemes to list.</code> What does it mean?</div><div class="opts"><div class="opt correct">A) The project has no ios/ or android/ folders yet: Expo writes the scheme into them at build time</div><div class="opt">B) app.json has no scheme</div><div class="opt">C) uri-scheme failed to install</div><div class="opt">D) The phone is not connected</div></div><div class="why"><b>Why:</b> uri-scheme reads the native projects, and an Expo project has none until a build (Module 9). The scheme lives in app.json until then: the kit's <code class="inline">grep</code> found <code class="inline">"scheme": "shorelinecrew"</code> in it.<br><b>B</b> is wrong: It is there, written by create-expo-app.<br><b>C</b> is wrong: It ran and answered.<br><b>D</b> is wrong: <code class="inline">list</code> does not talk to a phone.</div></div>
+
+  <div class="sec"><h2>4.4 · Deep Links: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P3</div><div class="qt">Predict, then check.</div><pre class="code">npx tsc --noEmit</pre><div class="opts"><div class="opt correct"><pre class="out">(no output: tsc accepts it)</pre></div></div><div class="why"><b>Why:</b> tsc prints nothing: <code class="inline">{ message, url }</code> is a valid ShareContent. On Android the friend gets "Join me at Weekend Cove!" WITHOUT the link (React Native's Android code passes only title and message; the lesson read it in the source, no emulator ran). Put the link inside the message.</div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">Predict, then check.</div><pre class="code">npx tsc --noEmit
+npx expo lint</pre><div class="opts"><div class="opt correct"><pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL</pre></div></div><div class="why"><b>Why:</b> Only the two <code class="inline">env:</code> lines of <code class="inline">npx expo lint</code>; tsc prints nothing. The anchor is a plain object: Expo Router reports it when it builds the stack (the lesson's Metro card; Lab 4.4 Task 3 in Jest).</div></div>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, a terminal like a learner's, a fresh copy of the lab folder with the shared install). Test durations are left out. Both labs' package.json carry one setting from the course app's own Jest configuration (Lesson 8.2): <code class="inline">"fakeTimers": { "doNotFake": ["nextTick", "queueMicrotask"] }</code>, because expo-router's <code class="inline">renderRouter</code> switches fake timers on and a screen's fetch would otherwise never finish.</p>
+<div class="blk lab"><div class="h">Lab 4.3 (guided): labs/module-11/l4_3-sign-in-flows-and-protected-routes/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (each failing test and its first line; <code class="inline">npm run typecheck</code> passes: nothing in the starter is a type error):</p>
+<pre class="out">● Task 2: the web preview has no secure storage: memory only, no error
+  expect(received).resolves.toBeUndefined()
+● Task 2: damaged data means nobody is signed in, not a crash
+  expect(received).resolves.toBeUndefined()
+● Task 2: data saved in an older shape is not trusted
+  expect(received).toBeNull()
+● Task 2: a saved session comes back, and every change is saved
+  expect(jest.fn()).toHaveBeenCalledWith(...expected)
+● Task 1: the badge draws again when someone signs in
+  Unable to find an element with role: header, name: Theo Nakamura
+● Task 1: Sign out forgets the session, and the badge says so
+  Unable to find an element with role: header, name: Not signed in
+● Task 3: a volunteer who opens /kit-room lands on the first screen
+  expect(received).toBeNull()
+● Task 3 (needs Task 1): signing in while /sign-in is open takes the screen away
+  expect(received).toBeNull()</pre><p>The solution (<code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<pre class="out"> PASS  src/savedSession.test.ts
+ PASS  src/badge.test.tsx
+ PASS  src/guards.test.tsx
+Tests:       11 passed, 11 total</pre><ul class="tick">
+  <li><b>Task 1:</b> <code class="inline">for (const listener of listeners) listener();</code> at the end of <code class="inline">setSession</code>. <code class="inline">useSyncExternalStore</code> draws again only when the store calls the function it subscribed. The third function (<code class="inline">() =&gt; null</code>) answers for the web preview's server, where nobody is signed in (Self-check Q6).</li>
+  <li><b>Task 2:</b> <code class="inline">if (!(await SecureStore.isAvailableAsync())) return;</code>, then <code class="inline">try { getItemAsync → JSON.parse → setSession(isSession(value) ? value : null) } catch { console.warn }</code>, then <code class="inline">onSessionChange(saveCopy)</code> with <code class="inline">setItemAsync(sessionKey, JSON.stringify(session))</code> / <code class="inline">deleteItemAsync(sessionKey)</code>. The same shape as the lesson's <code class="inline">loadSession</code>. The web-preview test is programmed with the error Lesson 4.3 measured; Jest has no keychain, so the four calls are stand-ins: on a phone the Keychain or Keystore answers (the documentation).</li>
+  <li><b>Task 3:</b> <code class="inline">&lt;Stack.Protected guard={session?.user.role === 'organizer'}&gt;</code> around the kit room. A volunteer who types <code class="inline">/kit-room</code> lands on <code class="inline">/</code> (the stack's first screen: the guard's redirect). The last test needs Task 1: a guard can only react to a change it hears about. Accept <code class="inline">session !== null &amp;&amp; session.user.role === 'organizer'</code>.</li>
+</ul>
+</div>
+<div class="blk lab"><div class="h">Lab 4.4 (guided): labs/module-11/l4_4-deep-links/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (each failing test and its first line):</p>
+<pre class="out">● Task 1: last spring's QR codes open the cleanup
+  expect(received).toBe(expected) // Object.is equality
+● Task 1: a strange link opens the first screen, and never crashes the app
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: the link travels inside the message (Android shares only title and message)
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: no share sheet here: the link to copy appears, and can be selected
+  Unable to find an element with text: Sharing is not available here. Copy this link instead: shorelinecrew://cleanups/e08
+● Task 3: a link straight to a cleanup has the tabs underneath, and back leads to them
+  The initial route name "index" was not found in the layout at "./_layout.js". Available routes are: "(tabs)", "cleanups/[id]". Set `unstable_settings.anchor` to the name of a route in this layout.
+● Task 3: a link only opens a screen: ?join=yes signs nobody up
+  The initial route name "index" was not found in the layout at "./_layout.js". Available routes are: "(tabs)", "cleanups/[id]". Set `unstable_settings.anchor` to the name of a route in this layout.</pre><p>The solution (typecheck, lint and <code class="inline">npx expo export --platform web</code> all pass):</p>
+<pre class="out"> PASS  src/oldLinks.test.ts
+ PASS  src/share.test.tsx
+ PASS  src/linked.test.tsx
+Tests:       8 passed, 8 total</pre><ul class="tick">
+  <li><b>Task 1:</b> read the flyer's <code class="inline">cleanup</code> with <code class="inline">URLSearchParams</code>, <code class="inline">decodeURIComponent</code> the id inside <code class="inline">try</code>, accept only letters and digits, <code class="inline">catch</code> → <code class="inline">'/'</code>. As shipped, the first strange link comes out as <code class="inline">/cleanups/e08/../sign-in</code> (a decoded id that is really a path); with that fixed, the broken escape <code class="inline">%E0%A4%A</code> makes <code class="inline">decodeURIComponent</code> throw (Node: <code class="inline">URIError: URI malformed</code>); in a real <code class="inline">+native-intent.tsx</code> an error there crashes the app before any screen can show it (the lesson's Exercise 4 and the Expo Router documentation).</li>
+  <li><b>Task 2:</b> <code class="inline">message: inviteMessage(event, link)</code> (the link on its own last line), and <code class="inline">catch { setLinkToCopy(link) }</code> with <code class="inline">&lt;Text selectable accessibilityLiveRegion="polite"&gt;</code>. The tests stand in for the share sheet: Jest has none (the starter's real call rejected with a native-module error in the kit's first try). On a phone the documentation describes the sheet; Android drops <code class="inline">url</code> (the lesson read it in React Native's source).</li>
+  <li><b>Task 3:</b> <code class="inline">anchor: '(tabs)'</code> (the error lists the root layout's routes: <code class="inline">index</code> lives inside <code class="inline">(tabs)</code>); then delete the <code class="inline">?join=yes</code> effect and read only <code class="inline">id</code>. The second test counts sign-ups in MSW: none on open, one after the press.</li>
+</ul>
+</div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 4.3 · Sign-In Flows and Protected Routes</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="4.3">
+  <li><b>B</b> In secure storage, with expo-secure-store: expo-secure-store keeps it in the iOS Keychain or encrypted with the Android Keystore, where other apps cannot read it. It is async, so the app waits for it at startup.</li>
+  <li><b>D</b> The Cleanups tab, because the guarded route redirects to the stack's first screen: The guard is false while someone is signed in, so the sign-in route is taken out and Expo Router redirects to the root stack's anchor, the tabs, which open on Cleanups.</li>
+  <li><b>A</b> The API answers 401, and the app forgets the session and clears the saved copy: The API no longer knows the token and answers 401. The client forgets the session, the listener in session.ts deletes the saved copy, and the screens redraw as signed out.</li>
+  <li><b>C</b> Until secure storage answers, the app does not know who is signed in, and screens and guards would act on the wrong answer: Reading secure storage is async. Without the wait, the first frames would say Not signed in, and guards and redirects would act on that wrong answer before the saved session arrived.</li>
+  <li><b>B</b> The web preview has no secure storage, so the session lived in memory only: A browser has no keychain: isAvailableAsync() is false, so Shoreline Crew keeps the session in memory only, and a reload starts with nothing. On a phone it is saved.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 4.4 · Deep Links</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="4.4">
+  <li><b>D</b> exp://192.168.1.42:8081/--/cleanups/e08: Expo Go owns the exp scheme. The address says which development server to load, and everything after /--/ is the path inside your app. Linking.createURL builds exactly this in Expo Go.</li>
+  <li><b>B</b> The Cleanups tab appears, because the tabs were underneath the cleanup: The anchor is always at the bottom of the root stack, so the linked cleanup opens on top of the tabs, and back shows the Cleanups tab.</li>
+  <li><b>C</b> The Cleanups tab, because the guarded route redirects to the anchor: The sign-in route does not exist while someone is signed in, so Expo Router redirects to the stack's anchor, the tabs, which show Cleanups. A link from outside follows the same rule as a link inside the app.</li>
+  <li><b>A</b> "Join me at Weekend Cove!" without the link: React Native's Android code passes only the title and the message to the share sheet, so the link in url is dropped. Put the link inside the message.</li>
+  <li><b>B</b> Sign the volunteer up for the cleanup as soon as it opens: Anyone can write and send a link, so a link only opens a screen. Signing up, cancelling or deleting happens when the volunteer presses a button on that screen.</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>The token:</b> in secure storage (expo-secure-store: the Keychain, or Keystore-encrypted on Android); reading it is async, and until it answers the app cannot know who is signed in, so guards and screens would act on the wrong answer.</li>
+  <li><b>The order:</b> on the Cleanups tab. Setting the session made <code class="inline">guard={session === null}</code> false while the sign-in screen was open; Expo Router redirected to the anchor before <code class="inline">router.back()</code> ran. Close first, then set the session.</li>
+  <li><b>Three forms:</b> <code class="inline">shorelinecrew://cleanups/e08</code> in a build; <code class="inline">exp://192.168.1.42:8081/--/cleanups/e08</code> (their own address) in Expo Go; <code class="inline">http://localhost:8081/cleanups/e08</code> in the web preview. <code class="inline">Linking.createURL</code> picks.</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 A.</b> Still thinks of a session as remembered credentials. Retell the wristband: the band, never the ID card.</li>
+  <li><b>Q3 A or B.</b> Mixes up the library and the app. The library stores nothing in a browser; the app chooses memory only.</li>
+  <li><b>Q4 A.</b> Has not seen the guard act while a screen is open. Run Lab 4.3's last test with and without Task 1.</li>
+  <li><b>Q7 A.</b> Expects a custom scheme to work everywhere. Point at the three-forms table.</li>
+  <li><b>Q9 A or C.</b> Trusts the checkers with configuration. Show P4: silence.</li>
+  <li><b>Q11 D.</b> The security point of the session: a link only opens a screen.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 11 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

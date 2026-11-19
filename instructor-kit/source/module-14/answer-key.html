@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 14</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 14: Offline First and Permissions</h1>
+    <p class="sub">Answers and reasoning for every Session 14 item: the warm-up, both self-checks, the predict-then-check items, the demo scripts, the lab reference outputs, the lesson pages' own quizzes and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>14</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Start Here · Warm-up</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>W1:</b> the session token = SecureStore (Lesson 4.3); the theme choice = AsyncStorage (Lesson 5.3's settings); the logbook of sent logs = SQLite (Lesson 5.3); a log sent with no signal = memory, TanStack Query's paused mutation (Lesson 5.4). Tonight a fifth place appears: the queue in AsyncStorage.</li>
+  <li><b>W2:</b> the log disappeared. A paused mutation waits in memory, and force-quitting ends the memory; Lesson 5.4 said so on the screen ("Keep the app open until then").</li>
+  <li><b>W3:</b> once per form visit, on the phone (<code class="inline">randomUUID()</code> in a <code class="inline">useState</code> initializer), and sent with the log, so a resend of the same log is recognized by the server instead of saved twice.</li>
+</ol>
+
+  <div class="sec"><h2>5.5 · Offline First: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">With Lesson 5.4's code, Theo sends a debris log in airplane mode, then force-quits Expo Go. What happens to the log?</div><div class="opts"><div class="opt">A) It is sent the next time Theo opens the app</div><div class="opt">B) It waits in AsyncStorage until the phone is online</div><div class="opt correct">C) It is gone: a paused mutation waits in memory, and memory ends with the app</div><div class="opt">D) The server receives it twice</div></div><div class="why"><b>Why:</b> TanStack Query's paused mutation waits in its mutation cache, in memory (Lesson 5.2, 5.4's "Keep the app open until then"). Lesson 5.5's queue writes the log to AsyncStorage the moment Send is pressed, before the network is tried at all.<br><b>A</b> is wrong: Nothing was saved anywhere that outlives the app.<br><b>B</b> is wrong: That is today's queue, not Lesson 5.4's mutation.<br><b>D</b> is wrong: Nothing reached the server; and the clientId would make a resend harmless anyway.</div></div>
+  <div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The web course's persisted store, copied with no <code class="inline">storage</code> option, run in Node with a window that has no localStorage (as on a phone). What does it print? (The kit ran it.)</div><pre class="code"><span class="c">// The web course's persisted store, copied as it was: no storage option</span>
+globalThis.window = {}; <span class="c">// a window without localStorage, as on a phone</span>
+<span class="k">const</span> { create } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand'</span>);
+<span class="k">const</span> { persist } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand/middleware'</span>);
+
+<span class="k">const</span> useLogQueue = create()(
+  persist((set) =&gt; ({ logs: [], add: (log) =&gt; set(({ logs }) =&gt; ({ logs: [...logs, log] })) }), {
+    name: <span class="s">'shoreline-crew-log-queue'</span>,
+  }),
+);
+<span class="k">try</span> {
+  useLogQueue.getState().add({ clientId: <span class="s">'c3a0f6b2'</span> });
+  console.log(<span class="s">'add worked'</span>);
+} <span class="k">catch</span> (error) {
+  console.log(<span class="s">'add threw: '</span> + error);
+}</pre><div class="opts"><div class="opt">A) <code class="inline">add worked</code></div><div class="opt correct">B) <code class="inline">add threw: TypeError: Cannot read properties of undefined (reading 'setItem')</code></div><div class="opt">C) Nothing: tsc stops it with a missing-option error first</div><div class="opt">D) <code class="inline">add threw: ReferenceError: AsyncStorage is not defined</code></div></div><div class="why"><b>Why:</b> persist's default storage is the browser's localStorage. On a phone <code class="inline">window</code> exists and <code class="inline">window.localStorage</code> does not, so the first <code class="inline">set</code> fails (Hermes words it "Cannot read property 'setItem' of undefined"). The web preview HAS localStorage, which is why the mistake ships. Fix: <code class="inline">storage: createJSONStorage(() =&gt; AsyncStorage)</code>.<br><b>A</b> is wrong: The kit's run printed the TypeError, exactly as the lesson's card does.<br><b>C</b> is wrong: <code class="inline">storage</code> is optional in persist's types: tsc and the linter are silent.<br><b>D</b> is wrong: Nothing names AsyncStorage here; that is the point: nobody told persist about it.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Why does the queue save its state with <code class="inline">partialize: ({ logs }) =&gt; ({ logs })</code> instead of everything?</div><div class="opts"><div class="opt correct">A) So <code class="inline">sending</code> always starts as false: an app killed during a send would otherwise never send again</div><div class="opt">B) Because AsyncStorage cannot store booleans</div><div class="opt">C) To make the saved JSON smaller than 1 KB</div><div class="opt">D) Because persist cannot save functions without it</div></div><div class="why"><b>Why:</b> <code class="inline">sending</code> means "a send is running right now"; it must end with the app. Saved, it would come back true, and the sender's first guard (<code class="inline">if (queue.sending) return</code>) would stop every future send. persist already skips the action functions.<br><b>B</b> is wrong: JSON holds booleans; AsyncStorage stores the string.<br><b>C</b> is wrong: A log is well under a kilobyte; size is not the reason.<br><b>D</b> is wrong: Functions are dropped by JSON anyway; partialize is about <code class="inline">sending</code>.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">Theo's first POST reached shoreline-api and was saved, but the answer never reached the phone. The queue sends the same log again with the same clientId. What does the API answer? (The kit ran it against the course API.)</div><div class="opts"><div class="opt">A) 201 and a second saved log</div><div class="opt">B) 409, so the log is marked refused</div><div class="opt">C) 400: the clientId is already used</div><div class="opt correct">D) 200 with the log it already has, and the server holds one log</div></div><div class="why"><b>Why:</b> The kit sent one log twice: <code class="inline">Theo, first try: 201</code>, then <code class="inline">Theo, same clientId again: 200, same log: true</code>, and <code class="inline">Theo's logs with this clientId on the server: 1</code>. The device-made clientId (Lesson 5.4) is what makes "no answer: send again" safe.<br><b>A</b> is wrong: The API looks the clientId up first: no duplicate.<br><b>B</b> is wrong: 409 is "this cleanup has not happened yet", not a resend.<br><b>C</b> is wrong: A resend is expected; the API answers it with the saved log.</div></div>
+  <div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Sort these answers to a queued log into what the queue does: 201, 200, 403, 401, no answer, 503.</div><div class="opts"><div class="opt correct">201 and 200 = done (logbook, then out of the queue); 403 = refused, kept with the server's words, never sent again by itself; 401 = keep everything, "Your sign-in has ended", stop; no answer and 503 = keep waiting, count the try, stop for now</div></div><div class="why"><b>Why:</b> The question for every failure: would asking again, unchanged, ever get a different answer? A dead network or a busy server: yes, later. A 403 "no spot": no. Treating them the same either loses data or retries forever (Common Mistakes).</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">A screen selects <code class="inline">useLogQueue((state) =&gt; state.logs.filter((item) =&gt; item.volunteerId === viewer))</code>. What happens, and what is the fix?</div><div class="opts"><div class="opt">A) It works: Zustand compares arrays by their items</div><div class="opt">B) tsc reports that filter returns a new array</div><div class="opt correct">C) It renders forever (<code class="inline">Maximum update depth exceeded</code>): wrap the selector in <code class="inline">useShallow</code></div><div class="opt">D) It shows every volunteer's logs: add a second filter</div></div><div class="why"><b>Why:</b> <code class="inline">filter</code> builds a new array every time Zustand asks, so Zustand sees a new answer, renders, asks again... The lesson measured a blank page and React error #185 in the web preview; Lab 5.5's Task 3 fails in Jest with the same words. <code class="inline">useShallow</code> compares the items; a selector that returns a number (the tab badge's <code class="inline">.length</code>) needs nothing.<br><b>A</b> is wrong: That is what <code class="inline">useShallow</code> adds; plain selectors compare with <code class="inline">Object.is</code>.<br><b>B</b> is wrong: Types are fine: the bug is at run time.<br><b>D</b> is wrong: The filter by volunteerId is right; the new array each call is the problem.</div></div>
+
+  <div class="sec"><h2>5.5 · Offline First: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">The same debris log is sent to shoreline-api four times: as Theo (who has a spot), as Theo again with the same clientId (the first answer was lost), as Amara (no spot at this cleanup), and with no sign-in. Predict each status code and what the queue would do with it.</div><pre class="code"><span class="c">// One debris log, sent the ways a queue meets: what does shoreline-api answer each time?</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">const</span> log = {
+  clientId: <span class="s">'c3a0f6b2-5d1e-4c7a-9b8f-2e6d1a4c9f70'</span>, <span class="c">// made on the phone, saved with the log</span>
+  items: [{ category: <span class="s">'glass'</span>, count: <span class="s">2</span> }],
+  bags: <span class="s">1</span>,
+  weightKg: <span class="s">1.5</span>,
+  recordedAt: <span class="k">new</span> Date().toISOString(),
+};
+
+<span class="k">async</span> <span class="k">function</span> send(token) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17/logs`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span>, ...(token &amp;&amp; { Authorization: <span class="s">`Bearer ${token}`</span> }) },
+    body: JSON.stringify(log),
+  });
+  <span class="k">return</span> { status: response.status, body: <span class="k">await</span> response.json() };
+}
+
+<span class="k">const</span> first = <span class="k">await</span> send(<span class="s">'dev-volunteer'</span>); <span class="c">// Theo, who has a spot</span>
+console.log(<span class="s">`Theo, first try: ${first.status}`</span>);
+<span class="k">const</span> again = <span class="k">await</span> send(<span class="s">'dev-volunteer'</span>); <span class="c">// the answer was lost: the queue sends it again</span>
+console.log(<span class="s">`Theo, same clientId again: ${again.status}, same log: ${again.body.id === first.body.id}`</span>);
+
+<span class="k">const</span> signIn = <span class="k">await</span> fetch(<span class="s">`${api}/api/auth/sign-in`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+  body: JSON.stringify({ email: <span class="s">'amara.diallo@example.com'</span>, password: <span class="s">'shoreline-demo'</span> }),
+});
+<span class="k">const</span> amara = <span class="k">await</span> send((<span class="k">await</span> signIn.json()).token); <span class="c">// Amara has no spot at this cleanup</span>
+console.log(<span class="s">`Amara: ${amara.status} ${amara.body.message}`</span>);
+<span class="k">const</span> nobody = <span class="k">await</span> send(<span class="k">null</span>); <span class="c">// a sign-in that has ended</span>
+console.log(<span class="s">`No sign-in: ${nobody.status} ${nobody.body.message}`</span>);
+
+<span class="k">const</span> logs = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17/logs`</span>, { headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span> } });
+<span class="k">const</span> saved = (<span class="k">await</span> logs.json()).filter((item) =&gt; item.clientId === log.clientId);
+console.log(<span class="s">`Theo's logs with this clientId on the server: ${saved.length}`</span>);</pre><div class="opts"><div class="opt correct"><pre class="out">Theo, first try: 201
+Theo, same clientId again: 200, same log: true
+Amara: 403 Only volunteers with a spot at this cleanup can log for it.
+No sign-in: 401 Sign in first.
+Theo's logs with this clientId on the server: 1</pre></div></div><div class="why"><b>Why:</b> Run against the course API (a private copy, sample data built around one fixed day). 201: a new log. 200 and the same log: the server already had this clientId (the queue then removes it: done). 403: refused, kept with these exact words, never sent again by itself. 401: keep everything, show that the sign-in has ended, stop. And the server holds ONE log from Theo, whatever the queue resent.</div></div>
+
+  <div class="sec"><h2>6.1 · Permissions Done Right: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">A "Photo of the haul" feature needs the camera. Where should the app call <code class="inline">requestCameraPermissionsAsync()</code>?</div><div class="opts"><div class="opt">A) In the root layout's useEffect, so it is out of the way</div><div class="opt">B) Right after the volunteer signs in</div><div class="opt">C) In a useEffect of the photo screen, the moment it appears</div><div class="opt correct">D) From Continue, on a one-sentence explanation shown after the volunteer presses Take a photo</div></div><div class="why"><b>Why:</b> Ask in context, explain first: the press is the moment the question answers itself, and the explanation's button leads to the phone's own question (Continue, not "Allow"). On an iPhone a "Don't Allow" given to a question nobody understood is final.<br><b>A</b> is wrong: Asking at launch: the lesson measured a request on the Cleanups list before anyone pressed anything.<br><b>B</b> is wrong: Still no context: nothing the volunteer did needs the camera.<br><b>C</b> is wrong: Mounting is not a press: still asking at the door, with no reason.</div></div>
+  <div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">On an Android phone, the volunteer tapped "Don't allow" once. The Hook's answer is <code class="inline">{ status: 'denied', canAskAgain: true, granted: false }</code>. Which step does <code class="inline">permissionStep</code> return, and what does the gate show?</div><div class="opts"><div class="opt">A) 'blocked': Open Settings</div><div class="opt correct">B) 'denied': "that is fine", the reason again, and Ask me again</div><div class="opt">C) 'not-asked': the explanation with Continue</div><div class="opt">D) 'checking': Checking…</div></div><div class="why"><b>Why:</b> Android allows one more question after the first no; <code class="inline">canAskAgain: true</code> says so. After a second no (or on an iPhone after the first) canAskAgain is false: 'blocked'. In the web preview a no is always 'blocked' (the web answer always says canAskAgain: true).<br><b>A</b> is wrong: Only when canAskAgain is false (or on the web).<br><b>C</b> is wrong: That is status 'undetermined'.<br><b>D</b> is wrong: That is a null answer, while the Hook reads.</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this in shoreline-crew after an edit to DistancePanel.tsx. Which change fixes it?</div><pre class="code">src/components/DistancePanel.tsx:43:34 - error TS2345: Argument of type '(options?: PermissionHookOptions&lt;object&gt; | undefined) =&gt; [LocationPermissionResponse | null, () =&gt; Promise&lt;LocationPermissionResponse&gt;, () =&gt; Promise&lt;...&gt;]' is not assignable to parameter of type 'PermissionHookResult'.
+
+43   const location = usePermission(Location.useForegroundPermissions);
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/components/DistancePanel.tsx:43:34
+    43   const location = usePermission(Location.useForegroundPermissions);
+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Did you mean to call this expression?
+
+
+Found 1 error in src/components/DistancePanel.tsx:43</pre><div class="opts"><div class="opt correct">A) Call the Hook: <code class="inline">usePermission(Location.useForegroundPermissions())</code></div><div class="opt">B) Widen PermissionHookResult to accept a function</div><div class="opt">C) Add <code class="inline">as PermissionHookResult</code> after the argument</div><div class="opt">D) Run <code class="inline">npx expo install expo-location</code> again</div></div><div class="why"><b>Why:</b> Read it from the bottom: "Did you mean to call this expression?" is the whole answer. The long type in the first line is the Hook itself (a function that takes options and returns the tuple); usePermission takes what the Hook RETURNS. The kit's run is the lesson's card, word for word.<br><b>B</b> is wrong: Then the function would reach the destructuring and fail at run time (Lab 6.1: "Invalid attempt to destructure non-iterable instance").<br><b>C</b> is wrong: A cast silences the checker and keeps the bug.<br><b>D</b> is wrong: The package is installed; the call is missing.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">You remove the whole expo-location entry from app.json's plugins and run <code class="inline">npx expo config --type introspect</code>. What do the iPhone's location strings look like? (The kit ran it.)</div><div class="opts"><div class="opt">A) There are none: no entry, no plugin</div><div class="opt">B) Only Shoreline Crew's own sentence</div><div class="opt correct">C) Five location and motion strings in the plugin's default words, Always location included</div><div class="opt">D) The command fails: the plugin is missing</div></div><div class="why"><b>Why:</b> expo-location's plugin is applied automatically when the package is installed, with default words ("Allow $(PRODUCT_NAME) to access your location", Always, motion, temporary precise location). That is why <code class="inline">npx expo install</code> adds no entry: the entry exists only to pass your words and <code class="inline">false</code> for what you do not use.<br><b>A</b> is wrong: The plugin still runs: it is on Expo's list of auto-applied plugins.<br><b>B</b> is wrong: That is WITH the entry.<br><b>D</b> is wrong: It runs and prints the config; nothing is missing.</div></div>
+  <div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">Name two things Expo's permission Hook does NOT do for you, and how usePermission or the gate covers each.</div><div class="opts"><div class="opt correct">It never asks by itself (unless <code class="inline">{ request: true }</code>): the gate's Continue asks. It never reads the answer again after Settings: usePermission calls check() when focusManager says the app is back in the foreground. (Also: on the web canAskAgain is always true: permissionStep treats a web no as blocked.)</div></div><div class="why"><b>Why:</b> The lesson read <code class="inline">PermissionsHook.ts</code> (about 80 lines): it reads once on mount and after each request. Lab 6.1 Task 3 fails until the focus subscription is there.</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">Which of these needs NO runtime permission on a phone?</div><div class="opts"><div class="opt correct">A) The share sheet (Lesson 4.4)</div><div class="opt">B) The camera</div><div class="opt">C) Notifications on an iPhone</div><div class="opt">D) The phone's location</div></div><div class="why"><b>Why:</b> Network requests, the app's own storage, the share sheet and haptics need none; the photo picker generally none either. The camera and location do; notifications do on iPhone and recent Android (Lesson 6.4).<br><b>B</b> is wrong: The camera needs one (Lesson 6.2 puts it through the same gate).<br><b>C</b> is wrong: iPhone asks before an app may notify.<br><b>D</b> is wrong: Location is today's permission.</div></div>
+
+  <div class="sec"><h2>6.1 · Permissions Done Right: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P2</div><div class="qt">You delete the expo-location entry from app.json's plugins (keeping the package) and run the command below. Predict which iPhone purpose strings it shows, and in whose words.</div><pre class="code">npx expo config --type introspect</pre><div class="opts"><div class="opt correct"><pre class="out">NSLocationAlwaysAndWhenInUseUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSLocationAlwaysUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSLocationWhenInUseUsageDescription: 'Allow $(PRODUCT_NAME) to access your location',
+NSMotionUsageDescription: 'Allow $(PRODUCT_NAME) to detect your current motion activity',
+NSFaceIDUsageDescription: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',
+NSLocationTemporaryUsageDescriptionDictionary: {
+ExpoLocationFullAccuracy: 'Allow $(PRODUCT_NAME) to access your precise location'</pre></div></div><div class="why"><b>Why:</b> The lines that contain UsageDescription, run on the finished Lesson 6.1 code with the entry removed (the lesson's Exercise 3 card, line for line). expo-location is one of the plugins Expo applies automatically, in default words, Always and motion included. With the project's entry the iPhone strings are only:<pre class="out">NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+NSFaceIDUsageDescription: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',</pre>And with Exercise 2's entry, <code class="inline">["expo-secure-store", { "faceIDPermission": false }]</code>, the kit's run gives the lesson's card:<pre class="out">NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",</pre></div></div>
+
+  <div class="sec"><h2>Demo Scripts (for the projector)</h2><span class="rule"></span></div>
+<p>The two scripts of the 5.5 demo, exactly as the kit ran them (Node 24). Save them in the copy of the finished Lesson 5.5 code (<code class="inline">lesson-19-end</code>, with <code class="inline">npm ci</code> done) and run them from its <code class="inline">shoreline-crew</code> folder with <code class="inline">node no-storage.mjs</code> and <code class="inline">node answers.mjs</code>; the second needs the API running at <code class="inline">http://localhost:4000</code> (or the address in <code class="inline">API_URL</code>). The 401 line needs nobody signed in: it sends no token at all.</p>
+<div class="blk"><div class="h">no-storage.mjs (the lesson's Common Mistakes measurement)</div>
+<pre class="code"><span class="c">// The web course's persisted store, copied as it was: no storage option</span>
+globalThis.window = {}; <span class="c">// a window without localStorage, as on a phone</span>
+<span class="k">const</span> { create } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand'</span>);
+<span class="k">const</span> { persist } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'zustand/middleware'</span>);
+
+<span class="k">const</span> useLogQueue = create()(
+  persist((set) =&gt; ({ logs: [], add: (log) =&gt; set(({ logs }) =&gt; ({ logs: [...logs, log] })) }), {
+    name: <span class="s">'shoreline-crew-log-queue'</span>,
+  }),
+);
+<span class="k">try</span> {
+  useLogQueue.getState().add({ clientId: <span class="s">'c3a0f6b2'</span> });
+  console.log(<span class="s">'add worked'</span>);
+} <span class="k">catch</span> (error) {
+  console.log(<span class="s">'add threw: '</span> + error);
+}</pre><pre class="out">add threw: TypeError: Cannot read properties of undefined (reading 'setItem')</pre></div>
+<div class="blk"><div class="h">answers.mjs (one log, sent four ways)</div>
+<pre class="code"><span class="c">// One debris log, sent the ways a queue meets: what does shoreline-api answer each time?</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">const</span> log = {
+  clientId: <span class="s">'c3a0f6b2-5d1e-4c7a-9b8f-2e6d1a4c9f70'</span>, <span class="c">// made on the phone, saved with the log</span>
+  items: [{ category: <span class="s">'glass'</span>, count: <span class="s">2</span> }],
+  bags: <span class="s">1</span>,
+  weightKg: <span class="s">1.5</span>,
+  recordedAt: <span class="k">new</span> Date().toISOString(),
+};
+
+<span class="k">async</span> <span class="k">function</span> send(token) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17/logs`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span>, ...(token &amp;&amp; { Authorization: <span class="s">`Bearer ${token}`</span> }) },
+    body: JSON.stringify(log),
+  });
+  <span class="k">return</span> { status: response.status, body: <span class="k">await</span> response.json() };
+}
+
+<span class="k">const</span> first = <span class="k">await</span> send(<span class="s">'dev-volunteer'</span>); <span class="c">// Theo, who has a spot</span>
+console.log(<span class="s">`Theo, first try: ${first.status}`</span>);
+<span class="k">const</span> again = <span class="k">await</span> send(<span class="s">'dev-volunteer'</span>); <span class="c">// the answer was lost: the queue sends it again</span>
+console.log(<span class="s">`Theo, same clientId again: ${again.status}, same log: ${again.body.id === first.body.id}`</span>);
+
+<span class="k">const</span> signIn = <span class="k">await</span> fetch(<span class="s">`${api}/api/auth/sign-in`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+  body: JSON.stringify({ email: <span class="s">'amara.diallo@example.com'</span>, password: <span class="s">'shoreline-demo'</span> }),
+});
+<span class="k">const</span> amara = <span class="k">await</span> send((<span class="k">await</span> signIn.json()).token); <span class="c">// Amara has no spot at this cleanup</span>
+console.log(<span class="s">`Amara: ${amara.status} ${amara.body.message}`</span>);
+<span class="k">const</span> nobody = <span class="k">await</span> send(<span class="k">null</span>); <span class="c">// a sign-in that has ended</span>
+console.log(<span class="s">`No sign-in: ${nobody.status} ${nobody.body.message}`</span>);
+
+<span class="k">const</span> logs = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17/logs`</span>, { headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span> } });
+<span class="k">const</span> saved = (<span class="k">await</span> logs.json()).filter((item) =&gt; item.clientId === log.clientId);
+console.log(<span class="s">`Theo's logs with this clientId on the server: ${saved.length}`</span>);</pre><pre class="out">Theo, first try: 201
+Theo, same clientId again: 200, same log: true
+Amara: 403 Only volunteers with a spot at this cleanup can log for it.
+No sign-in: 401 Sign in first.
+Theo's logs with this clientId on the server: 1</pre></div>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, in a terminal like a learner's, in a fresh copy of the lab folder with the shared install). Test durations are left out; everything else is as printed.</p>
+<div class="blk lab"><div class="h">Lab 5.5 (guided): labs/module-14/l5_5-offline-first/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (each failure's heading and first message line): the lesson's <code class="inline">setItem</code> TypeError, in the store and in the tests' own setup that resets it. <code class="inline">npm run typecheck</code> prints nothing after its two <code class="inline">&gt;</code> lines: tsc cannot see this bug.</p>
+<pre class="out">● Task 1: an added report is saved in AsyncStorage, the reports only
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 1: a saved queue is read back at startup, without anything in an old shape
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 2: 201 and 200 both mean done: the reports leave the queue
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 2: a 403 is refused with the server's words, and the next report still goes
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 2: a 401 keeps everything, ends the sign-in and stops
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 2: no answer, or a 503: the report waits, the try is counted, the run stops
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 2: offline, or another volunteer's report: nothing is sent
+  TypeError: Cannot read properties of undefined (reading 'setItem')
+● Task 3: the Not sent yet list shows only the viewer's reports, and Remove works
+  TypeError: Cannot read properties of undefined (reading 'setItem')</pre><p>With Task 1 done (the solution's <code class="inline">hazardQueue.ts</code> in the starter), five pass and three fail: Task 2's two answers and Task 3's list, which fails with React's own words:</p>
+<pre class="out"> FAIL  src/lab.test.tsx
+  ✓ Task 1: an added report is saved in AsyncStorage, the reports only
+  ✓ Task 1: a saved queue is read back at startup, without anything in an old shape
+  ✓ Task 2: 201 and 200 both mean done: the reports leave the queue
+  ✕ Task 2: a 403 is refused with the server's words, and the next report still goes
+  ✕ Task 2: a 401 keeps everything, ends the sign-in and stops
+  ✓ Task 2: no answer, or a 503: the report waits, the try is counted, the run stops
+  ✓ Task 2: offline, or another volunteer's report: nothing is sent
+  ✕ Task 3: the Not sent yet list shows only the viewer's reports, and Remove works
+Tests:       3 failed, 5 passed, 8 total
+
+9 |   // TODO 3: this list renders forever ("Maximum update depth exceeded"): filter builds a new</pre><p>The solution: <code class="inline">npm test</code>; <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: an added report is saved in AsyncStorage, the reports only
+  ✓ Task 1: a saved queue is read back at startup, without anything in an old shape
+  ✓ Task 2: 201 and 200 both mean done: the reports leave the queue
+  ✓ Task 2: a 403 is refused with the server's words, and the next report still goes
+  ✓ Task 2: a 401 keeps everything, ends the sign-in and stops
+  ✓ Task 2: no answer, or a 503: the report waits, the try is counted, the run stops
+  ✓ Task 2: offline, or another volunteer's report: nothing is sent
+  ✓ Task 3: the Not sent yet list shows only the viewer's reports, and Remove works
+Tests:       8 passed, 8 total</pre><p>What each task shows: (1) the store needs <code class="inline">storage: createJSONStorage(() =&gt; AsyncStorage)</code> and <code class="inline">partialize: ({ reports }) =&gt; ({ reports })</code>; the saved JSON is <code class="inline">{ state: { reports }, version: 0 }</code>, and <code class="inline">merge</code> drops a saved item in an old shape; (2) the catch block sorts: <code class="inline">ApiError</code> 401 → <code class="inline">onSignInEnded()</code> and <code class="inline">break</code>; other <code class="inline">ApiError</code> under 500 → <code class="inline">change(clientId, { status: 'refused', problem: error.message })</code> and go on; anything else → <code class="inline">attempts + 1</code> and <code class="inline">break</code>. Watch for <code class="inline">status &gt;= 400</code> (swallows the 401) and for <code class="inline">break</code> after a refusal (the next report never goes); (3) <code class="inline">useShallow</code> around the filtered selector; the remove action is a plain selector (a function stays the same).</p>
+</div>
+<div class="blk lab"><div class="h">Lab 6.1 (guided): labs/module-14/l6_1-permissions-done-right/starter → solution</div>
+<p>As shipped: the tests (verdict lines), the type check and the linter:</p>
+<pre class="out"> FAIL  src/lab.test.tsx
+  ✓ Task 1: still reading on ios is checking
+  ✓ Task 1: granted on android is granted
+  ✓ Task 1: never asked on ios is not-asked
+  ✓ Task 1: denied, may ask again on android is denied
+  ✕ Task 1: denied, canAskAgain false on ios is blocked
+  ✕ Task 1: denied in the web preview on web is blocked
+  ✕ Task 2: the explanation asks nothing until Continue is pressed
+  ✕ Task 2: Not now asks nothing
+  ✕ Task 2: blocked: Open Settings, and where there is none, Check again
+  ✓ Task 2: the feature appears only after a yes
+  ✕ Task 3: nothing is read or asked before the press; then the explanation, then the feature
+  ✕ Task 3: back from Settings, the panel reads the answer again by itself
+Tests:       7 failed, 5 passed, 12 total</pre><p>Task 3's two tests crash where tsc said they would: Jest strips the types and runs the uncalled Hook into the destructuring:</p>
+<pre class="out">TypeError: Invalid attempt to destructure non-iterable instance.</pre><pre class="out">src/VoiceNotePanel.tsx:30:36 - error TS2345: Argument of type '(options?: PermissionHookOptions&lt;object&gt; | undefined) =&gt; [PermissionResponse | null, RequestPermissionMethod&lt;PermissionResponse&gt;, GetPermissionMethod&lt;...&gt;]' is not assignable to parameter of type 'PermissionHookResult'.
+
+30   const microphone = usePermission(useMicrophonePermissions);
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/VoiceNotePanel.tsx:30:36
+    30   const microphone = usePermission(useMicrophonePermissions);
+                                          ~~~~~~~~~~~~~~~~~~~~~~~~
+    Did you mean to call this expression?
+
+
+Found 1 error in src/VoiceNotePanel.tsx:30</pre><pre class="out">~/shoreline/labs/module-14/l6_1-permissions-done-right/starter/src/AskFirst.tsx
+  26:22  warning  'setNoSettings' is assigned a value but never used                                                             @typescript-eslint/no-unused-vars
+  32:6   warning  React Hook useEffect has a missing dependency: 'permission'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 2 problems (0 errors, 2 warnings)</pre><p>The solution: <code class="inline">npm test</code>; <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: still reading on ios is checking
+  ✓ Task 1: granted on android is granted
+  ✓ Task 1: never asked on ios is not-asked
+  ✓ Task 1: denied, may ask again on android is denied
+  ✓ Task 1: denied, canAskAgain false on ios is blocked
+  ✓ Task 1: denied in the web preview on web is blocked
+  ✓ Task 2: the explanation asks nothing until Continue is pressed
+  ✓ Task 2: Not now asks nothing
+  ✓ Task 2: blocked: Open Settings, and where there is none, Check again
+  ✓ Task 2: the feature appears only after a yes
+  ✓ Task 3: nothing is read or asked before the press; then the explanation, then the feature
+  ✓ Task 3: back from Settings, the panel reads the answer again by itself
+Tests:       12 passed, 12 total</pre><p>What each task shows: (1) <code class="inline">if (!response.canAskAgain || os === 'web') return 'blocked'</code> before the final <code class="inline">'denied'</code>; (2) delete the mount effect (the gate asks from Continue only: the test counts the calls), rename Allow to Continue, wrap <code class="inline">Linking.openSettings()</code> in try/catch and set <code class="inline">noSettings</code> (the fallback face with Check again); the starter's lint warnings disappear with the effect and the catch; (3) <code class="inline">usePermission(useMicrophonePermissions())</code>, and in usePermission a <code class="inline">useEffect</code> returning <code class="inline">focusManager.subscribe((focused) =&gt; { if (focused) void check(); })</code> with <code class="inline">[check]</code>. The fake phone counts questions: the Settings test passes only with zero new questions, so asking again on focus (instead of reading) also fails.</p>
+</div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 5.5 · Offline First</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="5.5">
+  <li><b>B</b> The queue is read back at startup and the log is sent right away: Send saved the log in the queue, which persist wrote to AsyncStorage at once. At startup the root layout reads the queue back behind the splash screen, and the Hook sends the signed-in volunteer's waiting logs as soon as everything is loaded.</li>
+  <li><b>D</b> 200 with the log the server already has, because the clientId is the same: The clientId was made once and saved with the log, so the second try carries the same one. shoreline-api finds the log it already has for that volunteer and clientId and answers 200 with it. The queue treats 200 like 201: into the logbook, out of the queue, one log on the server.</li>
+  <li><b>A</b> Mark it refused, keep the server's message, and stop sending it by itself: Asking again, unchanged, would get the same answer, so retrying only wastes battery and hides the problem. Deleting it silently loses the volunteer's work. Keeping it as refused, with the server's words and a Remove button, tells the volunteer and lets them decide.</li>
+  <li><b>C</b> It waits, unseen by Maya, until Theo signs in on this phone again: The server records the log for whoever's token sends it, so sending Theo's log with Maya's sign-in makes it Maya's (measured). The queue sends only the signed-in volunteer's logs, Maya's Logbook shows none of Theo's, and his log goes out the next time he signs in on this phone.</li>
+  <li><b>B</b> The first change fails, because a phone has no localStorage: persist defaults to window.localStorage. The web preview has it; a phone has a window without localStorage, so saving fails on the first change (measured in Node in the same situation: Cannot read properties of undefined, reading setItem). Name the storage: createJSONStorage with AsyncStorage.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 6.1 · Permissions Done Right</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="6.1">
+  <li><b>C</b> After the volunteer presses Show my distance and reads the one-sentence reason: Asked in context, the question explains itself, and the panel's one-sentence reason comes first. Asked at launch or at sign-in, nobody knows why, and on an iPhone a no given then is final unless the volunteer digs into Settings.</li>
+  <li><b>A</b> The blocked face, with Open Settings: On an iPhone one Don't Allow sets canAskAgain to false, so permissionStep returns blocked as soon as the Hook reads the answer. A request would return the same no without showing anything, so the panel offers Open Settings instead.</li>
+  <li><b>D</b> Expo Go is its own app with its own purpose strings; yours appear in your own build: The purpose string lives in the app's Info.plist, which config plugins write when your own app is built. Expo Go is a different app with its own Info.plist and words, used for every project. Your string appears in a development build or a store build.</li>
+  <li><b>B</b> usePermission reads it again when the focus manager says the app is back in the foreground: Expo's Hook reads once when it mounts and after each request. usePermission subscribes to the focus manager, which AppState tells when the app is back in the foreground, and calls check() then. Without it (measured), the panel kept saying no.</li>
+  <li><b>A</b> The web answer always says true, but a browser never asks again after a block, so the Hook does not trust it there: expo-location's web code answers canAskAgain true for every answer, but a browser told Never allow never asks again: a request returns the no at once. Treating the web's no as blocked shows the site-settings note instead of an Ask me again button that could do nothing (measured).</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>The Lessons' Exercises: the Kit's Runs</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>5.5 Exercise 1 (predict the queue):</b> the lesson's solution was measured in the web preview; the kit's <code class="inline">answers.mjs</code> shows the server's side of cases 2 and 3 (200 with the saved log, the 403 message).</li>
+  <li><b>6.1 Exercise 2 (Face ID string):</b> the entry <code class="inline">["expo-secure-store", { "faceIDPermission": false }]</code> and introspect give exactly the lesson's one line (Predict P2's explanation above).</li>
+  <li><b>6.1 Exercise 3 (introspect with and without the entry):</b> both runs above; each equals the lesson's card line for line (the closing <code class="inline">},</code> of the dictionary aside).</li>
+</ul>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>The two rules:</b> save the log on the phone before anything is sent; remove it from the queue only after the server has it AND the logbook has a copy. Between the two steps, a crash means "send again", which the clientId makes harmless.</li>
+  <li><b>A 403:</b> mark it refused, keep the server's words ("Only volunteers with a spot at this cleanup can log for it."), stop sending it by itself, show it with Remove. Asking again unchanged gets the same answer: retrying drains the battery and hides the problem.</li>
+  <li><b>Continue:</b> the real Allow is the phone's own question, which Continue leads to (and Apple asks that a screen before it does not imitate it); Not now asks nothing. After an iPhone's first "Don't Allow" the phone never asks again: canAskAgain false, the blocked face, Open Settings (documentation-based: the course could not run a phone).</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 A or B.</b> Confuses Lesson 5.4's paused mutation with today's queue. Draw the two columns again: memory versus AsyncStorage.</li>
+  <li><b>Q2 A or C.</b> Expects the type checker or the web preview to catch a missing storage. Show the demo's two runs: tsc silent, the TypeError.</li>
+  <li><b>Q4 A or C.</b> Has not connected the clientId to the server's lookup. Show the second line of <code class="inline">answers.mjs</code>.</li>
+  <li><b>Q7 C.</b> Thinks mounting a screen is "in context". Ask what the volunteer pressed.</li>
+  <li><b>Q8 A.</b> Treats every no as final (the iPhone rule) on Android. Back to the platform table.</li>
+  <li><b>Q10 A.</b> Believes a plugin runs only when listed. Show the introspect run without the entry.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 14 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

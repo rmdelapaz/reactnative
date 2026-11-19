@@ -1,347 +1,456 @@
-/* Prism.js 1.29.0 - Minimal Python Syntax Highlighting */
+/**
+ * Course Enhancement JavaScript
+ * Interactive features, progress tracking, theme toggle, Mermaid dark mode
+ */
 
-var _self = (typeof window !== 'undefined')
-	? window
-	: (
-		(typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope)
-		? self
-		: {}
-	);
+document.addEventListener('DOMContentLoaded', function() {
+    initThemeToggle();        // must run first — sets data-theme
+    initProgressIndicator();
+    initSmoothScrolling();
+    initCodeCopyButtons();
+    initInteractiveTOC();
+    initSearchFunctionality();
+    initKeyboardShortcuts();
+    initLessonProgress();
+    initQuizInteractivity();
+    initMobileMenu();
+    initAccessibilityFeatures();
+    initPrintStyles();
+    initAnalytics();
+});
 
-var Prism = (function (_self) {
-	var lang = /(?:^|\s)lang(?:uage)?-([\w-]+)(?=\s|$)/i;
-	var uniqueId = 0;
+/* ===========================
+   Theme Toggle (Light / Dark)
+   =========================== */
 
-	var _ = {
-		util: {
-			encode: function encode(tokens) {
-				if (tokens instanceof Token) {
-					return new Token(tokens.type, encode(tokens.content), tokens.alias);
-				} else if (Array.isArray(tokens)) {
-					return tokens.map(encode);
-				} else {
-					return tokens.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\u00a0/g, ' ');
-				}
-			},
+function initThemeToggle() {
+    const toggle = document.getElementById('theme-toggle');
 
-			type: function (o) {
-				return Object.prototype.toString.call(o).slice(8, -1);
-			},
+    // Determine initial theme
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
 
-			clone: function deepClone(o) {
-				var clone, id;
-				var type = _.util.type(o);
+    applyTheme(theme);
 
-				switch (type) {
-					case 'Object':
-						id = o.$$id;
-						if (id) {
-							return cached[id];
-						}
-						clone = {};
-						o.$$id = id = ++uniqueId;
-						cached[id] = clone;
-
-						for (var key in o) {
-							if (o.hasOwnProperty(key)) {
-								clone[key] = deepClone(o[key]);
-							}
-						}
-
-						delete o.$$id;
-
-						return clone;
-
-					case 'Array':
-						id = o.$$id;
-						if (id) {
-							return cached[id];
-						}
-						clone = [];
-						o.$$id = id = ++uniqueId;
-						cached[id] = clone;
-
-						o.forEach(function (v, i) {
-							clone[i] = deepClone(v);
-						});
-
-						delete o.$$id;
-
-						return clone;
-
-					default:
-						return o;
-				}
-			}
-		},
-
-		languages: {
-			python: {
-				'comment': {
-					pattern: /(^|[^\\])#.*/,
-					lookbehind: true
-				},
-				'string-interpolation': {
-					pattern: /(?:f|rf|fr)(?:("""|''')[\s\S]*?\1|("|')(?:\\.|(?!\2)[^\\\r\n])*\2)/i,
-					greedy: true,
-					inside: {
-						'interpolation': {
-							pattern: /((?:^|[^{])(?:\{\{)*)\{(?!\{)(?:[^{}]|\{(?!\{)(?:[^{}]|\{(?!\{)(?:[^{}])+\})+\})+\}/,
-							lookbehind: true,
-							inside: {
-								'format-spec': {
-									pattern: /(:)[^:(){}]+(?=\}$)/,
-									lookbehind: true
-								},
-								'conversion-option': {
-									pattern: /![sra](?=[:}]$)/,
-									alias: 'punctuation'
-								},
-								rest: null
-							}
-						},
-						'string': /[\s\S]+/
-					}
-				},
-				'triple-quoted-string': {
-					pattern: /(?:[rub]|rb|br)?("""|''')[\s\S]*?\1/i,
-					greedy: true,
-					alias: 'string'
-				},
-				'string': {
-					pattern: /(?:[rub]|rb|br)?("|')(?:\\.|(?!\1)[^\\\r\n])*\1/i,
-					greedy: true
-				},
-				'function': {
-					pattern: /((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,
-					lookbehind: true
-				},
-				'class-name': {
-					pattern: /(\bclass\s+)\w+/i,
-					lookbehind: true
-				},
-				'decorator': {
-					pattern: /(^[\t ]*)@\w+(?:\.\w+)*/im,
-					lookbehind: true,
-					alias: ['annotation', 'punctuation'],
-					inside: {
-						'punctuation': /\./
-					}
-				},
-				'keyword': /\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|exec|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|print|raise|return|try|while|with|yield)\b/,
-				'builtin': /\b(?:__import__|abs|all|any|apply|ascii|basestring|bin|bool|buffer|bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|complex|delattr|dict|dir|divmod|enumerate|eval|execfile|file|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|intern|isinstance|issubclass|iter|len|list|locals|long|map|max|memoryview|min|next|object|oct|open|ord|pow|property|range|raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|vars|xrange|zip)\b/,
-				'boolean': /\b(?:True|False|None)\b/,
-				'number': /\b0(?:b(?:_?[01])+|o(?:_?[0-7])+|x(?:_?[a-f0-9])+)\b|(?:\b\d+(?:_\d+)*(?:\.(?:\d+(?:_\d+)*)?)?|\B\.\d+(?:_\d+)*)(?:e[+-]?\d+(?:_\d+)*)?j?\b/i,
-				'operator': /[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,
-				'punctuation': /[{}[\];(),.:]/
-			}
-		},
-
-		hooks: {
-			all: {},
-			add: function (name, callback) {
-				var hooks = _.hooks.all;
-				hooks[name] = hooks[name] || [];
-				hooks[name].push(callback);
-			},
-			run: function (name, env) {
-				var callbacks = _.hooks.all[name];
-				if (!callbacks || !callbacks.length) {
-					return;
-				}
-				for (var i = 0, callback; callback = callbacks[i++];) {
-					callback(env);
-				}
-			}
-		},
-
-		Token: Token
-	};
-
-	_self.Prism = _;
-
-	function Token(type, content, alias, matchedStr) {
-		this.type = type;
-		this.content = content;
-		this.alias = alias;
-		this.length = (matchedStr || '').length | 0;
-	}
-
-	Token.stringify = function stringify(o, language) {
-		if (typeof o == 'string') {
-			return o;
-		}
-
-		if (Array.isArray(o)) {
-			var s = '';
-			o.forEach(function (e) {
-				s += stringify(e, language);
-			});
-			return s;
-		}
-
-		var env = {
-			type: o.type,
-			content: stringify(o.content, language),
-			tag: 'span',
-			classes: ['token', o.type],
-			attributes: {},
-			language: language
-		};
-
-		var aliases = o.alias;
-		if (aliases) {
-			if (Array.isArray(aliases)) {
-				Array.prototype.push.apply(env.classes, aliases);
-			} else {
-				env.classes.push(aliases);
-			}
-		}
-
-		_.hooks.run('wrap', env);
-
-		var attributes = '';
-		for (var name in env.attributes) {
-			attributes += ' ' + name + '="' + (env.attributes[name] || '').replace(/"/g, '&quot;') + '"';
-		}
-
-		return '<' + env.tag + ' class="' + env.classes.join(' ') + '"' + attributes + '>' + env.content + '</' + env.tag + '>';
-	};
-
-	return _;
-})(_self);
-
-if (typeof module !== 'undefined' && module.exports) {
-	module.exports = Prism;
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            applyTheme(next);
+            localStorage.setItem('theme', next);
+        });
+    }
 }
 
-/* Plugin: Line Numbers */
-(function() {
-	if (typeof Prism === 'undefined' || typeof document === 'undefined') {
-		return;
-	}
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
 
-	var PLUGIN_NAME = 'line-numbers';
-	var NEW_LINE_EXP = /\n(?!$)/g;
+    // Update all toggle buttons (in case there are multiple)
+    document.querySelectorAll('#theme-toggle').forEach(btn => {
+        btn.textContent = theme === 'light' ? '🌙' : '☀️';
+        btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+    });
 
-	var isLineNumbersLoaded = function(element) {
-		return element.classList.contains(PLUGIN_NAME);
-	};
+    // Re-initialize Mermaid if available
+    reinitMermaid(theme);
+}
 
-	var highlightLines = function(pre) {
-		if (!pre || !/pre/i.test(pre.nodeName)) {
-			return;
-		}
+function reinitMermaid(theme) {
+    const mermaid = window.__mermaid;
+    if (!mermaid) return;
 
-		if (isLineNumbersLoaded(pre)) {
-			return;
-		}
+    const isDark = theme === 'dark';
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',                  /* themeVariables only apply to the base theme */
+        darkMode: isDark,
+        themeVariables: isDark
+            ? { primaryColor: '#16233a', primaryTextColor: '#e2e8f0', primaryBorderColor: '#9cc7ff', lineColor: '#94a3b8', secondaryColor: '#16233a', tertiaryColor: '#0b1626', background: '#0b1626', mainBkg: '#16233a', textColor: '#e2e8f0' }
+            : { primaryColor: '#eef4fb', primaryTextColor: '#16233a', primaryBorderColor: '#2563a8', lineColor: '#64748b', secondaryColor: '#f6f8fb', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#eef4fb', textColor: '#16233a' }
+    });
 
-		pre.classList.add(PLUGIN_NAME);
+    // Re-render all diagrams
+    document.querySelectorAll('.mermaid').forEach((el, i) => {
+        // Preserve the original source
+        if (!el.dataset.src) {
+            // Raw <br> in authored markup becomes a <br> DOM node that textContent drops,
+            // collapsing multi-line labels. Restore it as the literal "<br/>" Mermaid renders.
+            const tmp = el.cloneNode(true);
+            tmp.querySelectorAll('br').forEach(br => br.replaceWith('<br/>'));
+            el.dataset.src = tmp.textContent.trim();
+        }
+        el.removeAttribute('data-processed');
+        // Render straight from the source STRING. Assigning innerHTML = src would re-parse
+        // the source as HTML, turning label content like <<abstract>> (classDiagram
+        // stereotypes) or <code> into phantom elements and corrupting the diagram. Passing
+        // the string to mermaid.render() lets Mermaid's own parser handle <br/>, <<...>>, etc.
+        mermaid.render('mmd-' + Date.now() + '-' + i, el.dataset.src)
+            .then(({ svg }) => { el.innerHTML = svg; })
+            .catch(() => {});
+    });
+}
 
-		var code = pre.querySelector('code');
-		var lines = (code.textContent || '').split(NEW_LINE_EXP);
-		var lineNumbersWrapper = document.createElement('span');
-		lineNumbersWrapper.setAttribute('aria-hidden', 'true');
-		lineNumbersWrapper.className = 'line-numbers-rows';
+/* ===========================
+   Progress Indicator
+   =========================== */
 
-		for (var i = 0; i < lines.length; i++) {
-			var line = document.createElement('span');
-			lineNumbersWrapper.appendChild(line);
-		}
+function initProgressIndicator() {
+    const bar = document.querySelector('.progress-bar');
+    if (!bar) return;
 
-		if (pre.hasAttribute('data-start')) {
-			pre.style.counterReset = 'linenumber ' + (parseInt(pre.getAttribute('data-start'), 10) - 1);
-		}
+    const update = () => {
+        const docH = document.documentElement.scrollHeight - window.innerHeight;
+        if (docH <= 0) return;
+        bar.style.width = Math.min((window.scrollY / docH) * 100, 100) + '%';
+    };
 
-		pre.appendChild(lineNumbersWrapper);
-	};
+    window.addEventListener('scroll', throttle(update, 50));
+    update();
+}
 
-	Prism.hooks.add('complete', function(env) {
-		var pre = env.element.parentElement;
-		highlightLines(pre);
-	});
+/* ===========================
+   Smooth Scrolling
+   =========================== */
 
-	// Initialize on page load
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', function() {
-			document.querySelectorAll('pre').forEach(highlightLines);
-		});
-	} else {
-		document.querySelectorAll('pre').forEach(highlightLines);
-	}
+function initSmoothScrolling() {
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', function(e) {
+            const target = document.querySelector(this.getAttribute('href'));
+            if (!target) return;
+            e.preventDefault();
+            const offset = 80;
+            window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' });
+            history.pushState(null, null, this.getAttribute('href'));
+        });
+    });
+}
+
+/* ===========================
+   Code Copy Buttons enhancement
+   =========================== */
+
+function initCodeCopyButtons() {
+    document.querySelectorAll('.copy-button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orig = this.textContent;
+            this.textContent = 'Copied!';
+            this.classList.add('copied');
+            setTimeout(() => { this.textContent = orig; this.classList.remove('copied'); }, 2000);
+        });
+    });
+}
+
+/* ===========================
+   Interactive Table of Contents
+   =========================== */
+
+function initInteractiveTOC() {
+    const tocLinks = document.querySelectorAll('.toc-link');
+    if (!tocLinks.length) return;
+
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const id = entry.target.getAttribute('id');
+            const link = document.querySelector(`.toc-link[href="#${id}"]`);
+            if (link) {
+                tocLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+    // Observe sections that TOC links point to
+    tocLinks.forEach(link => {
+        const id = link.getAttribute('href')?.slice(1);
+        const section = id && document.getElementById(id);
+        if (section) observer.observe(section);
+    });
+}
+
+/* ===========================
+   Search
+   =========================== */
+
+function initSearchFunctionality() {
+    const input = document.getElementById('search-input');
+    const results = document.getElementById('search-results');
+    if (!input || !results) return;
+
+    const index = [];
+    document.querySelectorAll('h1, h2, h3, p, li').forEach((el, i) => {
+        index.push({ id: i, text: el.textContent.toLowerCase(), element: el, type: el.tagName.toLowerCase() });
+    });
+
+    input.addEventListener('input', debounce(e => {
+        const q = e.target.value.toLowerCase().trim();
+        if (q.length < 2) { results.style.display = 'none'; return; }
+
+        const hits = index.filter(item => item.text.includes(q)).slice(0, 10);
+        if (!hits.length) {
+            results.innerHTML = '<div style="padding:0.75rem 1rem;color:var(--text-light);">No results found</div>';
+            results.style.display = 'block';
+            return;
+        }
+
+        results.innerHTML = hits.map(h => {
+            const idx = h.text.indexOf(q);
+            const start = Math.max(0, idx - 30);
+            const end = Math.min(h.text.length, idx + q.length + 30);
+            let excerpt = (start > 0 ? '…' : '') + h.text.substring(start, end) + (end < h.text.length ? '…' : '');
+            excerpt = excerpt.replace(new RegExp(q, 'gi'), '<mark>$&</mark>');
+            return `<div class="search-result-item" data-idx="${h.id}"><small style="color:var(--text-light);">${h.type}</small> ${excerpt}</div>`;
+        }).join('');
+        results.style.display = 'block';
+
+        results.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const el = index[item.dataset.idx].element;
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('highlight');
+                setTimeout(() => el.classList.remove('highlight'), 2000);
+                input.value = '';
+                results.style.display = 'none';
+            });
+        });
+    }, 200));
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !results.contains(e.target)) results.style.display = 'none';
+    });
+}
+
+/* ===========================
+   Keyboard Shortcuts
+   =========================== */
+
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        switch (e.key) {
+            case '/': {
+                const s = document.getElementById('search-input');
+                if (s) { e.preventDefault(); s.focus(); }
+                break;
+            }
+            case 'Escape': {
+                const r = document.getElementById('search-results');
+                if (r) r.style.display = 'none';
+                document.getElementById('search-input')?.blur();
+                document.querySelector('.shortcuts-modal')?.remove();
+                break;
+            }
+            case 'ArrowLeft': {
+                const prev = document.querySelector('.prev-lesson');
+                if (prev) window.location.href = prev.href;
+                break;
+            }
+            case 'ArrowRight': {
+                const next = document.querySelector('.next-lesson');
+                if (next) window.location.href = next.href;
+                break;
+            }
+            case 'h': window.location.href = 'index.html'; break;
+            case '?': showShortcutsModal(); break;
+        }
+    });
+}
+
+function showShortcutsModal() {
+    if (document.querySelector('.shortcuts-modal')) return;
+    const modal = document.createElement('div');
+    modal.className = 'shortcuts-modal';
+    modal.innerHTML = `
+        <div class="shortcuts-content">
+            <h3>Keyboard Shortcuts</h3>
+            <button class="close-modal">&times;</button>
+            <dl>
+                <dt>/</dt><dd>Focus search</dd>
+                <dt>ESC</dt><dd>Close search/modal</dd>
+                <dt>←</dt><dd>Previous lesson</dd>
+                <dt>→</dt><dd>Next lesson</dd>
+                <dt>H</dt><dd>Go to home</dd>
+                <dt>?</dt><dd>Show this help</dd>
+            </dl>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+/* ===========================
+   Lesson Progress
+   =========================== */
+
+function initLessonProgress() {
+    const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+    const progress = JSON.parse(localStorage.getItem('lessonProgress') || '{}');
+
+    progress[page] = { visited: true, lastVisited: new Date().toISOString(), scrollPosition: 0 };
+    localStorage.setItem('lessonProgress', JSON.stringify(progress));
+
+    if (page === 'index') updateProgressIndicators(progress);
+
+    // Save scroll on leave
+    window.addEventListener('beforeunload', () => {
+        progress[page].scrollPosition = window.scrollY;
+        localStorage.setItem('lessonProgress', JSON.stringify(progress));
+    });
+
+    // Restore scroll
+    const saved = progress[page]?.scrollPosition;
+    if (saved > 0) setTimeout(() => window.scrollTo(0, saved), 100);
+}
+
+function updateProgressIndicators(progress) {
+    const links = document.querySelectorAll('.lesson-link');
+    let done = 0;
+    links.forEach(link => {
+        const name = link.getAttribute('href')?.replace('.html', '');
+        if (progress[name]?.visited) {
+            link.classList.add('visited');
+            done++;
+            if (!link.querySelector('.checkmark')) {
+                const cm = document.createElement('span');
+                cm.className = 'checkmark';
+                cm.textContent = ' ✓';
+                link.appendChild(cm);
+            }
+        }
+    });
+    const total = links.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const el = document.getElementById('overall-progress');
+    if (el) {
+        el.innerHTML = `<h3>Your Progress</h3>
+            <div class="progress-bar-container"><div class="progress-bar" style="width:${pct}%"></div></div>
+            <p>${done} of ${total} lessons completed (${pct}%)</p>`;
+    }
+}
+
+/* ===========================
+   Quiz
+   =========================== */
+
+function initQuizInteractivity() {
+    document.querySelectorAll('.quiz-question').forEach(q => {
+        const options = q.querySelectorAll('.quiz-option');
+        const feedback = q.querySelector('.quiz-feedback');
+        options.forEach(opt => {
+            opt.addEventListener('click', () => {
+                options.forEach(o => o.classList.remove('selected', 'correct', 'incorrect'));
+                opt.classList.add('selected');
+                const ok = opt.dataset.correct === 'true';
+                opt.classList.add(ok ? 'correct' : 'incorrect');
+                if (feedback) {
+                    feedback.textContent = ok ? ('Correct! ' + (opt.dataset.explanation || '')) : ('Try again. ' + (opt.dataset.hint || ''));
+                    feedback.className = 'quiz-feedback ' + (ok ? 'correct' : 'incorrect');
+                }
+            });
+        });
+    });
+}
+
+/* ===========================
+   Mobile Menu
+   =========================== */
+
+function initMobileMenu() {
+    const btn = document.getElementById('mobile-menu-toggle');
+    const nav = document.querySelector('.nav-links');
+    if (!btn || !nav) return;
+
+    btn.addEventListener('click', () => {
+        const open = nav.classList.toggle('active');
+        btn.setAttribute('aria-expanded', open);
+        btn.textContent = open ? '✕' : '☰';
+    });
+
+    document.addEventListener('click', e => {
+        if (!btn.contains(e.target) && !nav.contains(e.target)) {
+            nav.classList.remove('active');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.textContent = '☰';
+        }
+    });
+}
+
+/* ===========================
+   Accessibility
+   =========================== */
+
+function initAccessibilityFeatures() {
+    const skip = document.querySelector('.skip-to-main');
+    if (skip) {
+        skip.addEventListener('click', e => {
+            e.preventDefault();
+            const main = document.getElementById('main-content');
+            if (main) { main.tabIndex = -1; main.focus(); }
+        });
+    }
+
+    // Keyboard vs mouse focus ring
+    document.addEventListener('keydown', e => { if (e.key === 'Tab') document.body.classList.add('keyboard-nav'); });
+    document.addEventListener('mousedown', () => document.body.classList.remove('keyboard-nav'));
+}
+
+/* ===========================
+   Print
+   =========================== */
+
+function initPrintStyles() {
+    document.getElementById('print-button')?.addEventListener('click', e => { e.preventDefault(); window.print(); });
+    window.addEventListener('beforeprint', () => {
+        document.querySelectorAll('details').forEach(d => d.setAttribute('open', 'true'));
+    });
+}
+
+/* ===========================
+   Analytics (local only)
+   =========================== */
+
+function initAnalytics() {
+    let a = JSON.parse(localStorage.getItem('courseAnalytics') || '[]');
+    a.push({ page: location.pathname, ts: new Date().toISOString() });
+    if (a.length > 100) a = a.slice(-100);
+    localStorage.setItem('courseAnalytics', JSON.stringify(a));
+}
+
+/* ===========================
+   Utilities
+   =========================== */
+
+function debounce(fn, ms) {
+    let t;
+    return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+function throttle(fn, ms) {
+    let last = 0;
+    return function(...args) {
+        const now = Date.now();
+        if (now - last >= ms) { last = now; fn.apply(this, args); }
+    };
+}
+
+// Expose for other scripts
+window.courseEnhancements = { debounce, throttle, applyTheme, reinitMermaid, updateProgressIndicators };
+
+/* Prism's diff-highlight leaves a lone prefix space at the end of an unchanged block when the
+   embedded language (JSX) keeps the newline in its last token; with block-level +/- lines that
+   shows as an empty line. Drop that trailing prefix once highlighting has run. */
+(function () {
+  function tidyDiffs() {
+    document.querySelectorAll('code .token.unchanged:not(.prefix)').forEach(function (u) {
+      var next = u.nextElementSibling;
+      if (!next || !/\b(deleted|inserted)\b/.test(next.className) || !/\n $/.test(u.textContent)) return;
+      var prefixes = u.querySelectorAll('.token.prefix.unchanged');
+      var last = prefixes[prefixes.length - 1];
+      if (last && last.textContent === ' ') last.remove();
+    });
+  }
+  if (window.Prism && Prism.hooks) Prism.hooks.add('complete', function () { setTimeout(tidyDiffs, 0); });
+  window.addEventListener('load', tidyDiffs);
 })();
-
-/* Custom navigation and reading time calculator */
-document.addEventListener('DOMContentLoaded', function() {
-	// Calculate reading time
-	const content = document.querySelector('body').innerText;
-	const wordsPerMinute = 200;
-	const words = content.trim().split(/\s+/).length;
-	const readingTime = Math.ceil(words / wordsPerMinute);
-	
-	// Insert reading time if container exists
-	const readingTimeElement = document.querySelector('.reading-time');
-	if (readingTimeElement) {
-		readingTimeElement.textContent = `${readingTime} min read`;
-	}
-	
-	// Progress indicator
-	const progressBar = document.querySelector('.progress-bar');
-	if (progressBar) {
-		window.addEventListener('scroll', function() {
-			const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-			const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-			const scrolled = (winScroll / height) * 100;
-			progressBar.style.width = scrolled + '%';
-		});
-	}
-	
-	// Apply syntax highlighting to all code blocks
-	document.querySelectorAll('pre code').forEach((block) => {
-		// Add Python class if not present
-		if (!block.className.includes('language-')) {
-			block.className = 'language-python';
-		}
-		
-		// Add line numbers to longer code blocks
-		if (block.textContent.split('\n').length > 5) {
-			block.parentElement.classList.add('line-numbers');
-		}
-		
-		// Apply Prism highlighting if available
-		if (typeof Prism !== 'undefined') {
-			Prism.highlightElement(block);
-		}
-	});
-	
-	// Add mobile diagram notes after canvas elements
-	document.querySelectorAll('canvas').forEach((canvas) => {
-		const note = document.createElement('div');
-		note.className = 'mobile-diagram-note';
-		note.textContent = '📱 Diagram optimized for desktop viewing';
-		canvas.parentNode.insertBefore(note, canvas.nextSibling);
-	});
-	
-	// Add ARIA labels to interactive elements
-	document.querySelectorAll('a').forEach((link) => {
-		if (!link.getAttribute('aria-label') && link.textContent) {
-			link.setAttribute('aria-label', link.textContent.trim());
-		}
-	});
-	
-	// Keyboard navigation for lesson navigation
-	const prevLink = document.querySelector('.prev-lesson');
-	const nextLink = document.querySelector('.next-lesson');
-	
-	document.addEventListener('keydown', function(e) {
-		// Alt + Left Arrow for previous lesson
-		if (e.altKey && e.key === 'ArrowLeft' && prevLink) {
-			prevLink.click();
-		}
-		// Alt + Right Arrow for next lesson
-		if (e.altKey && e.key === 'ArrowRight' && nextLink) {
-			nextLink.click();
-		}
-	});
-});

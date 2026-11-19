@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Touch and input in an Expo app: Pressable and its press lifecycle, visible press feedback, finger-sized touch targets and hitSlop, TextInput with onChangeText and the keyboard props (inputMode, enterKeyHint, autoCapitalize, autoCorrect), putting the keyboard away, Switch and the other built-in controls, and a Button, a search field and a switch for Shoreline Crew. React Native &amp; Expo: Build and Ship a Mobile App Lesson 2.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Touch and Input - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>👆 Lesson 2.4: Touch and Input</h1>
+                <p class="lead">Until now, Shoreline Crew has only been something to look at. In this lesson it starts to listen to fingers. You build a button that answers the moment it is touched, let volunteers open each cleanup's details, add a search box that filters the cleanups as they type, deal with the keyboard that slides up over half the screen, and add a switch that hides the cleanups that are already full.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Make anything tappable with <code>Pressable</code>, explain its press lifecycle (press in, press out, press, long press), and show press feedback with a style function</li>
+                        <li>Give every control a finger-sized touch target with <code>minHeight</code> and <code>hitSlop</code>, and a role, a label and a state for screen readers</li>
+                        <li>Build a controlled <code>TextInput</code> with <code>onChangeText</code>, and choose the keyboard and its behavior with <code>inputMode</code>, <code>enterKeyHint</code>, <code>autoCapitalize</code> and <code>autoCorrect</code></li>
+                        <li>Put the keyboard away at the right moments, and keep taps working while it is open</li>
+                        <li>Use <code>Switch</code> for an on/off choice and know which other controls React Native has built in</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_06.html">Lesson 2.3: Images, Icons, Fonts and Safe Areas</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> a <code>Button</code> component with press feedback, a "Show details" button on every card, a <code>SearchField</code> that filters the Cleanups screen as you type, a <code>SwitchRow</code> for "Only cleanups with spots left", and keyboard handling in <code>Screen</code></li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone for the keyboard and the native switch (the cleanups themselves reach the phone in Lesson 5.1)</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-07-start.zip">lesson-07-start.zip</a> · Finished code: <a href="downloads/lesson-07-end.zip">lesson-07-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: From Clicks to Fingers</a></li>
+                        <li><a href="#pressable" class="toc-link">Pressable: Anything Can Be Tapped</a></li>
+                        <li><a href="#targets" class="toc-link">Touch Targets and Screen Readers</a></li>
+                        <li><a href="#textinput" class="toc-link">TextInput: Typing on a Phone</a></li>
+                        <li><a href="#keyboard" class="toc-link">The Keyboard</a></li>
+                        <li><a href="#switch" class="toc-link">Switch and the Other Controls</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew Listens</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: From Clicks to Fingers</h2>
+                <p>On the web, input is mostly handed to you. A <code>&lt;button&gt;</code> has a click, a hover and a focus ring; an <code>&lt;input&gt;</code> has a border and a label; the keyboard is a physical thing on the desk. A phone changes all three:</p>
+                <ul>
+                    <li><strong>A finger is not a mouse pointer.</strong> It is wide, it covers what it touches, it has no hover, and it sometimes lands, slides and lifts somewhere else. The app has to show that it felt the touch, right away, because the finger hides the button.</li>
+                    <li><strong>Controls come almost bare.</strong> React Native's <code>Pressable</code> has no look at all, and a <code>TextInput</code> has no border: in the web preview, an unstyled one measured 16 pixels tall with nothing to show where it is.</li>
+                    <li><strong>The keyboard is part of the screen.</strong> It slides up over half of it, it has a return key you can relabel, and somebody has to decide when it goes away.</li>
+                </ul>
+                <ul>
+                    <li><strong>Why it matters for your work:</strong> "the buttons feel laggy" and "I can't hit that" are the first complaints testers make about a new app, and they rarely come from slow code. They come from missing press feedback and targets that are too small. Getting these right is cheap, and teams notice.</li>
+                    <li><strong>Why it matters for the volunteers:</strong> a crew leader checking the list on the beach has sand on their fingers, gloves in one hand and the sun on the screen. Big targets, instant feedback and a search that answers as they type are what make the app usable there.</li>
+                </ul>
+                <div class="card card-success">
+                    <h4>✅ Most of this you already know</h4>
+                    <p>State, props, controlled inputs and event handlers work exactly as in the React + TypeScript course. What is new is a handful of component names and props, and a new habit: asking "how does this feel under a thumb?" for every control you build. When the web preview cannot show something (a keyboard, a native switch), this lesson says so, and Expo Go on your phone can.</p>
+                </div>
+            </section>
+
+            <section id="pressable" class="lesson-section">
+                <h2>👆 Pressable: Anything Can Be Tapped</h2>
+                <p>You met <code>Pressable</code> briefly in Lesson 1.1. It is React Native's one component for "this can be tapped": a <code>View</code> that listens to touches. Wrap anything in it (words, an icon, a whole card) and give it an <code>onPress</code>. Where the web has one <code>click</code> event, <code>Pressable</code> tells you about the whole touch:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Callback</th><th>When it runs</th><th>Typical use</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>onPressIn</code></td><td>The finger touches down</td><td>Start the "pressed" look (Pressable can do this for you)</td></tr>
+                            <tr><td><code>onPressOut</code></td><td>The finger lifts, or slides off</td><td>End the "pressed" look</td></tr>
+                            <tr><td><code>onPress</code></td><td>The finger lifts while still on the control: a complete tap</td><td>The action: open, save, sign up</td></tr>
+                            <tr><td><code>onLongPress</code></td><td>The finger stays down for 500 milliseconds (<code>delayLongPress</code> changes it)</td><td>A second, optional action</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Try it with this small component (it is not part of the project):</p>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
+
+// Press, hold, or press and slide your finger off: the log shows which callbacks ran
+export function PressLog() {
+  const [log, setLog] = useState&lt;string[]&gt;([]);
+  const add = (name: string) =&gt; setLog((names) =&gt; [...names, name]);
+
+  return (
+    &lt;View&gt;
+      &lt;Pressable
+        accessibilityRole="button"
+        onPressIn={() =&gt; add('pressIn')}
+        onPressOut={() =&gt; add('pressOut')}
+        onPress={() =&gt; add('press')}
+        onLongPress={() =&gt; add('longPress')}
+      &gt;
+        &lt;Text&gt;Try me&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      &lt;Text&gt;{log.join(' → ')}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+                <p>The course ran the same callbacks in the web preview and logged their order. A quick tap gave <code>pressIn → pressOut → press</code>. Holding gave <code>pressIn → longPress → pressOut</code>, with <strong>no</strong> <code>press</code> afterwards: when you handle a long press, the tap does not count as well. Pressing and sliding the pointer off before letting go gave <code>pressIn → pressOut</code> and nothing else.</p>
+<div class="mermaid">
+graph TD
+    A["Finger down"] --> B["onPressIn"]
+    B --> C{"Held 500 ms?"}
+    C -->|"yes"| D["onLongPress, onPressOut"]
+    C -->|"no"| E{"Lifted on it?"}
+    E -->|"yes"| F["onPressOut, onPress"]
+    E -->|"no, slid off"| G["onPressOut only"]
+</div>
+                <p>That last path is a feature. On a phone, a finger often lands on a button by accident on its way to scrolling. Sliding off is how a person says "not that one", and <code>onPress</code> respects it.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the check-in table on the beach</h4>
+                    <p>A volunteer reaches for the sign-in sheet at the crew's table. The organizer looks up the moment the hand lands on the clipboard (that is <code>onPressIn</code> and your press feedback). If the volunteer signs and hands it back, the sign-in counts (<code>onPress</code>). If they wander off with the pen still in the air, it does not (sliding off). If they hold on to the clipboard for a while, the organizer asks "anything else?" (<code>onLongPress</code>). A good organizer reacts at the first touch, not at the end, and so should your buttons.</p>
+                </div>
+                <h3>Press feedback</h3>
+                <p>A mouse click lands next to the pointer and you see the button. A finger covers the button, so the change must be big enough to see around the finger, and it must start at the touch, not after it. <code>Pressable</code> passes <code>{ pressed }</code> to two kinds of function, and redraws while a finger is down:</p>
+                <pre data-snippet><code class="language-tsx">import { Pressable, StyleSheet, Text } from 'react-native';
+
+// Three ways to show a finger that it hit something
+export function Feedback({ onPress }: { onPress: () =&gt; void }) {
+  return (
+    &lt;&gt;
+      {/* 1. A style function: React Native passes { pressed } and redraws when it changes */}
+      &lt;Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) =&gt; [styles.button, pressed &amp;&amp; styles.pressed]}
+      &gt;
+        &lt;Text&gt;Darker while pressed&lt;/Text&gt;
+      &lt;/Pressable&gt;
+
+      {/* 2. children can be a function too, when the words should change */}
+      &lt;Pressable accessibilityRole="button" onPress={onPress} style={styles.button}&gt;
+        {({ pressed }) =&gt; &lt;Text&gt;{pressed ? 'Let go to sign up' : 'Sign up'}&lt;/Text&gt;}
+      &lt;/Pressable&gt;
+
+      {/* 3. Android's own ripple, drawn by the system (Android only; iOS and the web ignore it) */}
+      &lt;Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        android_ripple={{ color: '#bfe3df' }}
+        style={styles.button}
+      &gt;
+        &lt;Text&gt;Ripple on Android&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  button: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16 },
+  pressed: { backgroundColor: '#bfe3df' },
+});</code></pre>
+                <ul>
+                    <li><strong>A style function</strong> is the everyday tool, and it works on every platform. The course measured it in the web preview: holding the pointer down on a Sea Teal button turned it Deep Tide at once, and letting go turned it back.</li>
+                    <li><strong>A children function</strong> is for when the content should change while pressed.</li>
+                    <li><strong><code>android_ripple</code></strong> asks Android to draw its own ripple from the finger outwards. iOS has no ripple and ignores the prop, and so does the web preview. Shoreline Crew uses a style function so both phones get the same clear feedback.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>🧩 Version note: TouchableOpacity and friends</h4>
+                    <p>Older tutorials and many existing apps use <code>TouchableOpacity</code>, <code>TouchableHighlight</code> and <code>TouchableWithoutFeedback</code>. They still work in React Native 0.88, and you will read them in other people's code:</p>
+                    <pre data-snippet data-legacy><code class="language-tsx">import { Text, TouchableOpacity } from 'react-native';
+
+// What older tutorials and apps use: it still works, but new code uses Pressable
+export function OldButton({ onPress }: { onPress: () =&gt; void }) {
+  return (
+    &lt;TouchableOpacity onPress={onPress} activeOpacity={0.6}&gt;
+      &lt;Text&gt;Sign up&lt;/Text&gt;
+    &lt;/TouchableOpacity&gt;
+  );
+}</code></pre>
+                    <p><code>Pressable</code> replaced them (it arrived in React Native 0.63): one component instead of four, with the feedback in your hands. New code in this course always uses <code>Pressable</code>.</p>
+                </div>
+            </section>
+
+            <section id="targets" class="lesson-section">
+                <h2>🎯 Touch Targets and Screen Readers</h2>
+                <p>Apple's guidelines ask for touch targets of at least <strong>44 by 44 points</strong>, and Android's for <strong>48 by 48 dp</strong>. Shoreline Crew uses 48 everywhere: one rule, and it satisfies both. There are two ways to get there:</p>
+                <ul>
+                    <li><strong>Make the control that big:</strong> <code>minHeight: 48</code> on a button. Use <code>minHeight</code>, never <code>height</code>, so the button still grows when a volunteer has made their text larger (Lesson 2.1).</li>
+                    <li><strong>Make the touch area bigger than the drawing:</strong> <code>hitSlop</code>. A clear button can look like a small 32 by 32 circle, and <code>hitSlop={8}</code> adds 8 on every side to the area that reacts to a finger: 48 by 48. <code>pressRetentionOffset</code> does the same for how far a finger may slide before the press is cancelled.</li>
+                </ul>
+                <p>One web-preview caveat, measured: <code>hitSlop</code> does nothing in the web preview. A click 10 pixels outside a 20 by 20 Pressable with <code>hitSlop={20}</code> did not press it. On a phone it does (React Native's documentation for <code>Pressable</code>). This is fine: a mouse pointer is precise; fingers are the problem <code>hitSlop</code> solves.</p>
+                <h3>Role, label and state</h3>
+                <p>A sighted volunteer sees that something is a button. A volunteer using VoiceOver (iPhone) or TalkBack (Android) hears it, and only if you say so. Three things make a control understandable to a screen reader:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>What</th><th>Prop</th><th>In the web preview it became</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>What kind of control it is</td><td><code>accessibilityRole="button"</code></td><td><code>&lt;button role="button"&gt;</code> (without a role: a plain <code>&lt;div tabindex="0"&gt;</code>)</td></tr>
+                            <tr><td>What it is called, when its words are not enough (or it has none)</td><td><code>accessibilityLabel="Clear search"</code></td><td><code>aria-label="Clear search"</code></td></tr>
+                            <tr><td>Whether it is open, checked or disabled</td><td><code>aria-expanded</code>, <code>aria-checked</code>, <code>disabled</code></td><td><code>aria-expanded="false"</code>; <code>disabled</code> gave <code>aria-disabled="true"</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The last row needs a word. React Native has two names for a control's state: the older <code>accessibilityState={{ expanded: true }}</code>, and the web's <code>aria-*</code> names, which React Native also accepts (its <code>Pressable</code> source reads <code>aria-expanded</code> first, then <code>accessibilityState.expanded</code>). On a phone both reach the screen reader. In the web preview, the course found that only <code>aria-expanded</code> arrived: with <code>accessibilityState</code>, the <code>&lt;button&gt;</code> had no <code>aria-expanded</code> at all. So Shoreline Crew writes states with the <code>aria-*</code> names, which work in both places, and keeps <code>accessibilityRole</code> and <code>accessibilityLabel</code> as before.</p>
+                <p>An icon-only button is the case Lesson 2.3 promised: its <code>Icon</code> is hidden from screen readers, so the <em>button</em> must carry the words, with <code>accessibilityLabel</code>. Lesson 8.1 tries all of this with a real screen reader.</p>
+            </section>
+
+            <section id="textinput" class="lesson-section">
+                <h2>⌨️ TextInput: Typing on a Phone</h2>
+                <p><code>TextInput</code> is React Native's <code>&lt;input&gt;</code> and <code>&lt;textarea&gt;</code> in one (<code>multiline</code> makes it the second). A controlled input works the way you know, with one difference in the event. The HQ's search box:</p>
+                <pre data-snippet data-legacy><code class="language-tsx">&lt;input
+  id="event-search"
+  type="search"
+  value={query}
+  onChange={(event) =&gt; onQueryChange(event.target.value)}
+/&gt;</code></pre>
+                <p>And the phone's, simplified:</p>
+                <pre data-snippet><code class="language-tsx">&lt;TextInput value={query} onChangeText={setQuery} accessibilityLabel="Search cleanups" /&gt;</code></pre>
+                <p><code>onChangeText</code> hands you the new text as a plain string, so you can pass a state setter straight in. (There is an <code>onChange</code> too, but its event has no <code>target.value</code>: see <a href="#mistakes">Common Mistakes</a>.) There is no <code>&lt;label&gt;</code> element either: <code>accessibilityLabel</code> is the field's name for screen readers, and a placeholder is never a label, because it disappears as soon as someone types.</p>
+                <h3>Telling the phone what you are typing</h3>
+                <p>A phone shows a different keyboard for an email address, a number or a search, and it can help or hinder with capitals and autocorrect. These props tell it what to do:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Prop</th><th>What it does</th><th>Web equivalent</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>inputMode</code></td><td>Which keyboard: <code>'text'</code>, <code>'email'</code>, <code>'numeric'</code>, <code>'decimal'</code>, <code>'tel'</code>, <code>'url'</code>, <code>'search'</code> (the older <code>keyboardType</code> does the same)</td><td><code>inputmode</code></td></tr>
+                            <tr><td><code>enterKeyHint</code></td><td>What the return key says or shows: <code>'search'</code>, <code>'next'</code>, <code>'done'</code>, <code>'go'</code>, <code>'send'</code> (the older <code>returnKeyType</code> does the same)</td><td><code>enterkeyhint</code></td></tr>
+                            <tr><td><code>autoCapitalize</code></td><td><code>'sentences'</code> (default), <code>'words'</code>, <code>'characters'</code>, <code>'none'</code></td><td><code>autocapitalize</code></td></tr>
+                            <tr><td><code>autoCorrect</code></td><td>Let the keyboard "fix" words; turn it off for names, codes, emails and searches</td><td><code>autocorrect</code> (Safari)</td></tr>
+                            <tr><td><code>autoComplete</code></td><td>What the phone may fill in: <code>'email'</code>, <code>'password'</code>, <code>'one-time-code'</code>…</td><td><code>autocomplete</code></td></tr>
+                            <tr><td><code>secureTextEntry</code></td><td>Hide the characters (passwords, Lesson 4.3)</td><td><code>type="password"</code></td></tr>
+                            <tr><td><code>onSubmitEditing</code></td><td>The return key was pressed</td><td>a form's <code>submit</code></td></tr>
+                            <tr><td><code>maxLength</code>, <code>editable</code>, <code>multiline</code></td><td>Limit the length, make it read-only, allow several lines</td><td><code>maxlength</code>, <code>readonly</code>, <code>&lt;textarea&gt;</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two fields from a form you will build in Module 5 (not part of today's project):</p>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { StyleSheet, TextInput } from 'react-native';
+
+// The props tell the phone which keyboard to show and how to treat the text
+export function Inputs() {
+  const [email, setEmail] = useState('');
+  const [bags, setBags] = useState('');
+
+  return (
+    &lt;&gt;
+      &lt;TextInput
+        value={email}
+        onChangeText={setEmail}
+        accessibilityLabel="Email"
+        inputMode="email" // a keyboard with @ and .
+        autoComplete="email" // the phone can offer the saved address
+        autoCapitalize="none" // no capital letter at the start
+        autoCorrect={false} // do not "fix" addresses
+        enterKeyHint="next" // the return key says "next"
+        style={styles.input}
+      /&gt;
+      &lt;TextInput
+        value={bags} // still a string: the number keyboard only changes the keys
+        onChangeText={setBags}
+        accessibilityLabel="Bags collected"
+        inputMode="numeric"
+        maxLength={3}
+        style={styles.input}
+      /&gt;
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  input: { minHeight: 48, borderWidth: 1, borderColor: '#5b6573', borderRadius: 8, paddingHorizontal: 12, fontSize: 16 },
+});</code></pre>
+                <p>Notice the second field: a number keyboard does not make the value a number. It is still a string, which is why the HQ course turned typed counts into numbers with Zod, and why this course does the same in Lesson 5.4.</p>
+                <p>The course rendered these props in the web preview, and react-native-web turned each one into its HTML attribute (<code>inputmode="email"</code>, <code>enterkeyhint="search"</code>, <code>autocapitalize="none"</code>, <code>autocorrect="off"</code>). One surprise: <code>inputMode="search"</code> also made the field an HTML <code>type="search"</code> box, and desktop Chrome draws its own small clear button inside those. Shoreline Crew's search field brings its own clear button, so it leaves <code>inputMode</code> at the default text keyboard and sets only <code>enterKeyHint="search"</code>.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The web preview runs in a desktop browser with a real keyboard, so it cannot show any of this. In Expo Go, after the project, tap the search field: the phone's keyboard should slide up with no capital letter at the start, no autocorrect suggestions, and a return key that says "search" (on an iPhone) or shows a magnifying glass (on most Android keyboards). Keyboards differ by phone and by the keyboard app installed, so treat <code>enterKeyHint</code> as a request, not a promise.</p>
+                </div>
+            </section>
+
+            <section id="keyboard" class="lesson-section">
+                <h2>🌊 The Keyboard</h2>
+                <p>When a <code>TextInput</code> gets focus, the phone slides its keyboard up over roughly the bottom half of the screen. Two questions follow: what stays visible above it, and how does it go away again?</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tide comes in</h4>
+                    <p>The keyboard is a high tide. It rolls in over the lower half of the beach whenever someone starts to type, and everything left there is under water. A good crew decides two things in advance: what has to stay above the waterline (the field being typed in, and the button that sends it), and how the tide goes back out (scrolling away, pressing the return key, tapping something else). Today's search field sits near the top, well above the waterline. Forms with fields near the bottom need more help: that is <code>KeyboardAvoidingView</code> in Lesson 5.4.</p>
+                </div>
+                <h3>Ways to put the keyboard away</h3>
+                <ul>
+                    <li><strong>The return key.</strong> For a one-line field, pressing it calls <code>onSubmitEditing</code> and, by default, ends the editing, which closes the keyboard (React Native calls this <code>submitBehavior="blurAndSubmit"</code>, the default for single-line fields).</li>
+                    <li><strong>Scrolling.</strong> <code>keyboardDismissMode="on-drag"</code> on a <code>ScrollView</code> closes the keyboard as soon as the list starts to move. People do this without thinking: they type, then scroll to look.</li>
+                    <li><strong>In code.</strong> <code>Keyboard.dismiss()</code> from <code>react-native</code>, for example after a button has done its job.</li>
+                </ul>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { Keyboard, TextInput } from 'react-native';
+
+// The return key "submits" a one-line field: by default the field also loses focus,
+// and the keyboard goes away
+export function SearchOnSubmit({ onSearch }: { onSearch: (text: string) =&gt; void }) {
+  const [text, setText] = useState('');
+  return (
+    &lt;TextInput
+      value={text}
+      onChangeText={setText}
+      accessibilityLabel="Search"
+      enterKeyHint="search"
+      onSubmitEditing={() =&gt; onSearch(text)}
+    /&gt;
+  );
+}
+
+// Anywhere else (after a button press, say), you can put the keyboard away yourself
+export function closeKeyboard() {
+  Keyboard.dismiss();
+}</code></pre>
+                <h3>Taps while the keyboard is open</h3>
+                <p>This one surprises everyone once. A <code>ScrollView</code> has a prop called <code>keyboardShouldPersistTaps</code>, and its default, <code>'never'</code>, means: when the keyboard is open, a tap anywhere outside the field closes the keyboard, <strong>and the tap goes no further</strong> (React Native's own description: "children will not receive the tap"). So a volunteer who types "creek" and then taps the clear button sees the keyboard close, and has to tap the clear button again. It feels broken.</p>
+                <p>The fix is <code>keyboardShouldPersistTaps="handled"</code>: a tap that a button handles goes to the button (and the keyboard stays, because the volunteer may want to type again), while a tap on empty space still closes the keyboard. Shoreline Crew's <code>Screen</code> sets it once, so every scrolling screen gets it.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Only a phone shows this</h4>
+                    <p>The web preview has no on-screen keyboard, so none of the props in this section change anything there. What it shows and a phone does not: you can tab between controls and press <kbd>Enter</kbd>. The behavior above comes from React Native's documentation for <code>ScrollView</code> and <code>TextInput</code>; check it in Expo Go in Step 6 of the project. On Android, the system may also shrink the app's window to fit above the keyboard while an iPhone simply covers it; Lesson 5.4 handles both.</p>
+                </div>
+            </section>
+
+            <section id="switch" class="lesson-section">
+                <h2>🔘 Switch and the Other Controls</h2>
+                <p><code>Switch</code> is the phone's on/off toggle, drawn by the platform: the rounded iOS switch on an iPhone, the Material switch on Android. It is controlled, like a checkbox in React: <code>value</code> plus <code>onValueChange</code>, which hands you the new <code>boolean</code>. Colors are props, not styles: <code>trackColor</code> (<code>{ false, true }</code>), <code>thumbColor</code> (the round knob) and, for iOS, <code>ios_backgroundColor</code>. Give it an <code>accessibilityLabel</code>: the words next to it are a separate <code>Text</code>, and React Native does not connect them the way an HTML <code>&lt;label&gt;</code> would.</p>
+                <p>In the web preview, react-native-web draws its own switch: a <code>&lt;div&gt;</code> track, a knob, and a hidden <code>&lt;input type="checkbox" role="switch"&gt;</code> carrying the label (measured). Clicking it flipped the value; the knob turned react-native-web's own teal when on, because the web version uses a separate color for an "on" knob. On a phone, <code>thumbColor</code> is used in both positions.</p>
+                <p>React Native's built-in controls are few on purpose; the rest come from libraries or from you:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>You want</th><th>Use</th><th>In this course</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A button</td><td><code>Pressable</code> (React Native also has a basic <code>Button</code> with only a <code>title</code> and a <code>color</code>)</td><td>Today: Shoreline Crew's own <code>Button</code></td></tr>
+                            <tr><td>On/off</td><td><code>Switch</code></td><td>Today</td></tr>
+                            <tr><td>Text</td><td><code>TextInput</code></td><td>Today, then forms in Lesson 5.4</td></tr>
+                            <tr><td>"Busy" spinner</td><td><code>ActivityIndicator</code></td><td>Loading states, Lesson 3.1</td></tr>
+                            <tr><td>Pull to refresh</td><td><code>RefreshControl</code></td><td>Lesson 3.1</td></tr>
+                            <tr><td>A yes/no question</td><td><code>Alert.alert(title, message, buttons)</code> (native dialog)</td><td>Lesson 4.3's Exercise 3 (a "Sign out?" question; the web preview shows nothing)</td></tr>
+                            <tr><td>A screen on top</td><td><code>Modal</code>, or a modal route</td><td>Lesson 4.2 (modal routes)</td></tr>
+                            <tr><td>Slider, date picker, dropdown</td><td>Not built in: community packages (<code>npx expo install</code> lists the ones Expo knows)</td><td>Not needed by Shoreline Crew; a stepper replaces a slider in Lesson 5.4</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>onChange</code> with <code>event.target.value</code></h4>
+                    <p>The web habit. With <code>onChange={(event) =&gt; onChangeText(event.target.value)}</code> in <code>SearchField.tsx</code>, TypeScript stops it:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/SearchField.tsx:22:43 - error TS18048: 'event.target' is possibly 'undefined'.
+
+22         onChange={(event) =&gt; onChangeText(event.target.value)}
+                                             ~~~~~~~~~~~~
+
+src/components/SearchField.tsx:22:56 - error TS2551: Property 'value' does not exist on type 'number | ReactNativeElement'. Did you mean 'valueOf'?
+  Property 'value' does not exist on type 'number'.
+
+22         onChange={(event) =&gt; onChangeText(event.target.value)}
+                                                          ~~~~~
+
+
+Found 2 errors in the same file, starting at: src/components/SearchField.tsx:22</code></pre>
+                    </div>
+                    <p>In React Native, an event's <code>target</code> is a reference to a native view, not an element with a <code>value</code>. Use <code>onChangeText</code>, which gives you the string.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>onClick</code> on a <code>Pressable</code></h4>
+                    <p>The quiet one. React Native 0.88's types accept <code>onClick</code> on any view (it exists for keyboards and other pointing devices), so <code>tsc</code> prints <strong>nothing</strong>. But it never runs: the course clicked a <code>Pressable</code> with only an <code>onClick</code> in the web preview and nothing happened, and React Native's <code>Pressable</code> source puts its own click handler on top of yours on phones. Taps go to <code>onPress</code>. If a button does nothing and there is no error, look for <code>onClick</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The wrong <code>Button</code></h4>
+                    <p>React Native has its own <code>Button</code>, and editors happily import it. If <code>index.tsx</code> imports <code>Button</code> from <code>react-native</code> instead of <code>@/components/Button</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/index.tsx:90:19 - error TS2322: Type '{ label: string; variant: string; onPress: () =&gt; void; }' is not assignable to type 'IntrinsicAttributes &amp; Omit&lt;ButtonProps, "ref"&gt; &amp; { ref?: Ref&lt;ReactNativeElement | TouchableNativeFeedback&gt; | undefined; }'.
+  Property 'label' does not exist on type 'IntrinsicAttributes &amp; Omit&lt;ButtonProps, "ref"&gt; &amp; { ref?: Ref&lt;ReactNativeElement | TouchableNativeFeedback&gt; | undefined; }'.
+
+90           &lt;Button label="Show all cleanups" variant="primary" onPress={showAll} /&gt;
+                     ~~~~~
+
+
+Found 1 error in src/app/index.tsx:90</code></pre>
+                    </div>
+                    <p>Read the type in the middle: <code>ReactNativeElement | TouchableNativeFeedback</code> tells you this is React Native's component, which wants a <code>title</code>, not a <code>label</code>. Fix the import.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A <code>Switch</code> with <code>onChange</code></h4>
+                    <p><code>Switch</code> also has an <code>onChange</code>, and it gets an event, not the new value. Handing it a <code>(value: boolean) =&gt; void</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/SwitchRow.tsx:20:9 - error TS2322: Type '(value: boolean) =&gt; void' is not assignable to type '(event: Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; ... 11 more ...; type: string | undefined; }&gt;) =&gt; void | Promise&lt;...&gt;'.
+  Types of parameters 'value' and 'event' are incompatible.
+    Type 'Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; dispatchConfig: Readonly&lt;...&gt;; ... 10 more ...; type: string | undefined; }&gt;' is not assignable to type 'boolean'.
+
+20         onChange={onValueChange}
+           ~~~~~~~~
+...
+
+Found 1 error in src/components/SwitchRow.tsx:20</code></pre>
+                    </div>
+                    <p>"Types of parameters 'value' and 'event' are incompatible" is the whole story: use <code>onValueChange</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Feedback that comes too late, or not at all</h4>
+                    <p>A <code>Pressable</code> with a fixed <code>style</code> and an <code>onPress</code> that loads something looks dead for as long as the work takes. Always show the press with a style function (or <code>android_ripple</code> on Android), and show that work is happening (Lesson 3.1's loading states, Module 5's disabled buttons).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A target sized for a mouse</h4>
+                    <p>A 20 by 20 icon with an <code>onPress</code> works perfectly in the web preview, where a pointer is one pixel wide. On a phone, people miss it and hit whatever is next to it. Give every control 48 of height or <code>hitSlop</code> to make up the difference, and remember that the web preview ignores <code>hitSlop</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The first tap only closes the keyboard</h4>
+                    <p>A scroll view without <code>keyboardShouldPersistTaps="handled"</code> swallows the first tap on any button while the keyboard is open. Volunteers tap twice and think the app is slow. Shoreline Crew's <code>Screen</code> sets it for every scrolling screen.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew Listens</h2>
+                <p>You build a <code>Button</code>, give every card a "Show details" button, build a <code>SearchField</code> and a <code>SwitchRow</code>, wire both into the Cleanups screen so the list filters as you type, and teach <code>Screen</code> how to behave around the keyboard. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Colors for things you press, and a <code>Button</code> <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Add the color roles for controls to <code>src/theme/colors.ts</code>, by job as always:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/colors.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/colors.ts" data-match="diff"><code class="language-diff-ts">   picture: brand.seafoam, // behind a picture while it loads
++  action: brand.seaTeal, // buttons, switches: things you press
++  actionPressed: brand.deepTide, // a filled button while a finger is on it
++  onAction: brand.white, // text on a filled button
++  pressed: brand.seafoam, // behind an outlined button while a finger is on it
++  inputBorder: brand.muted, // the edge of a text field (3:1 or more against white)
+ } as const;</code></pre>
+                            </div>
+                            <p>The ratios: white on Sea Teal and Sea Teal on white are both about 5.6:1, white on Deep Tide about 12:1, and Muted against white about 5.9:1, comfortably above the 3:1 that WCAG asks for the edge of a text field. The lighter <code>border</code> color the cards use (<code>#e4dccb</code>) would be far too faint for a field you have to find.</p>
+                        </li>
+                        <li>Add a corner radius for controls to <code>src/theme/spacing.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/spacing.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/spacing.ts" data-match="diff"><code class="language-diff-ts">   picture: 8,
++  control: 8, // buttons and text fields
+ } as const;</code></pre>
+                            </div>
+                        </li>
+                        <li>Create <code>src/components/Button.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Button.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Button.tsx"><code class="language-tsx">import { Pressable, type PressableProps, StyleSheet } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+
+export type ButtonVariant = 'primary' | 'secondary';
+
+// All of Pressable's props (onPress, disabled, accessibilityLabel, ...) except the two Button sets itself
+type ButtonProps = Omit&lt;PressableProps, 'children' | 'style'&gt; &amp; {
+  label: string;
+  variant?: ButtonVariant;
+};
+
+// Shoreline Crew's one button: words in a box at least 48 tall that answers a finger at once
+export function Button({ label, variant = 'secondary', disabled, ...rest }: ButtonProps) {
+  return (
+    &lt;Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      {...rest}
+      // A function: React Native calls it again with pressed: true while a finger is down
+      style={({ pressed }) =&gt; [
+        styles.base,
+        boxes[variant],
+        pressed &amp;&amp; pressedBoxes[variant],
+        disabled &amp;&amp; styles.disabled,
+      ]}
+    &gt;
+      &lt;AppText style={[styles.label, labels[variant]]}&gt;{label}&lt;/AppText&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  base: {
+    alignSelf: 'flex-start', // as wide as its words, not stretched across a column
+    justifyContent: 'center',
+    minHeight: 48, // a finger-sized target, even with small text
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderRadius: radius.control,
+  },
+  label: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+});
+
+const boxes = StyleSheet.create({
+  primary: { backgroundColor: colors.action, borderColor: colors.action },
+  secondary: { backgroundColor: colors.surface, borderColor: colors.action },
+});
+
+const pressedBoxes = StyleSheet.create({
+  primary: { backgroundColor: colors.actionPressed, borderColor: colors.actionPressed },
+  secondary: { backgroundColor: colors.pressed },
+});
+
+const labels = StyleSheet.create({
+  primary: { color: colors.onAction },
+  secondary: { color: colors.action },
+});</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>Omit&lt;PressableProps, 'children' | 'style'&gt; &amp; { … }</code> is the HQ's <code>Button</code> idea in React Native terms: every <code>Pressable</code> prop passes through (<code>onPress</code>, <code>disabled</code>, <code>accessibilityLabel</code>, <code>aria-expanded</code>), except the two that <code>Button</code> controls itself.</li>
+                                <li><code>accessibilityRole="button"</code> comes <em>before</em> <code>{...rest}</code>, so a caller could override it; <code>style</code> comes after, so nobody can.</li>
+                                <li>The style function builds a style array (Lesson 2.1): the base, the variant's box, the pressed box while a finger is down, and half opacity when disabled. <code>pressed &amp;&amp; …</code> gives <code>false</code> when not pressed, and style arrays skip <code>false</code>.</li>
+                                <li>Three small <code>StyleSheet</code>s, each keyed by variant, are Lesson 2.2's <code>Badge</code> pattern; a variant without a style would be a type error at <code>boxes[variant]</code>.</li>
+                                <li><code>alignSelf: 'flex-start'</code> keeps a button as wide as its words inside a column, which would otherwise stretch it across the card (Lesson 2.2). <code>minHeight: 48</code> is the touch target.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: "Show details" on every card <span class="step-time">(10 min)</span></h3>
+                    <p>The HQ's cards have a "Show details" button that opens the cleanup's description in place. Bring it to the phone. In <code>src/components/EventCard.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx"> import { Image } from 'expo-image';
+-import type { ReactNode } from 'react';
++import { type ReactNode, useState } from 'react';
+ import { StyleSheet, Text, View } from 'react-native';
+ // ...
+ import { Badge } from '@/components/Badge';
++import { Button } from '@/components/Button';
+ // ...
+   const isToday = event.date === toDateString(new Date());
++  const [showDetails, setShowDetails] = useState(false);
+ // ...
+       {availability.kind === 'full' &amp;&amp; (
+         &lt;AppText style={styles.strong}&gt;Full: new sign-ups join the waiting list&lt;/AppText&gt;
+       )}
++      &lt;Button
++        label={showDetails ? 'Hide details' : 'Show details'}
++        // A screen reader hears which cleanup, and whether its details are open
++        accessibilityLabel={`${showDetails ? 'Hide' : 'Show'} details for ${event.title}`}
++        aria-expanded={showDetails}
++        onPress={() =&gt; setShowDetails((shown) =&gt; !shown)}
++      /&gt;
++      {showDetails &amp;&amp; (
++        &lt;&gt;
++          &lt;AppText&gt;{event.description}&lt;/AppText&gt;
++          {event.suppliesProvided.length &gt; 0 &amp;&amp; (
++            &lt;AppText variant="muted"&gt;We bring: {event.suppliesProvided.join(', ')}&lt;/AppText&gt;
++          )}
++        &lt;/&gt;
++      )}
+     &lt;/View&gt;
+   );
+ }</code></pre>
+                    </div>
+                    <ul>
+                        <li>Eight cards each have a "Show details" button, so the visible words alone would be eight identical buttons to a screen reader. The HQ added hidden text ("for Weekend Cove Cleanup"); on a phone, <code>accessibilityLabel</code> replaces what is read. It starts with the visible words, so someone using voice control can still say "tap Show details".</li>
+                        <li><code>aria-expanded</code> tells the screen reader whether the details are open; in the web preview it became the <code>&lt;button&gt;</code>'s <code>aria-expanded</code> attribute.</li>
+                        <li>Each card keeps its own <code>showDetails</code> state, as the HQ's did. Lesson 4.1 adds a detail screen; this button stays as the quick look.</li>
+                    </ul>
+                    <p>Save and press <strong>Show details</strong> on a card in the web preview:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_07/07-details-open.png" alt="The first card, Tide Pool Morning Cleanup, scrolled into view in the web preview. Below its spots line, an outlined teal button now reads Hide details, and under it the cleanup&#x27;s description and a muted line We bring: Gloves, Bags. The button and the new text are outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>After a tap on <strong>Show details</strong>, the button's words change to <strong>Hide details</strong> and the description and supplies appear. A screen reader also hears which cleanup it is and that the details are expanded.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: A search field <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Two new icons, a magnifying glass and a clear button, in <code>src/components/Icon.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">   meet: { ios: 'person.2', android: 'group', web: 'group' },
++  search: { ios: 'magnifyingglass', android: 'search', web: 'search' },
++  clear: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
+ } satisfies Record&lt;string, SymbolViewProps['name']&gt;;</code></pre>
+                            </div>
+                        </li>
+                        <li>Create <code>src/components/SearchField.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/SearchField.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/SearchField.tsx"><code class="language-tsx">import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+
+import { Icon } from '@/components/Icon';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+
+type SearchFieldProps = {
+  value: string;
+  onChangeText: (text: string) =&gt; void;
+  // What a screen reader calls the field: the placeholder is gone as soon as you type
+  label: string;
+  placeholder?: string;
+};
+
+// A search box: a magnifying glass, the text field, and a clear button once there is text
+export function SearchField({ value, onChangeText, label, placeholder }: SearchFieldProps) {
+  return (
+    &lt;View style={styles.field}&gt;
+      &lt;Icon name="search" /&gt;
+      &lt;TextInput
+        value={value}
+        onChangeText={onChangeText}
+        accessibilityLabel={label}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        enterKeyHint="search" // the keyboard's return key says "search"
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={styles.input}
+      /&gt;
+      {value !== '' &amp;&amp; (
+        &lt;Pressable
+          onPress={() =&gt; onChangeText('')}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search" // an icon-only button needs words for screen readers
+          hitSlop={8} // 32 plus 8 on every side: a 48 by 48 target for a finger
+          style={({ pressed }) =&gt; [styles.clear, pressed &amp;&amp; styles.clearPressed]}
+        &gt;
+          &lt;Icon name="clear" color={colors.textMuted} /&gt;
+        &lt;/Pressable&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
+  },
+  input: {
+    flex: 1, // the field takes the space the icons leave
+    paddingVertical: spacing.sm,
+    color: colors.text,
+    fontSize: 16,
+  },
+  clear: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+  },
+  clearPressed: {
+    backgroundColor: colors.pressed,
+  },
+});</code></pre>
+                            </div>
+                            <ul>
+                                <li>The props mirror <code>TextInput</code>'s own (<code>value</code>, <code>onChangeText</code>), so the screen can pass a state setter straight in. <code>label</code> is required: there is no way to make a search field without a name for screen readers.</li>
+                                <li>The field is a row (Lesson 2.2): icon, input with <code>flex: 1</code>, clear button. The <em>row</em> has the border and the 48-high minimum, so the whole box looks like one field.</li>
+                                <li>The <code>TextInput</code> gets a font size, a color and vertical padding, because it comes with almost none of its own. <code>placeholderTextColor</code> uses Muted (5.9:1 on white); the default placeholder gray on many phones is too faint.</li>
+                                <li>The clear button only exists while there is text. It is a <code>Pressable</code> with an icon and no words, so it needs <code>accessibilityLabel</code>, and it is 32 by 32 with <code>hitSlop={8}</code>: 48 by 48 under a finger.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A switch row <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/components/SwitchRow.tsx</code>. The Profile screen's settings will reuse it in later lessons.</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SwitchRow.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SwitchRow.tsx"><code class="language-tsx">import { StyleSheet, Switch, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+
+type SwitchRowProps = {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) =&gt; void;
+};
+
+// An on/off choice: the words on the left, the phone's own switch on the right
+export function SwitchRow({ label, value, onValueChange }: SwitchRowProps) {
+  return (
+    &lt;View style={styles.row}&gt;
+      &lt;AppText style={styles.label}&gt;{label}&lt;/AppText&gt;
+      &lt;Switch
+        value={value}
+        onValueChange={onValueChange}
+        accessibilityLabel={label} // a screen reader says the words with the switch
+        trackColor={{ true: colors.action }} // Sea Teal when on; each platform's own gray when off
+        thumbColor={colors.surface} // a white knob on every platform
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 48,
+  },
+  label: {
+    flex: 1, // long words wrap instead of pushing the switch off the screen
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>The words take <code>flex: 1</code> and wrap; the switch keeps its natural size at the end of the row. That is Lesson 2.2's "text in a row gets <code>flex: 1</code>" rule again: with large text, the words wrap instead of pushing the switch off the screen.</li>
+                        <li><code>trackColor={{ true: colors.action }}</code> only sets the "on" color; leaving <code>false</code> out keeps each phone platform's own gray, which people recognize as "off". (The web preview draws no "off" track at all; Lesson 2.5 sets one so the switch is visible there too.)</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Filter the Cleanups screen <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li>The search rule gets its own small file, <code>src/utils/search.ts</code>, so the screen stays readable (and a test can check it on its own, with no screen at all):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/utils/search.ts</div>
+                                <pre data-src="shoreline-crew/src/utils/search.ts"><code class="language-ts">import type { CleanupEvent, Site } from '@/api/types';
+
+// Does a cleanup match what the volunteer typed? Every word must appear somewhere in the title,
+// the description, or the beach's name and town (the API's own search rule, plus the town).
+export function matchesSearch(event: CleanupEvent, site: Site | undefined, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const text = [event.title, event.description, site?.name, site?.town].join(' ').toLowerCase();
+  return words.every((word) =&gt; text.includes(word));
+}</code></pre>
+                            </div>
+                            <p>It splits the query into words and keeps a cleanup only if every word appears somewhere in its text, ignoring case. That is the same rule shoreline-api uses for its <code>q</code> parameter (title, description, site name), plus the town, because the cards show it. <code>[…, site?.name, site?.town].join(' ')</code> turns a missing site into empty text. An empty query has no words, and <code>every</code> on an empty list is <code>true</code>: everything matches.</p>
+                        </li>
+                        <li>Wire everything into <code>src/app/index.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx"> import { AppText } from '@/components/AppText';
++import { Button } from '@/components/Button';
+ import { EventCard } from '@/components/EventCard';
+ import { Screen } from '@/components/Screen';
++import { SearchField } from '@/components/SearchField';
++import { SwitchRow } from '@/components/SwitchRow';
+ import { colors } from '@/theme/colors';
+ import { radius, spacing } from '@/theme/spacing';
++import { getAvailability } from '@/utils/availability';
++import { matchesSearch } from '@/utils/search';
+ // ...
+   const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
++  const [query, setQuery] = useState('');
++  const [onlyOpen, setOnlyOpen] = useState(false);
+ // ...
+     return () =&gt; controller.abort();
+   }, []);
+
++  // Each cleanup with its beach, then only the ones that pass both filters (worked out on every render)
++  const cards =
++    load.status === 'loaded'
++      ? load.events
++          .map((event) =&gt; ({ event, site: load.sites.find((site) =&gt; site.id === event.siteId) }))
++          .filter(({ event, site }) =&gt; matchesSearch(event, site, query))
++          .filter(({ event }) =&gt; !onlyOpen || getAvailability(event).kind === 'open')
++      : [];
++
++  function showAll() {
++    setQuery('');
++    setOnlyOpen(false);
++  }
++
+   return (
+ // ...
+         &lt;AppText style={styles.bannerTagline}&gt;Many hands, cleaner sands.&lt;/AppText&gt;
+       &lt;/View&gt;
++      &lt;SearchField
++        value={query}
++        onChangeText={setQuery}
++        label="Search cleanups"
++        placeholder="Search by name, beach or town"
++      /&gt;
++      &lt;SwitchRow label="Only cleanups with spots left" value={onlyOpen} onValueChange={setOnlyOpen} /&gt;
+ // ...
+         {load.status === 'loaded' &amp;&amp; (
+-          &lt;AppText variant="muted"&gt;
+-            {load.events.length} {load.events.length === 1 ? 'cleanup' : 'cleanups'}
+-          &lt;/AppText&gt;
++          &lt;AppText variant="muted"&gt;{countLabel(cards.length, load.events.length)}&lt;/AppText&gt;
+         )}
+ // ...
+-      {load.status === 'loaded' &amp;&amp;
+-        load.events.map((event) =&gt; (
+-          &lt;EventCard
+-            key={event.id}
+-            event={event}
+-            site={load.sites.find((site) =&gt; site.id === event.siteId)}
+-          /&gt;
+-        ))}
++      {cards.map(({ event, site }) =&gt; (
++        &lt;EventCard key={event.id} event={event} site={site} /&gt;
++      ))}
++      {load.status === 'loaded' &amp;&amp; cards.length === 0 &amp;&amp; (
++        &lt;View style={styles.empty}&gt;
++          &lt;AppText&gt;No cleanups match your search.&lt;/AppText&gt;
++          &lt;Button label="Show all cleanups" variant="primary" onPress={showAll} /&gt;
++        &lt;/View&gt;
++      )}
+     &lt;/Screen&gt;
+   );
+ }
+
++// "8 cleanups" with no filters, "3 of 8 cleanups" while filtering
++function countLabel(shown: number, total: number) {
++  const noun = total === 1 ? 'cleanup' : 'cleanups';
++  return shown === total ? `${total} ${noun}` : `${shown} of ${total} ${noun}`;
++}
++
+ const styles = StyleSheet.create({
+ // ...
+   sectionTitle: {
+     flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
+   },
++  empty: {
++    gap: spacing.md,
++  },
+ });</code></pre>
+                            </div>
+                            <ul>
+                                <li>The search text and the switch are two pieces of state; the list on screen is <strong>derived</strong> from them and the loaded data on every render, not stored. That is the web course's rule, unchanged: never keep in state what you can calculate. The React Compiler (on in this project since Lesson 1.2) takes care of not redoing work needlessly, so there is no <code>useMemo</code>.</li>
+                                <li>Inside the <code>map</code> and <code>filter</code> callbacks, TypeScript still knows <code>load</code> is the <code>'loaded'</code> case, because <code>load</code> is a <code>const</code> narrowed by the condition before them.</li>
+                                <li>"Only cleanups with spots left" means the HQ's <code>getAvailability</code> says <code>'open'</code>: full and closed cleanups are hidden.</li>
+                                <li>The empty state says what happened and offers a way out with the <code>primary</code> button. An empty screen with no explanation is the worst answer a search can give.</li>
+                                <li>The search filters the eight cleanups already on the phone. It answers instantly and keeps working with a weak signal. shoreline-api can search too (<code>?q=</code>, as the HQ used it); that becomes worth it when a list is too long to load onto the phone at once.</li>
+                            </ul>
+                        </li>
+                        <li>Save, and in the web preview type <kbd>calder</kbd> into the search field: the count says "3 of 8 cleanups". Turn on the switch, then try <kbd>port marisol</kbd>:
+                            <figure class="screenshot">
+    <img src="images/lesson_07/07-search-filter.png" alt="The web preview of the Cleanups screen in a phone frame. Under the dark blue banner, a white search field with a magnifying glass holds the words port marisol and ends with a round clear button; below it the row Only cleanups with spots left has its switch turned on in teal. Both are outlined in red. The heading reads Upcoming cleanups, 1 of 8 cleanups, and a single card follows: Family Beach Morning." width="420" height="814" loading="lazy">
+    <figcaption>Typing filters the cards as you type, and the switch hides full cleanups: of the two cleanups in Port Marisol, only Family Beach Morning has spots left. The count says how many of the 8 you are seeing.</figcaption>
+</figure>
+                        </li>
+                        <li>Type something nothing matches, such as <kbd>volcano</kbd>, and press and hold <strong>Show all cleanups</strong> with the mouse: the button turns Deep Tide while you hold it, and letting go brings every cleanup back.
+                            <figure class="screenshot">
+    <img src="images/lesson_07/07-pressed.png" alt="The web preview with volcano typed in the search field. The heading says 0 of 8 cleanups, followed by the text No cleanups match your search. and a filled button Show all cleanups, drawn in the darker Deep Tide blue because it is being held down." width="420" height="814" loading="lazy">
+    <figcaption>No match: the screen says so and offers a way back. The <strong>Show all cleanups</strong> button is caught while a finger (here, the mouse) is still down: its Sea Teal turns Deep Tide until you let go.</figcaption>
+</figure>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The keyboard in <code>Screen</code>, and a look on your phone <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>In <code>src/components/Screen.tsx</code>, give the scrolling version the two keyboard props:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Screen.tsx" data-match="diff"><code class="language-diff-tsx">   if (scroll) {
+     return (
+-      &lt;ScrollView style={[styles.screen, frame]} contentContainerStyle={[styles.content, end]}&gt;
++      &lt;ScrollView
++        style={[styles.screen, frame]}
++        contentContainerStyle={[styles.content, end]}
++        // A tap on a button while the keyboard is open presses the button (and keeps the keyboard)
++        keyboardShouldPersistTaps="handled"
++        // Starting to scroll puts the keyboard away
++        keyboardDismissMode="on-drag"
++      &gt;
+         {children}
+       &lt;/ScrollView&gt;</code></pre>
+                            </div>
+                            <p>Because every scrolling screen goes through <code>Screen</code>, every screen you build from now on gets this for free.</p>
+                        </li>
+                        <li>Open the app in Expo Go. The cleanups will not load yet (the phone reaches shoreline-api in Lesson 5.1), but the search field and the switch are above the list, so you can try them:
+                            <ul>
+                                <li>Tap the field: the keyboard should appear, with a "search" return key and no capital letter.</li>
+                                <li>Type a few letters, then tap the clear button once: the text should clear on the <em>first</em> tap, with the keyboard still open.</li>
+                                <li>Type again and press the return key: the keyboard should close.</li>
+                                <li>Flip the switch: an iPhone draws Apple's switch, an Android phone the Material one, both in Sea Teal when on.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>To feel the difference <code>keyboardShouldPersistTaps</code> makes, remove the line, save, type in the field and tap the clear button: the first tap should only close the keyboard. Put the line back. Press feedback should be visible under your thumb on every button; if a button seems to need a firm, slow press, check that its <code>style</code> is a function.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:
+                            <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                        </li>
+                        <li>Commit:
+                            <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Button, card details, search field, spots-left switch, keyboard handling"</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project: list every control on its main screen. For each, write what a finger does to it, what feedback it gives at the touch, how big its target is, and what a screen reader would say. Which of its text fields need which keyboard, and which return key? Is there a search, and should it filter on the phone or ask a server?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>colors.ts</code> has the five control roles, and <code>Button</code> shows a pressed look, is at least 48 tall and has the button role</li>
+                        <li>☐ Every card has a <strong>Show details</strong> button that opens the description and supplies, with a label naming the cleanup and <code>aria-expanded</code></li>
+                        <li>☐ The search field filters the cleanups as you type, its clear button has an <code>accessibilityLabel</code> and a 48 by 48 touch area, and the count says "N of 8"</li>
+                        <li>☐ The switch hides full cleanups, and a search with no match shows a message and a <strong>Show all cleanups</strong> button</li>
+                        <li>☐ <code>Screen</code>'s scroll view has <code>keyboardShouldPersistTaps="handled"</code> and <code>keyboardDismissMode="on-drag"</code></li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Search the meeting point too</h3>
+                    <p>A volunteer remembers "the one at the visitor center porch". Make the search also look at the meeting point. Which cleanups does <kbd>porch</kbd> find before and after your change?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Only one line in <code>src/utils/search.ts</code> decides which text is searched.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>event.meetingPoint</code> to the list: <code>[event.title, event.description, event.meetingPoint, site?.name, site?.town]</code>. Before the change, <kbd>porch</kbd> finds nothing ("0 of 8 cleanups" and the empty state); after it, Boardwalk and Mudflats and Night Heron Walk and Clean, which both meet at the visitor center front porch. Update the comment above the function too: comments that describe old rules are worse than none.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A "Today only" switch</h3>
+                    <p>Add a second <code>SwitchRow</code>, "Only today's cleanups", that works together with the first switch and the search.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>One more <code>useState</code>, one more <code>filter</code> in the chain, and <code>EventCard</code> already shows how to tell whether a cleanup is today. Remember <code>showAll</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>const [onlyToday, setOnlyToday] = useState(false);</code>, then <code>.filter(({ event }) =&gt; !onlyToday || event.date === toDateString(new Date()))</code> after the other two filters (import <code>toDateString</code> from <code>@/utils/format</code>), a <code>&lt;SwitchRow label="Only today's cleanups" value={onlyToday} onValueChange={setOnlyToday} /&gt;</code> under the first one, and <code>setOnlyToday(false)</code> in <code>showAll</code>. The sample data always has one cleanup today, so the count says "1 of 8 cleanups". Notice how the derived <code>cards</code> list made this a three-line change.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Read the error</h3>
+                    <p>In <code>index.tsx</code>, delete the line <code>import { Button } from '@/components/Button';</code> and add <code>Button</code> to the <code>react-native</code> import instead. Run <code>npx tsc --noEmit</code>. Which word in the error tells you which <code>Button</code> TypeScript is looking at?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look at the type after <code>ref?</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>You get the error from <a href="#mistakes">Common Mistakes</a>: <code>Property 'label' does not exist</code>, in a type that mentions <code>TouchableNativeFeedback</code>. That name belongs to React Native's own <code>Button</code>, which is built from the old touchables and takes a <code>title</code>. When a component "suddenly" does not accept your props, check where it was imported from. Put the import back.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: A long press for the details (Stretch)</h3>
+                    <p>Make a long press anywhere on a card toggle its details too, as a shortcut. Then decide: could the long press <em>replace</em> the <strong>Show details</strong> button?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The card's outer <code>View</code> can become a <code>Pressable</code> with only an <code>onLongPress</code>. Who can discover a long press, and who cannot perform one?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Change the card's outer <code>&lt;View style={styles.card}&gt;</code> (and its closing tag) to <code>&lt;Pressable style={styles.card} onLongPress={() =&gt; setShowDetails((shown) =&gt; !shown)}&gt;</code> and import <code>Pressable</code>. The button inside still works: the innermost <code>Pressable</code> under the finger gets the touch. It cannot replace the button: nothing on screen says a long press exists, many people find holding still hard, and screen reader users reach controls by swiping between them, not by holding a card. A long press is only ever a shortcut for something that also has a visible control. (Lesson 4.1 gives the card a different job: opening the detail screen.)</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A volunteer puts a thumb on <strong>Show details</strong>, changes their mind, slides the thumb onto the picture and lifts it. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="onPress needs one more thing than a touch: where was the finger when it lifted?">
+                                A) The details open, because the press started on the button
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="onPressIn and onPressOut run (the button shows and then drops its pressed look), but onPress only runs when the finger lifts while still on the control. Sliding off is how people cancel a tap.">
+                                B) The button looks pressed, then not; the details stay closed
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A long press is about time held, not movement. And no Pressable on the picture has an onLongPress.">
+                                C) It counts as a long press
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A teammate copies the HQ's search box: <code>&lt;TextInput onChange={(event) =&gt; setQuery(event.target.value)} /&gt;</code>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="React Native events are not DOM events. What is a native event's target?">
+                                A) It works like on the web
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The mistake is in the types, so it is caught before the app ever runs.">
+                                B) The app shows a red error screen when someone types
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="onChange is a real TextInput prop. Look at what its event contains.">
+                                C) Nothing at all: onChange is ignored on phones
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="tsc reports that event.target may be undefined and that value does not exist on it: a native event's target is a reference to a view, not an element with a value. onChangeText={setQuery} hands you the text directly.">
+                                D) <code>tsc</code> reports errors; the fix is <code>onChangeText={setQuery}</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> On a phone, a screen's <code>ScrollView</code> has no <code>keyboardShouldPersistTaps</code>. A volunteer types "creek" and taps the clear button. What happens on that first tap?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="With the default, never, a tap outside the field while the keyboard is open only closes the keyboard, and the button never receives it. keyboardShouldPersistTaps handled lets the button handle the tap.">
+                                A) The keyboard closes and the text stays; a second tap clears it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does the tap go while the keyboard is open and the scroll view uses its default?">
+                                B) The text clears and the keyboard closes
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The clear button is a Pressable. Does it ever get the tap?">
+                                C) The text clears and the keyboard stays open
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The clear button shows only an icon, and <code>Icon</code> hides itself from screen readers. What gives the button a name for VoiceOver and TalkBack?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="A placeholder belongs to the text field, and it disappears once there is text.">
+                                A) The search field's <code>placeholder</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="hitSlop changes how big the button is for a finger. What about for a screen reader?">
+                                B) <code>hitSlop</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="An icon-only control has no words of its own, so the Pressable carries them in accessibilityLabel (with accessibilityRole button). In the web preview it became aria-label.">
+                                C) <code>accessibilityLabel="Clear search"</code> on the <code>Pressable</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> The clear button is drawn 32 by 32. How does Shoreline Crew give it a 48 by 48 target for a finger without drawing it bigger?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="hitSlop extends the area that reacts to touches beyond the drawn box: 32 plus 8 on each side is 48. On a phone, that is; the web preview ignores hitSlop, which is fine for a precise mouse pointer.">
+                                A) <code>hitSlop={8}</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="That would draw it bigger. Which prop changes only the touch area?">
+                                B) <code>width: 48, height: 48</code> on the icon
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="pressRetentionOffset is about how far a finger may slide AFTER the press began.">
+                                C) <code>pressRetentionOffset={8}</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Font size changes text, and this button has none.">
+                                D) A larger <code>fontSize</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Why not use React Native's own <code>Button</code>?</summary>
+                    <p>It is fine for a quick test: <code>&lt;Button title="Sign up" onPress={…} /&gt;</code>. But it takes almost no styling (a <code>title</code> and a <code>color</code>), it looks different on each platform, and you cannot give it Shoreline Crew's pressed look or a minimum height. Most apps build their own on <code>Pressable</code>, as you did.</p>
+                </details>
+                <details>
+                    <summary>What about hover?</summary>
+                    <p>Fingers do not hover, so a phone app never depends on it. <code>Pressable</code> does have <code>onHoverIn</code> and <code>onHoverOut</code> for pointers (a mouse in the web preview, a trackpad on an iPad), and you can use them as an extra, never as the only way to show something.</p>
+                </details>
+                <details>
+                    <summary>Tapping the words "Only cleanups with spots left" does not flip the switch. Should it?</summary>
+                    <p>On the web, a <code>&lt;label&gt;</code> makes its words part of the control. React Native has no such link, so the words are just text. Many apps make the whole row pressable; doing that well (one control for the screen reader, with the right role and state) is part of Lesson 8.1. For now the switch itself is 48 high and has a label.</p>
+                </details>
+                <details>
+                    <summary>Should the search wait until the volunteer stops typing?</summary>
+                    <p>Not here: filtering eight cards on the phone takes no time, so the list can follow every keystroke. When each keystroke sends a request to a server instead, waiting a moment after the last keystroke first (debouncing) saves requests and battery.</p>
+                </details>
+                <details>
+                    <summary>Where is the form with several fields and a "Next" key?</summary>
+                    <p>Lesson 5.4. With React Hook Form and Zod, as in the web course, it adds what forms need on a phone: moving from one field to the next with the return key, the right keyboard for each field, and keeping the field you are typing in above the keyboard.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Lesson 5.4's debris-log form will need a stepper: a number between a "−" and a "+" button, for counting bags without the keyboard. Build a first version: a <code>Stepper</code> component (the name Lesson 5.4 uses) with a <code>value</code>, an <code>onChange(value: number)</code> and two icon-only <code>Pressable</code>s. Give each a 48 by 48 target, a label ("Fewer bags", "More bags") and a pressed look, and disable "−" at zero with <code>disabled</code> (which the web preview turned into <code>aria-disabled="true"</code>). Then read about <code>accessibilityActions</code> and <code>accessibilityRole="adjustable"</code> in React Native's accessibility guide: how could a screen reader user change the number by swiping up and down instead?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Use two apps you open every day with one hand, on your phone. Where are their most important buttons, how big are they, and what happens the instant your thumb lands on one? When does their keyboard go away? Write down one thing you will copy for Shoreline Crew and one thing you will avoid.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><code>Pressable</code> makes anything tappable; <code>onPress</code> runs only when the finger lifts on the control, a long press replaces the tap, and sliding off cancels</li>
+                        <li>Show the press at the touch with a style function (<code>({ pressed }) =&gt; […]</code>); <code>android_ripple</code> is Android only</li>
+                        <li>Targets of 48 or more (<code>minHeight</code>, or <code>hitSlop</code> around a smaller drawing), plus a role, a label for icon-only controls, and states with the <code>aria-*</code> names, which work on phones and in the web preview</li>
+                        <li><code>TextInput</code> is controlled with <code>value</code> + <code>onChangeText</code>; <code>inputMode</code>, <code>enterKeyHint</code>, <code>autoCapitalize</code> and <code>autoCorrect</code> shape the keyboard; the value is always a string</li>
+                        <li>The keyboard covers half the screen: close it with the return key, <code>keyboardDismissMode="on-drag"</code> or <code>Keyboard.dismiss()</code>, and use <code>keyboardShouldPersistTaps="handled"</code> so the first tap on a button counts</li>
+                        <li><code>Switch</code> is the platform's own toggle (<code>value</code> + <code>onValueChange</code>, colors as props); the rest of the controls are few, and listed above</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate <code>onClick</code>, <code>&lt;input&gt;</code>, <code>&lt;label&gt;</code> or a checkbox habit</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (hitSlop, press feedback, touch target)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read every <code>Pressable</code> prop</td><td><a href="https://reactnative.dev/docs/pressable" target="_blank" rel="noopener">React Native: Pressable</a></td></tr>
+                            <tr><td>Read every <code>TextInput</code> and <code>Switch</code> prop</td><td><a href="https://reactnative.dev/docs/textinput" target="_blank" rel="noopener">React Native: TextInput</a> and <a href="https://reactnative.dev/docs/switch" target="_blank" rel="noopener">React Native: Switch</a></td></tr>
+                            <tr><td>Read about the keyboard</td><td><a href="https://docs.expo.dev/guides/keyboard-handling/" target="_blank" rel="noopener">Expo: Keyboard handling</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You built Shoreline Crew's <code>Button</code>, with press feedback, a finger-sized target and the right role</li>
+                        <li>You gave every card a "Show details" button that screen readers can tell apart</li>
+                        <li>You built a search field with an accessible clear button, and a reusable switch row</li>
+                        <li>You made the Cleanups screen filter as volunteers type, with an honest count and an empty state</li>
+                        <li>You made every scrolling screen behave around the keyboard</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_08.html"><strong>Lesson 2.5: Responsive, Platform-Specific and Themed UI</strong></a> Shoreline Crew adapts to where it runs: wider layouts on tablets and in the web preview with <code>useWindowDimensions</code>, platform differences with <code>Platform</code>, and a real dark mode, which gives today's new colors (buttons, switch, search field) their night-time values.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the search, the switch and the details buttons work in the web preview, and that your work is committed</li>
+                    <li>Try the keyboard and the switch in Expo Go on your phone</li>
+                    <li>Turn on dark mode on your phone and open Shoreline Crew: notice what still looks like daytime</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today Shoreline Crew stopped being a poster and became something you use. You also met two kinds of mistakes: the loud ones TypeScript stops (<code>event.target.value</code>, the wrong <code>Button</code>) and the quiet ones it cannot see (an <code>onClick</code> that never runs, a target too small, a tap the keyboard swallows). Catching the quiet ones is a skill that grows with every app you hold in your hand and test with your thumb, and you have just started practicing it.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_06.html" class="prev-lesson">← Previous: Images, Icons, Fonts and Safe Areas</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_08.html" class="next-lesson">Next: Responsive, Platform-Specific and Themed UI →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

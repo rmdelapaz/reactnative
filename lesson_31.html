@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Measuring and debugging a React Native app: React Native DevTools and the j key, the Expo CLI dev tools menu, why screens re-render and what the React Compiler already does, profiling frames, threads and memory, bundle size with Expo Atlas, startup, and a debugging method that ends in a test. React Native &amp; Expo: Build and Ship a Mobile App Lesson 8.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Performance and Debugging - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+    
+
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🔎 Lesson 8.4: Performance and Debugging</h1>
+                <p class="lead">"It feels slow" and "it broke" are the two reports every app gets. Neither tells you what to change. Today you learn to turn both into numbers and facts: what the phone's tools can show you, how many times a screen really draws, what the React Compiler is already doing for you, what the app carries in its bundle and why, and a calm, repeatable method for hunting a bug that ends with a test that keeps it dead.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Open React Native DevTools with <kbd>j</kbd>, find the Expo CLI's dev tools menu, and say which tool answers which question on a phone and in the web preview</li>
+                        <li>Explain why a component renders, measure renders with React DevTools' Profiler, and decide from numbers whether memoization is needed with the React Compiler on</li>
+                        <li>Describe the JS thread and the UI thread, frames, release versus development builds, and the common causes of memory leaks in a React Native app</li>
+                        <li>Measure what the app's bundle carries with <code>npx expo export</code> and Expo Atlas, and shrink it where the numbers say it pays</li>
+                        <li>Debug with a method: reproduce, read the error, narrow it down, fix, and add a test that fails without the fix</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_30.html">Lesson 8.3: Testing Screens and Flows</a>, and Lesson 5.3 of the React + TypeScript course (the React Compiler), or equivalent</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Render and bundle measurements for Shoreline Crew, a bundle 6% smaller on Android (three unused packages and Zod's foreign-language messages gone), and a fix for a real bug on My cleanups, guarded by two new screen tests (47 in all)</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3, Hermes), React Compiler 1.0, React Native DevTools, Expo Atlas 0.5, Jest 30 with React Native Testing Library 14 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for DevTools and the performance monitor; the web preview and your browser's DevTools for render counts; your terminal for exports, Atlas and tests</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-31-start.zip">lesson-31-start.zip</a> · Finished code: <a href="downloads/lesson-31-end.zip">lesson-31-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Measure, Then Fix</a></li>
+                        <li><a href="#toolbox" class="toc-link">The Debugging Toolbox</a></li>
+                        <li><a href="#renders" class="toc-link">Why a Screen Renders, and What the Compiler Does</a></li>
+                        <li><a href="#profiling" class="toc-link">Frames, Threads and Memory</a></li>
+                        <li><a href="#bundle" class="toc-link">What the App Carries: Bundle and Startup</a></li>
+                        <li><a href="#method" class="toc-link">The Debugging Method</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Measure, Trim and Fix Shoreline Crew</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Measure, Then Fix</h2>
+                <p>At the end of Lesson 8.3 you scrolled the Cleanups list fast on your phone and wrote down anything that felt slow or jumpy. Keep that note next to you. This lesson is about turning notes like it into something you can act on, and about the other kind of report: "I checked in, and my cleanup disappeared."</p>
+                <p>The web course gave you the habits: React DevTools, the Profiler, the browser's Network tab, the React Compiler (Lesson 5.3 there). On a phone, the questions are the same and the tools are new: there is no browser window around your app, the JavaScript runs in Hermes on the phone, the drawing happens on a different thread, and what you ship is a compiled bundle inside an app, not files on a server. By the end of this lesson:</p>
+                <ul>
+                    <li><strong>You know the toolbox:</strong> what <kbd>j</kbd> and <kbd>Shift</kbd>+<kbd>M</kbd> open in the Expo CLI, and what each tool can and cannot tell you.</li>
+                    <li><strong>You have numbers</strong> for Shoreline Crew: how many components draw when a volunteer types in Search, with the React Compiler on and off, and what each package costs in the bundle.</li>
+                    <li><strong>The bundle is smaller,</strong> because the numbers pointed at things the app carries but never uses.</li>
+                    <li><strong>A real bug is fixed</strong> with a method, and a test makes sure it never comes back.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "make it faster" is one of the most common requests a mobile developer gets, and the most common mistake is to change code before measuring. Teams trust the developer who says "Search costs 3 milliseconds per keystroke; the jank is in the images" over the one who wraps everything in <code>useMemo</code> and hopes. And volunteers on a beach with an old phone and one bar of signal feel every extra megabyte and every dropped frame.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Slow and broken are information</h3>
+                    <p>A bug report is not a verdict on you; it is the app telling you where your picture of it is wrong. The developers who seem calm in front of a red screen are not smarter; they have a method, and they read the error before they guess. You will practice exactly that today, on a bug that has been hiding in Shoreline Crew since Lesson 6.3.</p>
+                </div>
+            </section>
+
+            <section id="toolbox" class="lesson-section">
+                <h2>🧰 The Debugging Toolbox</h2>
+                <p>Start <code>npx expo start</code> and look at the key list it prints. Two keys open the tools of this lesson: <kbd>j</kbd> "open debugger", and <kbd>Shift</kbd>+<kbd>M</kbd> "more tools".</p>
+                <h3><kbd>j</kbd>: React Native DevTools</h3>
+                <p>Pressing <kbd>j</kbd> opens <strong>React Native DevTools</strong>, a debugger built on Chrome's DevTools that connects to the JavaScript running in Hermes on your phone (or emulator). It needs an app that runs Hermes and is connected to Metro: Expo Go and development builds both do. With only the web preview open, there is nothing to connect to, and the terminal says so:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>...
+› Press j │ open debugger
+...
+Logs for your project will appear below. Press Ctrl+C to exit.
+Debug: No compatible apps connected, React Native DevTools can only be used with Hermes. Learn more: https://docs.expo.dev/guides/using-hermes/</code></pre>
+                </div>
+                <p>The web preview runs in your browser's JavaScript engine, not Hermes. For it, you use the browser's own DevTools (<kbd>F12</kbd>, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd>; <kbd>⌘ Cmd</kbd>+<kbd>⌥ Option</kbd>+<kbd>I</kbd> on a Mac) plus the <strong>React Developer Tools</strong> browser extension, the same pair you used for the HQ.</p>
+                <p>According to React Native's documentation, React Native DevTools gives you, for the app on the phone:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Panel</th><th>Answers</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Console</td><td>What did the app log, and what does this value hold right now? (Logs also appear in the terminal running Metro.)</td></tr>
+                            <tr><td>Sources</td><td>Breakpoints and stepping through your TypeScript, thanks to source maps; a <code>debugger;</code> statement pauses there too</td></tr>
+                            <tr><td>⚛️ Components</td><td>The component tree, props, state and hooks of the running app; React Developer Tools, built in</td></tr>
+                            <tr><td>⚛️ Profiler</td><td>Record an interaction and see each commit: which components rendered, how long they took, and (with a setting) why</td></tr>
+                            <tr><td>Memory</td><td>Heap snapshots of the JavaScript side, to compare before and after an action</td></tr>
+                            <tr><td>Network and Performance</td><td>Requests the app makes, and a timeline of the JavaScript thread; recent React Native versions added both: check what your version shows</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3><kbd>Shift</kbd>+<kbd>M</kbd>: more tools</h3>
+                <p>The second key opens a menu of developer tools that act on the connected phone. In Shoreline Crew it lists:</p>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>...
+? Dev tools (native only) › - Use arrow-keys. Return to submit.
+❯   Inspect elements
+    Toggle performance monitor
+    Toggle developer menu
+    Reload app
+    Open expo-sqlite
+    Open expo-atlas</code></pre>
+                </div>
+                <ul>
+                    <li><strong>Inspect elements</strong>: tap anything on the phone's screen to see its component, its styles and its size (the element inspector from Lesson 1.2's developer menu).</li>
+                    <li><strong>Toggle performance monitor</strong>: a small overlay on the phone with the frame rates of the UI thread and the JavaScript thread (on some platforms, memory use too). The next section explains why there are two.</li>
+                    <li><strong>Open expo-sqlite</strong>: a plugin that ships with expo-sqlite to browse the phone's database (Lesson 5.3's logbook).</li>
+                    <li><strong>Open expo-atlas</strong>: Expo Atlas, the bundle explorer, which appears once it is installed (Step 3) and Metro was started with <code>EXPO_ATLAS=true</code>.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>With Shoreline Crew open in Expo Go, press <kbd>j</kbd>: a DevTools window should open on your computer, connected to the phone. In the Console panel, type <code>1 + 1</code> to see it answer from the phone. Then press <kbd>Shift</kbd>+<kbd>M</kbd> and choose <strong>Toggle performance monitor</strong>: the overlay should appear on the phone. If more than one app is connected (a phone and an emulator), the CLI asks which one to debug. The course's machine has no phone or emulator attached, so the DevTools window itself is described from React Native's and Expo's documentation; the two terminal outputs above are real.</p>
+                </div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the radio relay, both ways</h4>
+                    <p>Lesson 1.1 called JSI the radio relay between JavaScript and the phone's native side. React Native DevTools is a second relay, between the phone and your computer: it listens to Hermes and reports what the JavaScript is doing, and it can tell Hermes to stop at a breakpoint. It hears the JavaScript side clearly. It hears the native side (drawing, the camera, the keyboard) only through what JavaScript sees of it. When a problem is in the native drawing, the performance monitor's UI frame rate and the platform's own profilers are the tools, not the Console.</p>
+                </div>
+            </section>
+
+            <section id="renders" class="lesson-section">
+                <h2>🔁 Why a Screen Renders, and What the Compiler Does</h2>
+                <p>The rules are React's, the same as in the HQ. A component renders again when:</p>
+                <ul>
+                    <li><strong>its state changes</strong> (<code>useState</code>, <code>useReducer</code>);</li>
+                    <li><strong>its parent renders</strong> and passes it a new element, even with equal props, unless something stops it;</li>
+                    <li><strong>a context it reads changes</strong>;</li>
+                    <li><strong>a store or hook it subscribes to reports a change</strong>: in Shoreline Crew, TanStack Query (a query's data or status), Zustand (a selector's result, which is why Lesson 5.5 used <code>useShallow</code>), <code>useWindowDimensions()</code> (turning the phone, changing the text size), <code>useSession()</code>.</li>
+                </ul>
+                <p>A render is not a redraw of pixels: React calls your function, compares the result, and sends only the differences to the native views. A render you did not need still costs JavaScript time, and on a phone, that time comes out of a frame.</p>
+                <h3>The React Compiler is already on</h3>
+                <p>Lesson 1.2's tour of <code>app.json</code> showed two experiments the template switched on. One of them is the compiler:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/app.json</div>
+                    <pre data-src="shoreline-crew/app.json" data-match="excerpt"><code class="language-json">    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }</code></pre>
+                </div>
+                <p>As in Lesson 5.3 of the web course, the compiler rewrites your components and hooks at build time so they remember what they computed and the elements they returned, and reuse them while the inputs are the same. It is what <code>useMemo</code>, <code>useCallback</code> and <code>memo</code> did by hand, applied everywhere it can prove it is safe. Three Expo details, read in <code>babel-preset-expo</code> for SDK 58:</p>
+                <ul>
+                    <li>The compiler (babel-plugin-react-compiler 1.0) runs on <strong>your code only</strong>, never on <code>node_modules</code>: libraries arrive already built.</li>
+                    <li>Every bundle says it is on: "React Compiler enabled" in the output of <code>npx expo start</code> and <code>npx expo export</code> (Step 3 shows it).</li>
+                    <li>A component can opt out with the directive <code>'use no memo'</code> as its first line, for the rare case where the compiler's memory gets in the way. Shoreline Crew does not need it.</li>
+                </ul>
+                <p>The compiler also explains some earlier lint errors: Lesson 7.1's "This value cannot be modified" for <code>sv.value = …</code> came from the compiler's rules in <code>eslint-config-expo</code>. Following the Rules of React is what lets the compiler work.</p>
+                <h3>What it buys: Shoreline Crew's numbers</h3>
+                <p>For this lesson, the Cleanups screen was measured in the web preview (development mode, Chromium on a desktop computer) while typing <code>otter</code> into Search, one letter at a time, with the compiler on and then off (<code>"reactCompiler": false</code> and <code>npx expo start --clear</code>). React DevTools' Profiler shows the same kind of numbers per commit:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>One letter typed in Search</th><th>Compiler on (the template's setting)</th><th>Compiler off</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>React commits</td><td>2 to 3 (8 when the list changes shape)</td><td>2 to 3 (9)</td></tr>
+                            <tr><td>Components rendered</td><td>about 46 to 62 (222)</td><td>about 262 to 531 (640)</td></tr>
+                            <tr><td>Render time, all commits</td><td>about 3 to 4 ms (12 ms)</td><td>about 10 to 21 ms (25 ms)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>With the compiler on, a keystroke re-renders the screen, the search field, the list and the few cards whose data changed. With it off, every card re-renders every <code>AppText</code>, <code>Icon</code> and <code>Detail</code> inside it, five times as much work for the same result. At 60 frames per second a frame has 16.7 milliseconds; on a desktop the difference is invisible, on a five-year-old phone it is the difference between a smooth field and a field that lags behind the thumb. The numbers on your phone will differ: that is why you measure there too.</p>
+                <h3>So, memo only where measured</h3>
+                <p>With the compiler on, the rule from the web course becomes simpler: <strong>do not add <code>useMemo</code>, <code>useCallback</code> or <code>memo</code> by default.</strong> Shoreline Crew has two <code>useCallback</code>s, and both are there because an API asks for a stable function (<code>useFocusEffect</code>), not for speed. Reach for manual memoization only when a measurement shows a component the compiler did not help, and then check the measurement again after the change. Two cases where that can happen:</p>
+                <ul>
+                    <li><strong>The compiler skipped a component.</strong> It does not compile code it cannot prove safe or does not support yet; the app still works, without the memory. In Shoreline Crew it skips two: <code>ConnectionCheck</code> (a <code>try</code> with <code>finally</code>) and <code>ShareLogbook</code> (a conditional inside <code>try</code>/<code>catch</code>). Both render a handful of times, at a button press, so the measured answer is: leave them. React Developer Tools marks compiled components with a "Memo ✨" badge, so the ones without it are easy to spot.</li>
+                    <li><strong>The work is outside React.</strong> A function that does something heavy on every call (sorting thousands of rows, parsing a big file) is still heavy when React calls it less often. Move it off the render path or make it cheaper; memoization only hides it.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tide gauge before the seawall</h4>
+                    <p>A town does not build a seawall because the beach "looks high today"; it reads the tide gauge for a season first, and then builds where the water actually comes over. Optimizing without a measurement is building seawalls by feel: expensive, in the wrong place, and sometimes it makes the next storm worse (stale values from a wrong dependency list are a classic). Measure, change one thing, measure again.</p>
+                </div>
+            </section>
+
+            <section id="profiling" class="lesson-section">
+                <h2>⏱️ Frames, Threads and Memory</h2>
+                <p>A phone redraws its screen 60 times a second, many newer ones 120. Each frame has 16.7 ms (or 8.3 ms) for everything. React Native splits the work between two threads that matter to you:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Thread</th><th>Does</th><th>When it is busy, you see</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>JavaScript thread (Hermes)</td><td>Your components, hooks, Query, Zustand, event handlers, <code>fetch</code> callbacks</td><td>Taps that answer late, a text field that lags, a list that shows blank rows while scrolling fast</td></tr>
+                            <tr><td>UI thread (main thread)</td><td>Native views: layout, drawing, scrolling, native animations, Reanimated worklets (Lesson 7.1)</td><td>Stuttering scroll and animations, even when JavaScript is idle</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The performance monitor shows one frame rate for each. If the JS number drops while you scroll the Cleanups list, the list is waiting for JavaScript to render rows (look at what the rows do on every render); if the UI number drops, the native side is struggling (big images being decoded, too many views, heavy shadows). That split is why Lesson 7.1 ran animations as worklets on the UI thread: they keep moving while JavaScript is busy.</p>
+                <h3>Measure the build your volunteers get</h3>
+                <p>What runs in Expo Go during development is slower than what volunteers will install: development mode adds checks and warnings, and the JavaScript arrives from Metro as source code, not compiled bytecode. So:</p>
+                <ul>
+                    <li>Use development mode to find <em>what</em> is slow (render counts, which component, which request).</li>
+                    <li>Judge <em>how</em> slow in production mode: <code>npx expo start --no-dev --minify</code> runs production JavaScript in Expo Go, and a preview or production build (Module 9) is the real thing.</li>
+                    <li>Try the oldest, cheapest phone you can borrow. Volunteers are not all on this year's flagship.</li>
+                </ul>
+                <p>For deeper profiling, React Native DevTools can record a JavaScript CPU profile of Hermes (a flame chart of which functions ran), and the platforms have their own profilers for the native side: Android Studio's profiler and Xcode's Instruments, both working on a build of your app rather than Expo Go. This course does not need them; know they exist for the day a number does not explain itself.</p>
+                <h3>Memory: what leaks in a phone app</h3>
+                <p>A phone gives each app far less memory than a desktop browser tab, and the system may close an app in the background that uses a lot. Leaks in React Native apps usually come from things that outlive the screen that started them:</p>
+                <ul>
+                    <li><strong>Listeners never removed.</strong> <code>AppState</code>, <code>NetInfo</code>, <code>Dimensions</code>, notification responses, <code>AccessibilityInfo</code>: every subscription needs its <code>remove()</code> in the effect's cleanup. Shoreline Crew's hooks (<code>useAppStateFocus</code>, <code>useReminderTaps</code>, the motion setting) all return one; that is the pattern to keep.</li>
+                    <li><strong>Timers and intervals</strong> that keep running after the screen closes.</li>
+                    <li><strong>Big things kept forever</strong>: whole photos in state, a cache that only grows. Lesson 6.2 kept photos as files and only their addresses in the queue, and deleted the files after upload, for this reason.</li>
+                    <li><strong>Images decoded at full size.</strong> A 4000-pixel photo shown 100 points wide still costs its full size in memory unless something resizes it; expo-image scales and caches for you, which is one reason the course uses it.</li>
+                </ul>
+                <p>To check: the performance monitor's memory number while you open and close a screen many times (it should come back down), or React Native DevTools' Memory panel, taking a heap snapshot before and after and comparing them.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ The web preview is not a phone</h4>
+                    <p>Render counts measured in the web preview are honest about React: same components, same compiler, same rules. Times are not: a desktop browser is many times faster than a phone, and react-native-web draws with the browser, not native views. Use the web preview to count and compare; use a phone to judge.</p>
+                </div>
+            </section>
+
+            <section id="bundle" class="lesson-section">
+                <h2>📦 What the App Carries: Bundle and Startup</h2>
+                <p>Every Shoreline Crew check since Lesson 1.2 has run <code>npx expo export</code> for Android and iOS. The file it writes is the app's JavaScript as <strong>Hermes bytecode</strong> (<code>.hbc</code>): compiled ahead of time, so the phone does not parse JavaScript at startup. It has grown with the app: about 2.8 MB for the first proof app, 5.9 MB on Android at the start of this lesson. Most of that is not your code.</p>
+                <p>Measured for this lesson from the Android export's source map (each minified byte charged to the package it came from; the minified JavaScript was 3.93 MB before Hermes compiled it):</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Package</th><th>Minified size</th><th>Share</th><th>Why it is there</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>react-native-reanimated</td><td>640 KB</td><td>16%</td><td>Tallies, swipe, layout animations (Module 7)</td></tr>
+                            <tr><td>react-native</td><td>612 KB</td><td>16%</td><td>The framework itself</td></tr>
+                            <tr><td>zod</td><td>506 KB</td><td>13%</td><td>Form checks (Lesson 5.4); 275 KB of it are error messages in more than 40 languages</td></tr>
+                            <tr><td>expo-router</td><td>471 KB</td><td>12%</td><td>Navigation, including its copy of React Navigation</td></tr>
+                            <tr><td>react-native-gesture-handler</td><td>177 KB</td><td>5%</td><td>Swipe to remove (Lesson 7.2)</td></tr>
+                            <tr><td>Shoreline Crew's own <code>src/</code></td><td>140 KB</td><td>4%</td><td>Everything you wrote in 30 lessons</td></tr>
+                            <tr><td>@expo/ui</td><td>78 KB</td><td>2%</td><td>Nothing: a template package Expo Router loads on Android if it is installed</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two rows stand out. <strong>Zod's languages</strong>: Shoreline Crew writes every message itself, in English, so 275 KB of messages in other languages are never shown. <strong>@expo/ui</strong>: a package the template installed for native UI components; the app never uses it, but Expo Router loads it on Android whenever it is installed. You remove both in Step 4, and the table's tool, <strong>Expo Atlas</strong>, is how you find rows like these yourself:</p>
+                <figure class="screenshot">
+    <img src="images/lesson_31/31-atlas.png" alt="Expo Atlas in a browser: the Android bundle of Shoreline Crew drawn as a treemap, with the largest boxes labeled react-native 17.67 percent, react-native-reanimated 16.72 percent, expo-router 13.47 percent and zod 10.75 percent, whose locales folder alone is 4.27 percent; the zod box is outlined in red, and smaller boxes include @expo/ui and @tanstack/query-core." width="1100" height="534" loading="lazy">
+    <figcaption>Expo Atlas, opened on the Android bundle as the lesson starts. Each box is a package or folder, sized by its share of the bundle; click one to zoom in. The zod box (outlined in red) holds a <code>locales</code> folder: messages in dozens of languages the app never shows. Atlas sizes the modules before minification, so its total is larger than the file the export writes.</figcaption>
+</figure>
+                <h3>Not every byte is JavaScript</h3>
+                <p>The export also lists assets: fonts and images the app ships next to the bundle. The largest in Shoreline Crew is the Material Symbols icon font (976 KB), which <code>expo-symbols</code> uses for icons on Android and the web. And the app you install from a store is much bigger than its bundle: the native code of React Native, Hermes and every native module, plus icons and splash images. Module 9 builds that app.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the field kit</h4>
+                    <p>Lesson 1.1's field kit is the native code a build carries. Expo Go is a kit packed by Expo, with every SDK module inside, whatever you use. Your own build (Module 9) packs the modules your project installs. A package in <code>package.json</code> that nothing uses is a tool in the kit nobody takes out: it makes the bag heavier on every trip. So the cleanup has two halves: unused JavaScript makes the bundle bigger now; unused native modules make your own app bigger later.</p>
+                </div>
+                <h3>Startup, in order</h3>
+                <p>When a volunteer taps the icon: the native app starts, Hermes loads the bytecode (fast: no parsing), the bundle's modules run their top-level code (2,238 modules on Android at the start of this lesson), the root layout holds the splash screen while it loads fonts, the saved session, settings and the queue (Lessons 2.3 to 5.5), and only then does the first screen render and ask the API for cleanups. Every module you remove is one less to run; every await behind the splash is time the volunteer stares at a logo. When startup feels slow, measure each of those steps in a production build before guessing which one it is.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: tree shaking is still experimental</h4>
+                    <p>Web bundlers remove unused exports ("tree shaking"). Metro, React Native's bundler, includes every module that is imported, whole. Expo SDK 58 has an experimental tree-shaking mode behind two <code>EXPO_UNSTABLE_</code> environment variables; measured on Shoreline Crew, it shrank the Android JavaScript only from 3.93 to 3.8 MB and kept Zod's languages, because <code>import { z } from 'zod'</code> uses the whole <code>z</code> object. So the course trims by hand, where the numbers point.</p>
+                </div>
+            </section>
+
+            <section id="method" class="lesson-section">
+                <h2>🐞 The Debugging Method</h2>
+                <p>Bugs that crash with a red screen are the easy ones: the error names a file and a line. The hard ones are quiet: the app does something reasonable-looking that is wrong. For both, the same five steps work, and they work best in order:</p>
+<div class="mermaid">
+graph TD
+    A["1. Reproduce it"] --> B["2. Read the error"]
+    B --> C["3. Narrow it down"]
+    C --> D["4. Fix one thing"]
+    D --> E["5. Keep a test"]
+    E --> F{"Test fails without fix?"}
+    F -->|"yes"| G["Done"]
+    F -->|"no"| A
+</div>
+                <ol>
+                    <li><strong>Reproduce it.</strong> Find the exact steps that show the bug every time: which account, which screen, which data, online or offline, which phone. A bug you cannot reproduce, you cannot know you fixed. The best reproduction is a failing test, because it repeats the steps for you in a second.</li>
+                    <li><strong>Read the error.</strong> All of it, slowly: the message, then the stack from the top. On a red screen, in Metro's terminal, in Jest: the stack is a path through your imports and calls, and the first line that is <em>your</em> file is usually where to look. No error at all is information too: the code did what it was told, so the question becomes what it was told.</li>
+                    <li><strong>Narrow it down.</strong> Split the path the data takes in half and check the middle. For a screen showing the wrong thing: did the API answer the right thing (DevTools' Network panel, or the browser's for the web preview)? Did the cache hold it (React DevTools shows the hook's data)? Did the screen's own logic keep it? Each check halves where the bug can be. When something "worked last week", the same idea applied to history is <code>git bisect</code>: Git checks out the commit halfway between a good one and a bad one, you test, and it halves again.</li>
+                    <li><strong>Fix one thing.</strong> The smallest change that explains the bug. If you change three things and it works, you do not know which one fixed it, or what the other two broke.</li>
+                    <li><strong>Keep a test</strong> that failed before the fix and passes after. That is how you know the test is about this bug, and it fails the day someone brings the bug back.</li>
+                </ol>
+                <p>In Step 5 you use all five on a bug a volunteer would report: "I checked in at today's cleanup, and it vanished from My cleanups." (If you did Exercise 2 in Lesson 6.3, you fixed it there already: today you add the part that was missing, the test, and practice the method on a bug you know.)</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each output below is what the terminal printed, on a copy of the project broken on purpose.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Pressing <kbd>j</kbd> with only the web preview open</h3>
+                    <p>The terminal answers <code>Debug: No compatible apps connected, React Native DevTools can only be used with Hermes.</code> (the whole output is in "The Debugging Toolbox"). Nothing is broken: React Native DevTools debugs an app running Hermes, such as Expo Go on your phone, and the web preview runs in the browser's engine. Open the app on the phone first, or use the browser's DevTools for the web preview.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Removing a package your code still imports</h3>
+                    <p>"Unused" means nothing imports it: not your code, not a library. Remove a package something still imports, and the type check tells you at once (here, a component that used <code>@expo/ui</code>, after Step 4 removed it):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/Toolbar.tsx:1:22 - error TS2307: Cannot find module '@expo/ui/jetpack-compose' or its corresponding type declarations.
+
+1 import { Host } from '@expo/ui/jetpack-compose';
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Found 1 error in src/components/Toolbar.tsx:1</code></pre>
+                    </div>
+                    <p>Metro fails the same way when it bundles ("Unable to resolve module"). Before removing a package, search your <code>src</code> folder for its name and run <code>npm ls</code> with its name, which shows every package that depends on it (Step 4). If a library needs it, it stays.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Judging speed in the wrong place</h3>
+                    <p>Development mode in Expo Go, and the web preview on a fast computer, are both the wrong place to decide whether something is fast enough. Development mode is slower than a release build (extra checks, JavaScript instead of bytecode); a desktop browser is far faster than a phone. Count renders anywhere; time them in production mode (<code>npx expo start --no-dev --minify</code>, or a build) on a real, preferably modest, phone.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A screen test that loads more than the screen</h3>
+                    <p>A test imports a screen; the screen imports its mutations; the mutations import the reminders; the reminders import expo-notifications, which cannot load in Jest (Lesson 8.2). The test file fails before any test runs:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/test/screens/my-cleanups.test.tsx
+  ● Test suite failed to run
+
+    TypeError: handleSubscription.remove is not a function
+...
+      at Object.remove (node_modules/expo-notifications/build/NotificationsHandler.ts:94:24)
+      at Object.setNotificationHandler (src/notifications/reminders.ts:29:17)
+      at Object.require (src/api/mutations.ts:7:1)
+      at Object.require (~/shoreline/shoreline-crew/src/app/(tabs)../../../../../../../my-cleanups.tsx:6:1)
+      at Object.require (src/test/screens/my-cleanups.test.tsx:6:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total</code></pre>
+                    </div>
+                    <p>Read the stack from the bottom up and it is the chain of imports: the test file, <code>my-cleanups.tsx</code> (Jest prints the <code>(tabs)</code> folder's path oddly), <code>mutations.ts</code>, <code>reminders.ts</code>. The fix is a stand-in for <em>your</em> module at the edge of what the test is about: <code>jest.mock('@/notifications/reminders', () =&gt; ({ updateReminders: jest.fn() }))</code>, with a factory, because an automatic mock would load the real module to copy its shape (Lesson 8.2).</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Measure, Trim and Fix Shoreline Crew</h2>
+                <p>You open the toolbox on your phone, count renders in the web preview, measure the bundle with Expo Atlas, remove what the numbers show the app does not need, and then hunt one real bug with the method. Start shoreline-api in one terminal (<code>node server.ts</code>, or with <code>--host</code> for your phone, as in Lesson 5.1) and <code>npx expo start</code> in another.</p>
+
+                <div class="card">
+                    <h3>Step 1: Open the toolbox <span class="step-time">(10 min)</span></h3>
+                    <p>Open Shoreline Crew on your phone in Expo Go. In the terminal running Metro:</p>
+                    <ol>
+                        <li>Press <kbd>j</kbd>. In the DevTools window, open the Console and type <code>1 + 1</code>, then open the ⚛️ Components panel and find <code>EventCard</code> in the tree.</li>
+                        <li>Press <kbd>Shift</kbd>+<kbd>M</kbd>, choose <strong>Toggle performance monitor</strong>, and scroll the Cleanups list fast to the end, the same test as your note from Lesson 8.3. Watch both frame rates. Write down the lowest JS and UI numbers you see.</li>
+                        <li>Choose <strong>Inspect elements</strong> from the same menu, tap a card's title, and read its size and styles.</li>
+                    </ol>
+                    <p>Then press <kbd>w</kbd> for the web preview. If your browser does not have the React Developer Tools extension yet (you used it for the HQ), install it from your browser's extension store, reload the page, and open DevTools: you should find the ⚛️ Components and ⚛️ Profiler tabs.</p>
+                    <p>No phone at hand? Do the web half now, and the phone half when you can: Step 2 works entirely in the web preview.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Count renders, with and without the compiler <span class="step-time">(20 min)</span></h3>
+                    <p>In the web preview's DevTools, open ⚛️ Profiler. In its settings (the gear), turn on <strong>Record why each component rendered while profiling</strong>; in the Components tab's settings, turn on <strong>Highlight updates when components render</strong>. Then:</p>
+                    <ol>
+                        <li>On the Cleanups screen, press record, type <code>otter</code> into Search one letter at a time, and stop.</li>
+                        <li>Step through the commits. For a letter in the middle of the word, count the components that rendered and note the total render time. Click <code>EventCard</code> to see why it rendered.</li>
+                        <li>In the Components tab, look for the "Memo ✨" badge next to components: those are the ones the compiler optimized.</li>
+                    </ol>
+                    <p>Now the experiment. In <code>app.json</code>, change <code>"reactCompiler": true</code> to <code>false</code>, stop Metro (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and start it again with a clean cache, so every file is transformed again:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo start --clear</code></pre>
+                    <p>Record the same five letters. Compare with "What it buys" above: your numbers will differ from the lesson's, but the difference between the two runs should look similar, several times more components on every keystroke with the compiler off. Then put <code>"reactCompiler": true</code> back and restart with <code>--clear</code> again. Check that the start-up output says <code>React Compiler enabled</code> before you go on.</p>
+                    <p>If you have your phone connected, repeat the "on" recording in React Native DevTools' ⚛️ Profiler (<kbd>j</kbd>). The number of components per keystroke should be about the same; the milliseconds are the phone's own.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: See what the bundle carries with Expo Atlas <span class="step-time">(15 min)</span></h3>
+                    <p>Expo Atlas reads a bundle as Metro builds it and draws what each package costs. Install it as a development tool (it never ships in the app):</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install --dev expo-atlas</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the start)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 other package using npm
+&gt; npm install --save-dev expo-atlas
+
+up to date, audited 1424 packages in 3s</code></pre>
+                    </div>
+                    <p>Yours says "added" packages instead of "up to date". Now export the Android bundle with Atlas switched on. An environment variable in front of a command works in macOS, Linux and WSL terminals:</p>
+                    <pre class="terminal"><code class="language-bash">EXPO_ATLAS=true npx expo export --platform android</code></pre>
+                    <p>In Windows PowerShell, set the variable first, and remove it afterwards:</p>
+                    <pre class="terminal"><code class="language-bash">$env:EXPO_ATLAS = "true"
+npx expo export --platform android
+Remove-Item Env:EXPO_ATLAS</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: the asset list in the middle is long)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+Android Bundled 13005ms node_modules/expo-router/entry.js (2238 modules)
+
+...
+› android bundles (1):
+_expo/static/js/android/entry-6d5dd88018515dfe26f7b81345ad9128.hbc (5.9MB)
+
+› Files (1):
+metadata.json (2KB)
+
+Exported: dist</code></pre>
+                    </div>
+                    <p>Note the module count (2238) and the bundle size (5.9 MB): those are your "before" numbers. Atlas wrote what it saw to <code>.expo/atlas.jsonl</code> (the <code>.expo</code> folder is already in <code>.gitignore</code>). Open it:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo-atlas</code></pre>
+                    <p>It prints the address where Atlas is ready and opens it in your browser: the treemap from "What the App Carries". Click <strong>zod</strong>, then <strong>v4</strong>, then <strong>locales</strong>: one box per language. Hover over <strong>@expo/ui</strong> to see its size and path. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal when you are done. (With Atlas installed, <code>EXPO_ATLAS=true npx expo start</code> also adds <strong>Open expo-atlas</strong> to the <kbd>Shift</kbd>+<kbd>M</kbd> menu, to look at the development bundle while you work.)</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Carry less <span class="step-time">(20 min)</span></h3>
+                    <p>First, the template packages. Search <code>src</code> in VS Code (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, <kbd>⌘ Cmd</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> on a Mac) for <code>expo-device</code>, <code>expo-web-browser</code>, <code>@expo/ui</code> and <code>expo-glass-effect</code>: none of them is used by your code. Then ask npm who depends on them:</p>
+                    <pre class="terminal"><code class="language-bash">npm ls expo-glass-effect expo-device expo-web-browser @expo/ui</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+├── @expo/ui@58.0.28
+├── expo-device@58.0.5
+├── expo-glass-effect@58.0.5
+├─┬ expo-router@58.0.31
+│ ├── @expo/ui@58.0.28 deduped
+│ └── expo-glass-effect@58.0.5 deduped
+└── expo-web-browser@58.0.8</code></pre>
+                    </div>
+                    <p>Expo Router uses two of them. <code>expo-glass-effect</code> it needs, so it stays. <code>@expo/ui</code> is optional for Expo Router (only its Android toolbar uses it, which Shoreline Crew does not), and nothing else uses <code>expo-device</code> or <code>expo-web-browser</code>. Remove those three:</p>
+                    <pre class="terminal"><code class="language-bash">npm uninstall @expo/ui expo-device expo-web-browser</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the first line)</h4>
+                        <pre><code>removed 4 packages, and audited 1408 packages in 2s
+...</code></pre>
+                    </div>
+                    <p>Then Zod's languages. Metro has no way to drop part of a package, but it lets you decide what an import resolves to. Replace <code>metro.config.js</code> with:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/metro.config.js</div>
+                        <pre data-src="shoreline-crew/metro.config.js"><code class="language-js">// Metro, the bundler, with two additions: expo-sqlite runs in the web preview as a WebAssembly
+// file (.wasm), and Metro only bundles the file types it has been told about; and Zod's error
+// messages in other languages stay out of the app (Lesson 8.4 measured them)
+const { getDefaultConfig } = require('expo/metro-config');
+
+const config = getDefaultConfig(__dirname);
+
+config.resolver.assetExts.push('wasm');
+
+// Zod 4 brings its messages in more than 40 languages, about 275 KB of the Android bundle.
+// Shoreline Crew writes its own messages, so the list of languages is resolved to an empty module.
+const zodLanguages = /[\\/]zod[\\/]v4[\\/]locales[\\/]index\.js$/;
+config.resolver.resolveRequest = (context, moduleName, platform) =&gt; {
+  const resolution = context.resolveRequest(context, moduleName, platform);
+  if (resolution.type === 'sourceFile' &amp;&amp; zodLanguages.test(resolution.filePath)) {
+    return { type: 'empty' };
+  }
+  return resolution;
+};
+
+module.exports = config;</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>resolveRequest</code> runs for every import Metro resolves. It asks Metro's own resolver first (<code>context.resolveRequest</code>), so nothing else changes.</li>
+                        <li>When the answer is Zod's list of languages, it returns <code>{ type: 'empty' }</code>: Metro's way to say "this module is empty". Zod's English messages live in their own file and stay, and every message Shoreline Crew shows is its own anyway (Lesson 5.4's schemas).</li>
+                        <li>The pattern accepts <code>/</code> and <code>\</code>, so it also matches Windows paths. If a future Zod moves the file, the pattern simply stops matching and the bundle grows back: nothing breaks, and the next measurement shows it.</li>
+                    </ul>
+                    <p>Metro reads its config at start, so export again with a clean cache, and run the iOS export too:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo export --platform android --clear
+npx expo export --platform ios</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (Android, trimmed)</h4>
+                        <pre><code>Android Bundled 19343ms node_modules/expo-router/entry.js (2084 modules)
+...
+› android bundles (1):
+_expo/static/js/android/entry-a0fc6b8a5faced8847b7291067d2d3bd.hbc (5.5MB)</code></pre>
+                    </div>
+                    <div class="card card-output">
+                        <h4>Expected output (iOS, trimmed)</h4>
+                        <pre><code>...
+› ios bundles (1):
+_expo/static/js/ios/entry-a72cb01c8306fa1b0305c6155b1eee3d.hbc (5.4MB)</code></pre>
+                    </div>
+                    <p>Compare with your "before" numbers. Measured for this lesson, in bytes:</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Bundle</th><th>Start</th><th>Three packages removed</th><th>And Zod's languages</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Android (<code>.hbc</code>)</td><td>5,885,261</td><td>5,755,941</td><td>5,512,051 (6.3% smaller)</td></tr>
+                                <tr><td>iOS (<code>.hbc</code>)</td><td>5,671,712</td><td>5,671,712 (no change)</td><td>5,428,303 (4.3% smaller)</td></tr>
+                                <tr><td>Android modules</td><td>2,238</td><td></td><td>2,084</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>The iOS bundle did not change when <code>@expo/ui</code> went, because Expo Router only loads it on Android: a reminder to measure each platform, not assume. Finally, make sure nothing depended on what you removed:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit
+npx expo lint
+npm test -- --watchAll=false</code></pre>
+                    <p>All three should pass as before (45 tests). In the web preview, open the sign-in screen and press <strong>Sign in</strong> with empty fields: "Enter an email address." should still appear, from Shoreline Crew's own schema.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The vanished cleanup, debugged with the method <span class="step-time">(25 min)</span></h3>
+                    <p><strong>The report:</strong> "I checked in at the Tide Pool cleanup this morning, and now it's gone from My cleanups. Did my check-in fail?"</p>
+                    <p><strong>1. Reproduce it.</strong> In the web preview (or on your phone), sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>), open My cleanups and note that Tide Pool Morning Cleanup, today's cleanup, is listed. Open it, press <strong>Check in</strong>, enter <code>6544</code> (the sample data's code for today, from Lesson 6.3), check in, press <strong>Done</strong>, and open My cleanups again. The cleanup is gone. It happens every time, so now make the reproduction automatic. Create <code>src/test/screens/my-cleanups.test.tsx</code>, with one test for what already works and one for the report:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/screens/my-cleanups.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/test/screens/my-cleanups.test.tsx"><code class="language-tsx">import { screen } from '@testing-library/react-native';
+import { Stack } from 'expo-router';
+
+import { checkIn, setSession } from '@/api/client';
+import { queryClient } from '@/api/queries';
+import MyCleanupsScreen from '@/app/(tabs)/my-cleanups';
+import { volunteer } from '@/test/factories';
+import { renderScreens } from '@/test/render';
+import { startMockApi } from '@/test/server';
+
+// The screen's mutations update reminders, and expo-notifications cannot load in Jest (Lesson 8.2)
+jest.mock('@/notifications/reminders', () =&gt; ({ updateReminders: jest.fn() }));
+
+startMockApi();
+beforeEach(() =&gt; setSession(volunteer)); // Theo, who has a spot at today's cleanup (e17)
+afterEach(() =&gt; queryClient.clear());
+
+function showMyCleanups() {
+  return renderScreens({ _layout: () =&gt; &lt;Stack /&gt;, index: MyCleanupsScreen });
+}
+
+it('lists the cleanups Theo signed up for, each with a Cancel button', async () =&gt; {
+  await showMyCleanups();
+  expect(await screen.findByText('Tide Pool Morning Cleanup')).toBeOnTheScreen();
+  expect(
+    screen.getByRole('button', { name: 'Cancel my sign-up for Tide Pool Morning Cleanup' }),
+  ).toBeOnTheScreen();
+});
+
+// The bug a volunteer reported: "I checked in, and my cleanup vanished from My cleanups"
+it("keeps today's cleanup after check-in, marked Checked in, with nothing to cancel", async () =&gt; {
+  await checkIn('e17', '6544'); // the code the organizer reads out at today's cleanup
+  await showMyCleanups();
+  expect(await screen.findByText('Tide Pool Morning Cleanup')).toBeOnTheScreen();
+  expect(screen.getByText('Checked in')).toBeOnTheScreen();
+  expect(
+    screen.queryByRole('button', { name: 'Cancel my sign-up for Tide Pool Morning Cleanup' }),
+  ).toBeNull();
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>The setup is Lesson 8.3's: the mock API per file, a signed-in volunteer, the app's cache cleared after each test, a stack with the real screen.</li>
+                        <li>The second test checks in through the app's own client (<code>checkIn</code> from Lesson 6.3), against the same mock API, before the screen opens: the same data a volunteer has after checking in.</li>
+                        <li>The <code>jest.mock()</code> line is there because of the first error you are about to meet. Leave it out for the first run.</li>
+                    </ul>
+                    <p><strong>2. Read the error.</strong> Without the <code>jest.mock()</code> line, run the file:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false src/test/screens/my-cleanups.test.tsx</code></pre>
+                    <p>The file does not even run: it fails with <code>TypeError: handleSubscription.remove is not a function</code>, the import chain from Common Mistakes. That is not the bug; it is the test's setup telling you the screen pulls in the notifications module. Reading the stack (test, screen, <code>mutations.ts</code>, <code>reminders.ts</code>) gives the fix: add the <code>jest.mock()</code> line with its comment, and run again:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: RNTL prints the whole screen)</h4>
+                        <pre><code> FAIL  src/test/screens/my-cleanups.test.tsx
+  ✓ lists the cleanups Theo signed up for, each with a Cancel button (116 ms)
+  ✕ keeps today's cleanup after check-in, marked Checked in, with nothing to cancel (33 ms)
+
+  ● keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+
+    Unable to find an element with text: Tide Pool Morning Cleanup
+
+    &lt;RNCSafeAreaProvider&gt;
+...
+              &lt;RCTScrollView&gt;
+                &lt;View&gt;
+                  &lt;Text
+                    accessibilityRole="header"
+                  &gt;
+                    Coming up
+                  &lt;/Text&gt;
+                  &lt;View&gt;
+                    &lt;Text&gt;
+                      Weekend Cove Cleanup
+                    &lt;/Text&gt;
+...
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 passed, 2 total</code></pre>
+                    </div>
+                    <p>Now the test fails for the right reason, the volunteer's reason: the first test passes, and after a check-in the list starts with Weekend Cove Cleanup. A failing test that matches the report is the best reproduction you can have.</p>
+                    <p><strong>3. Narrow it down.</strong> The data's path is: API, then the cache, then the screen's own logic, then what it draws. Check the middle first. In the web preview's Network tab (or React Native DevTools' Network panel on the phone), find the request to <code>/api/me/signups</code> after the check-in: Tide Pool Morning Cleanup is still there, with <code>"status": "attended"</code>. So the API and the cache are fine, and the bug is in the screen. Open <code>src/app/(tabs)/my-cleanups.tsx</code> and read what it keeps: <code>comingUp</code> keeps only <code>confirmed</code> and <code>waitlisted</code> sign-ups. An attended sign-up is filtered out, even on the day of the cleanup. Found, without a single <code>console.log</code>.</p>
+                    <p><strong>4. Fix one thing.</strong> Keep today's cleanup once you have checked in, show it as checked in, and offer no Cancel for it (SignupPanel's rule since Lesson 6.3):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/my-cleanups.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/my-cleanups.tsx" data-match="diff"><code class="language-diff-tsx">   const today = toDateString(new Date());
+-  // Spots you hold or wait for, soonest first (the API lists the latest cleanup first)
++  // Spots you hold or wait for, soonest first (the API lists the latest cleanup first), and
++  // today's cleanup once you have checked in: it is still going on
+   const comingUp = signups.data
+-    .filter(({ status }) =&gt; status === 'confirmed' || status === 'waitlisted')
+-    .filter(({ event }) =&gt; event.date &gt;= today)
++    .filter(
++      ({ status, event }) =&gt;
++        ((status === 'confirmed' || status === 'waitlisted') &amp;&amp; event.date &gt;= today) ||
++        (status === 'attended' &amp;&amp; event.date === today),
++    )
+     .reverse();
+ // ...
+         &lt;View style={styles.row}&gt;
+-          {signup.status === 'confirmed' ? (
++          {signup.status === 'attended' ? (
++            &lt;Badge label="Checked in" tone="success" /&gt;
++          ) : signup.status === 'confirmed' ? (
+             &lt;Badge label="Signed up" tone="success" /&gt;
+ // ...
+           &lt;/Link&gt;
+-          &lt;Button
+-            label={cancelling ? 'Cancelling…' : 'Cancel'}
+-            accessibilityLabel={`Cancel my sign-up for ${event.title}`}
+-            disabled={cancel.isPending}
+-            onPress={() =&gt; cancel.mutate(signup.id)}
+-          /&gt;
++          {/* Checked in: there is nothing left to cancel (the same rule as SignupPanel) */}
++          {signup.status !== 'attended' &amp;&amp; (
++            &lt;Button
++              label={cancelling ? 'Cancelling…' : 'Cancel'}
++              accessibilityLabel={`Cancel my sign-up for ${event.title}`}
++              disabled={cancel.isPending}
++              onPress={() =&gt; cancel.mutate(signup.id)}
++            /&gt;
++          )}
+         &lt;/View&gt;</code></pre>
+                    </div>
+                    <p>Without the badge change, an attended sign-up would fall into the "Waiting list" branch, so the fix is the filter and the two places that read the status. "You have helped at N cleanups" already counted it.</p>
+                    <p><strong>5. Keep the test.</strong> Run the file again:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> PASS  src/test/screens/my-cleanups.test.tsx
+  ✓ lists the cleanups Theo signed up for, each with a Cancel button (112 ms)
+  ✓ keeps today's cleanup after check-in, marked Checked in, with nothing to cancel (30 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        1.337 s, estimated 2 s
+Ran all test suites matching src/test/screens/my-cleanups.test.tsx.</code></pre>
+                    </div>
+                    <p>The test failed without the fix and passes with it: it is a test of this bug. Check the result by hand once too, with the same steps as in 1:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_31/31-checked-in.png" alt="My cleanups on a phone-sized web preview after Theo checked in: under Coming up, the card for Tide Pool Morning Cleanup with a green Checked in badge, outlined in red, and only an Open button; the next card, Weekend Cove Cleanup, still shows Signed up with Open and Cancel." width="420" height="814" loading="lazy">
+    <figcaption>The bug fixed: after checking in, today's cleanup stays on My cleanups, marked <strong>Checked in</strong>, with nothing to cancel. Web preview; on a phone the tab bar and header look native.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The whole suite, and what you measured <span class="step-time">(10 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false
+npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the end of the tests)</h4>
+                        <pre><code>...
+Test Suites: 15 passed, 15 total
+Tests:       47 passed, 47 total
+Snapshots:   0 total
+Time:        2.538 s
+Ran all test suites.</code></pre>
+                    </div>
+                    <p>Then write down your numbers in the project's notes (a <code>PERFORMANCE.md</code>, or your journal): renders per keystroke with the compiler on and off, the frame rates from your phone in Step 1, and the bundle sizes before and after Step 4. Numbers you wrote down are the "before" of the next performance question, and they turn "it feels slower since the update" into something you can check.</p>
+                    <p>One more measurement trick for the road: when a release build reports an error, its stack trace points into compiled bytecode, not your files. Exporting with <code>--source-maps</code> writes the map that translates it back (crash-reporting services use it; Lesson 9.3):</p>
+                    <pre class="terminal"><code class="language-bash">npx expo export --platform android --source-maps</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>...
+› android bundles (2):
+_expo/static/js/android/entry-a0fc6b8a5faced8847b7291067d2d3bd.hbc (4.5MB)
+_expo/static/js/android/entry-a0fc6b8a5faced8847b7291067d2d3bd.hbc.map (11MB)</code></pre>
+                    </div>
+                    <p>The bytecode is smaller here (4.5 MB) because Hermes moves its own debugging information into the <code>.map</code> file when you ask for one. Compare bundles exported the same way, or the comparison lies.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>You opened React Native DevTools with <kbd>j</kbd> and the performance monitor from <kbd>Shift</kbd>+<kbd>M</kbd> (on a phone), or know what each shows</li>
+                        <li>You recorded renders while typing in Search with the compiler on and off, and <code>app.json</code> has <code>"reactCompiler": true</code> again</li>
+                        <li><code>expo-atlas</code> is a dev dependency, and you found zod's <code>locales</code> and <code>@expo/ui</code> in Atlas's treemap</li>
+                        <li><code>@expo/ui</code>, <code>expo-device</code> and <code>expo-web-browser</code> are gone, <code>metro.config.js</code> leaves out Zod's languages, and the Android export reports 2084 modules and 5.5 MB</li>
+                        <li>My cleanups keeps today's cleanup after check-in with a Checked in badge and no Cancel, and <code>my-cleanups.test.tsx</code> fails without the fix and passes with it</li>
+                        <li><code>npm test -- --watchAll=false</code> passes 47 tests; <code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                        <li>Your own app: list the three packages your final-project idea would need most, and for each, one way you would measure what it costs (Atlas, the Profiler, the performance monitor)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes ten to twenty minutes. The next lesson starts from the project as Step 6 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: How much do the tallies cost?</h3>
+                    <p>Lesson 7.1's tallies count up with React rendering once per step. Measure it: in the web preview, sign in as Theo, open the Logbook, start recording in the Profiler, press <strong>Bring in my sent logs</strong>, and stop when the numbers have settled. How many commits, how many times did <code>Tally</code> render, and how long did each commit take? Is it worth changing?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The sample log has 42 pieces and 2.5 kg: one step per piece and one per tenth of a kilogram. Compare the time per commit with a frame's 16.7 ms.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Measured for this lesson (web preview, development mode): 38 commits during the count, 71 renders of <code>Tally</code> across the four tallies, about 70 ms of render time in all, so roughly 2 ms per commit. Each commit is far inside a frame, the count lasts under a second, and Reanimated moves the numbers' bounce on the UI thread. The answer is to leave it: Lesson 7.1 already limited the renders to one per visible step, and a screen reader hears only the final number. If a phone's performance monitor showed the JS frame rate dropping during the count, the next step would be to animate the text on the UI thread instead (Lesson 7.1's Going Further), and measure again.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Which components did the compiler skip?</h3>
+                    <p>Find the components without the "Memo ✨" badge in React Developer Tools' Components tab (open the Profile tab, and the Logbook after bringing in Theo's sent logs, so they are on screen). Read their code: what might the compiler not support? Then decide, from measurement, whether to do anything about it.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for <code>try</code> blocks. Then ask how often each of those components renders while a volunteer uses the screen.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Two of Shoreline Crew's components are skipped (checked for this lesson with the compiler's own report): <code>ConnectionCheck</code>, because its <code>try</code> has a <code>finally</code> clause, and <code>ShareLogbook</code>, because a value computed with a condition sits inside a <code>try</code>/<code>catch</code>. Everything else in <code>src</code>, 69 components and hooks, is compiled. Both skipped components render only when their button is pressed, a few times in all, so the measured answer is to leave them as they are. Rewriting working code to please the compiler, with no measurement saying it matters, is the seawall built by feel.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A test for Cancel (Stretch)</h3>
+                    <p>My cleanups now has two tests. Add a third to <code>my-cleanups.test.tsx</code>: Theo presses Cancel on Weekend Cove Cleanup, and the cleanup leaves the list while Tide Pool Morning Cleanup stays.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The Cancel buttons are named "Cancel my sign-up for …". The cancel goes to the API and then the list is asked for again, so wait for the row to go with <code>waitFor()</code>. (<code>waitForElementToBeRemoved</code> fails here if the row is already gone when it starts waiting.)</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>userEvent</code> and <code>waitFor</code> to the import from <code>@testing-library/react-native</code>, then:</p>
+                        <pre data-snippet><code class="language-tsx">it('takes a cleanup off the list when Theo cancels', async () => {
+  const user = userEvent.setup();
+  await showMyCleanups();
+  await user.press(
+    await screen.findByRole('button', { name: 'Cancel my sign-up for Weekend Cove Cleanup' }),
+  );
+  // The cancel waits for the API, then My cleanups asks for the sign-ups again
+  await waitFor(() => expect(screen.queryByText('Weekend Cove Cleanup')).toBeNull());
+  expect(screen.getByText('Tide Pool Morning Cleanup')).toBeOnTheScreen();
+});</code></pre>
+                        <p>Measured: the three tests pass, and <code>tsc</code> and ESLint are clean. The mock API really cancels the sign-up, and the cancel mutation from Lesson 5.2 refreshes the list, so the test checks the whole path a volunteer's thumb starts.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> You press <kbd>j</kbd> in the Expo CLI and see "No compatible apps connected, React Native DevTools can only be used with Hermes." Only the web preview is open. What is going on?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Metro printed the message itself. Would it do that if it were not running?">
+                                A) Metro is not running
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="React Native DevTools connects to an app running Hermes, such as Shoreline Crew in Expo Go on a phone or emulator. The web preview runs in the browser's own JavaScript engine: debug it with the browser's DevTools and the React Developer Tools extension.">
+                                B) DevTools needs the app running in Hermes, on a phone or emulator; the web preview runs in the browser's engine
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Expo Go run Hermes? Would a development build be needed just to debug?">
+                                C) Debugging needs a development build instead of Expo Go
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the browser extension involved when the CLI opens React Native DevTools?">
+                                D) The React Developer Tools browser extension is not installed
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A teammate wants to wrap <code>EventCard</code> in <code>memo()</code> and its handlers in <code>useCallback</code> "to make the list faster". The React Compiler is on. What should happen first?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would doing it everywhere tell you whether it helped anywhere?">
+                                A) Wrap every component in the app the same way, to be consistent
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What did turning the compiler off do to the number of renders per keystroke?">
+                                B) Turn the compiler off, since it conflicts with manual memoization
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a snapshot test measure speed?">
+                                C) Add a snapshot test of the list
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="With the compiler on, EventCard is already memoized where the compiler can prove it safe. Record the interaction in the Profiler, see whether EventCard renders more than it should and whether it costs real time, and only then change one thing and measure again.">
+                                D) Record the slow interaction in the Profiler and see whether <code>EventCard</code> renders needlessly, and whether it matters
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> While you scroll the Cleanups list fast on a phone, the performance monitor shows the JS frame rate falling to about 20 while the UI frame rate stays near 60. Where do you look first?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The JS number is the JavaScript thread: rendering the rows that scroll into view is its work. The native side keeps up, so look at what the rows do in JavaScript on each render, with the Profiler.">
+                                A) The JavaScript work done when rows render, using the Profiler
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which thread decodes images and draws native views, and is that one struggling?">
+                                B) Image decoding and native drawing
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a slow network lower the frame rate while scrolling already loaded rows?">
+                                C) The network: the API is too slow
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Removing <code>@expo/ui</code> made the Android bundle 129 KB smaller, but the iOS bundle did not change at all. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What kind of file did the iOS export write?">
+                                A) iOS bundles are not compiled to Hermes bytecode
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Each export empties its folder and builds again. Could an old file be reused?">
+                                B) The iOS export reused an old bundle from its cache
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo Router loads @expo/ui only in its Android code (its Android toolbar), so the package was only ever in the Android bundle. Each platform gets its own bundle, which is why you measure each one.">
+                                C) Expo Router only loads <code>@expo/ui</code> on Android, so it was never in the iOS bundle
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did anything in Shoreline Crew's src use @expo/ui on either platform?">
+                                D) Shoreline Crew still uses <code>@expo/ui</code> on iOS
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Why did Step 5 write the test for the vanished cleanup and watch it fail <em>before</em> fixing <code>my-cleanups.tsx</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Did the test change how fast the screen runs?">
+                                A) Because tests make the screen faster
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A test that fails without the fix and passes with it proves it checks this bug. Written after the fix, it might pass for an unrelated reason and never catch the bug if it came back. The failing test was also the quickest way to reproduce the report again and again.">
+                                B) A test that fails without the fix proves it catches this bug, and it reproduces the report in a second
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did Jest need anything from the fix to run?">
+                                C) Because Jest cannot run a test for code that already works
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Should I still learn <code>useMemo</code>, <code>useCallback</code> and <code>memo</code>?</summary>
+                    <p>Yes, to read code and for the cases the compiler leaves to you: a library that asks for a stable function (Expo Router's <code>useFocusEffect</code>, as in Shoreline Crew), a project without the compiler, a component the compiler skipped where a measurement says it matters. What changes is the default: in a new Expo project you do not add them for speed until the Profiler shows a reason.</p>
+                </details>
+
+                <details class="card">
+                    <summary>I removed packages. Is Shoreline Crew still fine in Expo Go?</summary>
+                    <p>Yes. Expo Go already contains the native code of every module in the SDK, whatever your project installs; what you removed was JavaScript in your bundle and, for later, native code in your own builds. That is also why a package's native side "works in Expo Go" but must be installed in the project for a development build (Module 9).</p>
+                </details>
+
+                <details class="card">
+                    <summary>My bundle is 5.5 MB. Why are apps in the store 30 MB or more?</summary>
+                    <p>The bundle is only the JavaScript. The installed app also holds React Native's and Hermes's native code, every native module the project installs, fonts, images, icons and splash screens, for each processor type the store delivers. The stores compress downloads and deliver only what a given phone needs, so the size a volunteer sees differs from what you build. Module 9 builds the real app and its size.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Does <code>console.log</code> slow the app down?</summary>
+                    <p>In development, every log travels to Metro's terminal (and DevTools), and logging inside a list's render or an animation can slow things you are trying to measure. The calls are still in a release build too, where nobody reads them. Log while you investigate, then remove what you added: the debugging method's last step is a test, not a log line.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Measure on the phone that matters most: the oldest one you can borrow. Start Metro in production mode with <code>npx expo start --no-dev --minify</code>, open Shoreline Crew in Expo Go, switch on the performance monitor, and repeat Step 1's fast scroll and Step 2's typing. Then do the same in development mode. Write down both, and the phone's model and age. Is there a moment where the JS frame rate falls below 50? If so, record that moment in React Native DevTools' Profiler (development mode) and find the components behind it. You now have the beginnings of a performance budget: numbers your app must not get worse than.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Think of the last bug you fixed, in this course or anywhere. Which of the five steps did you skip, and what did skipping it cost you? Then write down one number about Shoreline Crew you did not know this morning, and what you would do differently because you know it.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><kbd>j</kbd> opens React Native DevTools for an app running Hermes (Expo Go, development builds); <kbd>Shift</kbd>+<kbd>M</kbd> opens the element inspector, the performance monitor and plugins like Expo Atlas. The web preview uses the browser's DevTools</li>
+                        <li>A component renders for its state, its parent, a context or a subscription; the React Compiler, on in Expo's template, cut Shoreline Crew's renders per keystroke about fivefold, so manual memoization waits for a measurement</li>
+                        <li>Two threads, two frame rates: JavaScript work shows in the JS number, native drawing in the UI number. Count renders anywhere; judge speed in production mode on a real phone</li>
+                        <li>Leaks come from what outlives a screen: listeners without <code>remove()</code>, timers, big objects kept forever</li>
+                        <li>Expo Atlas and the export's output show what the bundle carries; Shoreline Crew lost 6% on Android by removing three unused packages and Zod's foreign-language messages</li>
+                        <li>Debug in order: reproduce, read the error, narrow it down, fix one thing, keep a test that fails without the fix</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Learn React Native DevTools' panels</td><td><a href="https://reactnative.dev/docs/react-native-devtools">React Native: React Native DevTools</a></td></tr>
+                            <tr><td>Read Expo's debugging guide</td><td><a href="https://docs.expo.dev/debugging/tools/">Expo: Debugging tools</a></td></tr>
+                            <tr><td>Use the React Compiler with Expo</td><td><a href="https://docs.expo.dev/guides/react-compiler/">Expo: React Compiler</a></td></tr>
+                            <tr><td>Analyze a bundle with Atlas</td><td><a href="https://docs.expo.dev/guides/analyzing-bundles/">Expo: Analyzing JavaScript bundles</a></td></tr>
+                            <tr><td>Understand frames and threads</td><td><a href="https://reactnative.dev/docs/performance">React Native: Performance overview</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You can open and name the tools for a phone app: DevTools, the performance monitor, the element inspector, the Profiler, Atlas</li>
+                        <li>You measured what the React Compiler does for Shoreline Crew instead of taking it on faith</li>
+                        <li>Shoreline Crew's Android bundle is 6% smaller, with 154 fewer modules to run at startup, and every test still passes</li>
+                        <li>A bug that had been in the app since Lesson 6.3 is fixed, and a test now guards it: 47 tests in all</li>
+                        <li>You have a method for the next bug, and the numbers for the next performance question</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 8 made Shoreline Crew accessible, tested and measured. Module 9 ships it. In <a href="lesson_32.html">Lesson 9.1: App Config and Environments</a>, <code>app.json</code> becomes <code>app.config.ts</code>, so one project can produce a development, a preview and a production variant of the app, each with its own name and identifier, next to each other on the same phone. The preview build is where today's "measure in a release build" becomes something you can install.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code> once more, and commit your work, with your performance numbers</li>
+                    <li>Open <code>app.json</code> and read every key in it once: Lesson 9.1 moves all of them into code</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Performance work has a reputation for being a dark art, and debugging for being luck. Today you did both with nothing more mysterious than counting, reading and halving. The habit is what lasts: the next time something feels slow or wrong, you will reach for a number before an opinion. That is what senior developers do, and you just practiced it on a real app.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_30.html" class="prev-lesson">← Previous: Testing Screens and Flows</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_32.html" class="next-lesson">Next: App Config and Environments →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

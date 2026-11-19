@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Motion polish on a phone: Reanimated layout animations for things that arrive, leave and move, where they fail (recycled FlashList rows, nested transitions), a Lottie animation made for the course with lottie-react-native (and what the web preview needs), and Reduce Motion followed while the app runs, with an in-app motion switch, applied to the Shoreline Crew logbook and debris-log screens. React Native &amp; Expo: Build and Ship a Mobile App Lesson 7.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Motion Polish - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>✨ Lesson 7.3: Motion Polish</h1>
+                <p class="lead">When Theo removed his duplicate log last lesson, it was there in one frame and gone in the next, and everything below it jumped up the screen. When his log reached the server, the app said so in words and nothing else. And when Maya turned on Reduce Motion halfway through a cleanup, the tallies kept counting until she closed the app and opened it again. Today Shoreline Crew gets the finishing touches that make an app feel cared for: things that arrive, leave and make room the way objects do, a small illustrated moment when a log is safely on the server, and motion that steps aside the instant someone asks, from the phone's settings or from the app's own.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Animate views that appear, disappear and move with Reanimated's layout animations (<code>entering</code>, <code>exiting</code>, <code>layout</code>) and keep the first render still with <code>LayoutAnimationConfig</code></li>
+                        <li>Recognize where layout animations misbehave: rows recycled by FlashList, and a resizing container with moving children</li>
+                        <li>Play a Lottie animation with lottie-react-native, set up what the web preview needs for it, and check where an animation file comes from before shipping it</li>
+                        <li>Follow the phone's Reduce Motion setting while the app runs, with <code>AccessibilityInfo</code> and <code>ReducedMotionConfig</code>, and cover what Reanimated's setting does not reach</li>
+                        <li>Decide whether an app needs its own motion switch, and build one that only ever adds to the phone's setting</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 150 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_26.html">Lesson 7.2: Gestures</a> (and Reduce Motion from <a href="lesson_25.html">Lesson 7.1</a>, the settings store from <a href="lesson_17.html">Lesson 5.3</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Logbook cards that fade in, slide out and make room; a check mark that draws itself when a log reaches the server; Reduce Motion followed live; a "Reduce motion in this app" switch on Profile</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-native-reanimated 4.7, lottie-react-native 7.5, @lottiefiles/dotlottie-react 0.13 (web preview only) (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the real motion and the real Reduce Motion setting; the web preview for building, and for switching reduced motion on and off without a restart; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-27-start.zip">lesson-27-start.zip</a> · Finished code: <a href="downloads/lesson-27-end.zip">lesson-27-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Motion With a Job</a></li>
+                        <li><a href="#layout" class="toc-link">Arriving, Leaving, Making Room</a></li>
+                        <li><a href="#lottie" class="toc-link">Lottie: Illustrated Motion</a></li>
+                        <li><a href="#reduce" class="toc-link">Reduce Motion, Live</a></li>
+                        <li><a href="#switch" class="toc-link">An In-App Switch: The Decision</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Polish the Logbook</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Motion With a Job</h2>
+                <p>Last lesson's "Before the Next Lesson" asked you to watch what happens when you delete something in the apps you use. Most good apps do the same three things: the item <em>leaves</em> (it slides away or fades, so you see which one went), the items around it <em>make room</em> (they glide into the gap instead of jumping, so you do not lose your place), and new items <em>arrive</em> gently. Each of those motions has a job: it answers "what just changed?" without a word. Motion with no job (a list that bounces in every time you open it) is the kind people learn to dislike.</p>
+                <p>Lesson 7.1 animated values you chose (a count, a bounce). Today's motion is about <strong>structure</strong>: views being added, removed and moved by React itself. You will also play a small illustrated animation, the kind a designer makes in an animation tool rather than in code, and you will finish the job Lesson 7.1 started on Reduce Motion. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>The Logbook makes room.</strong> A removed waiting log slides out to the left (the way the swipe points) as it fades, the cards below glide up into the gap, and a log that arrives in the logbook fades in. Cards already there when you open the tab simply are there.</li>
+                    <li><strong>A sent log gets a check mark.</strong> On "Log sent. Thank you!", a check mark in a circle draws itself once: a Lottie animation drawn for this course.</li>
+                    <li><strong>Reduce Motion works while the app runs.</strong> Turn it on in the phone's settings with Shoreline Crew open, and the next count, slide or check mark simply does not move. No restart.</li>
+                    <li><strong>And the app has its own switch</strong>, "Reduce motion in this app", for people who want calm in Shoreline Crew without changing every app on their phone.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "polish" is where a design team's review comments pile up, and where cross-platform apps are told they feel "not quite native". Knowing which tool fits which motion (a layout animation, a Lottie file, a shared value) turns those comments into an afternoon's work. And motion that respects accessibility settings is increasingly a requirement in reviews and contracts, not a nice extra: a vestibular disorder can make a sliding screen physically unpleasant.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Polish is a practice</h3>
+                    <p>Nobody gets motion right on the first try: designers iterate on timing for days. Today you will remove the same log more than once, slow animations down to look at them, and switch motion off and on while the app runs. If something looks "a bit off" and you cannot name it yet, write that down anyway: by the end of the lesson you will have the words (entering, exiting, layout transition, reduced motion) to say what.</p>
+                </div>
+            </section>
+
+            <section id="layout" class="lesson-section">
+                <h2>📦 Arriving, Leaving, Making Room</h2>
+                <p>In the web course, animating an element that leaves the page was awkward: once React removes it from the DOM, there is nothing left to animate, so you reached for a library or kept the element around by hand. Reanimated solves it on the phone with <strong>layout animations</strong>: three props on any <code>Animated</code> component.</p>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
+
+// Tags that arrive, leave and make room: three props, no shared values
+export function Arrivals() {
+  const [tags, setTags] = useState(['Glass', 'Rope', 'Bottle caps']);
+  return (
+    &lt;View style={styles.list}&gt;
+      &lt;Pressable
+        accessibilityRole="button"
+        onPress={() =&gt; setTags((now) =&gt; [`Net ${now.length + 1}`, ...now])}
+      &gt;
+        &lt;Text&gt;Add a tag&lt;/Text&gt;
+      &lt;/Pressable&gt;
+      {tags.map((tag) =&gt; (
+        &lt;Animated.View
+          key={tag} // the key tells Reanimated which tag is which, as it tells React
+          entering={FadeIn.duration(250)} // when it mounts: fade in over 250 ms
+          exiting={FadeOutLeft} // when it unmounts: slide out to the left, fading
+          layout={LinearTransition} // when its place changes: glide there
+          style={styles.tag}
+        &gt;
+          &lt;Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${tag}`}
+            onPress={() =&gt; setTags((now) =&gt; now.filter((other) =&gt; other !== tag))}
+          &gt;
+            &lt;Text&gt;{tag}&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/Animated.View&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  list: { gap: 8 },
+  tag: { padding: 12, borderRadius: 8, backgroundColor: '#bfe3df' },
+});</code></pre>
+                <ul>
+                    <li><code>entering</code> plays when the view <strong>mounts</strong>: here, a tag added at the top fades in.</li>
+                    <li><code>exiting</code> plays when React <strong>unmounts</strong> it. Reanimated keeps a copy of the view on screen just long enough to animate it away, then removes it for real. You did nothing special in React: the tag left the array, and that was enough.</li>
+                    <li><code>layout</code> plays when the view's <strong>position or size changes</strong> because something else changed: the tags below a removed one glide up instead of jumping.</li>
+                    <li>The <code>key</code> matters more than ever: it is how React, and therefore Reanimated, knows that "Rope" is the same tag one row higher, not a new one.</li>
+                </ul>
+                <p>Reanimated ships dozens of ready-made animations. A few families cover most needs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Family</th><th>Entering / exiting</th><th>Feels like</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Fade</td><td><code>FadeIn</code>, <code>FadeOut</code>, plus directions: <code>FadeInDown</code>, <code>FadeOutLeft</code>, …</td><td>Calm; the safest choice</td></tr>
+                            <tr><td>Slide</td><td><code>SlideInRight</code>, <code>SlideOutLeft</code>, …</td><td>Something moving in from off screen</td></tr>
+                            <tr><td>Zoom</td><td><code>ZoomIn</code>, <code>ZoomOut</code>, …</td><td>Something popping up in place</td></tr>
+                            <tr><td>Others</td><td><code>BounceIn</code>, <code>FlipInXUp</code>, <code>LightSpeedInRight</code>, <code>PinwheelIn</code>, …</td><td>Playful; use rarely, and never for data</td></tr>
+                            <tr><td>Layout transitions (<code>layout</code>)</td><td><code>LinearTransition</code>, <code>FadingTransition</code>, <code>SequencedTransition</code>, <code>JumpingTransition</code>, <code>CurvedTransition</code></td><td>How a view gets from its old place to its new one</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Each one takes <strong>modifiers</strong> you chain: <code>FadeIn.duration(250)</code>, <code>.delay(100)</code>, <code>.springify()</code> (a spring instead of a timing curve), <code>.easing(…)</code>, and <code>.reduceMotion(…)</code>, which you will use later. They follow the same Reduce Motion rule as Lesson 7.1's animation functions: by default (<code>ReduceMotion.System</code>), with Reduce Motion on, a view simply appears or disappears.</p>
+                <h3>The first render is not news</h3>
+                <p><code>entering</code> plays whenever a view mounts, and that includes the moment a whole screen opens. Open the Logbook with ten logs in it, and ten cards fade in, every time: motion with no job. Reanimated's answer is a wrapper:</p>
+                <ul>
+                    <li><code>&lt;LayoutAnimationConfig skipEntering&gt;</code> skips the <code>entering</code> animations of everything inside it <strong>while the wrapper itself first mounts</strong>. Views that mount later (a log that arrives while you watch) still animate.</li>
+                    <li><code>skipExiting</code> does the same for <code>exiting</code> when the wrapper unmounts: a screen that closes does not need every card to wave goodbye.</li>
+                </ul>
+                <div class="card card-info">
+                    <h3>💡 Mental model: making room on the bench</h3>
+                    <p>At the end of a cleanup, the crew sits on the sea wall to sort the bags. When someone leaves, they stand up and walk off to one side, and the people next to them shuffle along to close the gap. Nobody vanishes, and nobody teleports. That is exactly what <code>exiting</code> and <code>layout</code> do for a list. And when the crew first sits down, nobody makes a show of arriving one by one: that is <code>skipEntering</code>.</p>
+                </div>
+                <h3>Where layout animations do not fit: recycled lists</h3>
+                <p>Layout animations hang on <em>mounting</em> and <em>unmounting</em>. FlashList (Lesson 3.2) is built to avoid exactly that: rows that scroll off screen are recycled for rows coming on screen, with new props, and are never unmounted. The course measured it with 300 rows in the web preview, each wrapped in <code>&lt;Animated.View entering={FadeIn} exiting={FadeOut}&gt;</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>What happened</th><th>Animations running (measured)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>The list first appears</td><td>38: every row on screen faded in (the first-render problem above)</td></tr>
+                            <tr><td>A long scroll: Items 287 to 290 come on screen</td><td>0: recycled rows, nothing mounted</td></tr>
+                            <tr><td>Item 287 is pressed and removed from the data</td><td>0: it was gone at once, and Item 288 was simply in its place</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So in a FlashList, <code>entering</code> fires for the first screenful only and <code>exiting</code> not at all. FlashList's own documentation offers a different route for layout changes: call <code>prepareForLayoutAnimationRender()</code> on the list's ref right before the data changes, which turns recycling off for that one render so React Native's built-in <code>LayoutAnimation</code> can animate it. The Cleanups list stays as it is: it gains nothing from motion. The Logbook's queue and logbook cards are drawn with <code>map</code> in a scrolling <code>Screen</code> (a few cards, never hundreds), so every card really mounts and unmounts, and layout animations work.</p>
+            </section>
+
+            <section id="lottie" class="lesson-section">
+                <h2>🎬 Lottie: Illustrated Motion</h2>
+                <p>Some motion is drawing, not moving boxes: a check mark that draws itself, a wave that rolls in, a mascot that waves. Building that from views and shared values is possible and miserable. <strong>Lottie</strong> is the industry's answer: a designer animates vector shapes in a tool (Adobe After Effects with the Bodymovin exporter, or LottieFiles' own editor, Lottie Creator), and the result is a small <strong>JSON file</strong> describing the shapes, their colors and how they change over time. A player on the phone draws it, frame by frame, sharp at any size.</p>
+                <ul>
+                    <li><strong>lottie-react-native</strong> is the player for React Native (started at Airbnb, the company that created Lottie). On iPhone and Android it uses the platforms' own Lottie libraries, natively. It is part of Expo Go, so no development build is needed (Expo's documentation; Step 7 checks it).</li>
+                    <li><strong>In the web preview</strong>, lottie-react-native draws with a different player, <code>@lottiefiles/dotlottie-react</code>, which you install yourself: without it, the web bundle fails (<a href="#mistakes">Common Mistakes</a>). That player is a WebAssembly program; measured in Chromium, it downloads its engine from a public CDN (<code>cdn.jsdelivr.net</code>) the first time an animation plays. Your phone app never needs it: the native players are built in.</li>
+                </ul>
+                <p>Shoreline Crew's animation, <code>assets/animations/log-sent.json</code>, was written for this course by a small script (no animation tool, no downloaded art): a Seafoam disk grows in, a Sea Teal ring draws around it, then a Deep Tide check mark draws itself, in 1.5 seconds. Here is how a Lottie file is put together, from its first lines and the check mark's layer:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/assets/animations/log-sent.json</div>
+                    <pre data-src="shoreline-crew/assets/animations/log-sent.json" data-match="excerpt"><code class="language-json">{
+  "v": "5.7.4",
+  "fr": 30,
+  "ip": 0,
+  "op": 45,
+  "w": 120,
+  "h": 120,
+  "nm": "Log sent",
+  "ddd": 0,
+  "assets": [],
+  "layers": [
+    {
+      "ddd": 0,
+      "ind": 1,
+      "ty": 4,
+      "nm": "Check",
+                  ...
+                  "v": [
+                    [-21, 1],
+                    [-6, 16],
+                    [22, -14]
+                  ],
+              ...
+              "ty": "tm",
+              "nm": "Draw",
+              ...
+              "e": {
+                "a": 1,
+                "k": [
+                  {
+                    "t": 16,
+                    "s": [0],
+                  ...
+                  {
+                    "t": 32,
+                    "s": [100]</code></pre>
+                </div>
+                <ul>
+                    <li><code>fr</code> is the frame rate (30 frames a second), <code>ip</code> and <code>op</code> the first and last frame (45 frames: 1.5 seconds), <code>w</code> and <code>h</code> the drawing's size. The player scales it to whatever size you give the view.</li>
+                    <li><code>layers</code> are drawn top first: the check mark, then the ring, then the disk under them.</li>
+                    <li>The check mark is a path through three points (<code>v</code>), drawn with a stroke. The trick is the <strong>trim path</strong> (<code>"ty": "tm"</code>, named "Draw"): its end (<code>e</code>) is animated (<code>"a": 1</code>) from 0% at frame 16 to 100% at frame 32, so the line draws itself from the first point to the last. <code>i</code> and <code>o</code> are the easing, like Lesson 7.1's <code>Easing.out</code>.</li>
+                </ul>
+                <div class="card card-danger">
+                    <h3>🛑 Where did this animation come from?</h3>
+                    <p>A Lottie file is artwork, and artwork has an owner. Free animation marketplaces are full of tempting check marks and confetti, but each file comes with its own license (LottieFiles, the biggest library, shows a license on every animation; read it), and some "free" files on other sites were simply copied from someone else. Before an animation ships in an app that is published in a store, you should know who made it and that its license allows your use, commercial use included. Shoreline Crew's file was drawn for this course, so there is nothing to check. In your own projects: make it yourself, ask your designer, or keep a note of the source and license next to the file.</p>
+                </div>
+                <p>Two more things worth knowing before you choose Lottie: a file can embed images (photos inside the JSON), which makes it large and blurry when scaled, so prefer pure vector files; and a Lottie animation is decoration in the accessibility sense. Whatever it shows must also be said in words, as the "Log sent. Thank you!" heading does, and the animation itself is hidden from screen readers.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: lottie-react-native 7 and the web</h4>
+                    <p><code>npx expo install lottie-react-native</code> picks 7.5 for SDK 58 (7.5.1 when this lesson was checked). In version 7, web support comes from the dotLottie player, an <em>optional</em> companion package: npm does not install it for you, and only the web bundle needs it. Tutorials often drive Lottie with a <code>progress</code> prop and React Native's <code>Animated</code>; <code>progress</code> still works on phones, but the web player ignores it and warns in development ("lottie-react-native: progress is not supported on web", read in the package's web code), which is one reason today's still version is an icon rather than a frozen frame.</p>
+                </div>
+            </section>
+
+            <section id="reduce" class="lesson-section">
+                <h2>🧘 Reduce Motion, Live</h2>
+                <p>Lesson 7.1 left two promises. First: Reanimated reads the phone's Reduce Motion setting <strong>once, when the app starts</strong>, so a volunteer who turns it on while Shoreline Crew is open sees no change until a restart. Second: some motion is not Reanimated's to reduce. The course measured the first one again today in the web preview, with Chrome's reduced-motion emulation switched on <em>while the app was open</em> (no reload), then a logbook brought in:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>App</th><th>Pieces tally after switching reduced motion on, no reload (measured)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Lesson 7.2's code (Reanimated's own reading)</td><td>Counted through 31 steps to 42, as if nothing had changed</td></tr>
+                            <tr><td>Today's code</td><td>0, then 42: no count, no bounce</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Three pieces make the difference:</p>
+                <ol>
+                    <li><strong>Hearing the change.</strong> React Native's <code>AccessibilityInfo</code> answers <code>isReduceMotionEnabled()</code> (a Promise) and sends a <code>reduceMotionChanged</code> event whenever the setting changes. On iPhone that is Reduce Motion; on Android, the "Remove animations" setting; in the web preview, react-native-web listens to the browser's <code>prefers-reduced-motion</code> (read in its code). A small store, built like Lesson 5.3's settings store, keeps the latest answer.</li>
+                    <li><strong>Telling Reanimated.</strong> Reanimated's <code>&lt;ReducedMotionConfig mode={…} /&gt;</code> component sets what <code>ReduceMotion.System</code> means for the whole app. Rendered in the root layout with <code>ReduceMotion.Always</code> or <code>ReduceMotion.Never</code> from the store, every animation function and layout animation left at the default follows the setting live, from the next animation on: the tally, Lesson 7.2's spring, today's cards.</li>
+                    <li><strong>Covering the rest yourself</strong>, with one hook, <code>useReduceMotion()</code>, for everything <code>ReducedMotionConfig</code> does not reach.</li>
+                </ol>
+<div class="mermaid">
+graph TD
+    A["Phone: Reduce Motion"] --> C["useReduceMotion()"]
+    B["App: motion switch"] --> C
+    C --> D["ReducedMotionConfig"]
+    C --> E["Lottie and screens"]
+    D --> G["Tally, swipe, cards"]
+    E --> F["Still mark, fade"]
+</div>
+                <p>Read it top to bottom: two sources (the phone and, as the next section decides, the app's own switch) meet in one hook. Reanimated hears it through one component in the root layout; the two kinds of motion Reanimated does not draw (Lottie and the screens) hear it directly and swap in a still mark or a fade. Here is the full inventory of Shoreline Crew's motion, and who reduces each:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Motion</th><th>Drawn by</th><th>With less motion</th><th>Who handles it</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Tally count and bounce (7.1)</td><td>Reanimated functions</td><td>Totals appear at once</td><td><code>ReducedMotionConfig</code></td></tr>
+                            <tr><td>Swipe spring back (7.2)</td><td>Reanimated functions</td><td>Snaps home (following the finger stays)</td><td><code>ReducedMotionConfig</code></td></tr>
+                            <tr><td>Cards in, out and making room (today)</td><td>Reanimated layout animations</td><td>Appear and disappear in place</td><td><code>ReducedMotionConfig</code></td></tr>
+                            <tr><td>Tally highlight (7.1)</td><td>Reanimated CSS-style transition</td><td>Kept: a color fading in place is the gentle substitute Apple suggests</td><td>(a choice, not an oversight)</td></tr>
+                            <tr><td>The log-sent check mark (today)</td><td>Lottie's own player</td><td>A still check mark</td><td><code>useReduceMotion()</code></td></tr>
+                            <tr><td>Screens sliding in and out</td><td>The phone's native navigation</td><td>A fade</td><td><code>useReduceMotion()</code> in the root <code>Stack</code></td></tr>
+                            <tr><td>Spinners, pull to refresh</td><td>The phone</td><td>Unchanged: they show that something is happening</td><td>(the phone)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Screens are the subtle one. Expo Router's <code>Stack</code> pushes and pops screens with the phone's own native transitions, not with Reanimated, so <code>ReducedMotionConfig</code> cannot touch them. Its <code>animation</code> screen option can: <code>'fade'</code> instead of <code>'default'</code> when motion should be reduced. Expo Router's types say the option works "only on iOS and Android", so the web preview, which has no slide to begin with, shows nothing different; Step 7 checks it on your phone. The phone's own Reduce Motion setting may already soften some system transitions; the app's own switch is something only your code knows about, which is the main reason this line exists.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Per React Native's documentation, <code>reduceMotionChanged</code> fires on both iPhone and Android when the setting changes while your app is open; on Android the setting it follows is the system animation scale that "Remove animations" sets to zero. The course could only switch the setting live in the web preview (measured above). Step 7 has you switch it on your phone with Shoreline Crew open; if your phone does not tell the app, the next restart still picks it up, exactly as in Lesson 7.1.</p>
+                </div>
+            </section>
+
+            <section id="switch" class="lesson-section">
+                <h2>🎚️ An In-App Switch: The Decision</h2>
+                <p>Lesson 7.1 left an open question: should Shoreline Crew have its own motion switch, like Lesson 6.5's "Vibrate when a sign-up or a log goes through"? The phone already has a setting, so this is a real design decision, and the kind you will be asked to defend in a review. The options:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Option</th><th>For</th><th>Against</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>No switch: follow the phone only</td><td>One source of truth; nothing to build</td><td>The phone's setting is all or nothing: every app, and the system's own animations, change with it</td></tr>
+                            <tr><td><strong>A switch that only adds</strong> (off: follow the phone; on: less motion here too)</td><td>Calm in one app without changing the whole phone; easy to find; the phone's setting still always wins</td><td>One more line in Profile</td></tr>
+                            <tr><td>A three-way choice (phone / less / full)</td><td>Most control</td><td>"Full" would override someone's accessibility setting: an app should never turn motion back <em>on</em> against the phone</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>Shoreline Crew's decision: a switch that only adds</strong>, <code>reduceMotion</code> in the settings store, <strong>off by default</strong>. The reasons, in the order a reviewer would ask:</p>
+                <ul>
+                    <li><strong>The phone's setting is the person's word for every app</strong>, often for a medical reason. The app follows it always, and nothing in the app can switch motion back on while it is set (the note under the switch says so).</li>
+                    <li><strong>Not everyone who wants calm wants it everywhere.</strong> A volunteer who finds the counting tallies distracting on a bumpy bus ride should not have to change every app and the phone's own screens. Android's setting is also easy to miss (it moves between phone makers' menus, Lesson 7.1).</li>
+                    <li><strong>It mirrors the vibration switch.</strong> Lesson 6.5's <code>hapticsOn</code> is on by default and can only take buzzes away; <code>reduceMotion</code> is off by default and can only take motion away. Both in-app switches only ever reduce.</li>
+                    <li><strong>It is cheap.</strong> One field in a store that already validates and saves, one line in <code>useReduceMotion()</code>, one switch on Profile.</li>
+                </ul>
+                <p>The phone's setting cannot be <em>changed</em> by an app (there is no API for that), only read, so the switch does not try to mirror it: it shows its own value, and the note under it says when the phone is asking for less motion anyway.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made on purpose in a copy of the finished project and measured in the web preview, except where the card quotes a library's own code.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Lottie without the web player</h3>
+                    <p>Install only <code>lottie-react-native</code>, and the phone is happy, <code>tsc</code> and <code>expo lint</code> are silent, but the web bundle cannot be built. Measured with <code>npx expo export --platform web</code> (pressing <kbd>w</kbd> in <code>npx expo start</code> bundles the same way and shows the same message):</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>Error: Unable to resolve module @lottiefiles/dotlottie-react from ~/shoreline/shoreline-crew/node_modules/lottie-react-native/lib/module/LottieView/index.web.js: @lottiefiles/dotlottie-react could not be found within the project or in these directories:
+  node_modules
+  1 | import React, { forwardRef, useImperativeHandle, useEffect, useCallback, useState } from 'react';
+  2 | import { parsePossibleSources } from './utils';
+&gt; 3 | import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+    |                                 ^
+  4 | const LottieView = /*#__PURE__*/forwardRef(({
+  5 |   source,
+  6 |   speed,
+
+Import stack:
+
+ node_modules/lottie-react-native/lib/module/LottieView/index.web.js
+ | import "@lottiefiles/dotlottie-react"
+
+ node_modules/lottie-react-native/lib/module/index.js
+ | import "./LottieView"
+
+ src/components/LogSentMark.tsx
+ | import "lottie-react-native"
+
+ src/app/log/[id].tsx
+ | import "@/components/LogSentMark"</code></pre>
+                    </div>
+                    <p>Read the import stack from the bottom up: your screen imports <code>LogSentMark</code>, which imports lottie-react-native, whose <em>web</em> file (<code>index.web.js</code>, the same <code>.web</code> rule as Lesson 6.3's map) needs the dotLottie player. <code>npx expo install @lottiefiles/dotlottie-react</code> fixes it.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A layout transition on the box and on what is in it</h3>
+                    <p>It is tempting to put <code>layout={LinearTransition}</code> on everything, including the queue's section that holds the cards. Measured with two waiting logs, removing the first: with <code>layout</code> on the section too, the second card was drawn 323 pixels <em>below</em> its old place before sliding up, and the leaving card drifted 110 pixels down the screen as it faded; without it on the section, the second card glided straight up from where it was, and the leaving card faded out in its own place. Two transitions measuring the same change from two levels fight each other. Put <code>layout</code> on the views that <strong>move</strong> (the cards, the section below the queue), not on a box whose only change is its height.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ <code>entering</code> and <code>exiting</code> on FlashList rows</h3>
+                    <p>No error, no warning, and the first screenful even fades in, so it looks as if it works. Then rows scrolled into view never animate, and a removed row vanishes at once (measured: 0 animations for both, <a href="#layout">Arriving, Leaving, Making Room</a>), because recycled rows are never mounted or unmounted. In a FlashList, animate inside the row with shared values (keyed by the item, Lesson 3.2's <code>useRecyclingState</code>), or use FlashList's <code>prepareForLayoutAnimationRender()</code> with React Native's <code>LayoutAnimation</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting Reanimated's <code>useReducedMotion()</code> to follow changes</h3>
+                    <p>Its name sounds like a live answer, but its code is one line: <code>return IS_REDUCED_MOTION_ENABLED_IN_SYSTEM;</code>, a value read when the app started. Lesson 7.1 said so; today it was measured from the other side: with the setting switched on while the app ran, Lesson 7.2's code counted the tally through 31 steps. For anything that must follow the setting, use your own <code>useReduceMotion()</code> (Step 2), and keep Reanimated in step with <code>ReducedMotionConfig</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Hiding decoration with props the web preview ignores</h3>
+                    <p>The first version of today's <code>LogSentMark</code> hid itself from screen readers the way Lesson 7.2's red strip does, with <code>accessibilityElementsHidden</code> (iPhone) and <code>importantForAccessibility="no-hide-descendants"</code> (Android). Measured in the web preview: neither reached the page, and the animation's <code>&lt;canvas&gt;</code> had no <code>aria-hidden</code> anywhere above it; react-native-web only turns the <code>aria-hidden</code> prop into the HTML attribute (read in its code). React Native itself has accepted <code>aria-hidden</code> for a while and, per its <code>View</code> code, turns <code>aria-hidden</code> into both of the phone props. So <code>aria-hidden</code> is one prop that works on all three. (The red strip and the icons from earlier lessons are hidden on phones, as those lessons say; Lesson 8.1 tidies them up with a screen reader in hand.)</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Polish the Logbook</h2>
+                <p>You install the Lottie player and add the animation file, build the motion store and connect it to Reanimated and the screens, put the switch on Profile, give the Logbook its layout animations, then add the check mark. Then you watch all of it in the web preview, switch motion off and on while the app runs, and try it on your phone.</p>
+
+                <div class="card">
+                    <h3>Step 1: Lottie and its animation <span class="step-time">(10 min)</span></h3>
+                    <p>In the <code>shoreline-crew</code> folder, install the player and its web companion in one command:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install lottie-react-native @lottiefiles/dotlottie-react</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module and 1 other package using npm
+&gt; npm install --save @lottiefiles/dotlottie-react
+
+added 3 packages, and audited 826 packages in 2s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p><code>npx expo install</code> sorts the two: lottie-react-native is a native module that Expo knows (it picks <code>~7.5.0</code> for SDK 58), and the dotLottie player is "1 other package", installed by npm as usual. The vulnerabilities line was there before today: <code>npm audit</code> reports on the whole project, and "moderate" warnings in development tools are common; read them, but do not run <code>npm audit fix --force</code> on an Expo project (it can move packages off the versions the SDK expects).</p>
+                    <p>Then add the animation. Create a folder <code>assets/animations</code> in <code>shoreline-crew</code> and save <a href="downloads/lesson-27-end/shoreline-crew/assets/animations/log-sent.json">log-sent.json</a> into it (also in the finished code). Open it in your editor and find the parts from <a href="#lottie">Lottie: Illustrated Motion</a>: the 45 frames, the three layers, the trim path called "Draw".</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Reduce Motion, followed live <span class="step-time">(20 min)</span></h3>
+                    <p>First the app's own setting. In <code>src/state/settings.ts</code>, add <code>reduceMotion</code> exactly the way Lesson 6.5 added <code>hapticsOn</code>: a field, a default, and a check of what was saved:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/settings.ts</div>
+                        <pre data-src="shoreline-crew/src/state/settings.ts" data-match="diff"><code class="language-diff-ts">   hapticsOn: boolean;
++  /** Less motion in this app, even when the phone's own Reduce Motion is off (off until asked) */
++  reduceMotion: boolean;
+ };
+ // ...
+ 
+-const defaults: Settings = { theme: 'system', remindersOn: false, hapticsOn: true };
++const defaults: Settings = {
++  theme: 'system',
++  remindersOn: false,
++  hapticsOn: true,
++  reduceMotion: false,
++};
+ const themeChoices: ThemeChoice[] = ['system', 'light', 'dark'];
+ // ...
+     'hapticsOn' in value &amp;&amp; typeof value.hapticsOn === 'boolean' ? value.hapticsOn : undefined;
++  const reduceMotion =
++    'reduceMotion' in value &amp;&amp; typeof value.reduceMotion === 'boolean'
++      ? value.reduceMotion
++      : undefined;
+   return {
+ // ...
+     hapticsOn: hapticsOn ?? defaults.hapticsOn,
++    reduceMotion: reduceMotion ?? defaults.reduceMotion,
+   };</code></pre>
+                    </div>
+                    <p>Settings saved before today have no <code>reduceMotion</code>, so they get the default, <code>false</code>, as the other fields did. Now the store that follows the phone. Create <code>src/state/motion.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/motion.ts</div>
+                        <pre data-src="shoreline-crew/src/state/motion.ts"><code class="language-ts">// Reduce Motion, followed while the app runs. Reanimated reads the phone's setting once, when the
+// app starts; this store keeps listening, and adds the app's own switch (settings.ts).
+import { useSyncExternalStore } from 'react';
+import { AccessibilityInfo } from 'react-native';
+
+import { useSettings } from '@/state/settings';
+
+// What the phone says right now: iPhone Reduce Motion, Android Remove animations, or the
+// browser's prefers-reduced-motion in the web preview
+let phoneReduces = false;
+const listeners = new Set&lt;() =&gt; void&gt;();
+
+function setPhoneReduces(reduces: boolean) {
+  phoneReduces = reduces;
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+/** Read the phone's setting and follow its changes from now on. Call it once, at startup. */
+export async function loadMotion(): Promise&lt;void&gt; {
+  // Listen first, so a change made while the first answer is on its way is not lost
+  AccessibilityInfo.addEventListener('reduceMotionChanged', setPhoneReduces);
+  try {
+    setPhoneReduces(await AccessibilityInfo.isReduceMotionEnabled());
+  } catch (error) {
+    console.warn('Could not read the Reduce Motion setting', error);
+  }
+}
+
+function subscribe(listener: () =&gt; void) {
+  listeners.add(listener);
+  return () =&gt; {
+    listeners.delete(listener);
+  };
+}
+
+/** true while the phone's own setting asks for less motion */
+export function usePhoneReducesMotion(): boolean {
+  // The web preview's server has no phone: full motion until the page is running
+  return useSyncExternalStore(subscribe, () =&gt; phoneReduces, () =&gt; false);
+}
+
+/** true when motion should step aside: the phone asks for it, or the volunteer did, in the app */
+export function useReduceMotion(): boolean {
+  const phone = usePhoneReducesMotion();
+  const { reduceMotion } = useSettings();
+  return phone || reduceMotion;
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The same shape as <code>settings.ts</code></strong>: a module-level value, a set of listeners, <code>useSyncExternalStore</code> (as in the web course's external stores). The value is the phone's answer, not something saved: it is asked again every start.</li>
+                        <li><strong><code>loadMotion()</code> listens first, then asks.</strong> The event keeps the store current for the rest of the app's life; the listener is never removed, because the store lives as long as the app.</li>
+                        <li><strong>Two hooks.</strong> <code>usePhoneReducesMotion()</code> is only the phone's setting (Profile needs it for its note); <code>useReduceMotion()</code> is the one the rest of the app uses: the phone <em>or</em> the app's switch. Neither can turn motion on against the phone: that is the decision from the last section, written as <code>||</code>.</li>
+                        <li>The third function of <code>useSyncExternalStore</code> answers for the web preview's server render, which has no phone and no settings.</li>
+                    </ul>
+                    <p>Last, the root layout: load the setting behind the splash screen with everything else, tell Reanimated, and fade screens instead of sliding them. In <code>src/app/_layout.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { GestureHandlerRootView } from 'react-native-gesture-handler';
++import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
+ 
+ // ...
+ import { loadLogQueue } from '@/state/logQueue';
++import { loadMotion, useReduceMotion } from '@/state/motion';
+ import { loadSettings } from '@/state/settings';
+ // ...
+   const { scheme, colors } = useTheme();
++  // The phone's Reduce Motion or the app's own switch, followed while the app runs
++  const reduceMotion = useReduceMotion();
+   // What a browser tells TanStack Query by itself, a phone's app has to: back in the foreground,
+ // ...
+   useEffect(() =&gt; {
+-    Promise.all([loadSession(), loadSettings(), loadLogQueue()]).finally(() =&gt;
++    Promise.all([loadSession(), loadSettings(), loadLogQueue(), loadMotion()]).finally(() =&gt;
+       setSavedLoaded(true),
+ // ...
+     &lt;GestureHandlerRootView style={styles.root}&gt;
++      {/* Every Reanimated animation left at ReduceMotion.System (the default) follows this, live */}
++      &lt;ReducedMotionConfig mode={reduceMotion ? ReduceMotion.Always : ReduceMotion.Never} /&gt;
+       {/* The one cache, for every screen (as in the HQ) */}
+ // ...
+               headerBackTitle: 'Back',
++              // Screens slide in and out natively, not with Reanimated: with less motion, they fade
++              animation: reduceMotion ? 'fade' : 'default',
+             }}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>ReducedMotionConfig</code> draws nothing. Rendered with <code>ReduceMotion.Always</code>, every Reanimated animation left at <code>ReduceMotion.System</code> jumps to its end; with <code>ReduceMotion.Never</code>, they all animate. When <code>reduceMotion</code> changes, the component updates Reanimated at once, so the <em>next</em> animation follows (one already running finishes).</li>
+                        <li>In development, Reanimated's code prints one warning when the component first appears: <code>[Reanimated] Reduced motion setting is overwritten with mode 'never'.</code> (or <code>'always'</code>). That is the point of the component: your app is now in charge of the setting. The warning is not printed in a release build.</li>
+                        <li><code>animation: reduceMotion ? 'fade' : 'default'</code> in the Stack's <code>screenOptions</code> applies to every screen in it: pushed screens (a cleanup) and modals (the debris log) fade in instead of sliding.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The switch on Profile <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/app/(tabs)/profile.tsx</code>, put the switch under the vibration switch, with a note that changes when the phone is already asking for less motion:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { useSession } from '@/hooks/useSession';
++import { usePhoneReducesMotion } from '@/state/motion';
+ import { changeSettings, type ThemeChoice, useSettings } from '@/state/settings';
+ // ...
+   const settings = useSettings();
++  const phoneReducesMotion = usePhoneReducesMotion();
+   // true when the API said this phone's sign-in has ended (any screen's request can find out)
+ // ...
+       /&gt;
++      {/* Off by default: the phone's own Reduce Motion is the first word, this switch only adds */}
++      &lt;SwitchRow
++        label="Reduce motion in this app"
++        value={settings.reduceMotion}
++        onValueChange={(reduceMotion) =&gt; changeSettings({ reduceMotion })}
++      /&gt;
++      &lt;AppText variant="muted"&gt;
++        {phoneReducesMotion
++          ? 'Your phone asks for less motion, so the app uses less, whatever this switch says.'
++          : 'Counting, sliding and bouncing stop; fades stay. Your phone setting counts too.'}
++      &lt;/AppText&gt;
+       {/* Off until the volunteer turns it on: only then does the phone ask about notifications */}</code></pre>
+                    </div>
+                    <ul>
+                        <li>The switch reuses Lesson 2.4's <code>SwitchRow</code>, so its label is its accessible name: a screen reader says "Reduce motion in this app, switch, off".</li>
+                        <li>The note tells the truth in both cases. Normally it says what the switch does (and that fades stay, so nobody expects a frozen app). When the phone asks for less motion, it says the app follows the phone whatever the switch says: otherwise someone would flip the switch off and wonder why nothing moves.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: The Logbook makes room <span class="step-time">(20 min)</span></h3>
+                    <p>In <code>src/app/(tabs)/logbook.tsx</code>, import what you need from Reanimated:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { StyleSheet, View } from 'react-native';
++import Animated, {
++  FadeIn,
++  FadeOut,
++  FadeOutLeft,
++  LayoutAnimationConfig,
++  LinearTransition,
++} from 'react-native-reanimated';
+ import { useShallow } from 'zustand/react/shallow';</code></pre>
+                    </div>
+                    <p>A logbook entry becomes an <code>Animated.View</code> that fades in when it arrives and glides when entries above it change:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx">     return (
+-      &lt;View key={item.clientId} style={styles.card}&gt;
++      // A log that just arrived fades in; the others glide down to make room
++      &lt;Animated.View
++        key={item.clientId}
++        style={styles.card}
++        entering={FadeIn}
++        layout={LinearTransition}
++      &gt;
+         &lt;AppText variant="heading"&gt;{item.eventTitle}&lt;/AppText&gt;
+ // ...
+         {item.note !== '' &amp;&amp; &lt;AppText variant="muted"&gt;{item.note}&lt;/AppText&gt;}
+-      &lt;/View&gt;
++      &lt;/Animated.View&gt;
+     );</code></pre>
+                    </div>
+                    <p>A waiting log gets an <code>Animated.View</code> <em>around</em> its <code>SwipeToRemove</code>: the swipe moves the card inside, the layout animation moves the whole thing. The key moves out to the new outermost element, and everything inside moves in by two spaces:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="excerpt"><code class="language-tsx">  function waitingEntry(item: QueuedLog) {
+    const { event, log } = item;
+    const pieces = log.items.reduce((sum, { count }) =&gt; sum + count, 0);
+    return (
+      // A card that leaves slides out the way the swipe points; the cards below glide up
+      &lt;Animated.View
+        key={log.clientId}
+        entering={FadeIn}
+        exiting={FadeOutLeft}
+        layout={LinearTransition}
+      &gt;
+        {/* Swipe left to ask; never while the queue is sending (it may be sending this log) */}
+        &lt;SwipeToRemove enabled={!sending} onSwipe={() =&gt; setAsking(log.clientId)}&gt;
+          &lt;View style={styles.card}&gt;
+            &lt;AppText variant="heading"&gt;{event.title}&lt;/AppText&gt;
+          {/* ... */}
+          &lt;/View&gt;
+        &lt;/SwipeToRemove&gt;
+      &lt;/Animated.View&gt;
+    );
+  }</code></pre>
+                    </div>
+                    <p>Then the screen itself: the content goes inside <code>LayoutAnimationConfig skipEntering</code>, the queue becomes one section that fades out when it empties, and everything below it becomes a second section that glides up. Replace the <code>return</code> of <code>MyLogbook</code> (the lines inside the two sections are the ones you had, moved in):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="excerpt"><code class="language-tsx">  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      {/* What is here when the Logbook opens is not news: only later arrivals animate in */}
+      &lt;LayoutAnimationConfig skipEntering&gt;
+        {queued.length &gt; 0 &amp;&amp; (
+          // The queue. When it empties, it fades out, and the logbook below glides up
+          &lt;Animated.View style={styles.section} exiting={FadeOut}&gt;
+            &lt;AppText variant="heading" accessibilityRole="header"&gt;
+              Not sent yet
+            &lt;/AppText&gt;
+            {(sending || waitingCount &gt; 0) &amp;&amp; (
+              &lt;AppText accessibilityLiveRegion="polite"&gt;
+                {sending
+                  ? 'Sending…'
+                  : 'Saved on this phone. Waiting logs go to the server by themselves ' +
+                    'when you are back online.'}
+              &lt;/AppText&gt;
+            )}
+            {queued.map(waitingEntry)}
+            {waitingCount &gt; 0 &amp;&amp; (
+              // Below the cards, so it moves when they do: it glides too
+              &lt;Animated.View layout={LinearTransition}&gt;
+                &lt;Button
+                  label="Send now"
+                  disabled={sending}
+                  onPress={() =&gt; sendWaitingLogs(viewer)}
+                /&gt;
+              &lt;/Animated.View&gt;
+            )}
+          &lt;/Animated.View&gt;
+        )}
+        &lt;Animated.View style={styles.section} layout={LinearTransition}&gt;
+          &lt;AppText variant="heading" accessibilityRole="header"&gt;
+            {entries.length === 0 ? 'Your logbook is empty' : 'Your logbook'}
+          &lt;/AppText&gt;
+          {entries.length === 0 ? (
+            &lt;AppText&gt;
+              At a cleanup, you will record what the crew collected: counts, bags and weight.
+              Every log you send is kept here, on this phone.
+            &lt;/AppText&gt;
+          ) : (
+            &lt;View style={styles.tallies}&gt;
+              &lt;Tally value={totals.logs} label={totals.logs === 1 ? 'log' : 'logs'} /&gt;
+              &lt;Tally value={totals.pieces} label={totals.pieces === 1 ? 'piece' : 'pieces'} /&gt;
+              &lt;Tally value={totals.bags} label={totals.bags === 1 ? 'bag' : 'bags'} /&gt;
+              &lt;Tally value={tenths(totals.weightKg)} label="kg" decimals={1} /&gt;
+            &lt;/View&gt;
+          )}
+          {entries.length &gt; 0 &amp;&amp; &lt;ShareLogbook entries={entries} /&gt;}
+          {entries.map(entry)}
+          &lt;AppText variant="heading" accessibilityRole="header"&gt;
+            Logs from before
+          &lt;/AppText&gt;
+          &lt;AppText&gt;Logs you sent earlier, or from another phone, are on the server.&lt;/AppText&gt;
+          &lt;Button
+            label={bringIn.isPending ? 'Bringing in…' : 'Bring in my sent logs'}
+            disabled={bringIn.isPending}
+            onPress={() =&gt; bringIn.mutate()}
+          /&gt;
+          {bringIn.isPaused &amp;&amp; (
+            &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+              No connection: your logs come in when you are back online.
+            &lt;/AppText&gt;
+          )}
+          {bringIn.isSuccess &amp;&amp; (
+            &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+              Done: the server has {bringIn.data} {bringIn.data === 1 ? 'log' : 'logs'} of yours,
+              and your logbook has them all.
+            &lt;/AppText&gt;
+          )}
+          {bringIn.isError &amp;&amp; (
+            &lt;AppText variant="error" accessibilityRole="alert"&gt;
+              {describeError(bringIn.error)}
+            &lt;/AppText&gt;
+          )}
+        &lt;/Animated.View&gt;
+      &lt;/LayoutAnimationConfig&gt;
+    &lt;/Screen&gt;</code></pre>
+                    </div>
+                    <p>And the style for the two sections, at the top of the styles:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
++  section: {
++    gap: spacing.md, // the same gap as the Screen around it
++  },
+   tallies: {</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Why two sections?</strong> A <code>layout</code> transition only moves the view it is on. Without the second section, the headings, the tallies and the buttons below the queue would each need their own <code>layout</code> prop. One <code>Animated.View</code> around them moves them together, and its <code>gap</code> keeps the spacing the <code>Screen</code> gave them.</li>
+                        <li><strong>The Send now button gets its own <code>Animated.View</code> with <code>layout</code></strong>: it sits below the cards, so it moves when one leaves. The first try at this lesson left it out, and the button jumped up at once and slid under the card that was still gliding: everything that moves needs the prop, not only the cards.</li>
+                        <li><strong>No <code>layout</code> on the queue section</strong>, only <code>exiting</code>: it never moves (it is first on the screen), it only gets shorter, and a transition there fights the cards' own (<a href="#mistakes">Common Mistakes</a>).</li>
+                        <li><strong><code>FadeOutLeft</code></strong> slides a removed card a little to the left as it fades: the direction of the swipe that removed it, which ties the two motions together.</li>
+                        <li><strong><code>skipEntering</code></strong> means opening the Logbook draws everything in place; a log sent while you watch (Send now) leaves the queue to the left, and its entry fades into the logbook.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The log-sent mark <span class="step-time">(15 min)</span></h3>
+                    <p>The still version needs an icon. Add it to <code>src/components/Icon.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">   remove: { ios: 'trash', android: 'delete', web: 'delete' },
++  sent: { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' },
+   // The tab bar</code></pre>
+                    </div>
+                    <p>Create <code>src/components/LogSentMark.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/LogSentMark.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/LogSentMark.tsx"><code class="language-tsx">import LottieView from 'lottie-react-native';
+import { StyleSheet, View } from 'react-native';
+
+import logSent from '@/assets/animations/log-sent.json';
+import { Icon } from '@/components/Icon';
+import { useTheme } from '@/hooks/useTheme';
+import { useReduceMotion } from '@/state/motion';
+
+const size = 96;
+
+// "It reached the server": a check mark that draws itself once (a Lottie animation drawn for
+// Shoreline Crew), or a still one when motion should step aside. Decoration: the heading beside
+// it says the same in words, so screen readers skip it.
+export function LogSentMark() {
+  const reduceMotion = useReduceMotion();
+  const { colors } = useTheme();
+  return (
+    // The size goes on this View: the web preview's player ignores style and fills its parent.
+    // aria-hidden hides it from screen readers on iPhone, Android and the web preview alike.
+    &lt;View style={styles.mark} aria-hidden&gt;
+      {reduceMotion ? (
+        &lt;Icon name="sent" size={size} color={colors.action} /&gt;
+      ) : (
+        &lt;LottieView source={logSent} autoPlay loop={false} style={styles.mark} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  mark: {
+    width: size,
+    height: size,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>import logSent from '@/assets/animations/log-sent.json'</code></strong> brings the JSON in as an object (Expo's TypeScript settings allow JSON imports), and Metro bundles it with the app: it works offline, like the rest of the code. <code>source</code> also accepts a URL, but a check mark should not need the network.</li>
+                        <li><strong><code>autoPlay</code> and <code>loop={false}</code></strong>: play once, when the mark appears, and stop on the last frame.</li>
+                        <li><strong>Lottie's player is not Reanimated</strong>, so <code>ReducedMotionConfig</code> cannot stop it. <code>useReduceMotion()</code> decides instead: with less motion, a still check mark (the <code>sent</code> icon in the theme's action color) says the same thing. Measured in the web preview with reduced motion on: no <code>&lt;canvas&gt;</code> at all, the icon in its place.</li>
+                        <li><strong>The size is on the wrapping <code>View</code></strong>. On phones, <code>style</code> sizes the Lottie view; in the web preview the player ignores <code>style</code> (it has a separate <code>webStyle</code> prop) and fills its parent, so the parent's 96 points size it there (measured: a 96 by 96 canvas either way).</li>
+                    </ul>
+                    <p>Then show it in <code>src/app/log/[id].tsx</code>, above the heading, only when the log has left the queue (the server has it):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/log/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/log/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { LogPhotos } from '@/components/LogPhotos';
++import { LogSentMark } from '@/components/LogSentMark';
+ import { Screen } from '@/components/Screen';
+ // ...
+     &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
++      {queued === undefined &amp;&amp; &lt;LogSentMark /&gt;}
+       &lt;AppText variant="heading" accessibilityRole="header" accessibilityLiveRegion="polite"&gt;</code></pre>
+                    </div>
+                    <p>If the log was saved while offline, the screen says "Saved on this phone" with no mark; if the queue sends it while the volunteer is still looking, the heading changes to "Log sent. Thank you!" and the mark appears and draws itself right then.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Watch it, then turn motion off <span class="step-time">(15 min)</span></h3>
+                    <p>Start shoreline-api and <code>npx expo start</code>, open the web preview (<kbd>w</kbd>) and sign in as <code>theo.nakamura@example.com</code> (password <code>shoreline-demo</code>).</p>
+                    <ol>
+                        <li>Open today's <strong>Tide Pool Morning Cleanup</strong>, <strong>Log what you collected</strong>, add two glass and <code>0.8</code> kg, and <strong>Send the log</strong>: the check mark draws itself above "Log sent. Thank you!" (the first time, the web preview may take a moment to download its player).</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_27/27-log-sent.png" alt="The Log debris screen in the web preview after sending a log for Tide Pool Morning Cleanup: at the top, a pale sea-green disk with a teal ring and a dark check mark, outlined in red; below it the heading Log sent. Thank you!, the log&#x27;s amounts, and the Done and Open my logbook buttons." width="420" height="814" loading="lazy">
+    <figcaption>The log reached the server: the check mark draws itself once (a Lottie animation made for this course), and the heading says the same in words. (The web preview.)</figcaption>
+</figure>
+                    <ol start="2">
+                        <li>Get two logs waiting, as in Lesson 7.2: stop shoreline-api with <kbd>Ctrl</kbd>+<kbd>C</kbd> (the same keys on a Mac), send two small logs, start the API again only after the next step. Open the Logbook: the cards are simply there (no fade: <code>skipEntering</code>). Press <strong>Remove</strong> on the first card, then <strong>Yes, remove it</strong>: it slides out to the left as it fades, and the second card glides up into its place.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_27/27-card-leaving.png" alt="The Logbook tab in the web preview, caught in the middle of a layout animation: under Not sent yet, a faded Tide Pool Morning Cleanup card is sliding out to the left, and a second Tide Pool Morning Cleanup card below it is on its way up into the gap." width="420" height="814" loading="lazy">
+    <figcaption>Caught mid-move (the page's animations paused 200 ms after Yes, remove it): the removed card slides out the way the swipe points as it fades, and the card below glides up instead of jumping. (The web preview.)</figcaption>
+</figure>
+                    <ol start="3">
+                        <li>Start the API again and press <strong>Send now</strong>: the last waiting card leaves to the left as the "Not sent yet" section fades away, and in the logbook below, the new entry fades in while the tallies count (measured: all of it within about 300 ms, the tallies a little longer).</li>
+                        <li>Without reloading, open Chrome's DevTools (<kbd>F12</kbd>, or <kbd>⌥ Option</kbd>+<kbd>⌘ Cmd</kbd>+<kbd>I</kbd> on a Mac), <strong>⋮ &gt; More tools &gt; Rendering</strong>, and set "Emulate CSS media feature prefers-reduced-motion" to <strong>reduce</strong>. Open the Profile tab: the note under "Reduce motion in this app" has already changed. Send another log: a still check mark, and on the Logbook the tallies jump to their totals. No restart, unlike Lesson 7.1.</li>
+                        <li>Set the emulation back to "No emulation", then turn on <strong>Reduce motion in this app</strong> instead: the same result, and it stays after a reload, because it is saved like the theme. Turn it off again.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_27/27-log-sent-still.png" alt="The same Log sent. Thank you! screen in the web preview, dark theme, with reduced motion on: a still teal check mark in a circle, outlined in red, in place of the animation." width="420" height="814" loading="lazy">
+    <figcaption>With reduced motion on, the mark does not draw itself: a still check mark says the same. (The web preview, dark theme, with the browser asking for reduced motion.)</figcaption>
+</figure>
+                    <figure class="screenshot">
+    <img src="images/lesson_27/27-motion-switch.png" alt="The Profile tab in the web preview, dark theme: under Appearance, the switches Vibrate when a sign-up or a log goes through (on) and Reduce motion in this app (off), and below it the note Your phone asks for less motion, so the app uses less, whatever this switch says; the switch row and the note are outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The app's own switch only adds: with the phone (here, the browser) asking for less motion, the note says so and the app follows the phone. (The web preview, dark theme.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check it, then feel it on your phone <span class="step-time">(10 min)</span></h3>
+                    <p>Run <code>npx tsc --noEmit</code> and <code>npx expo lint</code>: both should print nothing but the <code>env:</code> lines. Then in Expo Go (with your computer's address in <code>.env.local</code>, Lesson 5.1):</p>
+                    <ol>
+                        <li>Send a log: the check mark should draw itself, smoothly, with no development build (lottie-react-native is part of Expo Go).</li>
+                        <li>Get two logs waiting (stop the API just before sending) and remove one: it should slide out to the left and the other glide up.</li>
+                        <li>With Shoreline Crew open, turn on Reduce Motion (iPhone: Settings &gt; Accessibility &gt; Motion &gt; Reduce Motion; Android: Settings &gt; Accessibility &gt; Remove animations, names vary) and come back <em>without</em> closing the app. Profile's note should already say the phone asks for less motion; open a cleanup: the screen should fade in rather than slide. Send a log: a still check mark.</li>
+                        <li>Turn the phone's setting off, and the app's switch on: the cleanup screen should fade, the tallies jump, the check mark stay still. Turn it off.</li>
+                    </ol>
+                    <p>If your phone keeps animating after you change its setting until you restart the app, write down the model and system version: that is worth a bug report, and the restart still works.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>lottie-react-native and @lottiefiles/dotlottie-react are installed, and <code>assets/animations/log-sent.json</code> is in the project</li>
+                        <li><code>src/state/motion.ts</code> follows the phone's setting while the app runs, and <code>useReduceMotion()</code> adds the app's own switch</li>
+                        <li>The root layout renders <code>ReducedMotionConfig</code> from <code>useReduceMotion()</code>, and screens fade instead of sliding when motion is reduced</li>
+                        <li>Profile has "Reduce motion in this app" (off by default, saved) and a note that says when the phone already asks for less motion</li>
+                        <li>On the Logbook, removed cards slide out, the rest glide into place, and nothing animates when the tab first opens</li>
+                        <li>A sent log shows a check mark that draws itself, or a still one with less motion; screen readers skip both</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> list every kind of motion in your final project's app (counts, springs, things arriving and leaving, illustrations, screen transitions) in a table like the one in <a href="#reduce">Reduce Motion, Live</a>: who draws it, what it does with less motion, and who handles that. Decide whether your app needs its own motion switch, and write down why.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: What moves?</h3>
+                    <p>Without running anything, say what the volunteer sees in each case, with today's code:</p>
+                    <ol>
+                        <li>Theo opens the Logbook tab, which holds three sent logs and one waiting log.</li>
+                        <li>Maya turns on Reduce Motion in her phone's settings, goes back to Shoreline Crew without closing it, and removes a waiting log.</li>
+                        <li>Theo's phone setting is off, but he turned on "Reduce motion in this app". He sends a log, then opens a cleanup.</li>
+                        <li>Maya's phone asks for reduced motion, and she turns "Reduce motion in this app" <em>off</em>.</li>
+                        <li>A teammate adds <code>entering={FadeIn}</code> to the cards of the Cleanups list (a FlashList) and scrolls to the bottom.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>For each case ask: does a view mount, unmount or move (and inside <code>skipEntering</code> or not)? What does <code>useReduceMotion()</code> return, and who listens to it: <code>ReducedMotionConfig</code>, <code>LogSentMark</code>, the Stack?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) Nothing moves: everything mounts with the screen, inside <code>skipEntering</code> (measured: no animations when the Logbook reopened). (2) The card disappears at once and the cards below are in their new places at once: the event updated the store, <code>ReducedMotionConfig</code> switched to <code>Always</code>, and layout animations follow it, no restart needed. (3) A still check mark (<code>useReduceMotion()</code> is true because of the switch), and the cleanup screen fades in instead of sliding (on a phone; the web preview has no slide). (4) Still less motion: the switch only adds, so <code>phone || reduceMotion</code> is true, and Profile's note says the phone is asking. (5) The first screenful fades in once; rows scrolled into view do not (recycled, never mounted).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A dissolve instead of nothing</h3>
+                    <p>With less motion, a removed card now vanishes in one frame. Apple's guidance suggests replacing movement with a gentle dissolve rather than removing every transition. Make a waiting card fade out quickly (150 ms, no slide) when motion is reduced, and slide out as today otherwise. Put the <code>Animated.View</code> from <code>waitingEntry</code> in a small component of its own.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Layout animations take modifiers, including <code>.reduceMotion(…)</code>: <code>ReduceMotion.Never</code> makes one animation ignore the app-wide setting. Choose the animation with <code>useReduceMotion()</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>src/components/LeavingCard.tsx</code>, then <code>&lt;LeavingCard key={log.clientId}&gt;…&lt;/LeavingCard&gt;</code> in <code>waitingEntry</code> in place of the <code>Animated.View</code>:</p>
+                        <pre data-snippet><code class="language-tsx">import type { ReactNode } from 'react';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  FadeOutLeft,
+  LinearTransition,
+  ReduceMotion,
+} from 'react-native-reanimated';
+
+import { useReduceMotion } from '@/state/motion';
+
+// Exercise 2: with less motion, the card does not slide away: it dissolves (a fade that always runs)
+export function LeavingCard({ children }: { children: ReactNode }) {
+  const reduceMotion = useReduceMotion();
+  return (
+    &lt;Animated.View
+      entering={FadeIn}
+      exiting={reduceMotion ? FadeOut.duration(150).reduceMotion(ReduceMotion.Never) : FadeOutLeft}
+      layout={LinearTransition}
+    &gt;
+      {children}
+    &lt;/Animated.View&gt;
+  );
+}</code></pre>
+                        <p>The fade has to say <code>ReduceMotion.Never</code>, or <code>ReducedMotionConfig</code> would skip it like everything else. That is the one place where ignoring the setting is right: you are not adding motion back, you are choosing the gentle substitute yourself. Keep it short and never let it move anything.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Play it again (Stretch)</h3>
+                    <p>In a scratch screen, show the check mark with a "Play it again" button next to it that replays the animation from the start. It is a good way to look at the timing frame by frame (press it repeatedly), and it teaches the player's other half: the ref.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>LottieView</code> is a class component, so <code>useRef&lt;LottieView&gt;(null)</code> gives you its methods: <code>play(startFrame?, endFrame?)</code>, <code>pause()</code>, <code>resume()</code>, <code>reset()</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">import LottieView from 'lottie-react-native';
+import { useRef } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import logSent from '@/assets/animations/log-sent.json';
+
+// Exercise 3: the same animation, played again on a press (the ref gives play, pause, reset, resume)
+export function LogSentReplay() {
+  const lottie = useRef&lt;LottieView&gt;(null);
+  return (
+    &lt;View style={styles.row}&gt;
+      &lt;View style={styles.mark} aria-hidden&gt;
+        &lt;LottieView ref={lottie} source={logSent} autoPlay loop={false} style={styles.mark} /&gt;
+      &lt;/View&gt;
+      &lt;Pressable accessibilityRole="button" onPress={() =&gt; lottie.current?.play(0)}&gt;
+        &lt;Text&gt;Play it again&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  mark: { width: 96, height: 96 },
+});</code></pre>
+                        <p><code>play(0)</code> starts from frame 0 (on the web preview, the player sets frame 0 and plays, per lottie-react-native's web code). <code>play(16, 32)</code> would play only the check mark's stroke. Leave this replay out of the real app: a check mark that can be replayed is a toy, and the app's mark has a job to do once.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Theo removes the first of two waiting logs. What makes the second card glide up into the gap instead of jumping?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which card does exiting belong to: the one that leaves or the one that stays?">
+                                A) <code>exiting={FadeOutLeft}</code> on the removed card
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A layout transition animates a view whose position or size changed because something else changed. The second card moved up, and LinearTransition on it turned the jump into a glide.">
+                                B) <code>layout={LinearTransition}</code> on the cards that move
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does skipEntering make anything move, or keep things still?">
+                                C) <code>LayoutAnimationConfig skipEntering</code> around the screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What did Common Mistakes measure with a transition on the box that holds the cards?">
+                                D) <code>layout={LinearTransition}</code> on the queue section only
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A teammate gives every row of the Cleanups FlashList <code>entering={FadeIn}</code> and <code>exiting={FadeOut}</code>. What will testers see?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does FlashList mount a new row for each item that scrolls into view?">
+                                A) Every row fades in as it scrolls into view
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Was there any error or warning in the measurement?">
+                                B) A red screen: layout animations are not allowed inside FlashList
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What happens to a removed row's cell in a recycling list?">
+                                C) Removed rows fade out while the others slide up
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="FlashList recycles rows instead of mounting and unmounting them. Only the first screenful mounts, so it fades in; rows scrolled into view and removed rows do not animate at all (measured: 38, 0 and 0 animations).">
+                                D) The first screenful fades in once; rows scrolled into view and removed rows do not animate
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Maya turns on Reduce Motion in her phone's settings while Shoreline Crew is open (today's code), goes back to the app and sends a debris log. What does she see?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="loadMotion subscribed to reduceMotionChanged, so the store already knows. useReduceMotion returns true, and LogSentMark shows the still check mark. No restart is needed, unlike Lesson 7.1.">
+                                A) A still check mark above Log sent. Thank you!
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Who told the app about the change: Reanimated at startup, or an event?">
+                                B) The check mark draws itself, until she restarts the app
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the heading decoration or information?">
+                                C) No mark and no heading, so nothing moves
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Lottie's player have anything like Reduce Motion that the phone could slow down?">
+                                D) The same animation, played at half speed
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Why does <code>LogSentMark</code> check <code>useReduceMotion()</code> itself, when the root layout already renders <code>ReducedMotionConfig</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What is ReducedMotionConfig for, if not this?">
+                                A) <code>ReducedMotionConfig</code> only works in development builds
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is this about the web preview only, or about who draws the animation?">
+                                B) The web preview does not support <code>ReducedMotionConfig</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="ReducedMotionConfig changes what ReduceMotion.System means for Reanimated's animations. The check mark is drawn by Lottie's own player, which knows nothing about Reanimated, so the component has to decide itself, with the same hook.">
+                                C) Lottie's own player draws the check mark, and it never hears Reanimated's setting
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the motion inventory table: which rows does ReducedMotionConfig handle?">
+                                D) It does not need to: the check is there only for screen readers
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> A volunteer's phone has Reduce Motion on. In Profile, they turn "Reduce motion in this app" off. What happens to the tallies?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The app's switch only adds: useReduceMotion returns phone OR switch, so the phone's setting still wins, and the note under the switch says so. An app should never turn motion back on against an accessibility setting.">
+                                A) They still show their totals at once: the phone's setting wins
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Read useReduceMotion: is it phone AND switch, or phone OR switch?">
+                                B) They count again: the app's switch overrides the phone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Can an app change the phone's own settings?">
+                                C) The phone's Reduce Motion setting turns off too
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>React Native has <code>LayoutAnimation</code> built in. Why use Reanimated's?</summary>
+                    <p><code>LayoutAnimation.configureNext()</code>, called just before a state change, animates the next layout change of <em>everything</em> on screen with one preset. It is quick for a one-off, and it is what FlashList's <code>prepareForLayoutAnimationRender()</code> is made for. Reanimated's layout animations are per view (this card slides left, that one fades), can animate a view that is leaving, follow the Reduce Motion setting (and <code>ReducedMotionConfig</code>), and take the same modifiers everywhere. For the Logbook's mix of leaving, arriving and moving cards, per-view control is the point.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Could the check mark have been built with Reanimated instead of Lottie?</summary>
+                    <p>Yes: a ring and a check mark are two SVG paths, and animating their stroke (the dash offset) with shared values draws them the same way. It needs <code>react-native-svg</code>, which the project does not have yet, and some geometry. The difference is who owns it. With Lottie, a designer can change the animation in a design tool and hand you a new JSON file without a code change; with Reanimated, every change is code. Simple, data-driven motion (a count, a bar) belongs in Reanimated; illustrated moments belong in Lottie.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Does Lottie make the app bigger or slower?</summary>
+                    <p>Measured with <code>npx expo export</code>: the Android bundle stayed at about 5.9 MB and the iOS bundle at about 5.7 MB (the player's JavaScript is small; its native part is in Expo Go and, later, in your builds), and <code>log-sent.json</code> is about 8 KB. A Lottie animation is drawn every frame while it plays, so a long or looping one costs battery like any animation: play once, at the moment that matters, and stop.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why did the check mark need the internet in the web preview?</summary>
+                    <p>The web player (dotLottie) is a WebAssembly program, and by default it downloads that program from <code>cdn.jsdelivr.net</code> (with <code>unpkg.com</code> as a backup) the first time it plays, measured in Chromium. Offline, the web preview cannot draw the animation; the heading still says "Log sent. Thank you!". The phone app never downloads anything for Lottie. If you ever ship a real website with dotLottie, its <code>setWasmUrl()</code> function lets you host the file yourself.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Should every screen get entering animations now?</summary>
+                    <p>No. Ask what the motion explains. A card arriving in a list the volunteer is looking at explains "this is new"; a whole screen fading in every time it opens explains nothing and delays the content. Today's rule of thumb: animate changes the person caused or is waiting for, skip the first render, keep it under about 300 ms, and make sure the screen says the same thing in words.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Bring the same polish to the cleanup screen's sign-up panel: when a volunteer signs up or cancels, the new state ("You are signed up. See you on the beach!", "You are on the waiting list…") should fade in where the old one was, rather than appear in one frame. Give the changing part a <code>key</code> that changes with the state, so React mounts a new view, and wrap it in an <code>Animated.View</code> with <code>entering</code> and <code>exiting</code> (and <code>skipEntering</code> around the panel, so the screen does not animate on open). Then draw your own Lottie animation for "checked in" in a free design tool, keep a note of its license (yours), and decide what its still version is for people who reduce motion.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Pick an app you use every day and make its motion inventory, like the table in "Reduce Motion, Live": what moves, and what each motion explains. Then turn on your phone's Reduce Motion, without restarting the app, and go through it again. Which motions stopped at once, which only after a restart, and which never? What would you tell its developers?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Layout animations are three props on an <code>Animated</code> view: <code>entering</code> (mount), <code>exiting</code> (unmount: Reanimated keeps a copy long enough to animate it away) and <code>layout</code> (position or size changed); keys tell them which view is which</li>
+                        <li><code>LayoutAnimationConfig skipEntering</code> keeps the first render still, so only real arrivals animate</li>
+                        <li>Put <code>layout</code> on what moves, not on a resizing box around moving children, and do not expect <code>entering</code>/<code>exiting</code> on FlashList rows: recycled rows never mount or unmount</li>
+                        <li>Lottie plays designer-made vector animation from a JSON file; lottie-react-native uses the native players on phones and needs <code>@lottiefiles/dotlottie-react</code> for the web preview; check every file's origin and license</li>
+                        <li>Reanimated reads Reduce Motion once at startup; <code>AccessibilityInfo</code>'s <code>reduceMotionChanged</code> plus <code>ReducedMotionConfig</code> make it follow the setting live</li>
+                        <li>Motion Reanimated does not draw (Lottie, native screen transitions) needs your own check: one <code>useReduceMotion()</code> hook for all of it</li>
+                        <li>An in-app motion switch is worth having when it only adds: the phone's accessibility setting always wins</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>See every entering, exiting and layout animation</td><td><a href="https://docs.swmansion.com/react-native-reanimated/docs/layout-animations/entering-exiting-animations/">Reanimated: Entering and exiting animations</a></td></tr>
+                            <tr><td>Read about the app-wide reduced motion setting</td><td><a href="https://docs.swmansion.com/react-native-reanimated/docs/device/ReducedMotionConfig/">Reanimated: ReducedMotionConfig</a></td></tr>
+                            <tr><td>Set up Lottie in an Expo app</td><td><a href="https://docs.expo.dev/versions/latest/sdk/lottie/">Expo: Lottie</a></td></tr>
+                            <tr><td>Follow accessibility settings from React Native</td><td><a href="https://reactnative.dev/docs/accessibilityinfo">React Native: AccessibilityInfo</a></td></tr>
+                            <tr><td>Read Apple's guidance on motion</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/motion">Apple Human Interface Guidelines: Motion</a></td></tr>
+                            <tr><td>Read the web's rule on motion from interactions</td><td><a href="https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html">WCAG: Understanding Animation from Interactions</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>The Logbook's cards leave, arrive and make room with motion that explains what changed, and stay still when the tab opens</li>
+                        <li>A sent log is marked with an illustrated check mark that you can read, frame by frame, in its JSON</li>
+                        <li>Shoreline Crew follows Reduce Motion the moment it changes, for Reanimated, Lottie and screen transitions alike</li>
+                        <li>You made, explained and built a design decision: a motion switch that only ever adds</li>
+                        <li>You know where layout animations break (recycled lists, nested transitions) and why</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 7 is done: Shoreline Crew moves, follows fingers, and steps aside when asked. Module 8 is about quality, and it opens with <a href="lesson_28.html">Lesson 8.1: Accessible Mobile Apps</a>: labels, roles and hints, VoiceOver and TalkBack in your hands, font scaling, touch targets, and announcing changes on an iPhone. You will meet today's <code>aria-hidden</code> again, and tidy up the older ways of hiding decoration from earlier lessons.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone (the check mark, a card leaving, Reduce Motion switched while the app is open) and commit your work</li>
+                    <li>Turn on VoiceOver (iPhone) or TalkBack (Android phone) for five minutes and try to use one app you know well, only by listening. Notice what it reads, what it skips, and where you get lost</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Three lessons ago, Shoreline Crew did not move at all. Now it counts, follows a thumb, makes room, draws a check mark, and knows when to keep still, and you can explain which thread and which library is behind each of those. Polish can feel endless, and it is: there is always one more animation to tune. The skill you built today is knowing which motion has a job, and making sure the app still works for the person who wants none of it. That judgment is rarer than any animation trick.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_26.html" class="prev-lesson">← Previous: Gestures</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_28.html" class="next-lesson">Next: Accessible Mobile Apps →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

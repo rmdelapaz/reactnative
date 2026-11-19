@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bring Shoreline Crew HQ's shared code to the phone: what copies over unchanged (the API types, type guards, ApiError, describeError, formatDate, getAvailability) and what must be rewritten (no DOM, no CSS, no URL bar, Expo's fetch), TypeScript as Expo configures it and why the SDK pins TypeScript 6.0, EXPO_PUBLIC_ environment variables, the shared-code folders, and the first real request from the app. React Native &amp; Expo: Build and Ship a Mobile App Lesson 1.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>From the HQ to the Phone - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🚚 Lesson 1.3: From the HQ to the Phone</h1>
+                <p class="lead">You have already written a lot of Shoreline Crew's code. The organizers' web app, Shoreline Crew HQ, knows exactly what a cleanup looks like, how to check data from the API, how to explain a failed request and how to print a date on the crew's calendar. None of that knowledge cares whether it runs in a browser or on a phone, and some of it is tied to the browser in ways that are easy to miss. In this lesson you sort one from the other like a professional: you copy what carries over, rewrite what does not, set up the folders the app's shared code lives in, and make the app's first real request to the shoreline-api.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Decide which code from a React web app carries over to React Native unchanged, which must be rewritten, and explain why</li>
+                        <li>Spot browser-only code (the DOM, <code>sessionStorage</code>, <code>window.location</code>, <code>import.meta.env</code>) that the type checker may not catch</li>
+                        <li>Read Expo's TypeScript settings and explain how they and TypeScript 6.0 differ from the web project's</li>
+                        <li>Give the app its API address with an <code>EXPO_PUBLIC_</code> environment variable, and explain when the value is read</li>
+                        <li>Set up the shared-code folders and make a typed, checked request whose result appears on the screen</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_02.html">Lesson 1.2: Your Toolchain</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's shared code (<code>src/api/types.ts</code>, <code>src/api/client.ts</code>, <code>src/utils/</code>), its <code>.env</code> files, and a temporary home screen that lists the upcoming cleanups from the shoreline-api</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3, Expo Router 58, TypeScript 6.0), the shoreline-api (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal (a phone reaches the API in Lesson 5.1)</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-03-start.zip">lesson-03-start.zip</a> · Finished code: <a href="downloads/lesson-03-end.zip">lesson-03-end.zip</a>. Each folder has a README with the commands to run it. No Shoreline Crew HQ? You do not need it: every file this lesson adds is shown in full below, and the finished download contains them all.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Two Apps, One Crew</a></li>
+                        <li><a href="#carry-over" class="toc-link">What Carries Over, and Why</a></li>
+                        <li><a href="#what-changes" class="toc-link">What Changes on a Phone</a></li>
+                        <li><a href="#tsconfig" class="toc-link">TypeScript as Expo Sets It</a></li>
+                        <li><a href="#env" class="toc-link">The API Address: EXPO_PUBLIC_ Variables</a></li>
+                        <li><a href="#shared-folder" class="toc-link">The Shared-Code Folders</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: The First Real Request</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Two Apps, One Crew</h2>
+                <p>Shoreline Crew now has two apps. The organizers plan cleanups at a desk in <strong>Shoreline Crew HQ</strong>, the web app from the React + TypeScript course. The volunteers carry <strong>Shoreline Crew</strong>, the phone app you started in Lesson 1.2. Both talk to the same shoreline-api, so both need to agree on what a cleanup, a site and an error look like.</p>
+                <p>The tempting shortcut is to copy the HQ's whole <code>src/</code> folder into the phone app and fix whatever breaks. The opposite mistake is to start from nothing and write a second, slightly different version of every type and helper. Real teams do neither: they move the code that is about <em>the data</em> and rewrite the code that is about <em>the platform</em>. Telling those apart is the skill of this lesson.</p>
+                <ul>
+                    <li><strong>Why it matters for your work:</strong> companies rarely start a mobile app from zero. They already have a website, an API and its types. Developers who can say "these four files come across as they are, these two get rewritten, and here is why" save weeks, and avoid the bugs that come from two copies drifting apart.</li>
+                    <li><strong>Why it matters for the volunteers:</strong> when a volunteer's phone and an organizer's laptop show the same cleanup, they must show the same date, the same spots left and the same message when something goes wrong. Shared code is how you get that for free.</li>
+                </ul>
+                <p><strong>Did not take the React + TypeScript course?</strong> You can follow every step. The shared types come with the shoreline-api you downloaded in Lesson 1.2, every other file is shown in full on this page, and the places where the lesson compares with the web app explain what the web app did.</p>
+            </section>
+
+            <section id="carry-over" class="lesson-section">
+                <h2>📦 What Carries Over, and Why</h2>
+                <p>Here is the decision for every part of the HQ that the phone app needs. The rule behind it is short: <strong>code that only works with data copies over; code that touches the browser gets rewritten.</strong></p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>HQ code</th><th>On the phone</th><th>Why</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>src/api/types.ts</code> (the API's types)</td><td><strong>Copied, byte for byte</strong></td><td>It is the contract with the API, written once in <code>shoreline-api/core/types.ts</code>. Only types: nothing in it runs anywhere.</td></tr>
+                            <tr><td>Type guards (<code>isCleanupEvent</code>, <code>isSite</code>, <code>isListOf</code> …)</td><td><strong>Copied</strong></td><td>Plain TypeScript that checks unknown values. Data from the network is just as untrustworthy on a phone.</td></tr>
+                            <tr><td><code>ApiError</code>, <code>describeError</code></td><td><strong>Copied</strong>, plus one new error class</td><td>The same API sends the same error bodies. One thing differs: how a request fails when there is no answer at all (next section).</td></tr>
+                            <tr><td><code>formatDate</code>, <code>getAvailability</code></td><td><strong>Copied</strong></td><td>Dates and spots are the same on every screen. <code>Intl</code> exists in the phone's JavaScript engine, Hermes.</td></tr>
+                            <tr><td>The fetch calls (<code>getEvents</code>, <code>getEvent</code> …)</td><td><strong>Same shape, new address</strong></td><td>The base URL came from Vite's <code>import.meta.env</code> and the page's own address; neither exists in Expo, and <code>localhost</code> on a phone is the phone.</td></tr>
+                            <tr><td>The session in <code>sessionStorage</code></td><td><strong>Rewritten</strong> (Lesson 4.3)</td><td>There is no <code>sessionStorage</code>. A token belongs in the device's keychain (SecureStore), which is asynchronous.</td></tr>
+                            <tr><td>Query factories, mutations</td><td><strong>Adapted</strong> (Module 5)</td><td>Same TanStack Query ideas, but the phone uses different endpoints than the organizers.</td></tr>
+                            <tr><td>Components and CSS Modules</td><td><strong>Rewritten</strong> (Module 2 on)</td><td>No DOM, no CSS: <code>&lt;article&gt;</code> and <code>EventCard.module.css</code> mean nothing to a phone.</td></tr>
+                            <tr><td>Zod schemas</td><td><strong>New</strong> (Lesson 5.4)</td><td>The phone has different forms: signing in, logging debris.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: the same tide chart, a different boat</h4>
+                    <p>A tide chart is just as true on a kayak as in the harbor office: the tides do not care who reads them. The API's types, the checks and the date rules are Shoreline Crew's tide chart, so they travel with you. The office's filing cabinet, its wall map and its front door (the browser's storage, its address bar, its page) stay behind; the kayak has its own dry bag and its own compass. When you look at a piece of code, ask: is this a tide chart, or is it part of the building?</p>
+                </div>
+
+                <p>Moving code this way also tells you where the code <em>should</em> live. The HQ already kept its data code in <code>src/api/</code> and <code>src/utils/</code>, apart from its components. That separation is what makes today possible. A web app whose components called <code>fetch</code> and formatted dates inline would have nothing clean to copy.</p>
+            </section>
+
+            <section id="what-changes" class="lesson-section">
+                <h2>📱 What Changes on a Phone</h2>
+                <p>Lesson 1.1 showed the big three: <strong>no DOM</strong> (views are native, written as <code>View</code> and <code>Text</code>), <strong>no CSS</strong> (styles are JavaScript objects with no cascade), and <strong>no URL bar</strong> (Expo Router still has URLs, but the person holding the phone never types one). For shared code, those three turn into concrete things to search for in every file you copy:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>In the HQ</th><th>On the phone</th><th>Does <code>tsc</code> warn you?</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>document</code>, <code>window.location</code>, <code>sessionStorage</code>, <code>localStorage</code></td><td>Do not exist (a crash at run time)</td><td><strong>No</strong>: Expo's settings include the browser's types</td></tr>
+                            <tr><td><code>import.meta.env.VITE_…</code></td><td><code>process.env.EXPO_PUBLIC_…</code></td><td>Yes: TS2339</td></tr>
+                            <tr><td>Imports such as <code>'../utils/debris.ts'</code> and <code>import './x.module.css'</code></td><td>Only what exists in the phone project</td><td>Yes: TS2307 for missing files</td></tr>
+                            <tr><td><code>fetch</code> fails with a <code>TypeError</code></td><td>Expo's own <code>fetch</code> fails with a different error</td><td>No: both are just "an error"</td></tr>
+                            <tr><td><code>File</code> from an <code>&lt;input type="file"&gt;</code></td><td>A photo is a file <code>uri</code> on the device (Lesson 6.2)</td><td>Partly</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>The type checker does not know you are on a phone</h3>
+                <p>Here is the surprise in that table. This code from a web app type-checks cleanly in your Expo project:</p>
+                <pre data-snippet data-legacy><code class="language-ts">// The HQ's demo build asked the browser where the site runs:
+export const origin = window.location.origin;
+export const pageTitle = document.title;</code></pre>
+                <p>Why? Expo's TypeScript settings load the browser's type library (<code>"lib": ["DOM", "ESNext"]</code>, see the next section), because the same project also runs in the web preview, where <code>window.location</code> is real. On a phone, the same line fails while the app runs: <code>window</code> exists, but has no <code>location</code>, so reading <code>.origin</code> throws a <code>TypeError</code> ("Cannot read property 'origin' of undefined", in Hermes' wording) and the red error screen appears. The web preview, of course, works perfectly. That is the trap: <strong>a clean type check and a working web preview do not prove the code runs on a phone.</strong> Your defense is a habit: when you copy a file from the web, search it for <code>document</code>, <code>window</code>, <code>Storage</code> and <code>import.meta</code> before you trust it. (The course's page checker even warns about these words in phone code.)</p>
+
+                <h3>Same <code>fetch</code>, different failures</h3>
+                <p>The <code>fetch</code> you call in Shoreline Crew is not the browser's. In SDK 58, Expo replaces the global <code>fetch</code> on phones with its own implementation (from <code>expo/fetch</code>, built on the platform's networking code). It takes the same arguments and returns the same kind of <code>Response</code>, so the HQ's request code works as it is. The difference is the error when there is no answer at all. In a browser, a fetch that cannot reach the server rejects with a <code>TypeError</code> ("Failed to fetch"), and the HQ's <code>describeError</code> relies on that:</p>
+                <pre data-snippet data-legacy><code class="language-ts">  if (error instanceof ApiError) {
+    return `The server had a problem (${error.status}). Try again in a moment.`
+  }
+  if (error instanceof TypeError) {
+    return 'Could not reach the server. Check that shoreline-api is running, then try again.'
+  }
+  return 'Something unexpected went wrong. Try again in a moment.'
+}</code></pre>
+                <p>Expo's phone <code>fetch</code> throws its own <code>FetchError</code> instead, a plain <code>Error</code> whose message starts with "fetch failed:" (you can read it in <code>node_modules/expo/src/winter/fetch/fetch.ts</code>). Copied unchanged, <code>describeError</code> would tell a volunteer on a beach with no signal "Something unexpected went wrong" instead of "Could not reach the server". So the phone's client turns <em>any</em> failed fetch into one error of its own, <code>NetworkError</code>, in the one place where requests are sent, and <code>describeError</code> checks for that. It works the same in the web preview and on both phone platforms, and it is the reason the table above says "copied, plus one new error class".</p>
+
+                <div class="card card-success">
+                    <h4>✅ Not a failure, a finding</h4>
+                    <p>None of this means the web course taught you wrong. The HQ's code was right for a browser. Finding where its assumptions end is exactly the kind of thinking senior developers are paid for, and you will get faster at it with every file you move. If a copied file ever surprises you on a phone, that is not a dead end: it is the next item on this lesson's checklist that you had not met yet.</p>
+                </div>
+            </section>
+
+            <section id="tsconfig" class="lesson-section">
+                <h2>⚙️ TypeScript as Expo Sets It</h2>
+                <p>The HQ's settings were spread over three files that Vite wrote (<code>tsconfig.json</code>, <code>tsconfig.app.json</code>, <code>tsconfig.node.json</code>; Lesson 2.4 of the web course). The phone project has one short file, written by <code>create-expo-app</code>:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/tsconfig.json</div>
+                    <pre data-src="shoreline-crew/tsconfig.json"><code class="language-json">{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@/assets/*": [
+        "./assets/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}</code></pre>
+                </div>
+                <p>Most settings live in <code>expo/tsconfig.base</code>, inside <code>node_modules</code>. To see everything TypeScript actually uses, ask it: <code>npx tsc --showConfig</code> prints the merged settings and the list of files it checks. The settings that matter, next to the HQ's:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>Shoreline Crew (Expo)</th><th>Shoreline Crew HQ (Vite)</th><th>What it means for you</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>strict</code></td><td><code>true</code> (written out)</td><td>on (the default)</td><td>The same strict checks you know. TypeScript 6.0 and 7.0 both turn it on by default; Expo lists it anyway.</td></tr>
+                            <tr><td><code>lib</code></td><td><code>DOM</code>, <code>ESNext</code></td><td><code>ES2023</code>, <code>DOM</code></td><td>The browser's types are loaded here too, for the web preview: the trap from the last section</td></tr>
+                            <tr><td><code>customConditions</code></td><td><code>["react-native"]</code></td><td>none</td><td>Packages can ship a React Native version of their code; TypeScript reads the same one Metro bundles</td></tr>
+                            <tr><td><code>module</code> / <code>moduleResolution</code></td><td><code>preserve</code> / <code>bundler</code></td><td><code>esnext</code> / <code>bundler</code></td><td>Imports are left for the bundler (Metro instead of Vite)</td></tr>
+                            <tr><td><code>paths</code></td><td><code>@/*</code> → <code>./src/*</code></td><td>none</td><td><code>import … from '@/api/client'</code> from any folder, instead of counting <code>../</code></td></tr>
+                            <tr><td><code>noUncheckedIndexedAccess</code>, <code>noUnusedLocals</code>, <code>verbatimModuleSyntax</code>, <code>erasableSyntaxOnly</code></td><td>off</td><td>on</td><td>The phone project is a little more lenient. Keep writing <code>import type</code> and checking <code>items[0]</code> anyway: the copied code already does</td></tr>
+                            <tr><td><code>types</code></td><td>not set (TypeScript 6.0: none loaded automatically)</td><td><code>["vite/client"]</code></td><td>Expo adds its own declarations through <code>expo-env.d.ts</code>; Jest's come in Lesson 8.2</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>One HQ habit you can drop: the HQ wrote imports with the <code>.ts</code> extension (<code>'../api/types.ts'</code>), which Vite's settings allowed. They also type-check in this project, but Expo's own code and every example you will read write imports without extensions, often with the <code>@/</code> alias. Shoreline Crew follows that style: <code>'@/api/types'</code>.</p>
+
+                <div class="card card-info">
+                    <h4>🧩 Version note: TypeScript 6.0 here, 7.0 in the HQ</h4>
+                    <p>Shoreline Crew HQ used TypeScript 7.0, the new compiler rewritten in Go. Expo SDK 58 pins <code>"typescript": "~6.0.3"</code>, the last version of the original compiler written in TypeScript. For the code you write, nothing changes: 6.0 was made as the bridge to 7.0, with the same defaults (strict on, for example) and the same error codes; the course's checks found the same results with both. Two things do differ, and they explain the pin:</p>
+                    <ul>
+                        <li><strong>Speed.</strong> 7.0 is much faster. On the HQ's code, a full <code>tsc --noEmit</code> took about 0.3 seconds with 7.0 and 1.7 seconds with 6.0 when this course was checked. On Shoreline Crew's few files you will not notice.</li>
+                        <li><strong>Tools that use TypeScript from the inside.</strong> ESLint's TypeScript support (<code>typescript-eslint</code>, which <code>npx expo lint</code> uses) reads your code with TypeScript's JavaScript API, and the version Expo installs supports TypeScript only up to 6.0. That is also why the HQ linted with oxlint instead of ESLint. With TypeScript 7 installed, <code>npx expo install --check</code> says <code>typescript@7.0.2 - expected version: ~6.0.3</code>, and <code>npx expo lint</code> stops with <code>Oops! Something went wrong! :(</code> and a <code>TypeError</code> from inside <code>ts-api-utils</code>.</li>
+                    </ul>
+                    <p>So keep the SDK's version. Expo tests each SDK with one TypeScript version and moves to a newer one when the tools around it are ready. When you upgrade the SDK later, <code>npx expo install --fix</code> brings TypeScript along.</p>
+                </div>
+            </section>
+
+            <section id="env" class="lesson-section">
+                <h2>🔐 The API Address: EXPO_PUBLIC_ Variables</h2>
+                <p>The HQ read its API address from <code>import.meta.env.VITE_API_URL</code>. Expo has the same idea with different names: variables in <code>.env</code> files whose names start with <strong><code>EXPO_PUBLIC_</code></strong> reach your code as <code>process.env.EXPO_PUBLIC_…</code>.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Shoreline Crew HQ (Vite)</th><th>Shoreline Crew (Expo)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Name prefix</td><td><code>VITE_</code></td><td><code>EXPO_PUBLIC_</code></td></tr>
+                            <tr><td>Read in code as</td><td><code>import.meta.env.VITE_API_URL</code></td><td><code>process.env.EXPO_PUBLIC_API_URL</code></td></tr>
+                            <tr><td>Files</td><td colspan="2"><code>.env.example</code> (in Git, documents the variables), <code>.env.local</code> (your machine, not in Git: the template's <code>.gitignore</code> lists <code>.env*.local</code>)</td></tr>
+                            <tr><td>When the value is read</td><td colspan="2">When the bundler builds the JavaScript: the value is copied into the bundle as text</td></tr>
+                            <tr><td>A typo in the name</td><td>a type error (the HQ described its variable)</td><td><strong>not</strong> a type error: Expo types any <code>process.env</code> name as <code>string | undefined</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>"Copied into the bundle" has three consequences you should know by heart:</p>
+                <ol>
+                    <li><strong>Change <code>.env.local</code>, restart Metro.</strong> The running app keeps the old value. Stop Metro and start it with <code>npx expo start --clear</code>, so it rebuilds without its cache.</li>
+                    <li><strong>Write the name out in full, with a dot.</strong> Metro replaces the exact text <code>process.env.EXPO_PUBLIC_API_URL</code>. Destructuring (<code>const { EXPO_PUBLIC_API_URL } = process.env</code>) is not replaced, and the value is <code>undefined</code> when the app runs (see <a href="#mistakes">Common Mistakes</a>).</li>
+                    <li><strong>Nothing in it is secret.</strong> Exactly as with <code>VITE_</code> variables, but more so: anyone can download your app from a store and unpack its bundle. An API address is fine; a private key or password never is.</li>
+                </ol>
+                <p>Because a misspelled name only shows up as <code>undefined</code>, the client checks the value when it uses it and throws an error that says what to do, the same pattern as the HQ. The screen only shows <code>describeError</code>'s general words for it; when the list does not load, <code>console.log</code> the error to read the details (Metro's terminal for a phone, the browser's console for the web preview).</p>
+
+                <h3>Which address?</h3>
+                <p>For now, the address is <code>http://localhost:4000</code>, and you use the <strong>web preview</strong>: the browser runs on the same computer as the API, so <code>localhost</code> means your computer. On a phone, <code>localhost</code> is the phone itself (Lesson 1.2's warning), so Expo Go would show "Could not reach the server". That is expected today. Lesson 5.1 is all about reaching the API from a phone, an emulator and a simulator, with <code>node server.ts --host</code> and your computer's network address.</p>
+                <div class="card card-danger">
+                    <h4>🛑 Never put secrets in EXPO_PUBLIC_ variables</h4>
+                    <p>Every <code>EXPO_PUBLIC_</code> value ends up as plain text inside the app you ship. Keep keys for paid services, database passwords and anything you would not print on a flyer on a server, which uses them on the app's behalf, exactly as shoreline-api does for the crew.</p>
+                </div>
+            </section>
+
+            <section id="shared-folder" class="lesson-section">
+                <h2>🗂️ The Shared-Code Folders</h2>
+                <p>Lesson 1.2 left Shoreline Crew with routes in <code>src/app/</code> and nothing else. Expo's rule (in the reset script's message and in <code>AGENTS.md</code>) is that only screens and layouts go in <code>src/app/</code>. Everything else gets a folder of its own beside it, the same folders the HQ used:</p>
+                <pre><code>shoreline-crew/
+  .env.example          documents EXPO_PUBLIC_API_URL (in Git)
+  .env.local            your machine's value (not in Git)
+  src/
+    api/
+      types.ts          the API's contract: a byte-for-byte copy, never edited
+      client.ts         checks, errors and requests, adapted from the HQ
+    utils/
+      availability.ts   open, full or closed (copied)
+      format.ts         dates on the crew's calendar (copied)
+    app/
+      _layout.tsx       the root Stack (unchanged)
+      index.tsx         the home screen: today, a list that proves the pipe works</code></pre>
+                <p>Later lessons add <code>src/components/</code>, <code>src/hooks/</code>, <code>src/theme/</code>, <code>src/auth/</code> and <code>src/state/</code>. Here is how data travels through the files you set up today:</p>
+                <div class="mermaid">
+graph TD
+    A["shoreline-api on :4000"] --> B["client.ts: fetch"]
+    B --> C["isCleanupEvent: checked"]
+    C --> D["CleanupEvent from types.ts"]
+    D --> E["formatDate, getAvailability"]
+    E --> F["index.tsx: Text on screen"]
+    B -->|"no answer"| G["NetworkError"]
+    G --> H["describeError: words"]
+                </div>
+                <h3><code>types.ts</code>: one contract, three copies</h3>
+                <p>The API's types are written once, in <code>shoreline-api/core/types.ts</code>, and its first lines say so: every app that talks to the API copies it as <code>src/api/types.ts</code>. The HQ's copy, the API's original and Shoreline Crew's copy are identical, byte for byte. Never edit your copy. If the API changes, you copy the new file again, and the type checker shows you every place in the app that has to follow. (A monorepo with a shared package would remove the copying; that is a bigger setup than this course needs, and the idea is the same.)</p>
+                <p>One consequence: the API's file has its own style, and Expo's ESLint rules prefer <code>T[]</code> to <code>Array&lt;T&gt;</code>. Linting the copy gives four warnings, in a file you must not change:</p>
+                <div class="card card-output">
+                    <h4>Expected output (<code>npx expo lint</code> right after copying types.ts)</h4>
+                    <pre><code>~/shoreline/shoreline-crew/src/api/types.ts
+  160:12  warning  Array type using 'Array&lt;T&gt;' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  161:11  warning  Array type using 'Array&lt;T&gt;' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  178:11  warning  Array type using 'Array&lt;T&gt;' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  179:21  warning  Array type using 'Array&lt;T&gt;' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+
+✖ 4 problems (0 errors, 4 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.</code></pre>
+                </div>
+                <p>The right fix is not <code>--fix</code> (that would edit the contract); it is to tell ESLint that the file is not yours to lint. You do that in Step 1 of the project.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ Copying the whole HQ client and trusting a clean type check</h4>
+                    <p>Copy the HQ's <code>src/api/client.ts</code> into the phone project unchanged and run <code>npx tsc --noEmit</code>. TypeScript finds five problems:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/api/client.ts:3:34 - error TS2307: Cannot find module '../utils/debris.ts' or its corresponding type declarations.
+
+3 import { debrisCategories } from '../utils/debris.ts'
+                                   ~~~~~~~~~~~~~~~~~~~~
+
+...
+
+src/api/client.ts:337:19 - error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+
+337   if (import.meta.env.MODE === 'demo') {
+                      ~~~
+
+src/api/client.ts:340:27 - error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+
+340   const url = import.meta.env.VITE_API_URL
+                              ~~~
+
+
+Found 5 errors in the same file, starting at: src/api/client.ts:3</code></pre>
+                    </div>
+                    <p>The missing <code>debris.ts</code> (and the two TS7006 errors that follow from it) and <code>import.meta.env</code> are honest findings. But notice what is <em>not</em> on the list: the same file reads, saves and removes the session with <code>sessionStorage</code> and asks <code>window.location</code> for the page's address, and TypeScript accepts all of it. Fixing only what <code>tsc</code> reports would leave a client that crashes on a phone the moment it loads. Search for browser APIs yourself.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Destructuring <code>process.env</code></h4>
+                    <p><code>const { EXPO_PUBLIC_API_URL: url } = process.env;</code> type-checks, but <code>npx expo lint</code> reports it (<code>expo/no-env-var-destructuring</code>), and if you run it anyway the app shows "Something unexpected went wrong". Behind it is the error from <code>apiBaseUrl()</code>, "EXPO_PUBLIC_API_URL is not set" (add <code>console.log(error)</code> to the screen's <code>catch</code> and Metro's terminal shows it on a phone; the browser's console in the web preview). Metro only replaces the full expression <code>process.env.EXPO_PUBLIC_API_URL</code>; the course checked the bundle Expo builds, and with destructuring the address simply is not in it. Write the variable out in full every time you read it.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Editing <code>.env.local</code> and expecting the app to notice</h4>
+                    <p>The value was copied into the bundle when Metro built it. Stop Metro (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and start it again with <code>npx expo start --clear</code>. And check the file's name: <code>.env.local</code> with a leading dot, in the <code>shoreline-crew</code> folder (not in <code>src/</code>, not in <code>shoreline/</code>). When Metro has found it, its first lines say so:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (the top of <code>npx expo start</code>)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Starting project at ~/shoreline/shoreline-crew
+...</code></pre>
+                    </div>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ "Fixing" <code>types.ts</code></h4>
+                    <p>Running <code>npx expo lint --fix</code> before <code>types.ts</code> is ignored rewrites <code>Array&lt;T&gt;</code> as <code>T[]</code>, and adding a field "the phone needs" is worse: your copy no longer matches the API, and the next time you copy the API's file your change silently disappears. If the phone needs a type the API does not have, write it in another file and build it from the API's types.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ "Upgrading" TypeScript to 7</h4>
+                    <p>It is tempting, since the HQ used it. <code>npx expo lint</code> then crashes with <code>Oops! Something went wrong! :(</code> and <code>TypeError: Cannot read properties of undefined (reading 'Intrinsic')</code>. Put it back with <code>npx expo install --dev typescript</code>, which installs the version SDK 58 expects as a dev dependency. Without <code>--dev</code>, the course measured a trap: Expo adds a second <code>"typescript": "~6.0.3"</code> under <code>dependencies</code> and leaves <code>~7.0.2</code> in <code>devDependencies</code>.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: The First Real Request</h2>
+                <p>You bring the shared code across, give the app its API address and replace the home screen's text with a list of upcoming cleanups straight from the shoreline-api. Keep the API running in its own terminal (<code>node server.ts</code> in <code>shoreline-api</code>), as in Lesson 1.2, and work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: The contract: <code>src/api/types.ts</code> <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Create the folder <code>src/api</code> in <code>shoreline-crew</code> (in VS Code's Explorer, or with your file manager).</li>
+                        <li>Copy <code>shoreline-api/core/types.ts</code> to <code>shoreline-crew/src/api/types.ts</code>. If you have Shoreline Crew HQ, its <code>src/api/types.ts</code> is the same file; either works. From the <code>shoreline-crew</code> folder:
+                            <pre class="terminal"><code class="language-bash">cp ../shoreline-api/core/types.ts src/api/types.ts</code></pre>
+                            In PowerShell:
+                            <pre class="terminal"><code class="language-bash">Copy-Item ..\shoreline-api\core\types.ts src\api\types.ts</code></pre>
+                        </li>
+                        <li>Open it and read the comment at the top, then find <code>CleanupEvent</code>: these are the fields every cleanup has.</li>
+                        <li>Run <code>npx expo lint</code>: you get the four <code>array-type</code> warnings from <a href="#shared-folder">the shared-code section</a>. Tell ESLint to leave the contract alone:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/eslint.config.js</div>
+                                <pre data-src="shoreline-crew/eslint.config.js" data-match="diff"><code class="language-diff-js"> module.exports = defineConfig([
+   expoConfig,
+   {
+-    ignores: ['dist/*'],
++    // dist: export output; src/api/types.ts: a copy of the API's contract, never edited
++    ignores: ['dist/*', 'src/api/types.ts'],
+   },
+ ]);</code></pre>
+                            </div>
+                            Run <code>npx expo lint</code> again: it prints nothing.
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The utilities: <code>format.ts</code> and <code>availability.ts</code> <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/utils/</code> and these two files. With the HQ: copy its two files and change only the import line from <code>'../api/types.ts'</code> to <code>'@/api/types'</code>. The course's versions also end statements with semicolons, the Expo template's style; the code is otherwise the HQ's, comment for comment.</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/format.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/format.ts"><code class="language-ts">import type { DateString } from '@/api/types';
+
+// Made once, used for every date: weekday, month name, day and year
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+// The API's dates are days on the crew's calendar ("YYYY-MM-DD"). JavaScript reads a date
+// alone as midnight UTC, which is still the day before on the US west coast; with a time
+// and no time zone it reads the local midnight instead.
+export function formatDate(date: DateString): string {
+  return dateFormat.format(new Date(`${date}T00:00`));
+}
+
+// Today (or any moment) as a "YYYY-MM-DD" day on this device's calendar
+export function toDateString(date: Date): DateString {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}</code></pre>
+                    </div>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/availability.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/availability.ts"><code class="language-ts">import type { CleanupEvent } from '@/api/types';
+
+// What an event card says about spots. Each kind carries only the data that kind needs.
+export type Availability =
+  | { kind: 'open'; spotsLeft: number }
+  | { kind: 'full' }
+  | { kind: 'closed' };
+
+export function getAvailability(event: CleanupEvent): Availability {
+  if (event.status !== 'scheduled') {
+    return { kind: 'closed' };
+  }
+  const spotsLeft = event.capacity - event.spotsTaken;
+  return spotsLeft &gt; 0 ? { kind: 'open', spotsLeft } : { kind: 'full' };
+}</code></pre>
+                    </div>
+                    <p>Read them with a phone in mind: no <code>document</code>, no <code>window</code>, no storage. <code>Intl.DateTimeFormat</code> is part of JavaScript itself, and Hermes includes it on Android and iOS. The comment about time zones matters even more on a phone, which changes time zone when its owner travels: <code>formatDate</code> reads the API's day as a day, never as a moment, so a cleanup on a given Saturday stays on that Saturday.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The client: copy, check, adapt <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li><strong>With the HQ:</strong> copy its <code>src/api/client.ts</code> to <code>shoreline-crew/src/api/client.ts</code> and run <code>npx tsc --noEmit</code>. Compare your five errors with the first card in <a href="#mistakes">Common Mistakes</a>, then search the file for <code>sessionStorage</code> and <code>window</code> and count what TypeScript did not report. <strong>Without the HQ:</strong> read that card instead.</li>
+                        <li>Now replace the file's content with the phone version below. Read it from top to bottom; the comments on each section say whether it is copied, rewritten or new:
+                            <ul>
+                                <li><strong>Copied:</strong> the type guards the phone needs today (events and sites), <code>isListOf</code>, <code>isApiErrorBody</code>, <code>ApiError</code>, <code>getJSON</code>, <code>readPage</code>, <code>getSites</code>, <code>getEvents</code>, <code>getEvent</code>.</li>
+                                <li><strong>New:</strong> <code>NetworkError</code>, which <code>request()</code> throws when <code>fetch</code> gets no answer, and the matching branch in <code>describeError</code>.</li>
+                                <li><strong>Rewritten:</strong> <code>apiBaseUrl()</code> reads <code>process.env.EXPO_PUBLIC_API_URL</code>.</li>
+                                <li><strong>Left out for now:</strong> the session and the <code>Authorization</code> header (Lesson 4.3, with SecureStore), sending data (Module 5), photo uploads (Lesson 6.2), and the organizers' endpoints (the volunteers' app never calls them).</li>
+                            </ul>
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                                <pre data-src="shoreline-crew/src/api/client.ts"><code class="language-ts">// Shoreline Crew's API client: adapted from Shoreline Crew HQ's src/api/client.ts.
+// Data from the API is unknown until a check proves its shape.
+import type {
+  ApiErrorBody,
+  CleanupEvent,
+  CleanupEventDetail,
+  ErrorCode,
+  EventStatus,
+  PageInfo,
+  Site,
+  Terrain,
+} from '@/api/types';
+
+// ---------------------------------------------------------------- checking data (copied)
+
+/** An object (not null, not an array), so its properties can be read */
+function isRecord(value: unknown): value is Record&lt;string, unknown&gt; {
+  return typeof value === 'object' &amp;&amp; value !== null &amp;&amp; !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) &amp;&amp; value.every((item) =&gt; typeof item === 'string');
+}
+
+const eventStatuses: EventStatus[] = ['draft', 'scheduled', 'completed', 'cancelled'];
+
+export function isEventStatus(value: unknown): value is EventStatus {
+  return eventStatuses.some((status) =&gt; status === value);
+}
+
+// The CleanupEvent properties that hold text
+const eventTextFields: (keyof CleanupEvent)[] = [
+  'id', 'title', 'siteId', 'date', 'startTime', 'endTime',
+  'meetingPoint', 'description', 'leadOrganizerId', 'createdAt', 'updatedAt',
+];
+
+export function isCleanupEvent(value: unknown): value is CleanupEvent {
+  return (
+    isRecord(value) &amp;&amp;
+    eventTextFields.every((key) =&gt; typeof value[key] === 'string') &amp;&amp;
+    isEventStatus(value.status) &amp;&amp;
+    typeof value.capacity === 'number' &amp;&amp;
+    typeof value.spotsTaken === 'number' &amp;&amp;
+    isStringArray(value.suppliesProvided)
+  );
+}
+
+const terrains: Terrain[] = ['sand', 'rocky', 'marsh', 'mixed'];
+const siteTextFields: (keyof Site)[] = ['id', 'name', 'town', 'parking', 'description'];
+
+export function isSite(value: unknown): value is Site {
+  return (
+    isRecord(value) &amp;&amp;
+    siteTextFields.every((key) =&gt; typeof value[key] === 'string') &amp;&amp;
+    terrains.some((terrain) =&gt; terrain === value.terrain) &amp;&amp;
+    typeof value.accessible === 'boolean' &amp;&amp;
+    typeof value.latitude === 'number' &amp;&amp;
+    typeof value.longitude === 'number' &amp;&amp;
+    isRecord(value.image) &amp;&amp;
+    typeof value.image.url === 'string' &amp;&amp;
+    typeof value.image.alt === 'string' &amp;&amp;
+    typeof value.image.width === 'number' &amp;&amp;
+    typeof value.image.height === 'number'
+  );
+}
+
+/** A cleanup as GET /api/events/:id sends it: a CleanupEvent plus its whole site
+ * (and, for organizers, the code volunteers type to check in on the day) */
+export function isCleanupEventDetail(value: unknown): value is CleanupEventDetail {
+  return (
+    isCleanupEvent(value) &amp;&amp;
+    'site' in value &amp;&amp;
+    isSite(value.site) &amp;&amp;
+    (!('checkInCode' in value) || typeof value.checkInCode === 'string')
+  );
+}
+
+/** A check for one item becomes a check for a list of them */
+function isListOf&lt;T&gt;(isT: (value: unknown) =&gt; value is T) {
+  return (value: unknown): value is T[] =&gt; Array.isArray(value) &amp;&amp; value.every(isT);
+}
+
+function isApiErrorBody(value: unknown): value is ApiErrorBody {
+  return isRecord(value) &amp;&amp; typeof value.error === 'string' &amp;&amp; typeof value.message === 'string';
+}
+
+// ---------------------------------------------------------------- errors
+
+/** The API answered, but with an error status (404, 500, ...) (copied) */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: ErrorCode;
+  readonly fieldErrors: Record&lt;string, string[]&gt; | undefined;
+
+  constructor(status: number, body: ApiErrorBody) {
+    super(body.message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = body.error;
+    this.fieldErrors = body.fieldErrors;
+  }
+}
+
+/** The request never got an answer: no network, a wrong address, or the API is not running (new) */
+export class NetworkError extends Error {
+  constructor(cause: unknown) {
+    super('Could not reach the API', { cause });
+    this.name = 'NetworkError';
+  }
+}
+
+/** What to tell people when a request failed */
+export function describeError(error: unknown): string {
+  if (error instanceof ApiError &amp;&amp; error.status === 401) {
+    return 'Your sign-in has ended. Sign in again.';
+  }
+  if (error instanceof ApiError &amp;&amp; error.status === 404) {
+    return 'Nothing was found at this address. Check the link.';
+  }
+  if (error instanceof ApiError) {
+    return `The server had a problem (${error.status}). Try again in a moment.`;
+  }
+  if (error instanceof NetworkError) {
+    return 'Could not reach the server. Check that shoreline-api is running, then try again.';
+  }
+  return 'Something unexpected went wrong. Try again in a moment.';
+}
+
+// ---------------------------------------------------------------- talking to the API
+
+function apiBaseUrl(): string {
+  // Expo copies EXPO_PUBLIC_ variables into the bundle when Metro builds it (rewritten)
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (url === undefined || url === '') {
+    throw new Error('EXPO_PUBLIC_API_URL is not set: copy .env.example to .env.local');
+  }
+  return url;
+}
+
+/** Send a request to a path under /api. Throws ApiError on an error status, NetworkError without an answer. */
+async function request(path: string, init: RequestInit = {}): Promise&lt;Response&gt; {
+  const url = `${apiBaseUrl()}/api${path}`;
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    // In the browser a failed fetch is a TypeError; on a phone, Expo's fetch throws its own error
+    throw new NetworkError(error);
+  }
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() =&gt; null);
+    throw new ApiError(
+      response.status,
+      isApiErrorBody(body) ? body : { error: 'server_error', message: `HTTP ${response.status}` },
+    );
+  }
+  return response;
+}
+
+/** GET a path and check the JSON with a type predicate before anyone uses it */
+export async function getJSON&lt;T&gt;(
+  path: string,
+  isT: (value: unknown) =&gt; value is T,
+  signal?: AbortSignal,
+): Promise&lt;T&gt; {
+  const response = await request(path, { signal });
+  const data: unknown = await response.json();
+  if (!isT(data)) {
+    throw new Error(`Unexpected data from GET /api${path}`);
+  }
+  return data;
+}
+
+/** One page of a list, and where it sits in the whole list */
+export interface Page&lt;T&gt; {
+  items: T[];
+  page: PageInfo;
+}
+
+/** GET a list: the items are in the body, the page numbers in the response headers */
+export async function readPage&lt;T&gt;(
+  path: string,
+  isItem: (value: unknown) =&gt; value is T,
+  signal?: AbortSignal,
+): Promise&lt;Page&lt;T&gt;&gt; {
+  const response = await request(path, { signal });
+  const items: unknown = await response.json();
+  if (!isListOf(isItem)(items)) {
+    throw new Error(`Unexpected data from GET /api${path}`);
+  }
+  // page and perPage are what we asked for (or the API's defaults, 1 and 10)
+  const url = new URL(response.url);
+  return {
+    items,
+    page: {
+      page: Number(url.searchParams.get('page') ?? '1'),
+      perPage: Number(url.searchParams.get('perPage') ?? '10'),
+      total: Number(response.headers.get('X-Total-Count')),
+      totalPages: Number(response.headers.get('X-Total-Pages')),
+    },
+  };
+}
+
+export function getSites(signal?: AbortSignal): Promise&lt;Site[]&gt; {
+  return getJSON('/sites', isListOf(isSite), signal);
+}
+
+/** Cleanups; query is a search string such as 'when=upcoming&amp;perPage=20' */
+export function getEvents(query: string, signal?: AbortSignal): Promise&lt;Page&lt;CleanupEvent&gt;&gt; {
+  return readPage(`/events?${query}`, isCleanupEvent, signal);
+}
+
+/** One cleanup with its site. An unknown id (or a draft) is an ApiError with status 404. */
+export function getEvent(id: string, signal?: AbortSignal): Promise&lt;CleanupEventDetail&gt; {
+  return getJSON(`/events/${encodeURIComponent(id)}`, isCleanupEventDetail, signal);
+}</code></pre>
+                            </div>
+                        </li>
+                        <li>Run <code>npx tsc --noEmit</code>: nothing. Search the file for <code>window</code>, <code>document</code>, <code>Storage</code> and <code>import.meta</code>: nothing either. That second check is the one TypeScript cannot do for you.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: The API address <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Create <code>.env.example</code> in the <code>shoreline-crew</code> folder (next to <code>package.json</code>):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/.env.example</div>
+                                <pre data-src="shoreline-crew/.env.example"><code class="language-ini"># Where the app finds shoreline-api. Copy this file to .env.local and change it there.
+# Web preview and iOS Simulator: http://localhost:4000 (Lesson 5.1 covers phones and emulators)
+EXPO_PUBLIC_API_URL=http://localhost:4000</code></pre>
+                            </div>
+                        </li>
+                        <li>Copy it to <code>.env.local</code>, the file the app actually reads:
+                            <pre class="terminal"><code class="language-bash">cp .env.example .env.local</code></pre>
+                            In PowerShell:
+                            <pre class="terminal"><code class="language-bash">Copy-Item .env.example .env.local</code></pre>
+                        </li>
+                        <li>Check with <code>git status</code>: <code>.env.example</code> is listed as new, <code>.env.local</code> is not (it is ignored). That is what you want.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The first real request on the home screen <span class="step-time">(20 min)</span></h3>
+                    <p>Replace <code>src/app/index.tsx</code>. The screen keeps its heading and tagline and lists the upcoming cleanups underneath. It is deliberately plain and temporary: Lesson 2.1 builds the real Cleanups screen, Lesson 3.1 turns the list into a <code>FlatList</code>, and Lesson 5.2 replaces the effect with TanStack Query. Today it only has to prove the pipe works.</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/index.tsx"><code class="language-tsx">import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+
+import { describeError, getEvents } from '@/api/client';
+import type { CleanupEvent } from '@/api/types';
+import { getAvailability } from '@/utils/availability';
+import { formatDate } from '@/utils/format';
+
+// Temporary: proves the shared code works on a phone. Lesson 2.1 turns this into a real screen.
+type Load =
+  | { status: 'loading' }
+  | { status: 'failed'; message: string }
+  | { status: 'loaded'; events: CleanupEvent[] };
+
+function spotsText(event: CleanupEvent): string {
+  const availability = getAvailability(event);
+  switch (availability.kind) {
+    case 'open':
+      return availability.spotsLeft === 1 ? '1 spot left' : `${availability.spotsLeft} spots left`;
+    case 'full':
+      return 'Full';
+    case 'closed':
+      return 'Closed';
+  }
+}
+
+export default function Index() {
+  const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
+
+  useEffect(() =&gt; {
+    const controller = new AbortController();
+    getEvents('when=upcoming', controller.signal)
+      .then((page) =&gt; setLoad({ status: 'loaded', events: page.items }))
+      .catch((error: unknown) =&gt; {
+        if (!controller.signal.aborted) {
+          setLoad({ status: 'failed', message: describeError(error) });
+        }
+      });
+    return () =&gt; controller.abort();
+  }, []);
+
+  return (
+    &lt;ScrollView contentContainerStyle={styles.container}&gt;
+      &lt;Text accessibilityRole="header" style={styles.title}&gt;
+        Shoreline Crew
+      &lt;/Text&gt;
+      &lt;Text style={styles.tagline}&gt;Many hands, cleaner sands.&lt;/Text&gt;
+
+      {load.status === 'loading' &amp;&amp; &lt;Text&gt;Loading cleanups…&lt;/Text&gt;}
+      {load.status === 'failed' &amp;&amp; (
+        &lt;Text accessibilityRole="alert" style={styles.error}&gt;
+          {load.message}
+        &lt;/Text&gt;
+      )}
+      {load.status === 'loaded' &amp;&amp;
+        load.events.map((event) =&gt; (
+          &lt;Text key={event.id} style={styles.event}&gt;
+            {event.title} · {formatDate(event.date)} · {spotsText(event)}
+          &lt;/Text&gt;
+        ))}
+    &lt;/ScrollView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 8,
+    padding: 24,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#0b3954',
+  },
+  tagline: {
+    fontSize: 18,
+    color: '#1f6f8b',
+  },
+  event: {
+    fontSize: 16,
+    color: '#1f2a37',
+  },
+  error: {
+    fontSize: 16,
+    color: '#b23a22',
+  },
+});</code></pre>
+                    </div>
+                    <p>Everything in it is from the web course, in phone clothes:</p>
+                    <ul>
+                        <li>The <code>Load</code> union and the <code>useEffect</code> with an <code>AbortController</code> are the fetching pattern from Lesson 4.1 of the React + TypeScript course: the cleanup function aborts the request if the screen goes away, and an aborted request does not set state.</li>
+                        <li><code>spotsText</code> switches over the copied <code>Availability</code> union; TypeScript knows every case returns.</li>
+                        <li><code>ScrollView</code> replaces the centered <code>View</code>, so a long list can scroll (a <code>View</code> never scrolls on a phone; the page itself is not scrollable as it is in a browser).</li>
+                        <li><code>accessibilityRole="alert"</code> on the error text asks screen readers to announce it when it appears, like <code>role="alert"</code> on the web.</li>
+                        <li><code>@/api/client</code> and the other <code>@/</code> imports work from any folder.</li>
+                    </ul>
+                    <p>Start Metro with <code>npx expo start --clear</code> (the <code>--clear</code> makes sure it reads the new <code>.env.local</code>) and press <kbd>w</kbd> for the web preview. After a moment you should see the upcoming cleanups:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_03/03-first-request.png" alt="A phone-shaped frame showing the web preview of Shoreline Crew: a header bar titled index, the bold heading Shoreline Crew and the tagline, then a plain list of eight upcoming cleanups, each line with a title, a date such as a short weekday, month, day and year, and how many spots are left." width="420" height="814" loading="lazy">
+    <figcaption>The first real request, in the web preview: every line went through the copied <code>isCleanupEvent</code> check, <code>formatDate</code> and <code>getAvailability</code>. Dates move with today.</figcaption>
+</figure>
+                    <p>If you open the app in Expo Go on your phone today, it shows "Could not reach the server": the phone looks for the API on itself. That is the expected result until Lesson 5.1.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Break it on purpose, check and commit <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Stop the API (<kbd>Ctrl</kbd>+<kbd>C</kbd> in its terminal) and reload the web preview (<kbd>r</kbd> in the Metro terminal, or reload the browser). The list is replaced by the error message:
+                            <figure class="screenshot">
+    <img src="images/lesson_03/03-no-api.png" alt="The same phone-shaped web preview with the API unreachable: under the heading and tagline, a red line reads Could not reach the server. Check that shoreline-api is running, then try again." width="420" height="814" loading="lazy">
+    <figcaption>No answer from the API: <code>request()</code> turned the failed fetch into a <code>NetworkError</code>, and <code>describeError</code> chose the words.</figcaption>
+</figure>
+                            Start the API again (<code>node server.ts</code>) and reload: the list is back.</li>
+                        <li>In <code>.env.local</code>, change the port to <code>4001</code> and save. Reload: the list is still there, because the old address is in the bundle. Now stop Metro, run <code>npx expo start --clear</code> and open the preview again: "Could not reach the server". Put <code>4000</code> back and restart with <code>--clear</code>. You have just seen both rules of <code>EXPO_PUBLIC_</code> variables at work.</li>
+                        <li>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:
+                            <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                        </li>
+                        <li>Commit:
+                            <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Bring the HQ's shared code across; first request to shoreline-api"</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>Your final project (Lesson 10.1) will talk to some data source too. In your journal, sketch its "tide chart": the types and checks that would be the same in a web version and a phone version of your app. Then list one thing that would have to be rewritten for the phone (storage, the address, a file upload). If you already have a web project, try the sorting from <a href="#carry-over">the carry-over table</a> on its <code>src/</code> folder.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>src/api/types.ts</code> is an unedited copy of <code>shoreline-api/core/types.ts</code>, and ESLint ignores it</li>
+                        <li>☐ <code>src/utils/format.ts</code> and <code>availability.ts</code> import from <code>'@/api/types'</code></li>
+                        <li>☐ <code>src/api/client.ts</code> reads <code>process.env.EXPO_PUBLIC_API_URL</code>, and it contains no <code>window</code>, <code>document</code>, <code>sessionStorage</code> or <code>import.meta</code></li>
+                        <li>☐ <code>.env.example</code> is committed; <code>.env.local</code> exists and Git ignores it</li>
+                        <li>☐ The web preview lists the upcoming cleanups with dates and spots, and shows "Could not reach the server" when the API is stopped</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Sort the HQ's utilities</h3>
+                    <p>The HQ's <code>src/utils/</code> folder has more files than you copied: <code>assertNever.ts</code>, <code>csv.ts</code>, <code>debris.ts</code>, <code>eventForm.ts</code>, <code>formErrors.ts</code>, <code>searchParams.ts</code> and <code>skills.ts</code>. Without the HQ, use their names and what you know of the web app. For each one, decide: copy as is, rewrite, or not needed on the phone. Give a one-line reason each.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask the lesson's question for each file: does it only work with data, or does it touch the browser (the URL, a download, a form element)? Then ask whether the volunteers' app does that job at all.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>A reasonable sorting: <code>assertNever.ts</code> copy (pure TypeScript, useful in any exhaustive switch); <code>debris.ts</code> copy (labels for the debris categories: the debris-log form in Module 5 needs them; the spine lists it as a later copy); <code>skills.ts</code> copy if the profile shows skills (plain labels); <code>formErrors.ts</code> copy when the phone gets forms (it turns React Hook Form's errors into a list: data, not the browser); <code>csv.ts</code> not needed (organizers export rosters; a phone would share a file instead, Lesson 6.5); <code>searchParams.ts</code> not needed (it reads filters from the address bar's query string; on a phone, nobody types a query, and Expo Router hands screens their params, Lesson 4.1); <code>eventForm.ts</code> not needed (organizers create events, volunteers do not). Different answers are fine if your reasons follow the rule.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: See the type checker miss it</h3>
+                    <p>Add a temporary line at the top of <code>Index</code> in <code>src/app/index.tsx</code>: <code>const where = window.location.origin;</code>, and show <code>{where}</code> in a <code>Text</code>. Run <code>npx tsc --noEmit</code> and look at the web preview. If you have a phone connected with Expo Go, look at it there as well. Then remove the line.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Which type library makes <code>window.location</code> known to TypeScript, and which environment actually has a location?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>tsc</code> prints nothing, because Expo's settings include the <code>DOM</code> library. The web preview shows <code>http://localhost:8081</code>, because a browser has a location. On a phone, the screen should turn into a red error screen with a <code>TypeError</code> about reading <code>origin</code> of <code>undefined</code>. Three tools, three different answers: only the phone tells the truth about the phone.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Show how many there are</h3>
+                    <p><code>getEvents</code> returns a <code>Page</code>, not just the items: <code>page.page.total</code> is the number of matching cleanups, from the API's <code>X-Total-Count</code> header. Keep the whole page in the <code>loaded</code> state and show "8 upcoming cleanups" (or however many there are) above the list. Let TypeScript guide the change.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Change the <code>loaded</code> member of <code>Load</code> to hold <code>page: Page&lt;CleanupEvent&gt;</code> (import the type <code>Page</code> from <code>@/api/client</code>) and run <code>tsc</code>: it lists every place that still expects <code>events</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>| { status: 'loaded'; page: Page&lt;CleanupEvent&gt; }</code>, <code>.then((page) =&gt; setLoad({ status: 'loaded', page }))</code>, then in the JSX <code>&lt;Text&gt;{load.page.page.total} upcoming cleanups&lt;/Text&gt;</code> and <code>load.page.items.map(…)</code>. The total is 8 with the API's sample data. Undo the change afterwards, or keep it: Lesson 2.1 rewrites this screen either way.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: One cleanup, checked (Stretch)</h3>
+                    <p>Below the list, show the meeting point and town of one cleanup, <code>e08</code>, with the copied <code>getEvent</code>. Then change the id to <code>nope</code> and see what <code>describeError</code> says.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A second piece of state and a second request in the same effect (or a second effect) is fine for a throwaway screen. <code>getEvent</code> returns a <code>CleanupEventDetail</code>, whose <code>site</code> holds the town.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>For example, a state <code>const [detail, setDetail] = useState&lt;string | null&gt;(null);</code> and in the effect <code>getEvent('e08', controller.signal).then((event) =&gt; setDetail(`${event.meetingPoint}, ${event.site.town}`)).catch((error: unknown) =&gt; { if (!controller.signal.aborted) setDetail(describeError(error)); });</code>. With <code>nope</code>, the API answers 404, so you see "Nothing was found at this address. Check the link." That wording was written for a browser's address bar; on a phone, Lesson 4.1 will make you think about what "the link" means when it came from a tap.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> You copy a helper from Shoreline Crew HQ that reads <code>sessionStorage.getItem('shoreline-hq-session')</code>. <code>npx tsc --noEmit</code> prints nothing and the web preview works. What happens in Expo Go on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The type check passed. Which type library made sessionStorage known to TypeScript, and is that library about phones?">
+                                A) It works, because TypeScript accepted it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Expo Go does not translate browser storage into anything. What exists on the phone's global object?">
+                                B) Expo Go stores the value in the phone's keychain instead
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo's tsconfig loads the DOM types for the web preview, so tsc accepts browser APIs. A phone has no sessionStorage, so the code fails while the app runs. Search copied code for browser APIs yourself; Lesson 4.3 stores the session with SecureStore.">
+                                C) It fails at run time, because a phone has no sessionStorage
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Which HQ file can Shoreline Crew copy byte for byte, without changing a single character?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="types.ts is the API's contract, identical to shoreline-api/core/types.ts. It holds only types, so nothing in it depends on the platform, and keeping it identical means a new copy from the API shows every place that has to change.">
+                                A) <code>src/api/types.ts</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="This file reads the API address from Vite and keeps the session in browser storage. Is that platform-free?">
+                                B) <code>src/api/client.ts</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the file name's last part. Does a phone understand CSS?">
+                                C) <code>src/components/EventCard.module.css</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Metro is running. You change <code>EXPO_PUBLIC_API_URL</code> in <code>.env.local</code> and reload the app. It still calls the old address. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint=".env.local is the file Expo reads for your machine. Was the file the problem, or the moment it was read?">
+                                A) Expo only reads .env.example
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The prefix is right: only EXPO_PUBLIC_ names reach the app. When does Metro put the value into your code?">
+                                B) The name needs a VITE_ prefix
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Phones do cache things, but this value never reaches the phone as a setting. Where does it live after Metro builds the bundle?">
+                                C) The phone caches network addresses for a day
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="EXPO_PUBLIC_ values are copied into the bundle as text when Metro builds it. Stop Metro and start it with npx expo start --clear so it rebuilds with the new value.">
+                                D) The old value was copied into the bundle; restart Metro with --clear
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The API is not running. Why does Shoreline Crew's <code>request()</code> wrap <code>fetch</code> in a <code>try</code> and throw a <code>NetworkError</code>, when the HQ's <code>describeError</code> simply checked for a <code>TypeError</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="TypeScript has no say in how fetch fails at run time. Whose fetch is running on a phone?">
+                                A) TypeScript 6.0 does not support TypeError
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="On phones, Expo replaces fetch with its own implementation, which fails with a FetchError rather than the browser's TypeError. Wrapping every failed fetch in one NetworkError gives the same message on Android, iOS and the web preview.">
+                                B) On a phone, Expo's fetch fails with its own error, not a TypeError
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The ApiError class is for answers with an error status. Is there any answer when the API is not running?">
+                                C) So that the API can send a 503 status
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> A teammate wants to switch Shoreline Crew to TypeScript 7.0 because the HQ uses it. What do you tell them?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the reason for the pin how TypeScript checks your code, or the tools around it?">
+                                A) 7.0 reports different errors, so the code would need rewriting
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did the course find a problem with how Expo Go runs your JavaScript, or with a development tool?">
+                                B) Expo Go cannot run apps type-checked with 7.0
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="SDK 58 pins TypeScript 6.0. The code checks the same with 7.0, but npx expo install --check flags it and npx expo lint crashes, because typescript-eslint supports TypeScript only up to 6.0. Keep the SDK's version and let SDK upgrades move it.">
+                                C) Keep 6.0: the SDK pins it, and expo lint's TypeScript support stops at 6.0
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Why copy files instead of sharing one folder or an npm package?</summary>
+                    <p>Sharing is better for a team that maintains both apps every day: a monorepo with a shared package (npm, pnpm or yarn workspaces) keeps one copy, and Metro supports monorepos. It also adds setup that has nothing to do with learning React Native. The course copies, keeps <code>types.ts</code> identical so a new copy is a one-line job, and leaves the monorepo as a next step you will recognize when you meet one at work.</p>
+                </details>
+                <details>
+                    <summary>Why not use Zod to check the API's data, instead of hand-written type guards?</summary>
+                    <p>Either works on a phone; Zod 4 runs in Hermes. The HQ used guards for API data and Zod for forms, and the phone app keeps that split so the copied code stays copied. Lesson 5.4 brings Zod in for the phone's forms.</p>
+                </details>
+                <details>
+                    <summary>Why does the screen use <code>useEffect</code> when the web course moved to TanStack Query?</summary>
+                    <p>Because this screen is temporary, and Query on a phone has its own lesson. On a phone, "the window got focus" and "the network came back" mean different things than in a browser, and Lesson 5.2 sets that up properly. Until then, the effect pattern from the web course's Lesson 4.1 is enough to prove the pipe works.</p>
+                </details>
+                <details>
+                    <summary>The API's dates show the weekday, but in which time zone?</summary>
+                    <p>None, on purpose. A cleanup's <code>date</code> is a day on the crew's calendar (the API says the crew is in <code>America/Los_Angeles</code>), and <code>formatDate</code> prints that day as it is. A volunteer who flies to another time zone still sees the right Saturday. Times of day are just text ("09:00") for the same reason.</p>
+                </details>
+                <details>
+                    <summary>Do I need the HQ project from the web course at all?</summary>
+                    <p>No. Everything Shoreline Crew needs is in the shoreline-api download and on this page. If you have the HQ, it is a useful reference whenever a lesson says "as in the web course".</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Write a tiny script that checks the contract is still a copy: compare <code>shoreline-crew/src/api/types.ts</code> with <code>shoreline-api/core/types.ts</code> and print "in sync" or "out of sync". On macOS and Linux, <code>cmp</code> or <code>diff</code> does it in one line; on Windows, PowerShell's <code>Get-FileHash</code> on both files works. Add it to <code>package.json</code> as a script named <code>check-types</code>, so that the next time the API changes, one command tells you.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Write your own one-sentence rule for "copy or rewrite?", in your own words. Then name the one thing from this lesson that surprised you most (the type checker accepting <code>sessionStorage</code>, Expo's own <code>fetch</code>, the bundle holding the API address) and how you would explain it to a teammate who only knows the web.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><strong>Code that only works with data copies over; code that touches the browser gets rewritten.</strong> Types, guards, <code>ApiError</code>, <code>describeError</code>, <code>formatDate</code> and <code>getAvailability</code> came across; the address, the session and the components did not</li>
+                        <li><code>src/api/types.ts</code> is the API's contract: an unedited copy of <code>shoreline-api/core/types.ts</code>, ignored by ESLint</li>
+                        <li>Expo's TypeScript settings include the <strong>DOM types</strong> for the web preview, so <code>tsc</code> does not catch <code>window</code>, <code>document</code> or <code>sessionStorage</code> in phone code: search for them yourself</li>
+                        <li>On phones, Expo's own <code>fetch</code> fails with a <code>FetchError</code>, not a <code>TypeError</code>; the client wraps every failed fetch in a <code>NetworkError</code></li>
+                        <li><code>EXPO_PUBLIC_</code> variables are copied into the bundle: write <code>process.env.EXPO_PUBLIC_API_URL</code> in full, restart with <code>--clear</code> after a change, never store secrets</li>
+                        <li>SDK 58 pins <strong>TypeScript 6.0</strong>: same checks as 7.0, slower, but supported by <code>expo lint</code>'s TypeScript tools</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>See every endpoint and field the API sends</td><td><a href="api.html">Shoreline API Reference</a></td></tr>
+                            <tr><td>Translate a web habit into its React Native version</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Fix "Network request failed" or "Could not reach the server"</td><td><a href="troubleshooting.html#network-request-failed">Troubleshooting</a></td></tr>
+                            <tr><td>Read Expo's own guide to environment variables</td><td><a href="https://docs.expo.dev/guides/environment-variables/" target="_blank" rel="noopener">Expo: Environment variables</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You sorted a real web app's code into "copy" and "rewrite", with a reason for each</li>
+                        <li>You set up Shoreline Crew's shared-code folders and brought the API's contract across unchanged</li>
+                        <li>You adapted the HQ's API client for a phone, including a failure the web never showed you</li>
+                        <li>You configured the API address the Expo way and saw when it is read</li>
+                        <li>Your app made its first real, checked request, and it says something useful when the API is gone</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 2 starts in <a href="lesson_04.html"><strong>Lesson 2.1: View, Text and StyleSheet</strong></a>. You turn today's plain list into Shoreline Crew's first real screen: a Cleanups header and an event card built from <code>View</code>, <code>Text</code> and <code>StyleSheet</code>, with the crew's colors moved into a theme file. You will see how styling works without a DOM and without a cascade, and why a web developer's CSS instincts need a few adjustments.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the web preview lists the upcoming cleanups, and that your work is committed</li>
+                    <li>Open the HQ's <code>EventCard.tsx</code> and <code>EventCard.module.css</code> if you have them (or picture a card with a title, a date and a spots line): next lesson rebuilds that card for a phone</li>
+                    <li>Write today's journal entry, including your "copy or rewrite?" rule</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>A lesson ago the app said its own name. Now it talks to a real API through code you understand line by line, and it tells the truth when something goes wrong. More than that, you practiced judgment, not just syntax: knowing what to trust when code moves between platforms is a skill that does not go out of date with the next SDK. Everything from here builds on today's pipe.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_02.html" class="prev-lesson">← Previous: Your Toolchain</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_04.html" class="next-lesson">Next: View, Text and StyleSheet →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

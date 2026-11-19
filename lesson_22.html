@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Location and maps on a phone: what a position really is and how accurate it gets, checking in at the beach with the organizer's code (and why the location is not the proof), what happens offline, and a map of the meeting point with react-native-maps, with a web-preview fallback and the Google Maps key that builds need. React Native &amp; Expo: Build and Ship a Mobile App Lesson 6.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Location and Maps - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📍 Lesson 6.3: Location and Maps</h1>
+                <p class="lead">On the morning of a cleanup, two questions matter to a volunteer: where exactly do we meet, and how does the crew know I came? Today Shoreline Crew answers both. A map shows the meeting point with a pin (and, if the volunteer already said yes to location, their own blue dot), one press hands the place to the phone's map app for directions, and at the beach the organizer's code checks the volunteer in. Along the way you decide what a phone's position can honestly prove, and what it cannot.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Read a phone's position as it really is: coordinates with an accuracy radius, a time, and a way to be faked, and pick the accuracy a feature needs</li>
+                        <li>Design an on-the-day check-in: decide what proves a volunteer was there (the organizer's code, not the phone's location), and say honestly what happens offline</li>
+                        <li>Build the check-in as a typed modal route with React Hook Form, a Zod schema and a mutation, and put the API's field message on the right field</li>
+                        <li>Show a map with react-native-maps (a pin, a starting region, the blue dot only after a yes) and say what Expo Go, development builds and the web preview each need, including the Google Maps key for Android builds</li>
+                        <li>Give the web preview a stand-in for a native-only library with a <code>.web.tsx</code> file, and hand a place to the phone's map app with a link</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_21.html">Lesson 6.2: Camera and Photos</a> (and the location permission from <a href="lesson_20.html">Lesson 6.1</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A <strong>Check in</strong> modal for the day of a cleanup (the organizer's code, sent to the API), a checked-in state on the cleanup screen, and a <strong>Where to meet</strong> map with <strong>Open in Maps</strong></li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-native-maps 1.29, expo-location 58.0, TanStack Query 5.107, React Hook Form 7.92 + Zod 4.6 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the map; the web preview in Chrome for the check-in and the map's stand-in; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-22-start.zip">lesson-22-start.zip</a> · Finished code: <a href="downloads/lesson-22-end.zip">lesson-22-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Where We Meet, and Who Came</a></li>
+                        <li><a href="#position" class="toc-link">Where Am I, Really?</a></li>
+                        <li><a href="#proof" class="toc-link">What Proves You Were There</a></li>
+                        <li><a href="#offline" class="toc-link">Checking In With One Bar of Signal</a></li>
+                        <li><a href="#maps" class="toc-link">Maps on a Phone</a></li>
+                        <li><a href="#web" class="toc-link">A Map in the Web Preview</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Check In and Find the Beach</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Where We Meet, and Who Came</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you watched your phone's blue dot at a place you know. It probably started as a wide pale circle, wandered a little, and settled within a few meters of you after a while, or never quite did between tall buildings or under a cliff. Keep that picture in mind: it decides half of today's design.</p>
+                <p>Shoreline Crew already knows where you are, if you allow it: Lesson 6.1's <strong>How far is it?</strong> panel works out your distance from the beach. Today the app uses places in two more ways:</p>
+                <ul>
+                    <li><strong>A map of the meeting point.</strong> "Gravel pull-out on Highway 1" means little to someone who has never been there. The cleanup screen gets a real map with a pin, your blue dot when you have already allowed location, and an <strong>Open in Maps</strong> button that hands the place to the phone's own map app for directions.</li>
+                    <li><strong>Checking in.</strong> On the day, at the meeting point, the organizer reads out a four-digit code. The volunteer types it into a <strong>Check in</strong> screen, shoreline-api marks their sign-up <code>attended</code>, and the cleanup screen says so. Organizers count who came, and the volunteer's "You have helped at N cleanups" goes up.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> location features are everywhere (deliveries, ride sharing, field work, events, fitness), and so are their two classic failures: trusting the phone's position for things it cannot prove, and maps that work in development and show a blank gray grid in the store build. Knowing where those lines are is what separates a demo from an app people rely on.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Half of this lesson happens outdoors</h3>
+                    <p>A map's tiles, a blue dot settling, a code read out in the wind: none of it runs on your desk. The web preview checks every screen and every answer from the API, and Expo Go on your phone shows the real map. If the map on your phone looks different from what the lesson describes, or your dot sits in the sea, you have not done anything wrong: you have met the real world. Note it in your journal; that is how location features get good.</p>
+                </div>
+            </section>
+
+            <section id="position" class="lesson-section">
+                <h2>🛰️ Where Am I, Really?</h2>
+                <p>Lesson 6.1 read the phone's position once and only used two numbers from it. A position from expo-location carries more, and the rest is what tells you how far to trust it:</p>
+                <pre data-snippet><code class="language-ts">import * as Location from 'expo-location';
+
+// After a yes to the location permission (Lesson 6.1's gate)
+const here = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+
+const { latitude, longitude, accuracy } = here.coords;
+// latitude 36.9791 (degrees north), longitude -122.1185 (degrees east; negative is west)
+// accuracy 35: the phone is probably within 35 meters of that point (null when unknown)
+console.log(latitude, longitude, accuracy);
+console.log(here.timestamp); // when the phone measured it, in milliseconds since 1970
+console.log(here.mocked); // true when the position comes from a mock provider or a spoofing tool</code></pre>
+                <p>(The numbers in the comments are an example.) A position is not a point; it is a circle. <code>accuracy</code> is its radius in meters, the pale circle around a map's blue dot. The phone builds it from whatever it has: GPS satellites (meters, outdoors, after a while), Wi-Fi networks and cell towers (tens of meters to kilometers, fast, also indoors). The <code>accuracy</code> option you pass says how hard the phone should try:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Option</th><th>Roughly (expo-location's own words)</th><th>Good for</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>Accuracy.Lowest</code>, <code>Low</code></td><td>three kilometers, one kilometer</td><td>"Which town?"</td></tr>
+                            <tr><td><code>Accuracy.Balanced</code></td><td>one hundred meters</td><td>"How far is the beach?" (Lesson 6.1)</td></tr>
+                            <tr><td><code>Accuracy.High</code>, <code>Highest</code></td><td>ten meters, the best it can</td><td>A pin you drop where you stand</td></tr>
+                            <tr><td><code>Accuracy.BestForNavigation</code></td><td>the best, plus extra sensors</td><td>Turn-by-turn directions</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>More accuracy costs time and battery: the phone may need many seconds to get a GPS fix, and longer indoors. When a rough answer is enough and speed matters, <code>getLastKnownPositionAsync()</code> returns the phone's most recent position at once (or <code>null</code>), and <code>watchPositionAsync()</code> keeps sending new positions while something on screen needs them, like a run tracker. Shoreline Crew only ever needs one position, now and then, so Lesson 6.1's single <code>getCurrentPositionAsync</code> stays.</p>
+                <p>Two facts about positions shape the rest of this lesson:</p>
+                <ul>
+                    <li><strong>The circle can be big exactly where cleanups happen.</strong> Under a cliff, in a creek valley or between harbor buildings, a phone may report 50 to 500 meters of accuracy, or a position that jumps. A rule like "you must be within 100 meters" would refuse a volunteer who is standing on the right spot.</li>
+                    <li><strong>The position comes from the phone, and the phone belongs to the volunteer.</strong> Android has developer options for "mock location" apps, and tools exist for iPhones too; <code>mocked</code> catches some of them, not all. Whatever the app checks on the phone, the person holding it can change.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The accuracy figures are expo-location's documented targets, not guarantees, and what your phone reports depends on its hardware, the sky and the buildings around it. In the web preview, Chrome gives whatever position it has (or the one you set in DevTools, Sensors, as in Lesson 6.1).</p>
+                </div>
+            </section>
+
+            <section id="proof" class="lesson-section">
+                <h2>🔑 What Proves You Were There</h2>
+                <p>shoreline-api's check-in is one request: <code>POST /api/events/:id/check-in</code> with <code>{ "code": "…" }</code>. The API only accepts it on the day of the cleanup, from a volunteer with a confirmed spot, with the code the organizer has (organizers see it when they load the cleanup; nobody else does). The answer is the sign-up, now <code>attended</code>. Try it with curl as Theo (<code>dev-volunteer</code> is the API's test token for him; in PowerShell, write <code>curl.exe</code>):</p>
+                <pre class="terminal"><code class="language-bash">curl -i -X POST http://localhost:4000/api/events/e17/check-in -H "Authorization: Bearer dev-volunteer" -H "Content-Type: application/json" -d "{\"code\": \"1234\"}"</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>HTTP/1.1 400 Bad Request
+cache-control: no-store
+content-type: application/json; charset=utf-8
+...
+
+{
+  "error": "validation_failed",
+  "message": "Some fields need attention.",
+  "fieldErrors": {
+    "code": [
+      "That code does not match. Ask the organizer for today's code."
+    ]
+  }
+}</code></pre>
+                </div>
+                <p>A wrong code is a <code>400</code> with a message for the <code>code</code> field, the same <code>fieldErrors</code> shape as the sign-in and the debris log. The wrong day and a missing spot are <code>409</code>s with the API's words: "Check-in opens on the day of the cleanup." and "You need a confirmed spot to check in." Notice what the request does not contain: any position. The API decides with the code alone.</p>
+                <p>Should the app add a rule of its own, "only check in within 300 meters of the meeting point"? Lesson 6.2 even hinted at it. Here is the comparison that decided it for Shoreline Crew:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>The organizer's code (Shoreline Crew)</th><th>The phone's location</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Who checks it</td><td>The server: the app cannot change the answer</td><td>The phone: whoever holds it can change it (a mock location, or simply edited code)</td></tr>
+                            <tr><td>Under a cliff, in a creek valley</td><td>Works</td><td>A big accuracy circle may refuse someone standing on the right spot</td></tr>
+                            <tr><td>Volunteer said no to location</td><td>Works (Lesson 6.1: a no is an answer)</td><td>Cannot check in at all</td></tr>
+                            <tr><td>What it proves</td><td>They heard the organizer at the meeting point</td><td>The phone said it was near; nothing about the person</td></tr>
+                            <tr><td>Cost</td><td>The organizer reads out four digits</td><td>Every check-in asks for the location permission</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So the code is the proof, and the location stays what it was in Lesson 6.1: a helpful extra the volunteer can choose. A check that lives only on the phone is a convenience, never a rule; rules belong on the server (the same "screen checks are kindness, API checks are rules" from Lesson 5.4). If Shoreline Crew ever needed location as evidence, the phone would have to send the position to the server, which would decide, and the purpose string, the privacy details in the stores (Lesson 9.4) and the volunteers' trust would all have to cover that. Exercise 3 lets you show the distance on the check-in screen as a hint, without making it a gate.</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the sign-in sheet on the clipboard</h3>
+                    <p>At every cleanup, the leader stands at the meeting point with a clipboard. You walk up, say the word of the day, and your name gets a tick. Nobody asks to see your phone's map; the tick means you were standing in front of the leader. The code is that word of the day, the API is the clipboard, and <code>attended</code> is the tick. Your blue dot is for finding the clipboard, not for signing it.</p>
+                </div>
+            </section>
+
+            <section id="offline" class="lesson-section">
+                <h2>📶 Checking In With One Bar of Signal</h2>
+                <p>Lesson 5.5 put debris logs in a persisted queue, so a log written with no signal is sent hours later. Should check-ins wait in that queue too? Look at what the API does with a late one:</p>
+                <ul>
+                    <li><strong>Only on the day.</strong> A check-in queued at 9:00 and sent the next morning gets "Check-in opens on the day of the cleanup." It can never succeed late.</li>
+                    <li><strong>A wrong code needs the volunteer now.</strong> If they mistyped it, they must hear so while the organizer is still there to read it again, not from the queue in the evening.</li>
+                    <li><strong>The organizer needs to see it now.</strong> The point of checking in is that the crew knows, at the meeting point, who is on the beach.</li>
+                </ul>
+                <p>So Shoreline Crew does not queue check-ins. The check-in is a TanStack Query mutation, like signing up in Lesson 5.2, and with no connection it does what those do: it pauses, keeps its place in memory, and is sent the moment the phone is back online, while the app stays open. The screen says so ("No connection: your check-in is sent when you are back online. Keep Shoreline Crew open until then."). If the app is closed before then, the check-in is gone, and that is honest: the volunteer checks in again, or tells the organizer, who can mark them present from Shoreline Crew HQ (the web course's roster). Retrying is safe because the API's check-in is idempotent: a second check-in with the right code leaves the sign-up <code>attended</code> and keeps the first time.</p>
+<div class="mermaid">
+graph TD
+    A["Check in pressed"] --> B{"Signal?"}
+    B -->|"yes"| C["POST check-in"]
+    B -->|"no"| D["Paused, in memory"]
+    D -->|"back online, app open"| C
+    D -->|"app closed"| E["Gone: check in again"]
+    C -->|"200"| F["Attended"]
+    C -->|"400 / 409"| G["Message on screen"]
+</div>
+            </section>
+
+            <section id="maps" class="lesson-section">
+                <h2>🗺️ Maps on a Phone</h2>
+                <p>On the web you might embed a map with a JavaScript library drawing tiles into a <code>&lt;div&gt;</code>. A phone already has a map view built in, fast and familiar: Apple's MapKit on iPhones, Google Maps on Android. <strong>react-native-maps</strong> puts that native view on your screen as a component, <code>&lt;MapView&gt;</code>, with children like <code>&lt;Marker&gt;</code> for pins:</p>
+                <pre data-snippet><code class="language-tsx">import MapView, { Marker } from 'react-native-maps';
+
+&lt;MapView
+  style={{ height: 220 }} // no size, no map
+  initialRegion={{ latitude: 36.979, longitude: -122.1183, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
+&gt;
+  &lt;Marker coordinate={{ latitude: 36.979, longitude: -122.1183 }} title="Gravel pull-out on Highway 1" /&gt;
+&lt;/MapView&gt;</code></pre>
+                <p>A <strong>region</strong> is a center plus how much of the world fits on screen: <code>latitudeDelta</code> is the height of the map in degrees of latitude (0.01 is about 1.1 km), <code>longitudeDelta</code> the width. <code>initialRegion</code> sets where the map starts and then lets the volunteer pan and zoom; <code>region</code> would hold the map at that spot on every render. <code>showsUserLocation</code> draws the blue dot. Which map does each place give you?</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Expo Go</th><th>Development or store build (Module 9)</th><th>Web preview</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>iPhone</td><td>Apple Maps, no setup</td><td>Apple Maps, no key (Google Maps on iPhone needs its own key and <code>provider={PROVIDER_GOOGLE}</code>)</td><td rowspan="2">No map view: react-native-maps has no web version (see the next section)</td></tr>
+                            <tr><td>Android phone</td><td>Google Maps, no setup (Expo Go carries a key)</td><td><strong>Google Maps needs your own API key</strong>, from a Google Cloud project</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Expo's documentation says react-native-maps is in Expo Go and needs "no additional setup" there, which is why this lesson works on your phone today. The Android build is the catch, and it is worth knowing now so it never surprises you in Module 9: an Android build of your own app shows Google Maps only with a key you create in the Google Cloud console (enable "Maps SDK for Android", create an API key, restrict it to your app's package name and signing certificate). Google's console asks for a billing account when you set up a project; check Google's current pricing for the Maps SDKs before you ship. The key goes into the app through react-native-maps' config plugin. Measured with <code>npx expo config --type introspect</code> on a copy of the project, with a placeholder key in <code>plugins</code>:</p>
+                <pre data-snippet><code class="language-json">[
+  "react-native-maps",
+  {
+    "androidGoogleMapsApiKey": "YOUR_ANDROID_KEY"
+  }
+]</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output (the matching lines)</h4>
+                    <pre><code>...
+                    '$': {
+                      'android:name': 'com.google.android.geo.API_KEY',
+                      'android:value': 'YOUR_ANDROID_KEY'
+...</code></pre>
+                </div>
+                <p>The plugin writes the key into the Android manifest of your build; without the entry, it removes it. Shoreline Crew does not add the entry in this lesson: Expo Go needs none, and a key belongs to you, not to a course download. A Google Maps key for a phone app is not a secret in the way a password is (it ships inside the app, where anyone can read it), which is exactly why Google lets you restrict it to your app. Lesson 9.1 moves configuration to <code>app.config.ts</code>, where a key can come from an environment variable instead of sitting in <code>app.json</code>.</p>
+                <p>One more thing <code>showsUserLocation</code> does, read in react-native-maps' own documentation for the prop: "This will cause iOS to ask for location permissions." The map would knock on the gate by itself, with no explanation first. Shoreline Crew's map therefore reads the permission (reading never asks, Lesson 6.1) and shows the dot only after a yes the volunteer gave in <strong>How far is it?</strong>. The map is useful without it: the pin is the point.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The map tiles, the pin's callout, the blue dot and "no setup in Expo Go" come from Expo's and react-native-maps' documentation and could not be run here (no phone, no Android emulator on this course's machine). The JavaScript was bundled for Android and iOS with <code>npx expo export</code>, which proves it compiles for both, not that the map draws. Step 7 has you check it on your phone.</p>
+                </div>
+            </section>
+
+            <section id="web" class="lesson-section">
+                <h2>🖥️ A Map in the Web Preview</h2>
+                <p>react-native-maps draws native map views, and a browser has none. Its package even says so in a file of its own, <code>src/MapView.web.ts</code>: on the web, <code>MapView</code> is react-native-web's "unimplemented view". That is not enough, though: the rest of the package (the marker, the shapes) still defines native components when it is imported, and that is what breaks the web build (see <a href="#mistakes">Common Mistakes</a>).</p>
+                <p>You have the tool for this since Lesson 2.5 and used it again in 6.2: a platform file. <code>SiteMap.tsx</code> is the phone's map; <code>SiteMap.web.tsx</code>, next to it, is what the web bundle uses instead, and it never imports react-native-maps. The two export the same component with the same props, so the cleanup screen imports <code>@/components/SiteMap</code> and never knows which one it got. For the web, Shoreline Crew shows the place in words, in a box the size of the map, and the <strong>Open in Maps</strong> button (on every platform) opens a real map in a new browser tab.</p>
+                <p>Why not a web map library in the <code>.web.tsx</code> file? You could, and a real product with a web version might. For a web preview that exists to check screens on your computer, a box that says where to meet and a link to a full map does the job without a second map library to learn and keep up to date.</p>
+                <p>"Hand the place to the map app" is a link with the place in it, opened with <code>Linking.openURL</code>, and each platform has its own form:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Platform</th><th>Link</th><th>Opens</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>iPhone</td><td><code>https://maps.apple.com/?ll=36.979,-122.1183&amp;q=…</code></td><td>Apple Maps, with a pin and the label</td></tr>
+                            <tr><td>Android phone</td><td><code>geo:36.979,-122.1183?q=36.979,-122.1183(…)</code></td><td>The map app that handles <code>geo:</code> links (usually Google Maps), or a choice</td></tr>
+                            <tr><td>Web preview</td><td><code>https://www.openstreetmap.org/?mlat=36.979&amp;mlon=-122.1183#map=16/…</code></td><td>OpenStreetMap in a new tab (measured)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>One measured detail: in the web preview, expo-linking's <code>openURL</code> replaces the page (its web code sets <code>window.location</code>), which would leave the app and, with the web preview's memory-only session (Lesson 4.3), sign the volunteer out. React Native's own <code>Linking.openURL</code> opens a new tab on the web and does the same as expo-linking on a phone, so the button uses that one.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The first, second and fourth mistakes were made on purpose in a copy of the finished project and measured; the third comes from react-native-maps' documentation, because only an iPhone can show it.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Importing react-native-maps where the web preview can see it</h3>
+                    <p>Put <code>&lt;MapView&gt;</code> straight into the cleanup screen (or into <code>SiteMap.tsx</code> with no <code>SiteMap.web.tsx</code> next to it), and the phone is happy, but the web build is not. <code>npx expo export --platform web</code> printed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+Server rendering is enabled. Learn more: https://docs.expo.dev/router/web/server-rendering/
+λ Bundled 1563ms node_modules/expo/node_modules/@expo/cli/node_modules/@expo/router-server/node/render.js (1250 modules)
+Web Bundled 1922ms node_modules/expo-router/entry.js (1234 modules)
+
+Metro error: (0 , r(...).codegenNativeComponent) is not a function
+
+  TypeError: (0 , r(...).codegenNativeComponent) is not a function
+...</code></pre>
+                    </div>
+                    <p>In the web preview (<code>npx expo start</code>, then <kbd>w</kbd>), the page showed a full-screen error with the same message, pointing at react-native-maps' <code>NativeComponentGooglePolygon.ts</code> (measured). Read it as "a native component was defined where there is no native": <code>codegenNativeComponent</code> exists in React Native, not in react-native-web. The error is raised when the package is loaded, and Expo Router's web build loads every route to render the pages on the server, so the whole web build stops, not only the cleanup screen. The fix is a <code>.web.tsx</code> file that never imports the package, as in Step 6.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Checking in without refreshing the sign-ups</h3>
+                    <p>It is easy to write the mutation with only a <code>mutationFn</code>. Measured in the web preview with <code>onSettled</code> removed from <code>checkInMutation</code>: the right code was sent, shoreline-api answered <code>200</code> and Theo's sign-up was <code>attended</code> on the server, and the screen did not change at all: still the form, still <code>6544</code> in the field, still <strong>Check in</strong>. The volunteer presses it again and again. The screen draws from the sign-ups in the cache (the tide chart from Lesson 1.1), so the mutation must say they are out of date: <code>onSettled</code> invalidates <code>['signups']</code>, the active query fetches again, and the "You are checked in" face appears by itself.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Turning on the blue dot for everyone</h3>
+                    <pre data-snippet data-legacy><code class="language-tsx">// Don't: on an iPhone, the map asks for location by itself, with no reason given
+&lt;MapView style={styles.map} initialRegion={region} showsUserLocation /&gt;</code></pre>
+                    <p>react-native-maps documents that <code>showsUserLocation</code> "will cause iOS to ask for location permissions". That is the phone's question appearing over a cleanup's screen the moment it opens, before anyone asked for anything: Lesson 6.1's first mistake, asking at the wrong moment, hidden inside a prop. And on iPhone, a "Don't Allow" there is final for <strong>How far is it?</strong> too. Show the dot only when the permission step already says <code>'granted'</code>. (On Android, react-native-maps only checks the permission and draws no dot without it. Neither behavior can be seen in the web preview.)</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A new route that TypeScript has never heard of</h3>
+                    <p>Create <code>src/app/check-in/[id].tsx</code> and link to it while Metro is stopped, run <code>npx tsc --noEmit</code>, and typed routes (Lesson 4.1) object:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/check-in/[id].tsx:34:11 - error TS2339: Property 'id' does not exist on type 'String'.
+
+34   const { id } = useLocalSearchParams&lt;'/check-in/[id]'&gt;();
+             ~~
+
+src/app/check-in/[id].tsx:34:39 - error TS2344: Type '"/check-in/[id]"' does not satisfy the constraint 'RoutePath'.
+
+34   const { id } = useLocalSearchParams&lt;'/check-in/[id]'&gt;();
+                                         ~~~~~~~~~~~~~~~~
+
+src/components/SignupPanel.tsx:101:23 - error TS2322: Type '"/check-in/[id]"' is not assignable to type '"/" | RelativePathString | ExternalPathString | "/before-you-go" | "/sign-in" | "/_sitemap" | "/(tabs)" | "/(tabs)/logbook" | "/logbook" | ... 6 more ... | "/log/[id]"'.
+
+101         &lt;Link href={{ pathname: '/check-in/[id]', params: { id: event.id } }} asChild&gt;
+                          ~~~~~~~~
+
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  src/app/check-in/[id].tsx:34
+     1  src/components/SignupPanel.tsx:101</code></pre>
+                    </div>
+                    <p>The code is right; the list of routes is old. Expo Router writes it to <code>.expo/types/router.d.ts</code> while <code>npx expo start</code> runs, and the new screen is not in it yet, so <code>'/check-in/[id]'</code> is not a <code>RoutePath</code>. Start Metro (it updates the file within seconds of seeing the new route), then run <code>tsc</code> again: nothing. Never edit <code>router.d.ts</code> by hand; it is rewritten every time.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Check In and Find the Beach</h2>
+                <p>You teach the client to check in, give the code a schema and the change a mutation, build the <strong>Check in</strong> modal, let the cleanup screen show the day's button and the checked-in state (and the code, to organizers), then install react-native-maps and add <strong>Where to meet</strong> with its web stand-in and <strong>Open in Maps</strong>. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal and Metro running (<code>npx expo start</code>) unless a step says otherwise.</p>
+
+                <div class="card">
+                    <h3>Step 1: Check in, in the client, the schema and a mutation <span class="step-time">(15 min)</span></h3>
+                    <p>In <code>src/api/client.ts</code>, import the API's <code>CheckInRequest</code> type and add <code>checkIn</code> before <code>postLog</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   ApiErrorBody,
++  CheckInRequest,
+   CleanupEvent,
+ // ...
+ 
++/**
++ * POST /api/events/:id/check-in: on the day of the cleanup, with the organizer's code. Your
++ * sign-up comes back as 'attended'. A wrong code is an ApiError 400 with a message for the code
++ * field; the wrong day, or no confirmed spot, an ApiError 409 with the API's words.
++ */
++export function checkIn(eventId: string, code: string): Promise&lt;Signup&gt; {
++  const body: CheckInRequest = { code };
++  return sendJSON('POST', `/events/${encodeURIComponent(eventId)}/check-in`, body, isSignup);
++}
++
+ /** POST /api/events/:id/logs: send a debris log. The API answers 201 with the saved log, or 200</code></pre>
+                    </div>
+                    <p>It reuses <code>sendJSON</code> and the <code>isSignup</code> check from Lesson 5.2: the answer is your sign-up, now <code>attended</code>. A <code>400</code> arrives as an <code>ApiError</code> whose <code>fieldErrors</code> holds the API's message for <code>code</code>. In <code>src/api/schemas.ts</code>, after the sign-in schema:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/schemas.ts</div>
+                        <pre data-src="shoreline-crew/src/api/schemas.ts" data-match="diff"><code class="language-diff-ts"> export type SignInData = z.output&lt;typeof signInSchema&gt;;
++
++// ---------------------------------------------------------------- check in
++
++export const checkInSchema = z.object({
++  // The organizer reads out a 4-digit code at the meeting point. Kept as text: it is a code,
++  // not a number to count with
++  code: z
++    .string()
++    .trim()
++    .regex(/^\d{4}$/, 'Enter the 4-digit code the organizer reads out.'),
++});
++
++/** What the check-in form holds and sends (one string) */
++export type CheckInValues = z.input&lt;typeof checkInSchema&gt;;
+ </code></pre>
+                    </div>
+                    <ul>
+                        <li>The code stays a string, like the debris log's counts in Lesson 5.4: <code>z.coerce.number()</code> would accept <code>"6544.0"</code> and turn an empty box into <code>0</code>. A code is four characters to compare, not a quantity.</li>
+                        <li>The schema checks the shape (four digits) so a typo is caught on the phone with no request. Only the API knows the right code: its message, "That code does not match…", comes from the server in Step 2.</li>
+                    </ul>
+                    <p>Then the mutation, in <code>src/api/mutations.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/mutations.ts</div>
+                        <pre data-src="shoreline-crew/src/api/mutations.ts" data-match="diff"><code class="language-diff-ts"> 
+-import { cancelSignup, getEventLogs, postSignup } from '@/api/client';
++import { cancelSignup, checkIn, getEventLogs, postSignup } from '@/api/client';
+ import { mySignupsQuery, queryClient } from '@/api/queries';
+ // ...
+ /**
++ * Check in at the beach with the day's code. Waits for the API: only it knows the code. Offline,
++ * it waits for the connection like the others (in memory: it is not saved on the phone).
++ */
++export function checkInMutation(eventId: string) {
++  return mutationOptions({
++    mutationFn: (code: string) =&gt; checkIn(eventId, code),
++    // Your sign-up is now 'attended': My cleanups, the cleanup's screen and this form read it
++    onSettled: () =&gt; queryClient.invalidateQueries({ queryKey: ['signups'] }),
++  });
++}
++
++/**
+  * Copy the debris logs you sent from past cleanups into the logbook on this phone (new).</code></pre>
+                    </div>
+                    <p>The factory takes the cleanup's id, so the form only passes the code. Returning the invalidation from <code>onSettled</code> keeps the mutation pending until the sign-ups have been fetched again, as <code>signUpMutation</code> does: when the button stops saying <strong>Checking in…</strong>, the screen already knows.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The Check in modal <span class="step-time">(20 min)</span></h3>
+                    <p>Create <code>src/app/check-in/[id].tsx</code>. It follows the debris log's shape from Lessons 5.4 and 5.5: a guest face, a face per sign-up state, and the form:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/check-in/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/check-in/[id].tsx"><code class="language-tsx">import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useForm } from 'react-hook-form';
+import { View } from 'react-native';
+
+import { ApiError, describeError } from '@/api/client';
+import { checkInMutation } from '@/api/mutations';
+import { mySignupsQuery, viewerId } from '@/api/queries';
+import { type CheckInValues, checkInSchema } from '@/api/schemas';
+import type { CleanupEvent } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { ControlledField } from '@/components/ControlledField';
+import { EmptyState } from '@/components/EmptyState';
+import { ErrorView } from '@/components/ErrorView';
+import { FormScreen } from '@/components/FormScreen';
+import { LoadingView } from '@/components/LoadingView';
+import { Screen } from '@/components/Screen';
+import { useSession } from '@/hooks/useSession';
+import { formatDate, toDateString } from '@/utils/format';
+
+// Back to wherever the check-in was opened from (or to the Cleanups tab after a link)
+function leave() {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace('/');
+  }
+}
+
+// Check in at the beach: /check-in/e17 (a modal over the cleanup's screen)
+export default function CheckInScreen() {
+  const { id } = useLocalSearchParams&lt;'/check-in/[id]'&gt;();
+  const session = useSession();
+
+  // Open to everyone, like the debris log: a guest signs in on top, and lands back here
+  if (session === null) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          Sign in to check in
+        &lt;/AppText&gt;
+        &lt;AppText&gt;Check-in is for volunteers with a spot at the cleanup.&lt;/AppText&gt;
+        &lt;Link href="/sign-in" asChild&gt;
+          &lt;Button label="Sign in" variant="primary" /&gt;
+        &lt;/Link&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  return &lt;CheckInForCleanup id={id} viewer={viewerId(session)} /&gt;;
+}
+
+// Your sign-up for this cleanup decides the face: the form, "checked in", or why not
+function CheckInForCleanup({ id, viewer }: { id: string; viewer: string }) {
+  const signups = useQuery(mySignupsQuery(viewer));
+
+  if (signups.data === undefined) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        {signups.isError ? (
+          &lt;ErrorView message={describeError(signups.error)} onRetry={() =&gt; signups.refetch()} /&gt;
+        ) : (
+          &lt;LoadingView label="Checking your sign-ups…" /&gt;
+        )}
+      &lt;/Screen&gt;
+    );
+  }
+
+  const mine = signups.data.find(
+    ({ eventId, status }) =&gt; eventId === id &amp;&amp; status !== 'cancelled',
+  );
+  if (mine?.status === 'attended') {
+    return &lt;CheckedIn event={mine.event} /&gt;;
+  }
+  // The API's own rules, said before anyone types a code
+  const message =
+    mine === undefined || mine.status !== 'confirmed'
+      ? 'You need a confirmed spot to check in.'
+      : mine.event.date !== toDateString(new Date())
+        ? `Check-in opens on the day of the cleanup: ${formatDate(mine.event.date)}.`
+        : null;
+
+  if (mine === undefined || message !== null) {
+    return (
+      &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+        &lt;EmptyState message={message ?? ''} action={{ label: 'Go back', onPress: leave }} /&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  return &lt;CheckInForm event={mine.event} /&gt;;
+}
+
+function CheckInForm({ event }: { event: CleanupEvent }) {
+  const checkInNow = useMutation(checkInMutation(event.id));
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(checkInSchema),
+    defaultValues: { code: '' },
+    mode: 'onTouched',
+  });
+
+  async function submit({ code }: CheckInValues) {
+    try {
+      // When it works, the sign-ups are fetched again and say 'attended': the screen changes
+      // to "You are checked in" by itself
+      await checkInNow.mutateAsync(code);
+    } catch (error) {
+      // 400: a wrong code, with the API's message for the code field
+      const forCode = error instanceof ApiError ? error.fieldErrors?.code?.[0] : undefined;
+      if (forCode !== undefined) {
+        setError('code', { message: forCode }, { shouldFocus: true });
+      } else {
+        setError('root.server', { message: describeError(error) });
+      }
+    }
+  }
+  const send = handleSubmit(submit);
+
+  return (
+    &lt;FormScreen&gt;
+      &lt;View&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          {event.title}
+        &lt;/AppText&gt;
+        &lt;AppText variant="muted"&gt;Meet at {event.meetingPoint}&lt;/AppText&gt;
+      &lt;/View&gt;
+      &lt;AppText&gt;
+        At the meeting point, the organizer reads out the code for the day. Type it here to let
+        the crew know you are on the beach.
+      &lt;/AppText&gt;
+      &lt;ControlledField
+        control={control}
+        name="code"
+        label="Code for the day"
+        inputMode="numeric" // digits only
+        maxLength={4}
+        autoComplete="off"
+        enterKeyHint="go"
+        onSubmitEditing={() =&gt; send()}
+      /&gt;
+      {checkInNow.isPaused &amp;&amp; (
+        &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+          No connection: your check-in is sent when you are back online. Keep Shoreline Crew open
+          until then.
+        &lt;/AppText&gt;
+      )}
+      {errors.root?.server !== undefined &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {errors.root.server.message}
+        &lt;/AppText&gt;
+      )}
+      &lt;Button
+        label={isSubmitting ? 'Checking in…' : 'Check in'}
+        variant="primary"
+        disabled={isSubmitting}
+        onPress={() =&gt; send()}
+      /&gt;
+    &lt;/FormScreen&gt;
+  );
+}
+
+// Checked in (now, or earlier on this phone or another one)
+function CheckedIn({ event }: { event: CleanupEvent }) {
+  return (
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header" accessibilityLiveRegion="polite"&gt;
+        You are checked in
+      &lt;/AppText&gt;
+      &lt;AppText&gt;Thank you for coming to {event.title}. Have a good cleanup!&lt;/AppText&gt;
+      &lt;Button label="Done" variant="primary" onPress={leave} /&gt;
+      {/* The next thing a volunteer does on the day: this modal makes way for the log */}
+      &lt;Link href={{ pathname: '/log/[id]', params: { id: event.id } }} replace asChild&gt;
+        &lt;Button label="Log what you collected" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Faces before a form.</strong> <code>CheckInForCleanup</code> reads your sign-ups (the same cached query as My cleanups) and says the API's own rules before anyone types: no confirmed spot, or not the day yet (with the date). Already <code>attended</code> goes straight to <code>CheckedIn</code>, whichever phone checked in.</li>
+                        <li><strong>The server's answer on the right field.</strong> <code>submit</code> awaits <code>mutateAsync</code> so it can catch the "no". A <code>400</code> with a message for <code>code</code> becomes that field's error (and focus goes back to it); anything else (a <code>409</code>, no answer, an ended sign-in) goes to the form's root error in <code>describeError</code>'s words. The sign-in screen in Lesson 5.4 used one root error for both; a single field makes the field the better place.</li>
+                        <li><strong>Success needs no code here.</strong> When the mutation settles, the sign-ups say <code>attended</code>, <code>CheckInForCleanup</code> renders again and shows <code>CheckedIn</code>. The cache is the single source of truth, so a check-in made on another phone looks the same.</li>
+                        <li><strong>The keyboard</strong> (Lesson 5.4): <code>inputMode="numeric"</code> brings up digits, <code>maxLength={4}</code> stops a fifth, <code>enterKeyHint="go"</code> labels the return key, and <code>onSubmitEditing</code> sends. The iPhone's number pad has no return key at all, which is why the <strong>Check in</strong> button is always there too.</li>
+                        <li><strong>Offline</strong>: <code>checkInNow.isPaused</code> shows the honest line from <a href="#offline">Checking In With One Bar of Signal</a>, and the button keeps saying <strong>Checking in…</strong> until the paused mutation is sent.</li>
+                        <li><code>CheckedIn</code>'s <strong>Log what you collected</strong> uses <code>replace</code>: the check-in modal makes way for the log modal instead of stacking a second one on it.</li>
+                    </ul>
+                    <p>Register the modal in <code>src/app/_layout.tsx</code>, next to the debris log, and open to everyone for the same reason (a guest following a link is asked to sign in on the screen itself):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">           &lt;Stack.Screen name="log/[id]" options={{ presentation: 'modal', title: 'Log debris' }} /&gt;
++          {/* Check in at the beach on the day, with the organizer's code. Open to everyone too */}
++          &lt;Stack.Screen name="check-in/[id]" options={{ presentation: 'modal', title: 'Check in' }} /&gt;
+           {/* Only for people who are not signed in: signing in takes this screen away */}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Check in on the cleanup screen, and the code for organizers <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 5.2 left a gap in <code>SignupPanel</code> (Lesson 5.4 noted it): <code>mine</code> only knew <code>confirmed</code> and <code>waitlisted</code>, so after a check-in the panel would forget you had a spot and offer <strong>Sign up</strong> again. In <code>src/components/SignupPanel.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SignupPanel.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SignupPanel.tsx" data-match="diff"><code class="language-diff-tsx"> 
+-  // Your sign-up for this cleanup, if you hold a spot or wait for one
++  // Your sign-up for this cleanup, if you hold a spot, wait for one, or have checked in
+   const mine = signups.data.find(
+     ({ eventId, status }) =&gt;
+-      eventId === event.id &amp;&amp; (status === 'confirmed' || status === 'waitlisted'),
++      eventId === event.id &amp;&amp;
++      (status === 'confirmed' || status === 'waitlisted' || status === 'attended'),
+   );
++  const today = toDateString(new Date());
+   const availability = getAvailability(event);
+   // The API takes sign-ups for scheduled cleanups from today on
+-  const open = availability.kind !== 'closed' &amp;&amp; event.date &gt;= toDateString(new Date());
++  const open = availability.kind !== 'closed' &amp;&amp; event.date &gt;= today;
+   // A full cleanup still takes sign-ups: they join the waiting list
+ // ...
+   const canLog =
+-    event.date &lt;= toDateString(new Date()) &amp;&amp;
++    event.date &lt;= today &amp;&amp;
+     signups.data.some(
+ // ...
+       {mine !== undefined &amp;&amp; (
+-        &lt;&gt;
+-          &lt;AppText accessibilityLiveRegion="polite"&gt;
+-            {mine.status === 'confirmed'
++        &lt;AppText accessibilityLiveRegion="polite"&gt;
++          {mine.status === 'attended'
++            ? 'You are checked in. Thank you for coming!'
++            : mine.status === 'confirmed'
+               ? 'You are signed up. See you on the beach!'
+               : 'You are on the waiting list. You get a spot if someone cancels.'}
+-          &lt;/AppText&gt;
+-          &lt;Button
+-            label={cancel.isPending ? 'Cancelling…' : 'Cancel my sign-up'}
+-            disabled={cancel.isPending}
+-            onPress={() =&gt; {
+-              signUp.reset();
+-              cancel.mutate(mine.id);
+-            }}
+-          /&gt;
+-        &lt;/&gt;
++        &lt;/AppText&gt;
++      )}
++      {/* On the day, at the beach: the organizer's code checks you in */}
++      {mine?.status === 'confirmed' &amp;&amp; event.date === today &amp;&amp; (
++        &lt;Link href={{ pathname: '/check-in/[id]', params: { id: event.id } }} asChild&gt;
++          &lt;Button label="Check in" variant="primary" /&gt;
++        &lt;/Link&gt;
++      )}
++      {/* Checked in, you were there: there is nothing left to cancel */}
++      {mine !== undefined &amp;&amp; mine.status !== 'attended' &amp;&amp; (
++        &lt;Button
++          label={cancel.isPending ? 'Cancelling…' : 'Cancel my sign-up'}
++          disabled={cancel.isPending}
++          onPress={() =&gt; {
++            signUp.reset();
++            cancel.mutate(mine.id);
++          }}
++        /&gt;
+       )}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>attended</code> joins <code>mine</code>, with its own sentence, and no <strong>Cancel my sign-up</strong>: you came; there is nothing left to cancel.</li>
+                        <li><strong>Check in</strong> shows only on the cleanup's day and only for a confirmed spot, the same rule the modal says in words. <code>today</code> is computed once for the three rules that need it.</li>
+                    </ul>
+                    <p>And organizers: shoreline-api adds <code>checkInCode</code> to a cleanup only for an organizer's sign-in (the property is optional in <code>CleanupEventDetail</code>). In <code>src/app/cleanups/[id].tsx</code>, above the panel:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx">       )}
++      {/* Only organizers get the code from the API: they read it out at the meeting point */}
++      {event.checkInCode !== undefined &amp;&amp; (
++        &lt;AppText&gt;
++          Check-in code for the day: &lt;Text style={styles.strong}&gt;{event.checkInCode}&lt;/Text&gt;. Read it
++          out at the meeting point.
++        &lt;/AppText&gt;
++      )}
+       {/* Sign up, or cancel: the volunteer's part of this screen */}</code></pre>
+                    </div>
+                    <p>The app does not decide who sees the code: the API does, by leaving it out for everyone else. The cache keeps it safe too, because <code>eventQuery</code>'s key includes the viewer (Lesson 5.2): Maya's answer is never shown to the next person who signs in on the same phone.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Check in, in the web preview <span class="step-time">(10 min)</span></h3>
+                    <p>With Metro running, press <kbd>w</kbd>, sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>) and open today's cleanup, <strong>Tide Pool Morning Cleanup</strong>. Under "You are signed up" there is now <strong>Check in</strong>; Weekend Cove Cleanup, in a few days, has none. Press it, type <code>12</code> and press <kbd>Tab</kbd>: "Enter the 4-digit code the organizer reads out." Then type <code>1234</code> and press <strong>Check in</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_22/22-wrong-code.png" alt="The Check in modal in the web preview: Tide Pool Morning Cleanup, Meet at Gravel pull-out on Highway 1, a sentence about the code the organizer reads out, the field Code for the day holding 1234 with the message That code does not match. Ask the organizer for today&#x27;s code. under it, outlined in red, and the Check in button." width="420" height="814" loading="lazy">
+    <figcaption>A wrong code: shoreline-api's 400 answer names the code field, so its message appears right under the field, in the API's own words.</figcaption>
+</figure>
+                    <p>To learn the real code, be the organizer for a minute: sign out on the Profile tab, sign in as Maya (<code>maya.okafor@example.com</code>, same password), open the cleanup: "Check-in code for the day: <strong>6544</strong>. Read it out at the meeting point." (The code is fixed for each sample cleanup, so yours is the same.) Sign out, sign in as Theo again, check in with <code>6544</code>, and press <strong>Done</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_22/22-checked-in.png" alt="The cleanup screen for Tide Pool Morning Cleanup in the web preview, dark theme: under 5 of 12 spots left, the line You are checked in. Thank you for coming! and the button Log what you collected, both outlined in red, then Share this cleanup; there is no Cancel button." width="420" height="814" loading="lazy">
+    <figcaption>Checked in: the sign-up is now attended, so the panel thanks the volunteer, offers the debris log, and has nothing left to cancel.</figcaption>
+</figure>
+                    <p>Open the My cleanups tab: "You have helped at" counts one more cleanup. Then restart shoreline-api (or <code>curl -X POST http://localhost:4000/api/_reset</code>) to put Theo's sign-up back for next time. The "No connection" line appears when the phone itself knows it is offline: measured by switching the browser offline with the code typed in, the check-in waited with that line on screen, and went through as soon as the browser was back online.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Install react-native-maps and draw the map <span class="step-time">(15 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac), then:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install react-native-maps</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 2 packages, and audited 816 packages in 3s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>"1 SDK 58.0.0 compatible native module": Expo picked react-native-maps 1.29.11, the version SDK 58 expects. No "Added config plugin", and nothing to add today: the plugin's only options are the Google Maps keys from <a href="#maps">Maps on a Phone</a>, which Expo Go does not need. Create <code>src/components/SiteMap.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SiteMap.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SiteMap.tsx"><code class="language-tsx">import * as Location from 'expo-location';
+import { StyleSheet } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+
+import type { Site } from '@/api/types';
+import { usePermission } from '@/hooks/usePermission';
+import { radius } from '@/theme/spacing';
+
+type SiteMapProps = {
+  site: Site;
+  meetingPoint: string; // the pin's title: where the crew meets
+};
+
+// Where the crew meets, on the phone's own map (Apple Maps on an iPhone, Google Maps on Android).
+// The web preview uses SiteMap.web.tsx instead: react-native-maps has no web version.
+export function SiteMap({ site, meetingPoint }: SiteMapProps) {
+  // Reading the answer asks nobody (Lesson 6.1). The blue dot only with a yes from before:
+  // showsUserLocation on its own would make an iPhone ask, with no reason given
+  const location = usePermission(Location.useForegroundPermissions());
+  return (
+    &lt;MapView
+      style={styles.map}
+      // Where the map starts. The volunteer can pan and zoom from there (region would hold it still)
+      initialRegion={{
+        latitude: site.latitude,
+        longitude: site.longitude,
+        latitudeDelta: 0.01, // about a kilometer from top to bottom
+        longitudeDelta: 0.01,
+      }}
+      showsUserLocation={location.step === 'granted'}
+      accessibilityLabel={`Map of ${site.name}, with a pin at the meeting point: ${meetingPoint}`}
+    &gt;
+      &lt;Marker coordinate={site} title={meetingPoint} description={site.name} /&gt;
+    &lt;/MapView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  map: {
+    height: 220, // a map has no size of its own: without one it is 0 high
+    borderRadius: radius.picture,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>usePermission(Location.useForegroundPermissions())</code> is Lesson 6.1's step, used only to read: no gate, no question. The dot appears for a volunteer who said yes in <strong>How far is it?</strong>, and the pin works for everyone.</li>
+                        <li><code>&lt;Marker coordinate={site}&gt;</code>: a <code>Site</code> has <code>latitude</code> and <code>longitude</code>, which is all a <code>LatLng</code> is, so TypeScript accepts it as it is (the same reason <code>distanceKm</code> took it in Lesson 6.1). Tapping the pin shows its <code>title</code> and <code>description</code>.</li>
+                        <li>The map's <code>accessibilityLabel</code> says what a sighted volunteer sees at a glance, for VoiceOver and TalkBack. The meeting point is also written on the screen, so nobody depends on the map.</li>
+                        <li>A map has no natural size: without a <code>height</code> (or <code>flex</code>), it has none, and nothing shows.</li>
+                    </ul>
+                    <p>Do not open the web preview yet: the next step gives it a file of its own first (<a href="#mistakes">Common Mistakes</a> shows what happens otherwise).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The web preview's stand-in, and Where to meet <span class="step-time">(10 min)</span></h3>
+                    <p>Create <code>src/components/SiteMap.web.tsx</code>, with the same props and no react-native-maps:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SiteMap.web.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SiteMap.web.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import type { Site } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Icon } from '@/components/Icon';
+import { createThemedStyles } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+type SiteMapProps = {
+  site: Site;
+  meetingPoint: string;
+};
+
+// The web preview's SiteMap. react-native-maps draws the phone's own map views, which a browser
+// does not have (importing it here stops the web build), so the same place goes in words instead.
+export function SiteMap({ site, meetingPoint }: SiteMapProps) {
+  const themed = useStyles();
+  return (
+    &lt;View style={[styles.box, themed.box]}&gt;
+      &lt;Icon name="place" size={32} /&gt;
+      &lt;AppText style={styles.center}&gt;
+        Meet at {meetingPoint}, {site.name}.
+      &lt;/AppText&gt;
+      &lt;AppText variant="muted" style={styles.center}&gt;
+        The map shows in the app on a phone. In the web preview, Open in Maps shows the place in a
+        new browser tab.
+      &lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  box: {
+    height: 220, // the same space the map takes on a phone
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.picture,
+    borderWidth: 1,
+  },
+  center: {
+    textAlign: 'center',
+  },
+});
+
+const useStyles = createThemedStyles(({ colors }) =&gt;
+  StyleSheet.create({
+    box: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+  }),
+);</code></pre>
+                    </div>
+                    <p>Add the map link to <code>src/utils/links.ts</code>, the home of Lesson 4.4's cleanup links:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/links.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/links.ts" data-match="diff"><code class="language-diff-ts"> import * as Linking from 'expo-linking';
++import { Platform } from 'react-native';
+ 
+ import type { CleanupEvent } from '@/api/types';
++import type { Coordinates } from '@/utils/distance';
+ import { formatDate } from '@/utils/format';
+ // ...
+ }
++
++/**
++ * A link that opens a place in the phone's own map app, for directions: Apple Maps on an iPhone,
++ * whichever map app handles geo: links on an Android phone, OpenStreetMap in a browser
++ */
++export function mapLink({ latitude, longitude }: Coordinates, label: string): string {
++  const at = `${latitude},${longitude}`;
++  const name = encodeURIComponent(label);
++  return Platform.select({
++    ios: `https://maps.apple.com/?ll=${at}&amp;q=${name}`,
++    android: `geo:${at}?q=${at}(${name})`,
++    default: `https://www.openstreetmap.org/?mlat=${latitude}&amp;mlon=${longitude}#map=16/${latitude}/${longitude}`,
++  });
++}</code></pre>
+                    </div>
+                    <p><code>Platform.select</code> (Lesson 2.5) picks the link for this platform, with <code>default</code> for the web. <code>encodeURIComponent</code> keeps spaces and commas in the label from breaking the address. Then <strong>Where to meet</strong> on the cleanup screen, between the share button and <strong>How far is it?</strong>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { useState } from 'react';
+-import { Share, StyleSheet, Text, View } from 'react-native';
++import { Linking, Share, StyleSheet, Text, View } from 'react-native';
+ 
+ // ...
+ import { SignupPanel } from '@/components/SignupPanel';
++import { SiteMap } from '@/components/SiteMap';
+ import { StatusBadge } from '@/components/StatusBadge';
+ // ...
+ import { formatDate, toDateString } from '@/utils/format';
+-import { cleanupLink, cleanupMessage } from '@/utils/links';
++import { cleanupLink, cleanupMessage, mapLink } from '@/utils/links';
+ 
+ // ...
+       )}
++      &lt;AppText variant="heading" accessibilityRole="header"&gt;
++        Where to meet
++      &lt;/AppText&gt;
++      &lt;SiteMap site={site} meetingPoint={event.meetingPoint} /&gt;
++      {/* Directions are the map app's job: hand it the place. React Native's Linking, not
++          expo-linking's: in the web preview it opens a new tab instead of leaving the app */}
++      &lt;Button
++        label="Open in Maps"
++        onPress={() =&gt; Linking.openURL(mapLink(site, `${event.meetingPoint}, ${site.name}`))}
++      /&gt;
+       {/* Asks for the location only when the volunteer wants the distance */}</code></pre>
+                    </div>
+                    <p>Start Metro, press <kbd>w</kbd>, open Weekend Cove Cleanup and scroll to <strong>Where to meet</strong>:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_22/22-map-web.png" alt="The Weekend Cove Cleanup screen in the web preview, scrolled to Where to meet: a bordered box with a location pin, Meet at Top of the Cove Lane stairs, Driftwood Cove., and The map shows in the app on a phone. In the web preview, Open in Maps shows the place in a new browser tab., then the button Open in Maps; box and button outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The web preview has no native map views, so SiteMap.web.tsx shows the place in words. On a phone, the same spot is a real map with a pin (Apple Maps on an iPhone, Google Maps on Android).</figcaption>
+</figure>
+                    <p>Press <strong>Open in Maps</strong>: OpenStreetMap opens in a new tab with the meeting point in the middle, and Shoreline Crew stays where it was in the first tab.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: The map and the check-in on your phone, then check and commit <span class="step-time">(15 min)</span></h3>
+                    <p>Open the app in Expo Go (shoreline-api running <code>--host</code> and <code>.env.local</code> on your computer's network address, as in Lesson 5.1):</p>
+                    <ol>
+                        <li><strong>The map.</strong> Open Weekend Cove Cleanup and scroll to <strong>Where to meet</strong>: a map around Driftwood Cove with a pin (Apple Maps on an iPhone, Google Maps on Android). Tap the pin: "Top of the Cove Lane stairs". Drag and pinch: the map moves freely, because it only started at <code>initialRegion</code>.</li>
+                        <li><strong>The blue dot.</strong> If you allowed location in Lesson 6.1, your dot is on the map (zoom out: the sample beaches sit on the California coast). If you did not, there is no dot and no question. Press <strong>Show my distance</strong> and allow it; the next time the cleanup screen opens, the dot is there.</li>
+                        <li><strong>Open in Maps.</strong> On an iPhone, Apple Maps opens with a pin; on Android, Google Maps (or a choice of map apps). Come back with the back gesture or the app switcher: Shoreline Crew is where you left it.</li>
+                        <li><strong>Check in</strong> as Theo at Tide Pool Morning Cleanup with <code>6544</code>. Watch the keyboard: digits only, and on an iPhone no return key, so use the button.</li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The map, the pin, the dot, the map apps and the keyboards come from Expo's, react-native-maps' and the platforms' documentation and could not be run here. If the map is a gray grid with a Google logo on Android in Expo Go, write it down with your Expo Go version: Expo Go is supposed to carry its own key. In a development or store build (Module 9), a gray grid means the Google Maps key is missing or restricted to a different app.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🧭 For your own app</h3>
+                    <p>If your final project uses places, write down three answers. What does the position decide, and could the person holding the phone change it (if it matters, the server must decide)? What does the feature do after a no to location (a typed address, a list of places, a code)? And does it need a map at all, or would a well-written address and an <strong>Open in Maps</strong> button do? A map is the most expensive way to show one point.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>checkIn</code> in the client, <code>checkInSchema</code> (four digits, kept as text) and <code>checkInMutation</code> (refreshes the sign-ups)</li>
+                        <li>☐ The <strong>Check in</strong> modal shows the right face for every sign-up and day, puts a wrong code's message on the field, and says honestly when it is waiting for a connection</li>
+                        <li>☐ The cleanup screen offers <strong>Check in</strong> on the day, says "You are checked in" afterwards (with no Cancel), and shows organizers the day's code</li>
+                        <li>☐ react-native-maps installed with <code>npx expo install</code>; <code>SiteMap</code> shows the meeting point, with the blue dot only after an earlier yes</li>
+                        <li>☐ <code>SiteMap.web.tsx</code> keeps the web preview working, and <strong>Open in Maps</strong> hands the place to the map app (a new tab in the web preview)</li>
+                        <li>☐ You checked in in the web preview and saw the map on your phone; <code>tsc</code> and <code>expo lint</code> are clean, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the face</h3>
+                    <p>Without running anything, say what <code>/check-in/[id]</code> shows in each case:</p>
+                    <ol>
+                        <li>Theo opens <code>/check-in/e08</code>: he has a confirmed spot at Weekend Cove Cleanup, three days from now.</li>
+                        <li>A volunteer on the waiting list for today's cleanup follows a link to its check-in.</li>
+                        <li>Theo checked in on his tablet this morning and now opens the check-in on his phone.</li>
+                        <li>Someone who is not signed in follows the link, then signs in.</li>
+                        <li>Theo types <code>6543</code> and presses <strong>Check in</strong>.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Walk through <code>CheckInForCleanup</code> from the top, then <code>submit</code> for the last case. Which ones send a request at all?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) "Check-in opens on the day of the cleanup:" with the date, and <strong>Go back</strong>; no form, no request (measured). (2) "You need a confirmed spot to check in." A waiting-list sign-up is not confirmed. (3) "You are checked in": his sign-ups, fetched on this phone, already say <code>attended</code>. (4) "Sign in to check in"; after signing in, the sign-in modal closes and the screen underneath shows the right face for their sign-up (measured for Theo: the form). (5) The schema is happy (four digits), the API answers <code>400</code>, and "That code does not match. Ask the organizer for today's code." appears under the field (measured with <code>1234</code>). Only cases 4 (after signing in, a sign-ups request) and 5 reach the API.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Checked in on My cleanups</h3>
+                    <p>After Theo checks in, today's cleanup disappears from <strong>Coming up</strong> on the My cleanups tab: Lesson 5.2's list only keeps <code>confirmed</code> and <code>waitlisted</code> sign-ups. Keep today's checked-in cleanup in the list, with a <strong>Checked in</strong> badge in the success tone and no <strong>Cancel</strong> button.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Find the <code>comingUp</code> filter in <code>src/app/(tabs)/my-cleanups.tsx</code>, and the place where the row chooses between the "Signed up" and "Waiting list" badges.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Replace the two filters with one that lets <code>attended</code> through when the cleanup is today (<code>today</code> is already there):</p>
+                        <pre data-snippet><code class="language-ts">const comingUp = signups.data
+  .filter(
+    ({ status, event }) =&gt;
+      ((status === 'confirmed' || status === 'waitlisted') &amp;&amp; event.date &gt;= today) ||
+      (status === 'attended' &amp;&amp; event.date === today),
+  )
+  .reverse();</code></pre>
+                        <p>In <code>row</code>, the badge becomes a three-way choice (an <code>attended</code> sign-up would otherwise fall into the "Waiting list" branch): <code>&lt;Badge label="Checked in" tone="success" /&gt;</code> for <code>attended</code>, and the <strong>Cancel</strong> button is hidden for it, the same rule as <code>SignupPanel</code>. "You have helped at N cleanups" already counts it.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: The distance as a hint, not a gate (Stretch)</h3>
+                    <p>Volunteers sometimes go to the wrong beach (Otter Creek and Driftwood Cove are a few kilometers apart). Show Lesson 6.1's <strong>How far is it?</strong> panel on the check-in form, under "Meet at", so a volunteer can check they are in the right place. The code must still be enough to check in, whatever the panel says, and nothing may ask for location until the volunteer presses <strong>Show my distance</strong>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>DistancePanel</code> needs a <code>Site</code>, and the sign-up's <code>event</code> is a plain <code>CleanupEvent</code> without one. Which query from Lesson 5.2 returns the cleanup with its site, and is it already in the cache when the volunteer comes from the cleanup screen?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>CheckInForm</code>, read the cleanup with its site and show the panel once it is there:</p>
+                        <pre data-snippet><code class="language-tsx">const session = useSession();
+const cleanup = useQuery(eventQuery(event.id, viewerId(session)));
+// ...
+{cleanup.data !== undefined &amp;&amp; &lt;DistancePanel site={cleanup.data.site} /&gt;}</code></pre>
+                        <p>Coming from the cleanup screen, <code>eventQuery</code>'s answer is already cached, so the panel appears at once. The panel only informs: <code>submit</code> does not look at it, so a volunteer under a cliff with a 400-meter circle, or one who said no to location, still checks in with the code. If you were tempted to disable <strong>Check in</strong> when the distance is large, reread <a href="#proof">What Proves You Were There</a>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Why does Shoreline Crew check volunteers in with the organizer's code instead of the phone's location?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 6.1 already built the permission step. Is the effort really the reason?">
+                                A) Reading the location is too much work to build
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The server checks the code, and the app cannot change its answer. A position comes from the phone, can be faked by whoever holds it, can be hundreds of meters off under a cliff, and would lock out volunteers who said no to location.">
+                                B) The server checks the code; a position comes from the phone, can be faked or far off, and needs a yes to location
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the web preview limit what a phone can do?">
+                                C) The web preview cannot read a location
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at what expo-location returns: is latitude and longitude all there is?">
+                                D) A phone's position is always exact, so a code is simpler
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> On the beach with no signal, Theo types the right code and presses <strong>Check in</strong>, then closes Shoreline Crew before the signal comes back. What happens to his check-in?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Which queue is saved on the phone, and what does it carry?">
+                                A) It waits in Lesson 5.5's queue and is sent the next time the app opens
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did the server ever receive anything?">
+                                B) The server marks him attended anyway, because the code was right
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is a paused mutation saved anywhere when the app closes?">
+                                C) It is sent in the background while the app is closed
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A paused mutation lives in memory only. Closing the app loses it, which the screen warned about. Theo checks in again when he has signal, or the organizer marks him present in Shoreline Crew HQ. Retrying is safe: the API's check-in is idempotent.">
+                                D) It is gone: he checks in again, or the organizer marks him present
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> After adding <code>&lt;MapView&gt;</code> to a screen, the web preview shows "codegenNativeComponent is not a function". What is the fix?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="react-native-maps defines native components when it is imported, and the web has none. A SiteMap.web.tsx with the same props that never imports the package is what the web bundle uses instead; the phone keeps SiteMap.tsx.">
+                                A) A <code>SiteMap.web.tsx</code> next to <code>SiteMap.tsx</code> that never imports react-native-maps
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a key change what the browser can draw?">
+                                B) Add a Google Maps API key to <code>app.json</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the cache create the missing function?">
+                                C) Restart Metro with <code>--clear</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the import still run on the web if only the JSX were hidden?">
+                                D) Wrap the map in <code>Platform.OS !== 'web' &amp;&amp;</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The map works in Expo Go on an Android phone, but in your own Android build it is an empty gray grid. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does the pin need a permission?">
+                                A) The location permission was refused
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What differs between Expo Go and your build that the map depends on?">
+                                B) <code>initialRegion</code> should be <code>region</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo Go carries its own Google Maps key. Your own Android build needs yours, from a Google Cloud project, added with react-native-maps' config plugin (androidGoogleMapsApiKey) and restricted to your app.">
+                                C) The build has no Google Maps API key of its own (react-native-maps' <code>androidGoogleMapsApiKey</code>)
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the phone's build use the web file?">
+                                D) <code>SiteMap.web.tsx</code> is being used on the phone
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Why does <code>SiteMap</code> pass <code>showsUserLocation</code> only when the permission step says <code>'granted'</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would the pin stop working?">
+                                A) The map cannot show a pin and the dot at the same time
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="react-native-maps documents that showsUserLocation makes iOS ask for location. Always on, the phone would ask the moment the screen opens, with no explanation, and a Don't Allow there is final on an iPhone. Reading the answer asks nobody, so the dot appears only after an earlier yes.">
+                                B) On an iPhone, the prop alone makes the phone ask for location, with no reason given first
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is anything sent to the server when the dot is drawn?">
+                                C) The blue dot sends the position to shoreline-api
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Could the app check volunteers in by itself when they arrive?</summary>
+                    <p>That is geofencing: expo-location can watch for entering a region (<code>startGeofencingAsync</code>) even while the app is in the background. It needs the "Always" location permission that Lesson 6.1 turned off, a background task (expo-task-manager), a development build rather than Expo Go for testing (per Expo's documentation), and a good reason in both stores' reviews. It would also make the phone's position the proof, which <a href="#proof">What Proves You Were There</a> argued against. For a weekly cleanup, four digits read out by a person are simpler, fairer and more private.</p>
+                </details>
+
+                <details class="card">
+                    <summary>What about expo-maps?</summary>
+                    <p>Expo has its own maps package, expo-maps (SDK 58 lists version 58.0.11), built on the newer Apple Maps (SwiftUI) and Google Maps (Compose) libraries. According to Expo's documentation it needs iOS 17 or later, a development build for Google Maps on Android, and it has no web version either. The course uses react-native-maps because it runs in Expo Go today and is the library you will meet in most existing apps; the ideas (a region, markers, the key for Android builds, a <code>.web.tsx</code> stand-in) carry over. Check expo-maps' current status in Expo's documentation before you choose for a new app.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why not a picture of the map instead of a map view?</summary>
+                    <p>A static map image (one picture of the area with a pin) is light and works on the web too, but it comes from a map service that needs an API key and usually billing, and putting that key in an app or a web page is a problem of its own. Shoreline Crew already has a photo of each beach from the API; the real map lives on the phone, and <strong>Open in Maps</strong> covers everything else.</p>
+                </details>
+
+                <details class="card">
+                    <summary>The organizer forgot to read out the code. Now what?</summary>
+                    <p>Organizers see the code on the cleanup screen in the phone app (Step 3) and in Shoreline Crew HQ, the web course's app, which can also mark a volunteer present on the roster directly. The phone app is for volunteers; it does not try to do the organizer's job.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can I show the map in dark mode?</summary>
+                    <p>Apple Maps follows the phone's appearance by itself, according to Apple's documentation, and react-native-maps has a <code>userInterfaceStyle</code> prop for iOS to force one. Google Maps on Android takes a style (<code>customMapStyle</code>, a JSON list of colors) made with Google's styling tools. Check both on your phone before relying on them; they are outside what the web preview can show.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Put every upcoming cleanup on one map. Add a <strong>Map</strong> switch to the Cleanups tab that replaces the list with a <code>MapView</code> holding one <code>Marker</code> per cleanup (use the sites from <code>sitesQuery</code> for the coordinates), each marker's callout leading to that cleanup's screen (react-native-maps' <code>onCalloutPress</code>, then <code>router.push</code>). Choose a starting region that fits all six beaches (the smallest and largest latitudes and longitudes give you the center and the deltas). The web preview needs its own stand-in again: what is the most useful thing a web version of "all cleanups on a map" can show without a map?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Think of two apps on your phone that use your location: one where the location decides something (a delivery, a ride, a game, a check-in) and one where it only helps you. For each, what would happen if the position were 300 meters off, or faked? Who checks it, the phone or a server? Then write one sentence on what made you choose the code for Shoreline Crew's check-in, in your own words.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>A position is a circle, not a point: coordinates plus an <code>accuracy</code> radius, a time and a <code>mocked</code> flag; pick the accuracy a feature needs, and expect big circles under cliffs and between buildings</li>
+                        <li>What the phone reports, the person holding it can change: a check on the phone is a convenience, a rule belongs on the server, so Shoreline Crew checks in with the organizer's code and keeps the location as an optional help</li>
+                        <li>A check-in is a mutation that refreshes the sign-ups; offline it pauses in memory (not queued: it only works on the day, and a wrong code needs the volunteer now), and the screen says so</li>
+                        <li>react-native-maps shows the phone's own map (Apple Maps, Google Maps) with a region and markers; Expo Go needs no setup, your own Android builds need a Google Maps key through its config plugin, and <code>showsUserLocation</code> makes an iPhone ask, so show the dot only after a yes</li>
+                        <li>A native-only library needs a <code>.web.tsx</code> stand-in or it stops the web build; directions are the map app's job, reached with a link per platform</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Set up maps in Expo, including the Google Maps keys</td><td><a href="https://docs.expo.dev/versions/latest/sdk/map-view/">Expo: MapView (react-native-maps)</a></td></tr>
+                            <tr><td>Look up every MapView and Marker prop</td><td><a href="https://github.com/react-native-maps/react-native-maps">react-native-maps on GitHub</a></td></tr>
+                            <tr><td>Read about positions, accuracy and geofencing</td><td><a href="https://docs.expo.dev/versions/latest/sdk/location/">Expo: Location</a></td></tr>
+                            <tr><td>Compare Expo's own maps package</td><td><a href="https://docs.expo.dev/versions/latest/sdk/maps/">Expo: Maps</a></td></tr>
+                            <tr><td>Create and restrict a Google Maps key</td><td><a href="https://developers.google.com/maps/documentation/android-sdk/get-api-key">Google: Maps SDK for Android, API key</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Volunteers check in at the beach with the organizer's code, and the app knows they came</li>
+                        <li>Every face of the check-in says the API's rules before and after a request, with a wrong code's message on the field</li>
+                        <li>The cleanup screen shows where to meet on a real map, with directions one press away</li>
+                        <li>The web preview keeps working with a stand-in for a native-only library</li>
+                        <li>You can explain what a phone's position can prove, and what it cannot</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Volunteers can now find the beach and say they came. In <a href="lesson_23.html">Lesson 6.4: Notifications</a>, Shoreline Crew makes sure they do not forget to come: a local reminder before each cleanup they signed up for, scheduled on the phone, through the same permission step (notifications need a yes too), and an honest look at what push notifications from a server would need.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone (the map, the dot, Open in Maps, the check-in) and commit your work</li>
+                    <li>Open your phone's notification settings and look at two apps: one whose reminders you like, one you have silenced. What was different about when and how often they spoke to you?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>The most important code you wrote today is a decision, not a component: what counts as proof. Experienced developers get this wrong all the time, because a location check looks so easy to add and so convincing in a demo. You also met a library that breaks a whole platform when imported, and fixed it with a file name. If maps, regions and deltas still feel like a lot of new words, that is fine: open your map app, pinch, and watch the region change. It is the same idea, under your thumb.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_21.html" class="prev-lesson">← Previous: Camera and Photos</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_23.html" class="next-lesson">Next: Notifications →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

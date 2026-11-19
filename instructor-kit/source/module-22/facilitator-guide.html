@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facilitator Guide: Session 22</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">contains answers &amp; timing · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Facilitator Guide</div>
+    <h1>Session 22: Performance, Debugging and App Config</h1>
+    <p class="sub">How to teach Session 22: turn "it feels slow" and "it broke" into numbers and facts (the toolbox, what the React Compiler already does, two threads, a bundle 6% smaller on Android, a five-step debugging method that ends with a test), then give Shoreline Crew its own label: a typed app.config.ts with three variants chosen by APP_VARIANT, a guard against plain http in production, a key that stays out of the code, and the introspect audit of what a build will ask the phone for.</p>
+    <div class="meta-row">
+      <span class="chip"><b>2</b> lessons</span>
+      <span class="chip"><b>3 hrs</b> session</span>
+      <span class="chip">Lessons <b>8.4, 9.1</b></span>
+      <span class="chip">Session <b>22</b> of 26 · Part 3</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>How to Use This Guide</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>Same rhythm for both lessons: frame (the goal and one mental model) → live demo (you type, they follow) → guided lab (a kit lab: new practice on the lesson's ideas, never the lesson's own project) → start the lesson's own project. The lesson exercises, quiz and journal are homework.</li>
+  <li>Every command below was run to produce the output printed under it, in a learner's terminal (Node 24) on copies of the course app exactly as a learner has it before Lesson 8.4, after it, and after Lesson 9.1. Where the lesson shows the same command, the kit's output is the lesson's (trimmed the same way); bundle file names carry a content hash that differs on every machine, shown here as <code class="inline">entry-….hbc</code>.</li>
+  <li><b>No phone was used to make this kit.</b> Session 22 is the most terminal-heavy session of the course, which helps: the bundle, the debugging method, the config and introspect all run in a terminal and in Jest. What only a phone shows (React Native DevTools connected to Expo Go, the performance monitor's two frame rates, a build's name, icon and permission questions) is described the way the lessons describe it, from React Native's and Expo's documentation. Have your phone with Expo Go ready to show j and Shift+M if you can.</li>
+  <li>Commands that need the network or change installed packages (<code class="inline">npx expo install --dev expo-atlas</code>, <code class="inline">npm uninstall</code>, <code class="inline">npx expo install expo-build-properties</code>, <code class="inline">npx expo-doctor</code>) are not run in the room: learners do them at home, and the kit quotes the lesson's cards for them. Labs live in <code class="inline">labs/module-22/</code>: <code class="inline">starter/</code> folders and <code class="inline">TASKS.md</code> are handouts; <code class="inline">solution/</code> folders are yours until the session is over.</li>
+  <li>Teal blocks are hands-on, amber blocks are watch-outs. Lesson codes (8.4, 9.1) match the course site: <code class="inline">lesson_31.html</code> and <code class="inline">lesson_32.html</code>.</li>
+</ul>
+<div class="note warn"><div class="t">The #1 risk of Session 22: two big lessons, both easy to turn into a lecture</div>
+<p>The lesson pages estimate 145 + 145 = 290 minutes for a learner working alone; the room has 150 after the warm-up, the break and the wrap-up. Both lessons are full of tables (renders per keystroke, bytes per package, variants, settings, native settings) that are tempting to read aloud. Do not: the tables are homework reading. The room's time goes to three habits only a demo and a lab teach: <b>read the error from the top</b>, <b>reproduce with a test before you fix</b>, and <b>ask Expo what it sees</b> (<code class="inline">npx expo config</code>). Every block below is built around one of them.</p>
+</div>
+
+  <div class="sec"><h2>Before the Session</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ <b>Run the kit check once:</b> <code class="inline">python3 labs/check_labs.py module-22</code> from this kit's folder (17 runs, about two minutes: the 8.4 starter fails to load exactly as declared, the solution's Task 2 test fails on the starter's code (it is a test of that bug), the 9.1 starter fails all six tests and tsc names the misspelled key, and the solution passes its tests, the type check, lint and five runs of <code class="inline">npx expo config</code>).</li>
+  <li>☐ <b>Projector machine:</b> a copy of <code class="inline">lesson-31-start</code> (the code as Lesson 8.3 left it) with <code class="inline">npm ci</code> done, for the 8.4 demo, and a copy of <code class="inline">lesson-32-start</code> for the 9.1 demo (both from the course downloads; each has a README). Run <code class="inline">npx expo export --platform android</code> once in each before class: the first export of a copy is slow. Have <code class="inline">lesson-31-end</code> and <code class="inline">lesson-32-end</code> ready to show the finished files. Two terminals at 18 pt or larger; <code class="inline">lesson_31.html</code> and <code class="inline">lesson_32.html</code> open in tabs for the tables, the Atlas screenshot and the cards.</li>
+  <li>☐ <b>Your phone (optional, worth it):</b> Expo Go with Shoreline Crew open on the same Wi-Fi, so you can press j and Shift+M for real after the honest no-phone demo. If the network fights you, skip it: the lesson's own outputs were made without a phone too.</li>
+  <li>☐ <b>Board, before learners arrive:</b> the five steps (reproduce · read the error · narrow it down · fix one thing · keep a test that fails without the fix); two threads (JS: your components, hooks, handlers / UI: layout, drawing, scrolling, worklets); and for 9.1 the readers of the config (Expo CLI and Metro · Expo Go: the public config only · prebuild · your build).</li>
+  <li>☐ <b>Tell learners in advance</b> (the Session 21 bring list): 9.1's project installs one package (<code class="inline">npx expo install expo-build-properties</code>) and 8.4's removes three; both need the network. Lesson 9.2 (Session 23) asks for a free Expo account: optional, never needed to pass.</li>
+</ul>
+<div class="blk warn"><div class="h">Known traps</div>
+<table class="timing">
+<thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td><code class="inline">Debug: No compatible apps connected, React Native DevTools can only be used with Hermes.</code></td><td>j pressed with only the web preview open</td><td>Open the app in Expo Go on a phone (or an emulator) first; for the web preview, the browser's DevTools and React Developer Tools.</td></tr>
+<tr><td><code class="inline">EXPO_ATLAS=true npx expo export</code> keeps running <code class="inline">npm install</code></td><td>expo-atlas not installed yet: the CLI tries to install it itself (measured: a loop)</td><td>Ctrl+C; <code class="inline">npx expo install --dev expo-atlas</code> first, then the export again.</td></tr>
+<tr><td><code class="inline">error TS2307: Cannot find module '@expo/ui/...'</code></td><td>A file still imports a package that was removed</td><td>Search src for the name and <code class="inline">npm ls &lt;name&gt;</code> before removing; put the package back or remove the import.</td></tr>
+<tr><td><code class="inline">Test suite failed to run</code> / <code class="inline">handleSubscription.remove is not a function</code></td><td>The screen imports mutations → reminders → expo-notifications, which cannot load in Jest</td><td><code class="inline">jest.mock('@/notifications/reminders', () =&gt; ({ updateReminders: jest.fn() }))</code>, with a factory.</td></tr>
+<tr><td><code class="inline">Cannot automatically write to dynamic config at: app.config.ts</code>, exit code 1</td><td><code class="inline">npx expo install</code> of a package with a config plugin after app.json is gone</td><td>Add the plugin entry it prints to app.config.ts by hand; check with introspect. Install expo-build-properties in Step 1, while app.json exists.</td></tr>
+<tr><td><code class="inline">Error reading Expo config at …app.config.ts</code> + your own message</td><td>A misspelled APP_VARIANT, or production with an http address</td><td>Read the first message line: development, preview or production exactly; an https:// EXPO_PUBLIC_API_URL for production.</td></tr>
+<tr><td><code class="inline">error TS2561: … Did you mean to write 'bundleIdentifier'?</code></td><td>A misspelled key in app.config.ts</td><td>Fix the key; run <code class="inline">npx tsc --noEmit</code> after every config change.</td></tr>
+<tr><td>APP_VARIANT or .env.local changed, nothing changed</td><td>Expo reads both when a command starts</td><td>Stop Metro and start it again; for EXPO_PUBLIC_ values, <code class="inline">npx expo start --clear</code>.</td></tr>
+<tr><td><code class="inline">npx expo-doctor</code>: 19/20, duplicate expo-server</td><td>expo-atlas (Lesson 8.4) brings an older expo-server</td><td>The lesson's <code class="inline">overrides</code> entry in package.json, then <code class="inline">npm install</code>: 20/20.</td></tr>
+</tbody>
+</table>
+</div>
+
+  <div class="sec"><h2>Session 22 Agenda (3 hours)</h2><span class="rule"></span></div>
+  <table class="timing">
+    <thead><tr><th>Clock</th><th>Minutes</th><th>Segment</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td class="t">0:00</td><td class="t">10</td><td>Warm-up: Lesson 8.3 retrieval</td><td>Three questions on screen tests: where userEvent comes from, findBy versus getBy, and what a Maestro flow can test that Jest cannot.</td></tr>
+      <tr><td class="t">0:10</td><td class="t">10</td><td><b>8.4</b> Frame and mental model</td><td>Measure, then fix: the tide gauge before the seawall; the toolbox (j, Shift+M, the browser's DevTools); two threads, two frame rates.</td></tr>
+      <tr><td class="t">0:20</td><td class="t">20</td><td><b>8.4</b> Live demo</td><td>j with no phone, the bundle before and after (2238 → 2084 modules, 5.9 → 5.5 MB), then the method on the vanished cleanup: three runs of one test file.</td></tr>
+      <tr><td class="t">0:40</td><td class="t">20</td><td><b>8.4</b> Guided lab</td><td>`labs/module-22/l8_4-performance-and-debugging/starter`: a test file that cannot load, a bug reproduced by a test first, a listener that outlives its screen.</td></tr>
+      <tr><td class="t">1:00</td><td class="t">20</td><td><b>8.4</b> Start the lesson project</td><td>Step 5 on their own copy: the test file, the two failures read from the top, the one-thing fix, the passing run. Steps 1 to 4 and 6 go home.</td></tr>
+      <tr><td class="t">1:20</td><td class="t">10</td><td>Break</td><td>Leave the five-step method and the two threads on the board.</td></tr>
+      <tr><td class="t">1:30</td><td class="t">10</td><td><b>9.1</b> Frame and mental model</td><td>The field kit's label: who reads the config (Expo CLI, Expo Go, prebuild, the build); three bags, one label maker (APP_VARIANT).</td></tr>
+      <tr><td class="t">1:40</td><td class="t">20</td><td><b>9.1</b> Live demo</td><td>What Expo sees, the wrapper, three variants, a misspelled variant and the https guard, a typo tsc names, the introspect audit.</td></tr>
+      <tr><td class="t">2:00</td><td class="t">25</td><td><b>9.1</b> Guided lab</td><td>`labs/module-22/l9_1-app-config-and-environments/starter`: Shoreline Lookout's app.config.ts: three variants, the typo, the guard, a scheme per variant, the key from the environment.</td></tr>
+      <tr><td class="t">2:25</td><td class="t">25</td><td><b>9.1</b> Start the lesson project</td><td>Steps 1 to 3: read the public config, the wrapper, the whole app.config.ts, app.json deleted, the three variants. Steps 4 to 7 go home.</td></tr>
+      <tr><td class="t">2:50</td><td class="t">10</td><td>Wrap-up</td><td>Exit ticket (3 questions), homework, bring list for Session 23 (a free Expo account, optional).</td></tr>
+      <tr><td class="t"><b>Total</b></td><td class="t"><b>180</b></td><td></td><td>Ends at 3:00.</td></tr>
+    </tbody>
+  </table>
+<p><b>In the room.</b> Lesson 8.4 gets 70 minutes and Lesson 9.1 80, out of 145 + 145 minutes of lesson. Both keep their full shape (model, demo, lab, project start). Lesson 8.4's project starts with Step 5, the debugging method, because it needs nothing installed and no phone; its measuring steps go home. Lesson 9.1's project starts at Step 1 and gets as far as the three variants.</p>
+<p><b>Goes home (about 2 to 3 hours).</b> Lesson 8.4's Steps 1 to 4 and 6 (the toolbox on a phone, render counts with the compiler on and off in the web preview, Expo Atlas, the three packages and Zod's languages, the whole suite and the performance notes) and anything of Step 5 not finished; Lesson 9.1's Steps 4 to 7 (the https guard, the Maps key in <code class="inline">.env.example</code>, the introspect audit, the version line on Profile, expo-doctor and the overrides entry); both labs' remaining tasks; each lesson's Hands-on Exercises; both Quick Quizzes; both journal entries; both "Before the Next Lesson" lists (9.1's includes a free Expo account for Lesson 9.2: optional).</p>
+<p><b>Protect, in this order:</b> the 8.4 "read the error" and "the failure that matches the report" steps (the method in two runs); the 9.1 "three variants" and "keep plain http out of production" steps; both guided labs' first task. <b>Cut first:</b> the 8.4 "who depends on them" step and the 9.1 introspect step (both are in the lessons and in the homework), then the warm-up's third question.</p>
+
+  <div class="sec"><h2>Opening Segment</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">0:00</span><h3>Warm-up: Lesson 8.3 Retrieval</h3><span class="dur">10 min</span></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">Three questions (no notes, 6 minutes, then 4 to discuss)</div>
+<ol class="steps">
+  <li>Where does a screen test import <code class="inline">userEvent</code> from, and what happens if it comes from <code class="inline">expo-router/testing-library</code>? <b>Answer:</b> from <code class="inline">@testing-library/react-native</code>; Expo Router's export is type-only, and tsc reports TS1362 (Lesson 8.3, Common Mistakes).</li>
+  <li>A screen shows a cleanup only after the API answers. <code class="inline">getByText</code> or <code class="inline">findByText</code>, and why? <b>Answer:</b> <code class="inline">findByText</code>: it waits (and retries) for the answer; <code class="inline">getByText</code> looks once, now.</li>
+  <li>Name one thing a Maestro flow on a phone can check that Jest cannot. <b>Answer:</b> anything native: the real keyboard, the native Switch, the system's permission question, the app as installed (Lesson 8.3; the flow is docs-based in the course).</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Bridge to today</div>
+<p>"In Session 21 you made the tests that keep Shoreline Crew correct. Today two different questions: is it fast, and when it breaks, how do you find out why? Then the app gets its own name, before Session 23 builds it." Ask who wrote down the fast-scroll note from Lesson 8.3's end: it is Lesson 8.4's starting point.</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Lesson Plans</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">8.4</span><h3>Performance and Debugging</h3><span class="dur">70 min</span></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">Objectives (from the lesson page)</div>
+<ul class="tick">
+  <li>Open React Native DevTools with j, find the Expo CLI's dev tools menu, and say which tool answers which question on a phone and in the web preview</li>
+  <li>Explain why a component renders, measure renders with React DevTools' Profiler, and decide from numbers whether memoization is needed with the React Compiler on</li>
+  <li>Describe the JS thread and the UI thread, frames, release versus development builds, and the common causes of memory leaks in a React Native app</li>
+  <li>Measure what the app's bundle carries with npx expo export and Expo Atlas, and shrink it where the numbers say it pays</li>
+  <li>Debug with a method: reproduce, read the error, narrow it down, fix, and add a test that fails without the fix</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Timing in the room</div>
+<table class="timing">
+<tbody>
+<tr><td class="t">10m</td><td>Frame: measure, then fix; the toolbox; why a screen renders and what the compiler does; two threads</td></tr>
+<tr><td class="t">20m</td><td>Live demo: j with no phone, the bundle before and after, the method on the vanished cleanup</td></tr>
+<tr><td class="t">20m</td><td>Guided lab: <code class="inline">l8_4-performance-and-debugging/starter</code>, Tasks 1 and 2 in pairs</td></tr>
+<tr><td class="t">20m</td><td>Start the lesson project: Step 5, the vanished cleanup with the method</td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Mental model to say</div>
+<p>From the lesson: "A town does not build a seawall because the beach looks high today; it reads the tide gauge for a season first, and then builds where the water actually comes over. Optimizing without a measurement is building seawalls by feel: expensive, in the wrong place, and sometimes it makes the next storm worse." Then the rule it gives: <b>measure, change one thing, measure again.</b></p>
+<p>Then the numbers that make the rule concrete (the lesson's table, measured in the web preview while typing otter into Search): with the React Compiler on, about 46 to 62 components render per keystroke in 3 to 4 ms; with it off, about 262 to 531 in 10 to 21 ms. "The compiler is already doing the useMemo work. So memo only where a measurement says so."</p>
+<p>Then two threads: the JS thread runs your components, hooks and handlers; the UI thread lays out, draws and scrolls. The performance monitor shows a frame rate for each; a frame has 16.7 ms at 60 Hz. Count renders anywhere; judge speed in production mode (<code class="inline">npx expo start --no-dev --minify</code>, or a build) on a real, preferably modest, phone. Write <b>count anywhere, judge on a phone</b> under the method.</p>
+</div>
+<div class="blk"><div class="h">Live demo (you type, they follow)</div>
+<p>In the 8.4 copy on the projector. Ask for a prediction before every run: "how many modules?", "will the test even run?", "which line fails?".</p>
+<ol class="steps">
+  <li><b>The toolbox, honestly (4m).</b> "Two keys open today's tools." In <code class="inline">shoreline-crew</code> (the code as Lesson 8.3 left it), start Metro and press <b>j</b> with only the web preview, as the lesson does. This is the kit's run, the QR code and the folder left out:
+<pre class="code">npx expo start</pre>
+<pre class="out">› Using Expo Go
+› Press j │ open debugger
+› Press r │ reload app
+› Press m │ toggle menu
+› shift+m │ more tools
+Logs for your project will appear below. Press Ctrl+C to exit.
+Debug: No compatible apps connected, React Native DevTools can only be used with Hermes. Learn more: https://docs.expo.dev/guides/using-hermes/</pre>
+Say what it means: React Native DevTools debugs JavaScript running in Hermes, on a phone or an emulator; the web preview runs in the browser's engine, so its tools are the browser's DevTools and the React Developer Tools extension. If you have your phone with Expo Go, open the project and press j again: the lesson's panels (Console, Sources, Components, Profiler, Memory) and Shift+M's performance monitor. The course could not run a real phone while it was checked: the DevTools window and the overlay are described from React Native's and Expo's documentation, exactly as the lesson says.</li>
+  <li><b>What the bundle carries, before (4m).</b> "Every check since Lesson 1.2 has exported the app. Today we read the numbers." Export the Android bundle (the kit's run, the asset list left out):
+<pre class="code">npx expo export --platform android</pre>
+<pre class="out">React Compiler enabled
+Android Bundled …ms node_modules/expo-router/entry.js (2238 modules)
+› android bundles (1):
+_expo/static/js/android/entry-….hbc (5.9MB)</pre>
+Write the "before" on the board: 2238 modules, 5.9MB. Then the lesson's table of minified bytes per package (reanimated, react-native, zod with 275 KB of messages in 40 languages, expo-router, …, Shoreline Crew's own src only 140 KB, @expo/ui 78 KB for nothing) and the Atlas screenshot. Atlas itself (<code class="inline">npx expo install --dev expo-atlas</code>, <code class="inline">EXPO_ATLAS=true npx expo export</code>) is Step 3 at home: install it first, as the lesson says, or the export tries to install it in a loop.</li>
+  <li><b>Who depends on them (2m).</b> Before removing anything: who uses it?
+<pre class="code">npm ls expo-glass-effect expo-device expo-web-browser @expo/ui</pre>
+<pre class="out">shoreline-crew@1.0.0 ~/shoreline/shoreline-crew
+├── @expo/ui@58.0.28
+├── expo-device@58.0.5
+├── expo-glass-effect@58.0.5
+├─┬ expo-router@58.0.31
+│ ├── @expo/ui@58.0.28 deduped
+│ └── expo-glass-effect@58.0.5 deduped
+└── expo-web-browser@58.0.8</pre>
+Expo Router needs expo-glass-effect (it stays) and uses @expo/ui only optionally, on Android. Nothing uses expo-device or expo-web-browser. The lesson removes those three and resolves Zod's languages to an empty module in metro.config.js.</li>
+  <li><b>After (3m).</b> The same export with the lesson's finished code, then iOS:
+<pre class="code">npx expo export --platform android --clear
+npx expo export --platform ios</pre>
+<pre class="out">React Compiler enabled
+Android Bundled …ms node_modules/expo-router/entry.js (2084 modules)
+› android bundles (1):
+_expo/static/js/android/entry-….hbc (5.5MB)
+
+React Compiler enabled
+iOS Bundled …ms node_modules/expo-router/entry.js (2081 modules)
+› ios bundles (1):
+_expo/static/js/ios/entry-….hbc (5.4MB)</pre>
+154 fewer modules to run at every start, 5.9MB → 5.5MB on Android. The iOS bundle did not change when @expo/ui went (Expo Router loads it on Android only): only Zod's languages moved it. Measure each platform; never assume.</li>
+  <li><b>Read the error (3m).</b> "The report: I checked in at the Tide Pool cleanup, and now it's gone from My cleanups." Reproduce it automatically: type the lesson's <code class="inline">my-cleanups.test.tsx</code> WITHOUT its <code class="inline">jest.mock()</code> line and run it:
+<pre class="code">npm test -- --watchAll=false src/test/screens/my-cleanups.test.tsx</pre>
+<pre class="out"> FAIL  src/test/screens/my-cleanups.test.tsx
+  ● Test suite failed to run
+
+    TypeError: handleSubscription.remove is not a function
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total</pre>
+No test ran. Read the stack from the bottom up (it is in the lesson's Common Mistakes): the test, my-cleanups.tsx, mutations.ts, reminders.ts, expo-notifications. That is the setup talking, not the bug. Add the <code class="inline">jest.mock('@/notifications/reminders', ...)</code> line with its comment.</li>
+  <li><b>The failure that matches the report (2m).</b> Run it again:
+<pre class="code">npm test -- --watchAll=false src/test/screens/my-cleanups.test.tsx</pre>
+<pre class="out"> FAIL  src/test/screens/my-cleanups.test.tsx
+  ✓ lists the cleanups Theo signed up for, each with a Cancel button
+  ✕ keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+
+● keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+  Unable to find an element with text: Tide Pool Morning Cleanup
+
+Tests:       1 failed, 1 passed, 2 total</pre>
+Now it fails for the volunteer's reason. Narrow it down out loud: the API's <code class="inline">/api/me/signups</code> still has the sign-up with status attended (the browser's Network tab), so the bug is in what the screen keeps: comingUp keeps only confirmed and waitlisted.</li>
+  <li><b>Fix one thing, keep the test (2m).</b> The lesson's fix (the filter, the badge, no Cancel for attended):
+<div class="codefile">shoreline-crew/src/app/(tabs)/my-cleanups.tsx</div>
+<pre class="code" data-src="shoreline-crew/src/app/(tabs)/my-cleanups.tsx" data-stage="lesson_31" data-match="excerpt">  <span class="k">const</span> comingUp = signups.data
+    .filter(
+      ({ status, event }) =&gt;
+        ((status === <span class="s">'confirmed'</span> || status === <span class="s">'waitlisted'</span>) &amp;&amp; event.date &gt;= today) ||
+        (status === <span class="s">'attended'</span> &amp;&amp; event.date === today),
+    )
+    .reverse();</pre>
+<pre class="code">npm test -- --watchAll=false src/test/screens/my-cleanups.test.tsx</pre>
+<pre class="out"> PASS  src/test/screens/my-cleanups.test.tsx
+  ✓ lists the cleanups Theo signed up for, each with a Cancel button
+  ✓ keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+Tests:       2 passed, 2 total</pre>
+The test failed without the fix and passes with it: it is a test of THIS bug. The whole suite is now 47 tests in 15 files.</li>
+</ol>
+</div>
+<div class="blk warn"><div class="h">Three mistakes to expect, and how to coach each</div>
+<ul class="tick">
+  <li><b>Fixing before reproducing.</b> A learner reads the filter, changes it, and calls it done. Coach: "Show me the test that failed before your change." A test written after the fix may pass for an unrelated reason (the lesson's quiz Q5).</li>
+  <li><b>Memoizing by default.</b> <code class="inline">useCallback</code> on every handler "for performance". Coach: "Which measurement says this component renders too often?" With the compiler on, there is usually none (Self-check Q3).</li>
+  <li><b>Judging speed in the web preview.</b> "It is fast on my laptop." Coach: "Count renders here; time them on a phone in production mode." A desktop browser is many times faster than a phone, and react-native-web draws with the browser.</li>
+</ul>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<p><b>Folder:</b> learners work in <code class="inline">labs/module-22/l8_4-performance-and-debugging/starter/</code> (task sheet <code class="inline">labs/module-22/l8_4-performance-and-debugging/TASKS.md</code>); your reference is <code class="inline">labs/module-22/l8_4-performance-and-debugging/solution/</code>. A small new screen for crew leaders, <code class="inline">SiteSearch</code> (a beach search with a low-tide reminder; the six beaches are a real answer of <code class="inline">GET /api/sites</code>), with the lesson's method on code they have not seen. Jest renders it headless; nothing to install, no API.</p>
+<ul class="tick">
+  <li><b>Run it as shipped first (3m).</b> On the projector: <code class="inline">npm test -- src/SiteSearch.test.tsx</code>. No test runs. Read the stack from the bottom up together (the kit's run, the frames that are the lab's own files):</li>
+</ul>
+<pre class="out">● Test suite failed to run
+TypeError: handleSubscription.remove is not a function
+at Object.remove (../../../node_modules/expo-notifications/build/NotificationsHandler.ts:94:24)
+at Object.setNotificationHandler (src/reminders.ts:5:15)
+at Object.require (src/SiteSearch.tsx:6:1)
+at Object.require (src/SiteSearch.test.tsx:4:1)</pre><ul class="tick">
+  <li><b>Task 1 in pairs (5m):</b> the stand-in, <code class="inline">jest.mock('./reminders', () =&gt; ({ remindMe: jest.fn(async () =&gt; 'reminder-1') }))</code>. Circulate for learners who edit <code class="inline">reminders.ts</code> instead ("is the reminder what these tests are about?") or mock without a factory (the same error comes back). Then three pass and one says <code class="inline">TODO 2</code>.</li>
+  <li><b>Task 2 (10m):</b> the report "I typed cove and nothing came up". Insist on the order: the test first, watch it fail, then the fix. The kit ran the solution's test on the starter's code; it fails for the volunteer's reason:</li>
+</ul>
+<pre class="out">● Task 2: finds a beach whatever the case of the letters typed
+  Unable to find an element with text: Driftwood Cove</pre><ul class="tick">
+  <li><b>Expected when both are done:</b> <code class="inline">npm test -- src/SiteSearch.test.tsx</code> says <code class="inline">Tests:       4 passed, 4 total</code>. <b>Debrief (2m):</b> "What would have happened if you had fixed <code class="inline">matchingSites</code> first?" (no proof the test catches this bug). Task 3 (a listener without <code class="inline">remove()</code>: the leak the lesson names first) goes home, or to fast finishers. All done, the solution's run ends:</li>
+</ul>
+<pre class="out"> PASS  src/useOnForeground.test.tsx
+ PASS  src/SiteSearch.test.tsx
+Tests:       6 passed, 6 total</pre></div>
+<div class="blk"><div class="h">Start the lesson project</div>
+<p>The lesson project is <b>Measure, Trim and Fix Shoreline Crew</b>, six steps. In the room, Step 5 (20 minutes): it needs no phone, no install and no browser extension, and the demo just showed every run.</p>
+<ul class="tick">
+  <li>Step 5.1: sign in as Theo in the web preview, check in at today's cleanup with 6544, see it vanish; then create <code class="inline">src/test/screens/my-cleanups.test.tsx</code> from the lesson, WITHOUT the <code class="inline">jest.mock()</code> line.</li>
+  <li>Steps 5.2 to 5.5: the suite that cannot load, the mock, the failure that matches the report, the fix in <code class="inline">my-cleanups.tsx</code>, the passing run. <b>Done in the room</b> = <code class="inline">Tests:       2 passed, 2 total</code> for the file, and the fix checked by hand once.</li>
+  <li><b>Goes home:</b> Step 1 (j and Shift+M on a phone, or the web half), Step 2 (renders with the compiler on and off: put <code class="inline">"reactCompiler": true</code> back and restart with <code class="inline">--clear</code>), Steps 3 and 4 (Atlas, the three packages, metro.config.js: the network is needed), Step 6 (47 tests, tsc, lint, the performance notes, <code class="inline">--source-maps</code> once). The finished code is <code class="inline">lesson-31-end</code>.</li>
+</ul>
+<figure class="shot"><img src="../../../images/lesson_31/31-checked-in.png" alt="My cleanups on a phone-sized web preview after Theo checked in: under Coming up, the card for Tide Pool Morning Cleanup with a green Checked in badge, outlined in red, and only an Open button; the next card, Weekend Cove Cleanup, still shows Signed up with Open and Cancel."><figcaption>The bug fixed: after checking in, today's cleanup stays on My cleanups, marked Checked in, with nothing to cancel. Web preview; on a phone the tab bar and header look native.</figcaption></figure></div>
+<div class="blk"><div class="h">Checks for understanding</div>
+<p>Ask these out loud during the demo and the lab:</p>
+<ul class="tick">
+  <li>What does j open, and what does it need? <b>Answer:</b> React Native DevTools, for an app running Hermes (Expo Go or a development build) connected to Metro.</li>
+  <li>The JS frame rate drops while scrolling, the UI rate does not. Where do you look? <b>Answer:</b> at the JavaScript work of the rows, with the Profiler.</li>
+  <li>Why did the iOS bundle not change when @expo/ui went? <b>Answer:</b> Expo Router loads it on Android only.</li>
+  <li>Why write the test before the fix? <b>Answer:</b> a test that fails without the fix and passes with it proves it checks this bug, and it reproduces the report in a second.</li>
+</ul>
+<p>Workbook self-check, items Q1 to Q6 (learners do them at the end of the block or at home).</p>
+<p style="font-size:.9rem;margin:.2rem 0">Answers: <b>Q1</b> <span data-sc="1">B) Open the app in Expo Go on a phone (or an emulator) and press j again; for the web preview, use the browser's DevTools</span>; <b>Q2</b> <span data-sc="2"><code class="inline">jest.mock('@/notifications/reminders', () =&gt; ({ updateReminders: jest.fn() }))</code>: a stand-in for the app's own module at the edge of what the test is about; without a factory Jest loads the real module to copy its shape</span>; <b>Q3</b> <span data-sc="3">A) Leave it: the compiler skipped it, and the measurement says it does not matter</span>; <b>Q4</b> <span data-sc="4">C) The native side: big images being decoded, too many views, heavy shadows</span>; <b>Q5</b> <span data-sc="5">D) A file of yours still imports the package: search <code class="inline">src</code> for its name and run <code class="inline">npm ls</code> with it before removing</span>; <b>Q6</b> <span data-sc="6">B) In the screen's own logic: what My cleanups keeps from the sign-ups it receives</span>. Full set with explanations in the Answer Key.</p></div>
+<div class="blk"><div class="h">Differentiation</div>
+<p><b>Support:</b> pair learners who are unsure of reading stacks with a strong reader for the lab's Task 1: one reads each frame aloud from the bottom, the other says which file it is. For the project, the lesson's test file can be copied from <code class="inline">lesson-31-end</code> if typing it eats the time; the method is the point.</p>
+<p><b>Stretch:</b> Lab 8.4 Task 3 (the listener); the lesson's Exercise 3 (a test for Cancel with <code class="inline">waitFor</code>); the Bonus Challenge (production mode on the oldest phone available, a first performance budget).</p>
+</div>
+    </div>
+  </section>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">9.1</span><h3>App Config and Environments</h3><span class="dur">80 min</span></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">Objectives (from the lesson page)</div>
+<ul class="tick">
+  <li>Explain what the app config controls, who reads it (Expo Go, prebuild, your build) and how to see exactly what Expo sees with npx expo config</li>
+  <li>Replace app.json with a typed app.config.ts and say what you gain and what tools can no longer do for you</li>
+  <li>Define development, preview and production variants with their own names and app ids, chosen by APP_VARIANT</li>
+  <li>Decide where each setting lives (EXPO_PUBLIC_ variables, the shell, .env.local, a build service's secrets) and keep secrets out of your code</li>
+  <li>Explain why release builds refuse plain http, what that means for shoreline-api, and what a real app does instead</li>
+  <li>Audit what a build asks the phone for: permission sentences, Face ID, push entitlement, notification icon and splash screen</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Timing in the room</div>
+<table class="timing">
+<tbody>
+<tr><td class="t">10m</td><td>Frame: the field kit's label; who reads the config; app.json or app.config.ts; three variants</td></tr>
+<tr><td class="t">20m</td><td>Live demo: what Expo sees, three variants, a misspelled variant, the https guard, a typo tsc names, introspect</td></tr>
+<tr><td class="t">25m</td><td>Guided lab: <code class="inline">l9_1-app-config-and-environments/starter</code>, Tasks 1 and 2</td></tr>
+<tr><td class="t">25m</td><td>Start the lesson project: Steps 1 to 3</td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Mental model to say</div>
+<p>From the lesson: "Lesson 1.1 called the native modules a build carries its field kit. The app config is the label stitched on the bag: whose kit it is, which crew, what is inside, what it is allowed to carry through security. Expo Go is a borrowed bag with Expo's label already on it, which is why nothing you wrote on yours showed up so far." Then: "Today you write the label for three bags, one per crew: practice, testing, and the real cleanup. APP_VARIANT is the label maker."</p>
+<p>Then the two facts the rest builds on: <b>the config runs on your computer, never on the phone</b> (Node evaluates it; from Lesson 9.2 the build server too), and <b>the public config travels with the app</b> (anything in it, plugin options included, is inside every build). Draw the lesson's diagram: shell and .env.local → app.config.ts in Node → the public config (Expo Go, Constants) and the native projects (your build's ids and icons).</p>
+<p>Then the settings table in one line each: EXPO_PUBLIC_API_URL is in the bundle (not a secret); APP_VARIANT lives in the shell or the build profile; the Maps key lives in .env.local or the build service's secrets, without the EXPO_PUBLIC_ prefix, and is restricted because it ships in the Android app.</p>
+</div>
+<div class="blk"><div class="h">Live demo (you type, they follow)</div>
+<p>In the 9.1 copy on the projector (the code as Lesson 8.4 left it, with app.json), then the lesson's finished app.config.ts. Ask for a prediction before each run: "which name?", "which id?", "will it even start?".</p>
+<ol class="steps">
+  <li><b>What Expo sees, and the wrapper (4m).</b> "Expo Go has shown its own name, icon and words all course. Today Shoreline Crew gets its own label." With Lesson 8.4's code, create the lesson's small wrapper next to app.json and print the public config:
+<pre class="code"><span class="k">import</span> <span class="k">type</span> { ConfigContext, ExpoConfig } <span class="k">from</span> <span class="s">'expo/config'</span>;
+
+<span class="c">// For a first look: Expo reads app.json, then hands it to this function as `config`</span>
+<span class="k">export</span> <span class="k">default</span> ({ config }: ConfigContext): ExpoConfig =&gt; ({
+  ...config,
+  name: <span class="s">'Shoreline Dev'</span>,
+  slug: <span class="s">'shoreline-crew'</span>,
+});</pre>
+<pre class="code">npx expo config --type public</pre>
+<pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+...</pre></li>
+  <li><b>Three variants (4m).</b> Then the lesson's whole app.config.ts (show the top: the only part that differs between the three apps). No APP_VARIANT means development:
+<div class="codefile">shoreline-crew/app.config.ts</div>
+<pre class="code" data-src="shoreline-crew/app.config.ts" data-stage="lesson_32" data-match="excerpt"><span class="k">const</span> variants = {
+  development: { name: <span class="s">'Shoreline Dev'</span>, appId: <span class="s">'com.example.shorelinecrew.dev'</span> },
+  preview: { name: <span class="s">'Shoreline Preview'</span>, appId: <span class="s">'com.example.shorelinecrew.preview'</span> },
+  production: { name: <span class="s">'Shoreline Crew'</span>, appId: <span class="s">'com.example.shorelinecrew'</span> },
+};
+<span class="k">type</span> Variant = <span class="k">keyof</span> <span class="k">typeof</span> variants;
+
+<span class="k">function</span> isVariant(value: <span class="k">string</span>): value <span class="k">is</span> Variant {
+  <span class="k">return</span> Object.hasOwn(variants, value);
+}
+
+<span class="c">// APP_VARIANT picks the variant: set it in the shell, or (Lesson 9.2) per build profile in eas.json</span>
+<span class="k">const</span> variant = process.env.APP_VARIANT ?? <span class="s">'development'</span>;
+<span class="k">if</span> (!isVariant(variant)) {
+  <span class="k">throw</span> <span class="k">new</span> Error(<span class="s">`APP_VARIANT must be development, preview or production, not "${variant}".`</span>);
+}</pre>
+<pre class="code">npx expo config --type public
+APP_VARIANT=preview npx expo config --type public</pre>
+<pre class="out">name: 'Shoreline Dev',
+usesCleartextTraffic: false
+bundleIdentifier: 'com.example.shorelinecrew.dev'
+package: 'com.example.shorelinecrew.dev',
+
+name: 'Shoreline Preview',
+usesCleartextTraffic: true
+bundleIdentifier: 'com.example.shorelinecrew.preview'
+package: 'com.example.shorelinecrew.preview',</pre>
+Different names and ids, so all three sit side by side on one phone; cleartext only for preview. PowerShell learners set <code class="inline">$env:APP_VARIANT = "preview"</code> first and remove it afterwards.</li>
+  <li><b>A misspelled variant (2m).</b> Make the likely mistake on purpose:
+<pre class="code">APP_VARIANT=prod npx expo config --type public</pre>
+<pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+APP_VARIANT must be development, preview or production, not "prod".
+Error: APP_VARIANT must be development, preview or production, not "prod".
+    at Object.&lt;anonymous&gt; (~/shoreline/shoreline-crew/app.config.js:15:11)</pre>
+Your own message, from your own guard, before anything is built. The stack names app.config.js: Expo compiled the TypeScript file to run it. The lesson shows the same run as a screenshot.</li>
+  <li><b>Keep plain http out of production (3m).</b> Ask for production with the development .env.local, then with an https address in the shell:
+<pre class="code">APP_VARIANT=production npx expo config --type public
+APP_VARIANT=production EXPO_PUBLIC_API_URL=https://crew-api.example.org npx expo config --type public</pre>
+<pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".
+Error: A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".
+    at Object.&lt;anonymous&gt; (~/shoreline/shoreline-crew/app.config.js:21:11)
+
+name: 'Shoreline Crew',
+usesCleartextTraffic: false
+bundleIdentifier: 'com.example.shorelinecrew'
+package: 'com.example.shorelinecrew',</pre>
+The guard read http://localhost:4000 from .env.local (Expo loads it before running the config). The shell beats .env.local, and then Expo prints no <code class="inline">env:</code> lines. crew-api.example.org stands in for the https server a real team runs; the course API stays on your computer, so the course stops at the preview build.</li>
+  <li><b>A typo tsc names (2m).</b> Misspell <code class="inline">bundleIdentifier</code> in app.config.ts and run the type check:
+<pre class="code">npx tsc --noEmit</pre>
+<pre class="out">app.config.ts:44:5 - error TS2561: Object literal may only specify known properties, but 'bundleIdentifer' does not exist in type 'IOS'. Did you mean to write 'bundleIdentifier'?
+
+44     bundleIdentifer: variants[variant].appId,
+       ~~~~~~~~~~~~~~~
+
+  node_modules/@expo/config-types/build/ExpoConfig.d.ts:209:5
+    209     ios?: IOS;
+            ~~~
+    The expected type comes from property 'ios' which is declared here on type 'ExpoConfig'
+
+
+Found 1 error in app.config.ts:44</pre>
+The kit's run is the lesson's card. In app.json the same key would be ignored without a word. Undo: <code class="inline">npx tsc --noEmit</code> prints nothing again.</li>
+  <li><b>What a build would ask the phone for (5m).</b> Introspect runs the config plugins in memory (almost a thousand lines: the kit's run had 977). Search for the lesson's items:
+<pre class="code">APP_VARIANT=preview npx expo config --type introspect</pre>
+<pre class="out">CFBundleDisplayName: 'Shoreline Preview',
+NSCameraUsageDescription: 'Shoreline Crew uses your camera to photograph the debris you collected at a cleanup.',
+NSLocationWhenInUseUsageDescription: "Shoreline Crew uses your location to show how far you are from a cleanup's meeting point.",
+entitlements: {},
+package: 'com.example.shorelinecrew.preview'
+'android:usesCleartextTraffic': 'true',
+'android:name': 'com.google.firebase.messaging.default_notification_icon',
+'android:resource': '@drawable/notification_icon'</pre>
+Shoreline Preview under the icon, Shoreline Crew's own camera and location sentences, no NSFaceIDUsageDescription (search for it: gone), no push entitlement, cleartext for preview, the white notification icon, and no Maps key line (no key yet: Android maps would stay empty). None of this shows in Expo Go; Lesson 9.2's development build shows it on a phone.</li>
+</ol>
+</div>
+<div class="blk warn"><div class="h">Three mistakes to expect, and how to coach each</div>
+<ul class="tick">
+  <li><b>Running <code class="inline">npx expo install expo-build-properties</code> after app.json is gone.</b> The package installs, then <code class="inline">Cannot automatically write to dynamic config</code> and exit 1. Coach: "Read what it says to add"; the lesson installs it in Step 1 for this reason (lesson quiz Q4).</li>
+  <li><b>A real key in a committed file.</b> <code class="inline">.env.example</code> "so everyone has it". Coach: "Which files does Git track?" The fix is to replace the key in Google Cloud, not to delete the line (lesson quiz Q2; Self-check Q10).</li>
+  <li><b>Expecting Expo Go to show the new name and icon.</b> Coach: "Who reads the native settings?" (prebuild, Lesson 9.2's build); Expo Go's project list shows only the config name. Introspect is today's check (Self-check Q12).</li>
+</ul>
+</div>
+<div class="blk lab"><div class="h">Guided lab</div>
+<p><b>Folder:</b> <code class="inline">labs/module-22/l9_1-app-config-and-environments/starter/</code> with <code class="inline">labs/module-22/l9_1-app-config-and-environments/TASKS.md</code>; your reference is <code class="inline">labs/module-22/l9_1-app-config-and-environments/solution/</code>. A second app, <b>Shoreline Lookout</b> (a crew leader's beach-conditions app), whose app.config.ts is one fixed set of values: learners give it three variants (Lookout Dev, Lookout Preview, Shoreline Lookout), fix the key tsc names, add the https guard and a scheme per variant (the lesson's Common Questions idea), and read the Maps key from the environment. The tests load the config once per variant, as Expo does; <code class="inline">npx expo config</code> runs on it like on the course app.</p>
+<ul class="tick">
+  <li><b>Run it as shipped (3m).</b> <code class="inline">npm test</code>: six failures. Then <code class="inline">npm run typecheck</code>:</li>
+</ul>
+<pre class="out">app.config.ts:19:5 - error TS2561: Object literal may only specify known properties, but 'pacakge' does not exist in type 'Android'. Did you mean to write 'package'?
+Found 1 error in app.config.ts:19</pre><ul class="tick">
+  <li><b>Task 1 (12m):</b> fix the key, then the variants object, the type guard and the default. Then <code class="inline">npx expo config --type public</code> and the preview variant; the kit's runs of the solution:</li>
+</ul>
+<pre class="out">  name: 'Lookout Dev',
+  scheme: 'shorelinelookout-dev',
+    bundleIdentifier: 'com.example.shorelinelookout.dev'
+    package: 'com.example.shorelinelookout.dev',
+
+  name: 'Lookout Preview',
+  scheme: 'shorelinelookout',
+    bundleIdentifier: 'com.example.shorelinelookout.preview'
+    package: 'com.example.shorelinelookout.preview',</pre><ul class="tick">
+  <li><b>Task 2 (8m):</b> the guard and the scheme. The solution's runs with a misspelled variant and with production on plain http end with the config's own messages:</li>
+</ul>
+<pre class="out">APP_VARIANT must be development, preview or production, not "Preview".
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://lookout-api.example.org".</pre><ul class="tick">
+  <li><b>Debrief (2m):</b> "Why development as the default?" (a forgotten setting can never make the store app, and <code class="inline">npx expo start</code> keeps working). Task 3 (the key) and the introspect check go home. All done:</li>
+</ul>
+<pre class="out"> PASS  src/config.test.ts
+  ✓ Task 1: development by default: Lookout Dev, with the .dev id on both platforms
+  ✓ Task 1: APP_VARIANT=preview gives Lookout Preview and the .preview id
+  ✓ Task 1: a misspelled variant stops with a message that names it
+  ✓ Task 2: production refuses plain http and accepts https
+  ✓ Task 2: only development gets its own link scheme
+  ✓ Task 3: the Maps key comes from ANDROID_GOOGLE_MAPS_API_KEY, never from the file
+Tests:       6 passed, 6 total</pre></div>
+<div class="blk"><div class="h">Start the lesson project</div>
+<p>The lesson project is <b>Shoreline Crew's App Config</b>, seven steps. In the room, Steps 1 to 3 (25 minutes).</p>
+<ul class="tick">
+  <li>Step 1: <code class="inline">npx expo config --type public</code> (the reference), then <code class="inline">npx expo install expo-build-properties</code> WHILE app.json still exists (the network is needed; a learner without it writes the plugin entry by hand later).</li>
+  <li>Step 2: the wrapper next to app.json (the name changes), then the whole app.config.ts from the lesson, the notification icon copied from <code class="inline">lesson-32-end</code>, <code class="inline">rm app.json</code>, <code class="inline">npx tsc --noEmit</code> (prints nothing) and <code class="inline">npx expo lint</code> (only Expo's two <code class="inline">env:</code> lines, the kit's run).</li>
+  <li>Step 3: the three variants with <code class="inline">npx expo config --type public</code>, and APP_VARIANT=prod on purpose. <b>Done in the room</b> = Shoreline Dev / Shoreline Preview with their ids, and the misspelled variant stopped by your own message.</li>
+  <li><b>Goes home:</b> Step 4 (production and https), Step 5 (the Maps key in <code class="inline">.env.example</code>, a pretend key in <code class="inline">.env.local</code>, then deleted), Step 6 (the introspect audit), Step 7 (the version line on Profile, its test, the Maestro comment, expo-doctor and the overrides entry, 48 tests). The finished code is <code class="inline">lesson-32-end</code>.</li>
+</ul>
+<figure class="shot"><img src="../../../images/lesson_32/32-version-line.png" alt="The bottom of the Profile tab on a phone-sized web preview: the Connection section with the address http://localhost:4000 and a Check the connection button, and under it the muted line Shoreline Dev, version 1.0.0, outlined in red."><figcaption>The last line of Profile names the variant and version this build was made as. npx expo start with no APP_VARIANT gives the development variant. Web preview; in a preview build the same line says Shoreline Preview.</figcaption></figure></div>
+<div class="blk"><div class="h">Checks for understanding</div>
+<p>Ask these out loud during the demo and the lab:</p>
+<ul class="tick">
+  <li>Who reads the icon and the permission sentences, and who does not? <b>Answer:</b> prebuild and your build; Expo Go does not (it uses only the public config).</li>
+  <li>What does <code class="inline">npx expo config --type introspect</code> show? <b>Answer:</b> what the config plugins would write into the native projects, without creating them.</li>
+  <li>Why does each variant get its own id? <b>Answer:</b> a phone replaces an app with any build of the same id; three ids let the three sit side by side.</li>
+  <li>Is EXPO_PUBLIC_API_URL a secret? <b>Answer:</b> no: it is written into the bundle; protection belongs on the server (https, sign-in).</li>
+</ul>
+<p>Workbook self-check, items Q7 to Q12 (learners do them at the end of the block or at home).</p>
+<p style="font-size:.9rem;margin:.2rem 0">Answers: <b>Q7</b> <span data-sc="7">C) The config's own guard refused a name it does not know; the variant is spelled production</span>; <b>Q8</b> <span data-sc="8">An error: <code class="inline">A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".</code>: Expo loaded .env.local before it ran app.config.ts, and the guard refuses plain http for production</span>; <b>Q9</b> <span data-sc="9">A) Nothing at once: Expo ignores an unknown key, and you find out when a build has no id</span>; <b>Q10</b> <span data-sc="10">D) In <code class="inline">.env.local</code> (never committed) or the build service's secrets, as ANDROID_GOOGLE_MAPS_API_KEY, and restricted in Google Cloud</span>; <b>Q11</b> <span data-sc="11">B) A preview build is a release build, which refuses plain http; this lets it reach shoreline-api on your Wi-Fi, and production uses https instead</span>; <b>Q12</b> <span data-sc="12">C) Nothing is wrong: Expo Go is one app that opens many projects; check native settings with <code class="inline">npx expo config --type introspect</code> until Lesson 9.2's build</span>. Full set with explanations in the Answer Key.</p></div>
+<div class="blk"><div class="h">Differentiation</div>
+<p><b>Support:</b> learners who fall behind copying the long app.config.ts take it from <code class="inline">lesson-32-end</code> and spend the time on Step 3's runs instead; the variants and the errors are the learning, not the typing. For PowerShell users, write the three <code class="inline">$env:</code> lines on the board.</p>
+<p><b>Stretch:</b> Lab 9.1 Task 3 and the introspect check; the lesson's Exercise 2 (<code class="inline">android.blockedPermissions</code> for SYSTEM_ALERT_WINDOW); the Bonus Challenge (an icon per variant).</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Closing</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Exit ticket (3 questions, no notes, 4 minutes)</div>
+<p>Put the three questions on the slide; learners answer in the workbook's Exit Ticket box or on a sticky note. Question 3's pile tells you how much of Session 23's warm-up goes back to variants.</p>
+<ol class="steps">
+  <li>Put the five steps of the debugging method in order. <b>Answer:</b> reproduce, read the error, narrow it down, fix one thing, keep a test that fails without the fix.</li>
+  <li>Name one thing in the bundle that Shoreline Crew carried for nothing, and how you found it. <b>Answer:</b> Zod's messages in 40 languages or @expo/ui; Expo Atlas, the export's numbers, <code class="inline">npm ls</code>.</li>
+  <li><code class="inline">npx expo start</code> with no APP_VARIANT: which name, which id, and why that default? <b>Answer:</b> Shoreline Dev, com.example.shorelinecrew.dev; a forgotten variant can never replace the real app.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Homework (about 2 to 3 hours)</div>
+<ul class="tick">
+  <li><b>Finish both lesson projects.</b> 8.4: Steps 1 to 4 and 6 (the phone half of Step 1 when a phone is at hand), with the performance notes. 9.1: Steps 4 to 7, every checklist item, and the commit (check that no key is in it).</li>
+  <li><b>Lesson exercises.</b> 8.4: Exercises 1 and 2; Exercise 3 is a stretch. 9.1: Exercises 1 and 2; Exercise 3 (a prebuild after a commit) is a stretch.</li>
+  <li><b>Both Quick Quizzes</b> on the lesson pages (answers are in the Answer Key).</li>
+  <li><b>Labs:</b> Lab 8.4 Task 3; Lab 9.1 Task 3 and the introspect check.</li>
+  <li><b>Journal:</b> both entries. The 9.1 prompt lists every setting of your own final-project idea that changes between your laptop and the store: bring it to Session 23.</li>
+  <li><b>Before the Next Lesson (from 9.1):</b> tsc, lint, the tests and expo-doctor once more, then commit; Lesson 9.2 suggests a free Expo account (optional: nothing in the course needs one to pass).</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Bring list for Session 23</div>
+<ul class="tick">
+  <li>The course folder with Shoreline Crew as Lesson 9.1 leaves it (<code class="inline">lesson-32-end</code> if not): app.config.ts only, 48 tests passing, <code class="inline">npx expo-doctor</code> 20/20.</li>
+  <li>Session 23 (Lesson 9.2) adds expo-dev-client and eas.json with a build profile per variant (each sets APP_VARIANT). A free Expo account is optional: learners without one follow the build steps as a reading and do everything local.</li>
+  <li>The 9.1 journal list (your own app's names, ids and secrets), a phone with Expo Go if they have one, the workbook.</li>
+</ul>
+</div>
+
+  <div class="sec"><h2>If You Run Long or Short</h2><span class="rule"></span></div>
+<div class="blk warn"><div class="h">Running long: what to protect and what to cut first</div>
+<ul class="tick">
+  <li><b>Protect:</b> the 8.4 "read the error" and "the failure that matches the report" steps; the 9.1 "three variants" and "keep plain http out of production" steps; both labs' Task 1.</li>
+  <li><b>Cut first (saves 7m):</b> the 8.4 "who depends on them" step and the 9.1 introspect step (homework Step 6).</li>
+  <li><b>Cut second (saves 10m):</b> the 8.4 project start (the demo did Step 5; learners do it at home from the lesson).</li>
+  <li><b>Cut third (saves 10m):</b> the 9.1 project's Step 3 in the room: stop after Step 2 (the file and app.json deleted).</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Running short: what to add</div>
+<ul class="tick">
+  <li>Lab 8.4 Task 3 for everyone: the listener, the cleanup, and where the leak would show on a phone (the performance monitor's memory number, heap snapshots).</li>
+  <li>Lesson 9.1's Exercise 1 together: predict four <code class="inline">npx expo config</code> runs, then run them (Preview with a capital P, http on production, https on preview).</li>
+  <li>Lesson 8.4's Exercise 3 live: a test for Cancel with <code class="inline">waitFor</code>.</li>
+</ul>
+</div>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 22 · Facilitator Guide · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

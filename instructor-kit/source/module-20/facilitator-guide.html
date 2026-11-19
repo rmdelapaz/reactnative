@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facilitator Guide: Session 20</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">contains answers &amp; timing · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Facilitator Guide</div>
+    <h1>Session 20: Testing the App's Logic</h1>
+    <p class="sub">How to teach Lesson 8.2: Jest with jest-expo in an Expo SDK 58 app, the HQ's MSW handlers answering the phone app's requests, three kinds of stand-ins for native modules, and the habit of asking first whether the app or the test setup is wrong. Two demos on the finished stage (the setup and the sender's five outcomes, then five setup mistakes made on purpose), a headless lab on new code, and the first half of the lesson's own test suite.</p>
+    <div class="meta-row">
+      <span class="chip"><b>1</b> lesson</span>
+      <span class="chip"><b>3 hrs</b> session</span>
+      <span class="chip">Lesson <b>8.2</b></span>
+      <span class="chip">Session <b>20</b> of 26 · Part 3</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>How to Use This Guide</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>One lesson, a whole session: frame (the goal and one mental model) → live demo of the finished setup → guided lab (new practice, never the lesson's own suite) → a second demo that breaks the setup on purpose → the lab's last task → start the lesson's own project (Steps 1 to 3). Steps 4 to 6, the exercises, the quiz and the journal are homework.</li>
+  <li>Type, do not paste. Every command below was run to produce the output printed under it, in a learner's terminal with Node 24, in a copy of the app exactly as a learner has it at the end of Lesson 8.2 (<code class="inline">stages/after-lesson_29</code> = the course download <code class="inline">lesson-29-end</code>). Each Common Mistake was made in that copy with the lesson's own edit, and the kit's output matches the lesson's card line for line (test times left out). Ask for a prediction before every run.</li>
+  <li><b>No phone, no API server and no Metro are needed today.</b> The tests run in Node: jest-expo pretends to be an iPhone, MSW answers with shoreline-api's own code, and stand-ins replace the keychain, the scheduler and the vibration motor. Say the lesson's honest limit out loud: the stand-ins prove the app's decisions for the answers you imagined; only a phone proves the answers are the ones it really gives.</li>
+  <li>The lesson is the reference: keep <code class="inline">lesson_29.html</code> open for the Vitest-to-Jest table, the diagram and the six project steps. Labs live in <code class="inline">labs/module-20/l8_2-testing-the-apps-logic</code> (<code class="inline">starter/</code> and <code class="inline">TASKS.md</code> are handouts; <code class="inline">solution/</code> is yours until the session is over). The lesson runs 155 minutes for a learner alone; the room has 180 with a break, so it covers the setup, both labs and the project's first half.</li>
+  <li>Part 3 (Sessions 18 to 26) continues here. Session 19 taught 7.3 and 8.1; Session 21 teaches 8.3 (screens and flows) on this exact setup and holds Checkpoint 3. Teal blocks are hands-on, amber blocks are watch-outs.</li>
+</ul>
+<div class="note warn"><div class="t">The #1 risk of Session 20: the install, and a red run read as "my app is broken"</div>
+<p>Step 1 downloads about 590 packages (<code class="inline">npx expo install --dev jest-expo jest @types/jest @testing-library/react-native msw</code>): on venue Wi-Fi do it first, while you demo, or ask learners to run it at home before the session (Before the Session). Then the real risk: most red runs today are the SETUP, not the app, and learners who read the first line as "my code is wrong" start editing the app. <b>In the room:</b> the triage board (setup or app?) and the second demo, which shows each setup mistake's shape before learners meet it. <b>Fallback:</b> a learner whose install fails unzips <code class="inline">lesson-29-end.zip</code>, runs <code class="inline">npm ci</code> in its <code class="inline">shoreline-crew</code>, and reads along in the finished suite.</p>
+</div>
+
+  <div class="sec"><h2>Before the Session</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li>☐ <b>A few days before:</b> ask learners to run Step 1's install at home in their own <code class="inline">shoreline-crew</code> (it only adds development packages; the app does not change), or at least to have <code class="inline">lesson-29-start.zip</code> and <code class="inline">lesson-29-end.zip</code> from the course downloads. The labs need nothing new: the shared lab install from Session 1 already holds Jest, jest-expo, MSW 3, Zustand and expo-secure-store.</li>
+  <li>☐ <b>Run the kit check once:</b> <code class="inline">python3 labs/check_labs.py module-20</code> from this kit's folder (8 runs, about two minutes: the starter fails as shipped with <code class="inline">Tests:       7 failed, 3 passed, 10 total</code>, one leaking test passes alone, the solution passes its tests, type check and lint, the finished course app's 28 tests pass on <code class="inline">lesson-29-end</code>, and the stretch handout's broken setup fails exactly as declared). No API is needed.</li>
+  <li>☐ <b>Projector machine:</b> VS Code on a copy of <code class="inline">lesson-29-end</code> (<code class="inline">npm ci</code> done in <code class="inline">shoreline-crew</code>; run <code class="inline">npm test -- --watchAll=false</code> once so the first run's transform cache is warm), a second scratch copy for the "break the setup" demo (never your teaching copy), <code class="inline">lesson_29.html</code> in a tab, the terminal at 18 pt.</li>
+  <li>☐ <b>Board, before learners arrive:</b> the lesson's diagram (a test file → the app's code → fetch: Node's → MSW: the HQ's handlers → shoreline-api's code; native modules → stand-ins: jest.fn); the triage line "setup or app? · whole file fails before any test = setup (ES module, AsyncStorage) · every request 'no answer' = Expo's fetch · fails inside code that works on the phone = what does the stand-in return? · green tests, red tsc = types"; and the three kinds of stand-ins as three columns.</li>
+</ul>
+
+  <div class="sec"><h2>Session 20 Agenda (3 hours)</h2><span class="rule"></span></div>
+  <table class="timing">
+    <thead><tr><th>Clock</th><th>Minutes</th><th>Segment</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td class="t">0:00</td><td class="t">10</td><td>Warm-up and retrieval</td><td>Three questions from Session 19 (8.1's names and roles are what Lesson 8.3's tests will find); the room's Vitest memories on the board.</td></tr>
+      <tr><td class="t">0:10</td><td class="t">10</td><td><b>8.2</b> Frame and mental model</td><td>Tests for the parts you cannot watch; a dry run on the dock; Vitest to Jest in one table; red is information.</td></tr>
+      <tr><td class="t">0:20</td><td class="t">20</td><td><b>8.2</b> Live demo: the setup and the first tests</td><td>The finished stage: jest.environment.js, jest.setup.ts, src/test/server.ts; the first file green, then red on purpose; the sender's five outcomes.</td></tr>
+      <tr><td class="t">0:40</td><td class="t">25</td><td><b>8.2</b> Guided lab: Tasks 1 and 2</td><td><code class="inline">labs/module-20/l8_2-testing-the-apps-logic/starter</code>: tests that leak into each other; an empty stand-in that answers undefined.</td></tr>
+      <tr><td class="t">1:05</td><td class="t">10</td><td>Break</td><td>Leave the triage board up: setup or app?</td></tr>
+      <tr><td class="t">1:15</td><td class="t">20</td><td><b>8.2</b> Live demo: break the setup on purpose</td><td>npx jest, Expo's fetch, no AsyncStorage mock, an empty mock, tsc without Jest's types: each one's shape, read from the top.</td></tr>
+      <tr><td class="t">1:35</td><td class="t">20</td><td><b>8.2</b> Guided lab: Task 3</td><td>MSW answers with shoreline-api's own words: three server.use() overrides.</td></tr>
+      <tr><td class="t">1:55</td><td class="t">55</td><td><b>8.2</b> Start the lesson project</td><td>Steps 1 to 3: install and set up Jest, the mock API and the first test, the schema and the CSV tests. Steps 4 to 6 go home.</td></tr>
+      <tr><td class="t">2:50</td><td class="t">10</td><td>Wrap-up</td><td>Exit ticket (3 questions), homework, bring list for Session 21.</td></tr>
+      <tr><td class="t"><b>Total</b></td><td class="t"><b>180</b></td><td></td><td>Ends at 3:00.</td></tr>
+    </tbody>
+  </table>
+<p><b>In the room.</b> The lesson page estimates 155 minutes for a learner alone. After the warm-up, the break and the wrap-up the room has 150: two demos and two lab blocks on the ideas (the setup, the three stand-ins, keeping tests apart, MSW), then 55 minutes for the project's Steps 1 to 3, the steps that are hardest alone (the install and the setup files) and the first green run.</p>
+<p><b>Goes home (about 2 to 3 hours).</b> The project's Steps 4 to 6 (the queue, the saved session and haptics; the sender's five outcomes against the mock API; the reminders and the whole suite with tsc and lint) and the completion checklist; the lesson's Hands-on Exercises 1 and 2 (Exercise 3 and the Bonus Challenge are stretches); the Quick Quiz; the journal entry; the "Before the Next Lesson" list (write three things a test of one screen should check: Session 21 starts there); the lab's stretch tasks.</p>
+<p><b>Protect, in this order:</b> the project's Steps 1 and 2 in the room (a working <code class="inline">npm test</code> on every laptop before they leave); the second demo's first two mistakes (npx jest and Expo's fetch: the two that cost an evening alone); Lab Task 2 (an empty stand-in answers undefined). <b>Cut first:</b> the tsc step of the second demo, then Lab Task 3 (send it home), then Step 3 of the project.</p>
+
+  <div class="sec"><h2>Opening Segment</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">0:00</span><h3>Warm-up and Retrieval</h3><span class="dur">10 min</span></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">Timing</div>
+<table class="timing">
+<tbody>
+<tr><td class="t">6m</td><td>Three retrieval questions from Session 19, answered in the workbook, then out loud</td></tr>
+<tr><td class="t">4m</td><td>What the room remembers of the HQ's tests (Vitest, Testing Library, MSW): five words on the board</td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Sequence and talking points</div>
+<ul class="tick">
+  <li><b>Retrieval (6m).</b> On the slide: (1) "Which name does a screen reader read for the logbook's tab when one log is waiting?" (Logbook (1), not sent yet: 8.1's tab label); (2) "What does <code class="inline">accessibilityRole</code> tell a test, and what does it tell a person?" (the same thing: what the element is; Lesson 8.3 finds elements by role and name); (3) "Which setting did Lesson 7.3 add for motion, and where is it kept?" (Reduce motion in this app, in the settings module). Answers out loud; no grades.</li>
+  <li><b>The HQ's tests (4m).</b> Ask: "What did MSW do in the HQ's tests?" Write the five words the room gives (arrange, act, assert, mock, handler…). Then the bridge: "Today none of that is taught again. Today is what changes when the app is a phone app: a different runner, a pretend phone, a fetch that is not Node's, and native modules that do not exist on your computer."</li>
+</ul>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Lesson Plans</h2><span class="rule"></span></div>
+
+  <section class="lesson">
+    <div class="lesson-head"><span class="lcode">8.2</span><h3>Testing the App's Logic</h3><span class="dur">150 min</span></div>
+    <div class="lesson-body">
+<div class="blk"><div class="h">Objectives (from the lesson page)</div>
+<ul class="tick">
+  <li>Set up Jest with jest-expo in an Expo SDK 58 project and explain what changes from the web course's Vitest</li>
+  <li>Make the HQ's MSW handlers answer a phone app's requests in Node, and explain the two things that stand in the way (Expo's own fetch, and MSW 3 being an ES module)</li>
+  <li>Replace native modules in tests in three ways: jest-expo's automatic stand-ins, a library's own Jest mock, and your own jest.mock()</li>
+  <li>Test Shoreline Crew's logic where it matters most: rules (address checks, schemas), files (the CSV export), the offline queue, the log sender's five outcomes and the reminders</li>
+  <li>Read a failing Jest run in the terminal and tell a broken test setup from a broken app</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Timing in the room</div>
+<table class="timing">
+<tbody>
+<tr><td class="t">10m</td><td>Frame: tests for the parts you cannot watch; a dry run on the dock; Vitest to Jest; red is information</td></tr>
+<tr><td class="t">20m</td><td>Live demo 1: the three setup files, the bridge, the first test green and red, the sender's five outcomes</td></tr>
+<tr><td class="t">25m</td><td>Guided lab: Tasks 1 and 2 (tests kept apart; an empty stand-in)</td></tr>
+<tr><td class="t">20m</td><td>Live demo 2: break the setup on purpose, five shapes</td></tr>
+<tr><td class="t">20m</td><td>Guided lab: Task 3 (MSW with the API's own words)</td></tr>
+<tr><td class="t">55m</td><td>Start the lesson project: Steps 1 to 3</td></tr>
+</tbody>
+</table>
+</div>
+<div class="blk"><div class="h">Mental model to say</div>
+<p>From the lesson: "Before a boat goes out, the crew can run through the whole plan on the dock: who carries what, what happens if the radio fails. Nothing on the dock is the sea, but every decision can be practiced. A Jest run is that dry run. jest-expo builds a dock that looks like a phone from the app's point of view (Platform.OS is 'ios', the native modules answer), and your tests decide what the sea does: the server says yes, the server says no, the signal drops. The app's decisions are real; the world around them is pretend."</p>
+<p>Then the second picture, for requests: "the meeting point, rehearsed". In the app every request goes to the address in EXPO_PUBLIC_API_URL; in a test that address is http://localhost:4000 (set by jest.setup.ts), and MSW stands there with the server's own rulebook. Nothing listens on port 4000; no request leaves Node.</p>
+<p>Then the Vitest-to-Jest table from the lesson, short: globals instead of imports, <code class="inline">jest.*</code> instead of <code class="inline">vi.*</code>, settings in package.json, no DOM (a pretend phone), Babel and CommonJS, the env var set in the setup file, <code class="inline">--watchAll</code>. And one new rule: never a test file inside <code class="inline">src/app/</code> (Expo Router would treat it as a screen, according to Expo's documentation).</p>
+</div>
+<div class="blk"><div class="h">Live demo 1 (you type, they follow)</div>
+<p>Learners watch; they type in the project block. The outputs below come from a copy of the app exactly as a learner has it at the end of Lesson 8.2.</p>
+<ol class="steps">
+  <li><b>The three setup files (6m).</b> Open the finished stage (<code class="inline">lesson-29-end</code>, or your own copy after the project). Read the environment first: "Expo SDK 58 swaps the global fetch for its own, which only works on a phone. This keeps Node's under another name." Then the setup file's three parts, and the one line in package.json that ties them together:
+<div class="codefile">shoreline-crew/jest.environment.js</div>
+<pre class="code" data-src="shoreline-crew/jest.environment.js" data-stage="lesson_29"><span class="c">// Shoreline Crew's Jest environment (new). Expo SDK 58 swaps the global fetch for Expo's own</span>
+<span class="c">// (expo/fetch), which only works inside the app on a phone: under Jest it answers nothing.</span>
+<span class="c">// This keeps Node's fetch under another name; jest.setup.ts puts it back for the tests.</span>
+<span class="k">const</span> { TestEnvironment } = require(<span class="s">'jest-expo/src/preset/nativeEnvironment'</span>);
+
+module.exports = <span class="k">class</span> ShorelineEnvironment <span class="k">extends</span> TestEnvironment {
+  constructor(config, context) {
+    <span class="k">super</span>(config, context);
+    <span class="k">this</span>.global.__nodeFetch = <span class="k">this</span>.global.fetch;
+  }
+};</pre><div class="codefile">shoreline-crew/jest.setup.ts</div>
+<pre class="code" data-src="shoreline-crew/jest.setup.ts" data-stage="lesson_29"><span class="c">// Runs before every test file (package.json "jest" &gt; "setupFilesAfterEnv")</span>
+
+<span class="c">// 1. Requests go through Node's fetch (kept by jest.environment.js), where MSW can answer them.</span>
+<span class="c">// Loading the expo package installs Expo's fetch again (jest.mock() can load it a second time),</span>
+<span class="c">// so put Node's back now and once more before the file's tests start</span>
+<span class="k">function</span> useNodeFetch() {
+  <span class="k">const</span> nodeFetch = (globalThis <span class="k">as</span> { __nodeFetch?: <span class="k">typeof</span> fetch }).__nodeFetch;
+  Object.defineProperty(globalThis, <span class="s">'fetch'</span>, { value: nodeFetch, writable: <span class="k">true</span>, configurable: <span class="k">true</span> });
+}
+useNodeFetch();
+beforeAll(useNodeFetch);
+
+<span class="c">// 2. The API address the tests use. .env.local is Metro's: Jest never reads it</span>
+process.env.EXPO_PUBLIC_API_URL = <span class="s">'http://localhost:4000'</span>;
+
+<span class="c">// 3. Native modules that have no phone under Jest: use the stand-ins their authors ship</span>
+jest.mock(<span class="s">'@react-native-async-storage/async-storage'</span>, () =&gt;
+  jest.requireActual(<span class="s">'@react-native-async-storage/async-storage/jest/async-storage-mock'</span>),
+);</pre>
+Ask: "Why does <code class="inline">useNodeFetch</code> run twice?" (loading expo again, for example through an automatic <code class="inline">jest.mock()</code>, installs Expo's fetch again; the beforeAll runs after the test file's imports). Point at part 2: Jest never reads <code class="inline">.env.local</code>, Metro does.</li>
+  <li><b>The bridge to the mock API (3m).</b> src/test/server.ts is the HQ's, with a typed <code class="inline">require()</code> and a helper each test file calls. Show the helper only:
+<div class="codefile">shoreline-crew/src/test/server.ts</div>
+<pre class="code" data-src="shoreline-crew/src/test/server.ts" data-stage="lesson_29" data-match="excerpt"><span class="k">export</span> <span class="k">function</span> startMockApi(): <span class="k">void</span> {
+  beforeAll(() =&gt; server.listen({ onUnhandledFrame: <span class="s">'error'</span> }));
+  <span class="c">// Every test starts from the sample data, with only the API's own handlers</span>
+  beforeEach(() =&gt; api.reset());
+  afterEach(() =&gt; {
+    server.resetHandlers();
+    server.events.removeAllListeners();
+  });
+  afterAll(() =&gt; server.close());</pre>
+"Nothing listens on port 4000: MSW stands at the meeting point with the server's own rulebook." Tests work with shoreline-api stopped.</li>
+  <li><b>The first file, green (3m).</b> In <code class="inline">shoreline-crew</code>, one file once (the script itself watches; pass options after <code class="inline">--</code>):
+<pre class="code">npm test -- --watchAll=false src/api/address.test.ts</pre>
+<pre class="out">&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/api/address.test.ts
+
+ PASS  src/api/address.test.ts
+  addressProblem
+    ✓ accepts an address written correctly
+    ✓ explains a missing address, a missing http:// and an /api at the end
+  addressAdvice
+    ✓ reads the host from an address
+    ✓ tells a phone that localhost is the phone itself
+    ✓ gives each device its own advice for the same address
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Ran all test suites matching src/api/address.test.ts.</pre></li>
+  <li><b>Red on purpose (3m).</b> Change <code class="inline">'localhost'</code> to <code class="inline">'localhost2'</code> in the first <code class="inline">hostOf</code> expectation, save, run it again, and read the failure from the top: which test, Expected, Received, the line with the caret:
+<pre class="out">● addressAdvice › reads the host from an address
+  expect(received).toBe(expected) // Object.is equality
+
+    Expected: "localhost2"
+    Received: "localhost"</pre>
+Change it back. "A failing test is the most specific error message you will ever get. First question: is the app wrong, or is the test setup wrong?"</li>
+  <li><b>The sender's five outcomes (5m).</b> The test the lesson builds towards (Step 5). Before you run it, ask the room to name the five ways a log's trip can end. Then:
+<pre class="code">npm test -- --watchAll=false src/state/sendLogs.test.ts</pre>
+<pre class="out">&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/state/sendLogs.test.ts
+
+ PASS  src/state/sendLogs.test.ts
+  ✓ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✓ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✓ keeps the log for the next sign-in when the sign-in has ended
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Ran all test suites matching src/state/sendLogs.test.ts.</pre>
+The kit's run is the lesson's card (times left out). Each line is a promise to a volunteer that Lesson 5.5 checked by hand, stopping and starting shoreline-api. Show the lesson's terminal picture for the same run if the projector is small.</li>
+</ol>
+</div>
+<div class="blk lab"><div class="h">Guided lab: Tasks 1 and 2</div>
+<p><b>Folder:</b> <code class="inline">labs/module-20/l8_2-testing-the-apps-logic/starter/</code> with <code class="inline">labs/module-20/l8_2-testing-the-apps-logic/TASKS.md</code>; your reference is <code class="inline">labs/module-20/l8_2-testing-the-apps-logic/solution/</code>. Three small pieces of new code (a gear-shed store, a draft kept in the keychain, a sign-up request), and <b>every task is a fix to a test file</b>: the code is right. Uses the shared lab install; no API, no Metro.</p>
+<ul class="tick">
+  <li><b>Run it as shipped (3m).</b> <code class="inline">npm test</code> in <code class="inline">starter</code>: seven failures in three files. Read the summary and the first failure of each file together:</li>
+</ul>
+<pre class="out">● refuses an item that is already out
+  expect(received).toBe(expected) // Object.is equality
+● starts the day with everything on the shelf
+  expect(received).toEqual(expected) // deep equality
+● passes on the server's own words when the volunteer already has a spot
+  TODO 3a: make the API answer this test with answers.alreadySignedUp (409), with server.use()
+● asks for a new sign-in when the API does not know the token
+  TODO 3b: make the API answer this test with answers.signInEnded (401)
+● reports "no answer" when the connection drops
+  TODO 3c: make the request fail like a dropped connection (MSW: HttpResponse.error())
+● saves the draft under its key
+  TypeError: Cannot read properties of undefined (reading 'catch')
+● loads the draft saved on the phone
+  expect(received).toEqual(expected) // deep equality
+
+Tests:       7 failed, 3 passed, 10 total</pre><ul class="tick">
+  <li><b>Task 1 (10m): tests that depend on the test before them.</b> First <code class="inline">npm test -- -t refuses</code>: the one test passes alone (<code class="inline">Tests:       9 skipped, 1 passed, 10 total</code>). Ask: "what did the first test leave behind?" One <code class="inline">beforeEach</code> with <code class="inline">useGearShed.setState(useGearShed.getInitialState())</code>, exactly the lesson's queue reset. Circulate for learners who reorder the tests or call <code class="inline">giveBack</code> at the end of each test (it works until one fails halfway).</li>
+  <li><b>Task 2 (10m): an empty stand-in answers undefined.</b> The <code class="inline">.catch</code> of undefined (the lesson's haptics mistake, on new code) and a <code class="inline">null</code> that comes from <code class="inline">isAvailableAsync</code> answering undefined (the lesson's SecureStore note). A <code class="inline">beforeEach</code> with two <code class="inline">mockResolvedValue</code> calls. Ask: "why does <code class="inline">npm run typecheck</code> accept <code class="inline">secureStore.setItemAsync.mockResolvedValue()</code>?" (<code class="inline">jest.mocked()</code> gave it the mock types).</li>
+  <li><b>Debrief (2m):</b> "Which of today's two failures pointed into the app's code, and was the app wrong?" (the <code class="inline">.catch</code> one, into draft.ts:19; no). Task 3 waits for after the second demo.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Live demo 2: break the setup on purpose</div>
+<p>Use a second scratch copy. Each break is the lesson's own Common Mistake; the kit made each one with the lesson's edit and undid it, and its output matches the lesson's card. Before each run: "setup or app?"</p>
+<ol class="steps">
+  <li><b>npx jest (4m).</b> The habit from other projects. Ask for a prediction, then:
+<pre class="code">npx jest src/state/sendLogs.test.ts</pre>
+<pre class="out"> FAIL  src/state/sendLogs.test.ts
+  ● Test suite failed to run
+
+    Must use import to load ES Module: &lt;folder&gt;/node_modules/msw/lib/core/index.js
+
+    The file contains ESM syntax (import/export) that could not be executed as CommonJS. Either:
+      - Configure a transform (e.g. babel-jest) that compiles this file to CommonJS (see https://jestjs.io/docs/code-transformation)
+      - If the file is in "node_modules", allow it to be transformed by adjusting "transformIgnorePatterns" (see https://jestjs.io/docs/configuration#transformignorepatterns-arraystring)
+      - Use Node v24.9+ where Jest supports require(esm) natively (see https://jestjs.io/docs/ecmascript-modules#require-of-esm)</pre>
+Every file that imports msw fails before a test runs. Do not follow the message's suggestions (the run already used Node 24): <code class="inline">npm test</code>, with options after <code class="inline">--</code>. The lesson's card says the same, with <code class="inline">~/shoreline/shoreline-crew</code> where the kit printed <code class="inline">&lt;folder&gt;</code>.</li>
+  <li><b>Expo's fetch (4m).</b> In a scratch copy, take <code class="inline">"testEnvironment": "./jest.environment.js"</code> out of package.json and the two <code class="inline">useNodeFetch</code> calls out of jest.setup.ts. Run the sender's file:
+<pre class="code">npm test -- --watchAll=false src/state/sendLogs.test.ts</pre>
+<pre class="out"> FAIL  src/state/sendLogs.test.ts
+  ✕ sends a waiting log, saves it in the logbook, and takes it out of the queue
+  ✓ sends nothing while the phone is offline
+  ✕ marks a log the server refuses, with the server's words
+  ✓ keeps the log and counts the try when the server does not answer
+  ✕ keeps the log for the next sign-in when the sign-in has ended
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 2 passed, 5 total</pre>
+The two tests that pass are the two where no answer was expected, and each failure shows <code class="inline">"attempts": 1</code>. "When every request gets no answer while MSW listens, suspect the fetch, not the app." Put both back.</li>
+  <li><b>No AsyncStorage mock (3m).</b> Take part 3 out of jest.setup.ts and run the queue's file:
+<pre class="code">npm test -- --watchAll=false src/state/logQueue.test.ts</pre>
+<pre class="out"> FAIL  src/state/logQueue.test.ts
+  ● Test suite failed to run
+
+    [@RNC/AsyncStorage]: NativeModule: AsyncStorage is null.
+...
+Test Suites: 1 failed, 1 total
+Tests:       0 total</pre>
+The message's first suggestions are for an app on a phone; the last ("If this happens while testing with Jest") is ours. Put it back.</li>
+  <li><b>An empty mock (4m).</b> Remove <code class="inline">beforeEach(() =&gt; buzz.mockResolvedValue());</code> from haptics.test.ts:
+<pre class="code">npm test -- --watchAll=false src/utils/haptics.test.ts</pre>
+<pre class="out">● buzzes "success" when something went through
+  TypeError: Cannot read properties of undefined (reading 'catch')</pre>
+The stack points into the app (haptics.ts:33), and the app is fine: on a phone the function always returns a Promise. "When a test fails inside code that works on your phone, check what your stand-ins return."</li>
+  <li><b>Green tests, red tsc (5m).</b> Take <code class="inline">"types": ["jest"]</code> out of tsconfig.json. The tests still pass (Babel only strips types); the checker does not:
+<pre class="code">npx tsc --noEmit</pre>
+<pre class="out">src/api/address.test.ts:3:1 - error TS2593: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha` and then add 'jest' or 'mocha' to the types field in your tsconfig.
+...
+
+Errors  Files
+     3  jest.setup.ts:11
+    18  src/api/address.test.ts:3
+    12  src/api/schemas.test.ts:23
+     8  src/auth/session.test.ts:9
+    22  src/notifications/reminders.test.ts:13
+    12  src/state/logQueue.test.ts:9
+    18  src/state/sendLogs.test.ts:14
+     8  src/storage/logbookExport.test.ts:17
+     4  src/test/server.ts:37
+     8  src/utils/haptics.test.ts:8</pre>
+Then the other half: put <code class="inline">types</code> back and take <code class="inline">"src/mocks"</code> out of <code class="inline">exclude</code>: three errors in shoreline-api's copied code (TS5097 twice, <code class="inline">FormData.get</code> once). "Do not fix the API's files; keep them out of the check." Restore, then the build-server trio, all clean (expo lint prints only Expo's two env lines):</li>
+  <li><b>The whole suite.</b> 
+<pre class="code">npm test -- --watchAll=false
+npx tsc --noEmit
+npx expo lint</pre>
+<pre class="out"> PASS  src/api/address.test.ts
+ PASS  src/state/logQueue.test.ts
+ PASS  src/api/schemas.test.ts
+ PASS  src/utils/haptics.test.ts
+ PASS  src/state/sendLogs.test.ts
+ PASS  src/auth/session.test.ts
+ PASS  src/storage/logbookExport.test.ts
+ PASS  src/notifications/reminders.test.ts
+Test Suites: 8 passed, 8 total
+Tests:       28 passed, 28 total
+
+env: load .env.local
+env: export EXPO_PUBLIC_API_URL</pre>
+Order and time differ on every machine. Jest lists the tests only of files that fail.</li>
+</ol>
+</div>
+<div class="blk warn"><div class="h">Three mistakes to expect, and how to coach each</div>
+<ul class="tick">
+  <li><b>Editing the app to make a test pass.</b> The stack trace points into <code class="inline">haptics.ts</code>, so they delete the <code class="inline">.catch()</code>. Coach: "Does it work on your phone? Then what does the stand-in return?" (Self-check Q4, the lesson's quiz Q3.)</li>
+  <li><b>Following the error message's own advice.</b> transformIgnorePatterns for MSW, a newer Node, a reinstall. Coach: "Which command did you type? The flag lives in the test script." (Self-check Q2.)</li>
+  <li><b>Assuming order does not matter.</b> A test passes alone and fails in the full run, and they "fix" it by running it alone. Coach: "What does each test leave in the store, the session, the settings, AsyncStorage?" (Self-check Q9, Lab Task 1.)</li>
+</ul>
+</div>
+<div class="blk lab"><div class="h">Guided lab: Task 3</div>
+<p>Same folder. <code class="inline">src/fixtures/signups.json</code> holds four answers the real shoreline-api gave to <code class="inline">POST /api/events/:id/signups</code> (captured once for the kit from a private copy of the API): a sign-up that works, "You are already signed up for this cleanup.", a token the API does not know (401), and a cleanup that is over. The server's default handler says yes; learners replace each <code class="inline">todo(...)</code> with one <code class="inline">server.use(...)</code> override (409, 401, <code class="inline">HttpResponse.error()</code>).</p>
+<ul class="tick">
+  <li><b>Circulate for:</b> overrides put in a <code class="inline">beforeEach</code> (then every test gets the 409); <code class="inline">HttpResponse.json(answers.alreadySignedUp)</code> without <code class="inline">.body</code> (the outcome's message is then the fallback); a forgotten <code class="inline">{ status: 409 }</code> (the API's words come back as a sign-up).</li>
+  <li><b>Expected when all three tasks are done</b> (the solution adds the stretch test, so it has 11):</li>
+</ul>
+<pre class="out"> PASS  src/gearShed.test.ts
+ PASS  src/signUp.test.ts
+ PASS  src/draft.test.ts
+Test Suites: 3 passed, 3 total
+Tests:       11 passed, 11 total</pre><ul class="tick">
+  <li><b>Debrief (2m):</b> "Why replay the API's real answers instead of writing your own?" (the app's code meets the words volunteers will really see; the lesson's handlers go further and run the API's whole rulebook). "Which test needed no server answer at all?" (no answer: <code class="inline">HttpResponse.error()</code> fails the request like a dropped connection).</li>
+  <li><b>Fast finishers:</b> Stretch 1 (the cleanup that is over, no change to signUp.ts) and Stretch 2: the finished course app (<code class="inline">lesson-29-end</code>) with <code class="inline">labs/module-20/l8_2-testing-the-apps-logic/debug_jest.setup.ts</code> over its setup file. The kit ran it: <code class="inline">Test Suites: 4 failed, 4 passed, 8 total</code>, every failing file stopped by <code class="inline">[@RNC/AsyncStorage]: NativeModule: AsyncStorage is null.</code></li>
+</ul>
+</div>
+<div class="blk"><div class="h">Start the lesson project</div>
+<p>The lesson project is <b>Shoreline Crew's First Test Suite</b>, six steps (155 minutes alone with the reading). In the room: Steps 1 to 3 (55 minutes). Everyone works in their own <code class="inline">shoreline-crew</code> (their code after Lesson 8.1 = <code class="inline">lesson-29-start</code>).</p>
+<ul class="tick">
+  <li><b>Step 1 (20m with the install):</b> <code class="inline">npx expo install --dev jest-expo jest @types/jest @testing-library/react-native msw</code>; the test script and the <code class="inline">jest</code> section in package.json; <code class="inline">jest.environment.js</code>, <code class="inline">jest.setup.ts</code>; <code class="inline">types</code> and <code class="inline">exclude</code> in tsconfig.json; <code class="inline">src/mocks/*</code> in eslint's ignores. Say the warning from the lesson: never <code class="inline">npm audit fix --force</code>.</li>
+  <li><b>Step 2 (20m):</b> copy shoreline-api's <code class="inline">core</code> and <code class="inline">msw</code> folders into <code class="inline">src/mocks/</code> (macOS/Linux <code class="inline">cp -r</code>, PowerShell <code class="inline">Copy-Item</code>, both on the lesson page); <code class="inline">src/test/server.ts</code> and <code class="inline">src/test/factories.ts</code>; the address test; <code class="inline">npm test</code> in a second terminal, left watching. <b>Done in the room</b> = <code class="inline">Tests:       5 passed</code> and Jest's watch menu on every laptop.</li>
+  <li><b>Step 3 (15m):</b> the schema test and the CSV test. Warn about the byte order mark: type the escape <code class="inline">\uFEFF</code>, never the invisible character (an editor that pastes it makes the test pass and the file unreadable).</li>
+  <li><b>Goes home:</b> Steps 4 to 6 and the checklist. Session 21 starts from the finished suite (28 tests); <code class="inline">lesson-29-end</code> is the reference.</li>
+</ul>
+<figure class="shot"><img src="../../../images/lesson_29/29-watch.png" alt="A terminal after npm test: eight PASS lines, one per test file, Tests: 28 passed, 28 total, then Watch Usage with keys: f to run only failed tests, o for changed files, p to filter by file name, t to filter by test name, q to quit watch mode, Enter to run again."><figcaption>npm test keeps watching: change a file and the tests run again. With several files Jest prints one PASS or FAIL line per file. Press q to stop.</figcaption></figure></div>
+<div class="blk"><div class="h">Checks for understanding</div>
+<p>Ask these out loud during the demos and the labs:</p>
+<ul class="tick">
+  <li>Where does a request from the app go in a test? <b>Answer:</b> to Node's fetch (put back by the environment and the setup file), where MSW answers it with shoreline-api's code.</li>
+  <li>Name the three kinds of stand-ins and one module each. <b>Answer:</b> jest-expo's automatic ones (expo-file-system, expo-sqlite), a library's own Jest mock (AsyncStorage), your own jest.mock(): automatic (expo-secure-store, expo-haptics) or a factory (expo-notifications).</li>
+  <li>What does an empty <code class="inline">jest.fn()</code> return? <b>Answer:</b> undefined, not a Promise: give it <code class="inline">mockResolvedValue()</code>.</li>
+  <li>A whole test file fails before any test runs. Setup or app? <b>Answer:</b> almost always the setup (an ES module without the flag, a native module with no stand-in).</li>
+</ul>
+<p>Workbook self-check, items Q1 to Q12 (learners do them at the end of the block or at home).</p>
+<p style="font-size:.9rem;margin:.2rem 0">Answers: <b>Q1</b> <span data-sc="1">B) Nothing: <code class="inline">describe</code>, <code class="inline">it</code>, <code class="inline">expect</code> and <code class="inline">jest</code> are globals, typed by <code class="inline">@types/jest</code> through <code class="inline">"types": ["jest"]</code></span>; <b>Q2</b> <span data-sc="2">C) Run <code class="inline">npm test -- --watchAll=false src/state/sendLogs.test.ts</code>: the script starts Node with <code class="inline">--experimental-vm-modules</code></span>; <b>Q3</b> <span data-sc="3">A) At <code class="inline">testEnvironment</code> in package.json, <code class="inline">jest.environment.js</code> and the <code class="inline">useNodeFetch</code> lines: requests are going to Expo's fetch</span>; <b>Q4</b> <span data-sc="4">No: <code class="inline">jest.mock('expo-haptics')</code> made <code class="inline">notificationAsync</code> an empty jest.fn that returns undefined; give it a Promise with <code class="inline">buzz.mockResolvedValue()</code> (in a beforeEach)</span>; <b>Q5</b> <span data-sc="5">B) The library's own Jest mock, once, in jest.setup.ts (<code class="inline">jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock')</code>)</span>; <b>Q6</b> <span data-sc="6">D) The real module cannot even load under Jest (its <code class="inline">setNotificationHandler</code> fails), and an automatic mock loads it to build itself</span>; <b>Q7</b> <span data-sc="7">C) Put <code class="inline">"types": ["jest"]</code> back in tsconfig.json's compilerOptions</span>; <b>Q8</b> <span data-sc="8">Jest runs the code after Babel strips the types, without checking them; tsc checks them. Done = both clean (tests, <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code>)</span>; <b>Q9</b> <span data-sc="9">A) Something an earlier test changed in a module (a store, the session, a setting) was never reset in a beforeEach</span>; <b>Q10</b> <span data-sc="10">D) That a note starting with <code class="inline">=</code> cannot run as a formula in the exported CSV</span>; <b>Q11</b> <span data-sc="11">B) <code class="inline">expect(scheduledIds()).toEqual(['reminder-e08', 'reminder-e10', 'reminder-e11', 'reminder-e13'])</code></span>; <b>Q12</b> <span data-sc="12">That the buzz feels right, or that an iPhone with System Haptics off stays still: trying it on a real phone (Lesson 6.5's phone checks)</span>. Full set with explanations in the Answer Key.</p></div>
+<div class="blk"><div class="h">Differentiation</div>
+<p><b>Support:</b> a learner whose install fails works in <code class="inline">lesson-29-end</code> (<code class="inline">npm ci</code> in its <code class="inline">shoreline-crew</code>) and reads the project's files instead of typing them, then types the address test into it. For learners new to mocks, one card: "automatic = every function empty, answers undefined · factory = exactly what you write · mockResolvedValue = answer with a Promise".</p>
+<p><b>Stretch:</b> the lab's two stretches; the lesson's Exercise 3 (a photo uploaded only once) and the Bonus Challenge (two sends at once, one POST); <code class="inline">npm test -- --watchAll=false --coverage</code> and reading the rows for logQueue.ts and sendLogs.ts (add <code class="inline">coverage/</code> to .gitignore).</p>
+</div>
+    </div>
+  </section>
+
+  <div class="sec"><h2>Closing</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Exit ticket (3 questions, no notes, 4 minutes)</div>
+<p>Put the three questions on the slide; learners answer in the workbook's Exit Ticket box or on a sticky note.</p>
+<ol class="steps">
+  <li>Why does Shoreline Crew's test script start <code class="inline">node --experimental-vm-modules</code> instead of <code class="inline">jest</code>? <b>Answer:</b> MSW 3 is ES modules only; Jest can load those from node_modules only with Node's VM-modules feature on.</li>
+  <li>A test fails inside <code class="inline">haptics.ts</code>, which works on your phone. What do you check first? <b>Answer:</b> what the stand-in returns (an empty mock answers undefined: <code class="inline">mockResolvedValue()</code>).</li>
+  <li>Name one thing the tests you wrote today can never prove. <b>Answer:</b> that the real phone answers the way the stand-ins do (the keychain, the scheduler, a permission prompt, how a buzz feels).</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Homework (about 2 to 3 hours)</div>
+<ul class="tick">
+  <li><b>Finish the lesson project:</b> Steps 4 to 6 (the queue, the saved session and the buzz; the sender's five outcomes against the mock API; the reminders, then <code class="inline">npm test -- --watchAll=false</code>, <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code>) and every checklist item, including "your own app": three pieces of logic in your final-project idea, with test names written first.</li>
+  <li><b>Lesson exercises:</b> Exercises 1 and 2 (6 pm the evening before; the guard on reminder taps). Exercise 3 and the Bonus Challenge are stretches.</li>
+  <li><b>The Quick Quiz</b> on the lesson page (five questions; answers in the Answer Key).</li>
+  <li><b>Lab:</b> any task not finished in the room, and the two stretches.</li>
+  <li><b>Journal:</b> today's entry (one stand-in, what it pretends, and how a real phone could differ).</li>
+  <li><b>Before the Next Lesson:</b> the three checks, committed; pick one screen and write three things a test of it should check (what a volunteer sees, presses, and then sees). Session 21 starts there.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Bring list for Session 21</div>
+<ul class="tick">
+  <li><code class="inline">shoreline-crew</code> with the finished suite: <code class="inline">npm test -- --watchAll=false</code> says <code class="inline">Tests:       28 passed, 28 total</code> (or <code class="inline">lesson-29-end</code>), and <code class="inline">npx tsc --noEmit</code> and <code class="inline">npx expo lint</code> are clean.</li>
+  <li>The screen and its three checks from "Before the Next Lesson": Lesson 8.3 renders screens with React Native Testing Library (already installed today) and finds controls by the names Lesson 8.1 checked.</li>
+  <li>Session 21 also holds Checkpoint 3 (Modules 7 and 8 so far): review the self-checks of Sessions 18 to 20.</li>
+  <li>Before Session 21, run <code class="inline">npm test</code> once in <code class="inline">labs/module-21/checkpoint-3/starter</code> and <code class="inline">labs/module-21/l8_3-testing-screens-and-flows/starter</code> (the TODO failures are expected) so Jest's cache is warm and the checkpoint starts fast.</li>
+</ul>
+</div>
+
+  <div class="sec"><h2>If You Run Long or Short</h2><span class="rule"></span></div>
+<div class="blk warn"><div class="h">Running long: what to protect and what to cut first</div>
+<ul class="tick">
+  <li><b>Protect:</b> Steps 1 and 2 of the project (a working <code class="inline">npm test</code> on every laptop); the second demo's npx jest and Expo's fetch steps; Lab Task 2.</li>
+  <li><b>Cut first (saves 5m):</b> the tsc step of the second demo (it is the lesson's card; read it at home).</li>
+  <li><b>Cut second (saves 20m):</b> Lab Task 3: send it home with the solution's expected output.</li>
+  <li><b>Cut third (saves 15m):</b> the project's Step 3: the schema and CSV tests go home with Steps 4 to 6.</li>
+</ul>
+</div>
+<div class="blk"><div class="h">Running short: what to add</div>
+<ul class="tick">
+  <li>Step 4 together: the queue's three tests, then make one depend on the one before it on purpose (take out the <code class="inline">beforeEach</code> reset) and watch the full run go red.</li>
+  <li>The lesson's Exercise 2 together: hostile input for <code class="inline">isCleanupPath</code>, one expectation per value a notification could carry.</li>
+  <li>The Bonus Challenge live: two <code class="inline">sendWaitingLogs()</code> calls with <code class="inline">Promise.all</code>, <code class="inline">recordRequests()</code> must show one POST; break the guard and read the test's words.</li>
+</ul>
+</div>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 20 · Facilitator Guide · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Notifications on a phone: local reminders before a cleanup with expo-notifications, asked for at the right moment, kept in step with the sign-ups and cancelled with them, a tap that opens the cleanup, and an honest look at what push notifications from a server would need. React Native &amp; Expo: Build and Ship a Mobile App Lesson 6.4.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Notifications - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🔔 Lesson 6.4: Notifications</h1>
+                <p class="lead">A volunteer who signs up for Saturday's cleanup on a Tuesday has four days to forget it. Today Shoreline Crew remembers for them: the evening before each cleanup they have a spot at, the phone itself shows a short reminder with the time and the meeting point, and one tap opens the cleanup. No server sends it, no signal is needed, and a cancelled sign-up takes its reminder with it. You will also look honestly at the other kind of notification, the kind a server pushes, and at everything it would take.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Tell local notifications from push notifications and choose between them: what each needs, what each can do, and why Shoreline Crew's reminders are local</li>
+                        <li>Put notifications through Lesson 6.1's permission step with a Hook made by <code>createPermissionHook</code>, including Android's channels and the iPhone's question</li>
+                        <li>Schedule, replace and cancel reminders with expo-notifications, and keep them in step with the server's sign-ups in one function that is safe to run at any time</li>
+                        <li>Open the right screen from a tap on a notification, whether the app was running or not, and treat the notification's data as outside input</li>
+                        <li>Say what server push would need (a development build, an EAS project, credentials, push tokens and a server), and what Expo Go and the web preview can and cannot show</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 150 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_22.html">Lesson 6.3: Location and Maps</a> (and the permission step from <a href="lesson_20.html">Lesson 6.1</a>, the settings store from <a href="lesson_17.html">Lesson 5.3</a>, the links from <a href="lesson_14.html">Lesson 4.4</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A <strong>Reminders</strong> switch on the Profile tab; reminders at 6 pm the evening before each cleanup with a confirmed spot, set, replaced and cancelled with the sign-ups; and taps that open the cleanup</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), expo-notifications 58.1, Expo Router 58, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone for the reminders and the taps; the web preview in Chrome for the switch and the permission step; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-23-start.zip">lesson-23-start.zip</a> · Finished code: <a href="downloads/lesson-23-end.zip">lesson-23-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Remembering for the Crew</a></li>
+                        <li><a href="#local-push" class="toc-link">Local or Push?</a></li>
+                        <li><a href="#asking" class="toc-link">Asking to Notify</a></li>
+                        <li><a href="#scheduling" class="toc-link">Reminders That Stay True</a></li>
+                        <li><a href="#taps" class="toc-link">A Tap That Opens a Cleanup</a></li>
+                        <li><a href="#push" class="toc-link">What Server Push Would Need</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Reminders Before Every Cleanup</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Remembering for the Crew</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you looked at two apps in your phone's notification settings: one whose reminders you like and one you have silenced. The difference is rarely the technology. The good one speaks when it has something useful to say, at a sensible time, and lets you turn it off; the silenced one interrupted you once too often. Every app that sends notifications is one bad evening away from that switch.</p>
+                <p>Shoreline Crew has a real reason to speak: people forget. A reminder the evening before ("Tomorrow: Weekend Cove Cleanup, 09:00 to 11:30. Meet at Top of the Cove Lane stairs.") turns a sign-up into a volunteer on the beach. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>Reminders are opt-in.</strong> A switch on the Profile tab, and the phone's question only after the volunteer turns it on, through the permission step you built in Lesson 6.1.</li>
+                    <li><strong>Reminders follow the sign-ups.</strong> Sign up, and a reminder is set; cancel, and it is gone; sign out, and the next person does not get yours. One function makes the phone's reminders match the server's sign-ups, and it is safe to run as often as you like.</li>
+                    <li><strong>A tap opens the cleanup</strong>, through the same path as the links you made in Lesson 4.4, whether the app was open or closed.</li>
+                    <li><strong>You know what push would take.</strong> Reminders from a server (a cancelled cleanup, a spot that opened up) need more than code, and the course does not ship it: you will see exactly why, and what it would cost.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> notifications are where an app reaches into someone's day uninvited. Teams that get them right keep their users; teams that do not watch their "notifications off" numbers climb and never get them back. They are also full of traps that only show on a device: a reminder that never fires, one that fires for someone who cancelled, a tap that opens the wrong screen. You will design those out today.</p>
+                <div class="card card-accent">
+                    <h3>🌱 The part you cannot see from your desk</h3>
+                    <p>A notification is drawn by the phone, outside your app, at a time you chose days ago. The web preview cannot show one at all, so this lesson leans on Expo Go on your phone, on reading the library's source, and on a test reminder that arrives ten seconds after you press a button. If a reminder does not appear the first time, that is a clue, not a failure: the permission, the channel, the time and the Do Not Disturb setting are each worth checking, and you will know where to look.</p>
+                </div>
+            </section>
+
+            <section id="local-push" class="lesson-section">
+                <h2>📬 Local or Push?</h2>
+                <p>On the web, a page can show a notification while it is open, and a service worker can receive pushes from a server. Phones have the same two ideas, and they are worth keeping apart, because they need very different things:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Local notification</th><th>Push notification</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Who decides to send it</td><td>The app, on the phone, ahead of time</td><td>A server, whenever something happens</td></tr>
+                            <tr><td>Who delivers it</td><td>The phone's own scheduler, even with the app closed</td><td>Apple's (APNs) or Google's (FCM) push service, over the internet</td></tr>
+                            <tr><td>Needs a signal at that moment</td><td>No</td><td>Yes</td></tr>
+                            <tr><td>Needs a server and accounts</td><td>No</td><td>Yes: your server, credentials for both push services, a token per device</td></tr>
+                            <tr><td>Expo Go</td><td>Works</td><td>Not on Android (since SDK 53); a development build is the way</td></tr>
+                            <tr><td>Good for</td><td>Things known in advance: a reminder before a cleanup</td><td>Things decided elsewhere: the organizer cancelled, a spot opened up</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A reminder the evening before a cleanup is known the moment the volunteer signs up: the date and time are in the sign-up. Nothing needs to travel at 6 pm, so a local notification does the job with no server, no account and no signal on the beach road. That is why Shoreline Crew's reminders are local, and why this lesson can be built and run in Expo Go today.</p>
+<div class="mermaid">
+graph TD
+    A["Volunteer signs up"] --> B["App schedules a reminder"]
+    B --> C["Phone's scheduler waits"]
+    C -->|"6 pm the evening before"| D["Phone shows it"]
+    D -->|"tap"| E["Cleanup screen"]
+    F["Organizer changes something"] --> G["Server sends a push"]
+    G --> H["APNs or FCM"]
+    H --> D
+</div>
+                <p>The left side is today's project. The right side is what a push would add: a server deciding, and a push service in between. Both end the same way, a notification on the phone and a tap that opens a screen, which is why the tap handling you write today would serve push too.</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the tide table on the van's dashboard</h3>
+                    <p>Before a season, the crew copies the tide times onto a card taped to the van's dashboard. Nobody needs a signal to read it at dawn, and it is always there. But if a time changes, someone has to copy the card again, or the van arrives at high water. A local reminder is that card: written ahead, read with no signal, and only as true as the last time you copied it, which is why the app copies again whenever the sign-ups change. A push notification is the harbor radio: someone at the station speaks when something changes, but you need a radio, a station, and a license to broadcast.</p>
+                </div>
+            </section>
+
+            <section id="asking" class="lesson-section">
+                <h2>🙋 Asking to Notify</h2>
+                <p>Lesson 6.1 said notifications need a yes "on iPhone and on recent Android versions". Here is the detail, from Apple's, Google's and Expo's documentation:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>iPhone</th><th>Android 13 and later</th><th>Android 12 and earlier</th><th>Web preview (Chrome)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Needs a yes</td><td>Yes, before any notification shows</td><td>Yes (the POST_NOTIFICATIONS permission)</td><td>No: on unless turned off in Settings</td><td>Yes: the browser's own question for the site</td></tr>
+                            <tr><td>After one no</td><td>Blocked: only Settings can change it</td><td>Asks once more, then blocked (like location)</td><td></td><td>Blocked</td></tr>
+                            <tr><td>Extra</td><td>The app chooses what it asks for: alerts, sounds, badges</td><td>Notifications belong to <strong>channels</strong> the person can tune one by one</td><td>Channels too (Android 8 and later)</td><td>Asking works; scheduling does not (below)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The answers come back in the same <code>PermissionResponse</code> shape as location and the camera, so Lesson 6.1's <code>permissionStep</code> and <code>PermissionGate</code> work unchanged. The one thing missing is the Hook: expo-notifications has <code>getPermissionsAsync</code> and <code>requestPermissionsAsync</code>, but no <code>useNotificationPermissions</code>. As Lesson 6.1's FAQ said, <code>createPermissionHook</code>, exported by <code>expo</code>, makes one from those two functions; it is the same helper the other Expo modules use to make theirs:</p>
+                <pre data-snippet><code class="language-ts">import { createPermissionHook } from 'expo';
+import * as Notifications from 'expo-notifications';
+
+// Reads on mount, asks only when you call the second item: the same three-item tuple as
+// Location.useForegroundPermissions(), so usePermission() from Lesson 6.1 takes it as it is
+export const useNotificationPermissions = createPermissionHook({
+  getMethod: Notifications.getPermissionsAsync,
+  requestMethod: Notifications.requestPermissionsAsync,
+});</code></pre>
+                <p>Shoreline Crew's version (Step 3) replaces <code>requestMethod</code> with a small function of its own, for two reasons:</p>
+                <ul>
+                    <li><strong>Android's channel comes first.</strong> Every notification on Android 8 and later belongs to a channel ("Cleanup reminders"), and the person can turn each channel off or make it silent in Settings. Expo's documentation says Android 13 and later only show the permission question once the app has created a channel, so the app creates it, then asks.</li>
+                    <li><strong>Ask only for what you use.</strong> By default, <code>requestPermissionsAsync()</code> asks an iPhone for alerts, sounds and badges (read in the module's iOS code: no options means all three). Shoreline Crew never puts a number on its icon, so it asks for alerts and sounds only.</li>
+                </ul>
+                <p>And the moment? The farm gate rule from Lesson 6.1: ask when the volunteer does the thing that needs it. For reminders, that thing is turning on a <strong>Remind me the evening before my cleanups</strong> switch. Until then, nothing asks, and the setting starts off.</p>
+                <h3>What the web preview does</h3>
+                <p>Reading <code>node_modules/expo-notifications/build/</code> shows what each part does on the web, and the web preview confirmed it (measured):</p>
+                <ul>
+                    <li><strong>Permissions work</strong>: the web version uses the browser's own <code>Notification</code> permission, so <strong>Continue</strong> shows Chrome's notification bubble, and the answer maps to the same steps (a browser "Block" is final, so the gate shows the blocked face).</li>
+                    <li><strong>Scheduling does not</strong>: the web scheduler module is empty, so <code>scheduleNotificationAsync</code> and its friends throw an "is not available on web" error (<code>UnavailabilityError</code>). The app checks <code>Platform.OS</code> first and tells the volunteer where reminders really happen.</li>
+                    <li><strong>Listeners do nothing</strong>, and say so: the browser console shows a warning from expo-notifications when the app loads ("Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect."). It is harmless; it comes from the library, not from your code.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>In Expo Go, the question names Expo Go, not Shoreline Crew (Lesson 6.1's table), and the library prints a warning when the app starts: "<code>expo-notifications</code> functionality is not fully supported in Expo Go", with a suggestion to use a development build (read in its source). On an Android phone, a second warning says push notifications are unavailable in Expo Go since SDK 53 and that local notifications remain available. Both are expected: local reminders are all this lesson uses. The questions, channels and warnings could not be run here (no phone, no Android emulator on this course's machine); Step 7 has you check them.</p>
+                </div>
+            </section>
+
+            <section id="scheduling" class="lesson-section">
+                <h2>⏰ Reminders That Stay True</h2>
+                <p>A local notification is a request handed to the phone: what to show (the <strong>content</strong>), when (the <strong>trigger</strong>), and a name for it (the <strong>identifier</strong>):</p>
+                <pre data-snippet><code class="language-ts">import * as Notifications from 'expo-notifications';
+
+await Notifications.scheduleNotificationAsync({
+  identifier: 'reminder-e08', // yours to choose; the same id again replaces this one
+  content: {
+    title: 'Tomorrow: Weekend Cove Cleanup',
+    body: '09:00 to 11:30. Meet at Top of the Cove Lane stairs.',
+    data: { url: '/cleanups/e08' }, // anything your app needs when it is tapped
+  },
+  trigger: {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: new Date('2026-12-05T18:00'), // an example; the app works it out from the cleanup
+  },
+});</code></pre>
+                <p>The trigger's <code>type</code> says what kind of time it is. The ones you are most likely to need:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Trigger type</th><th>Fires</th><th>Example</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>DATE</code></td><td>Once, at a moment</td><td>6 pm the evening before a cleanup (Shoreline Crew)</td></tr>
+                            <tr><td><code>TIME_INTERVAL</code></td><td>After a number of seconds (optionally again and again)</td><td>The test reminder in 10 seconds (Step 7)</td></tr>
+                            <tr><td><code>DAILY</code>, <code>WEEKLY</code></td><td>At a time every day or week</td><td>"Log your week's pickups", every Sunday at 7 pm</td></tr>
+                            <tr><td><code>null</code></td><td>At once</td><td>Rarely: something on screen usually says it better</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Once scheduled, the reminder belongs to the phone. The app can be closed, the phone can lose its signal, and at 6 pm the notification appears anyway. That is the strength of a local notification, and also its weakness: the phone does not know that the volunteer cancelled on another device, or that the organizer moved the start time. The tide table on the dashboard is only as true as the last copy.</p>
+                <p>So Shoreline Crew does not think in terms of "schedule on sign-up, cancel on cancel". It has one function, <code>updateReminders</code>, that looks at the truth (the server's sign-ups, Lesson 5.2's cached query) and makes the phone match it:</p>
+                <ol>
+                    <li>Work out which cleanups should have a reminder: the volunteer is signed in, has reminders on and allowed, holds a <strong>confirmed</strong> spot (the waiting list gets none), and the reminder time is still ahead.</li>
+                    <li>Ask the phone which reminders it holds (<code>getAllScheduledNotificationsAsync</code>) and cancel each of Shoreline Crew's that is no longer wanted (<code>cancelScheduledNotificationAsync</code>).</li>
+                    <li>Schedule every wanted one with the identifier <code>reminder-</code> plus the cleanup's id. Scheduling an identifier the phone already has <strong>replaces</strong> that reminder, so a cleanup whose time changed gets the new time.</li>
+                </ol>
+                <p>Run it twice and nothing changes the second time; run it after any change and the phone ends up right. That is the same idea as Lesson 5.5's <code>clientId</code>s: when an operation can safely run more than once, you can run it whenever something might have changed, without bookkeeping. The app calls it when it starts, when someone signs in or out, when the switch changes, when it comes back to the foreground, and after every sign-up or cancellation.</p>
+                <p>Measured in the web preview with a stand-in for the phone's scheduler (the real one does not exist on the web; the stand-in kept the requests in memory so the app's own logic could run): signed in as Theo with reminders on, the app scheduled four reminders, one for each confirmed cleanup still ahead (none for today's cleanup, whose evening-before has passed, and none for his cancelled one); cancelling Family Beach Morning removed its reminder and left the others; signing up again brought it back; turning the switch off, or signing out, left none.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>When the phone delivers is up to the phone. Reading expo-notifications' Android code: without the "exact alarm" permission, which Shoreline Crew does not ask for, Android 12 and later may deliver a little late to save battery; for "this evening", that is fine. An iPhone keeps up to 64 scheduled notifications per app (Apple's documentation); Shoreline Crew holds one per upcoming cleanup. Do Not Disturb, Focus modes and a channel turned off in Settings can all keep a reminder quiet. None of this can be seen in the web preview.</p>
+                </div>
+            </section>
+
+            <section id="taps" class="lesson-section">
+                <h2>👆 A Tap That Opens a Cleanup</h2>
+                <p>A reminder nobody can act on is half a feature. When the volunteer taps it, Shoreline Crew should open that cleanup's screen, with its map and its <strong>Check in</strong> button. There are two moments to handle:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The app was…</th><th>What the app sees</th><th>expo-notifications</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Running (open, or in the background)</td><td>An event, at the moment of the tap</td><td><code>addNotificationResponseReceivedListener</code></td></tr>
+                            <tr><td>Not running: the tap started it</td><td>Nothing yet: the tap happened before your code was loaded</td><td><code>getLastNotificationResponse()</code>, read once at startup</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A "response" is the notification plus what the person did with it; the reminder's <code>content.data</code> rides along. Shoreline Crew put a path there, <code>/cleanups/e08</code>, the same path a link from Lesson 4.4 opens (<code>shorelinecrew://cleanups/e08</code> is that path with the scheme in front). Opening it is one call: <code>router.push(path)</code>. And because the root layout keeps the tabs underneath (Lesson 4.4's anchor), a reminder opened from a closed app has a back button that leads to the Cleanups tab. Measured in the web preview with the stand-in: a "tap that started the app" opened the cleanup with <strong>Go back</strong> and the tabs underneath; a tap while the app was open pushed the cleanup over the Profile tab.</p>
+                <p>Two rules keep it safe:</p>
+                <ul>
+                    <li><strong>Data from a notification is outside input.</strong> Today the app writes it, but the same handler would read a server's push tomorrow, and TypeScript types <code>content.data</code>'s values as <code>unknown</code> for a reason (see <a href="#mistakes">Common Mistakes</a>). Check it with a type guard, as you check the API's answers, and only accept a path to a cleanup. Measured: a web address, <code>/sign-in</code>, a path with <code>..</code> in it and a number were all ignored, and the app stayed where it was.</li>
+                    <li><strong>A notification only opens a screen</strong>, like a link (Lesson 4.4). It never signs up, cancels or checks in by itself. A tap is not a decision.</li>
+                </ul>
+                <p>To test where a tap leads without waiting for a notification, use Lesson 4.4's commands: the reminder and the link open the same path, so <code>npx uri-scheme open "exp://192.168.1.42:8081/--/cleanups/e08" --android</code> (your computer's address) shows the very screen the reminder's tap will. That checks the destination; Step 7's test reminder checks the tap itself.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Expo's documentation says that a tap on a notification while the app is in the foreground, in the background, or closed all reach your code through these two functions; how the notification looks (a banner at the top, an entry in the notification list, the lock screen) depends on the phone and its settings. Without a notification handler, a notification that arrives while the app is open is not shown at all (Expo's documentation), which is why Shoreline Crew sets one. Check all three cases on your phone in Step 7.</p>
+                </div>
+            </section>
+
+            <section id="push" class="lesson-section">
+                <h2>📡 What Server Push Would Need</h2>
+                <p>Some messages cannot be scheduled in advance: "Weekend Cove Cleanup is cancelled: storm warning", "A spot opened up and it is yours". Only a server knows when those happen, so only a server can send them. Here is everything it would take, honestly, and why the course stops at the description:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Piece</th><th>What it is</th><th>Cost and catch</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A development build</td><td>Your own build of the app (Lesson 9.2) instead of Expo Go</td><td>Expo Go on Android has had no push since SDK 53; Expo recommends development builds for push on iPhones too</td></tr>
+                            <tr><td>An EAS project</td><td>The project id that Expo's push service ties tokens to (<code>getExpoPushTokenAsync({ projectId })</code>)</td><td>A free Expo account</td></tr>
+                            <tr><td>Credentials</td><td>A Firebase project's key for Google's FCM, and an APNs key for Apple, uploaded to EAS</td><td>Firebase is free; an APNs key needs the paid Apple Developer Program</td></tr>
+                            <tr><td>A push token per device</td><td>An address for this app on this phone, which can change</td><td>The app must ask for it after the permission, and send it again when it changes</td></tr>
+                            <tr><td>A server that stores tokens</td><td>An endpoint like <code>POST /api/me/push-tokens</code>, a table of tokens per volunteer</td><td>shoreline-api has none, and the course does not change it</td></tr>
+                            <tr><td>A sender</td><td>Code that calls Expo's push service when something happens, then checks the receipts</td><td>Remove tokens the service reports as no longer registered; handle retries</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The sending itself is the easy part. Expo's push service takes a JSON request like this one from your server (an illustration from Expo's documentation; the token is a placeholder):</p>
+                <pre data-snippet><code class="language-json">{
+  "to": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "title": "Weekend Cove Cleanup is cancelled",
+  "body": "Storm warning for the coast. See you next time!",
+  "data": { "url": "/cleanups/e08" }
+}</code></pre>
+                <p>Notice the <code>data</code>: the same <code>url</code> your reminders carry. A push built this way would open its cleanup through the tap handler you write today, type guard and all. Everything around the sending (accounts, credentials, tokens, storage, receipts, privacy details in the stores) is the real work, and it needs a server the course does not ship. If you build one later, Expo's push notifications guide walks through every piece in order.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: push left Expo Go on Android in SDK 53</h4>
+                    <p>Older tutorials call <code>getExpoPushTokenAsync()</code> in Expo Go and get a token. Since SDK 53, Expo Go on Android cannot receive push notifications, and expo-notifications 58 throws if you ask for a push token there (its source: "Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go."). Local notifications still work in Expo Go on both platforms.</p>
+                </div>
+                <p>One more decision follows from "local only": Shoreline Crew turns off the iPhone's remote-notification entitlement in its config plugin options (Step 1). With it on, every build of the app says it receives pushes, which needs push-capable signing from Apple; without it, a build declares only what it does, the same "ask only for what you use" as Lesson 6.1's purpose strings.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The first three were made on purpose in a copy of the finished project and measured with the real tools; the fourth comes from Expo's documentation, because only a phone can show it.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Copying <code>Notifications.AndroidImportance</code> from an example</h3>
+                    <p>Expo's examples create a channel with <code>importance: Notifications.AndroidImportance.MAX</code>. TypeScript is happy with that spelling, but in this project <code>npx expo lint</code> is not:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+~/shoreline/shoreline-crew/src/notifications/reminders.ts
+  42:33  error  'AndroidImportance' not found in imported namespace 'Notifications'  import/namespace
+
+✖ 1 problem (1 error, 0 warnings)</code></pre>
+                    </div>
+                    <p>The enum is there (tsc finds it, and the app runs); ESLint's import checks simply cannot follow it through the library's re-exports when it is reached as <code>Notifications.AndroidImportance</code>. Import it by name, <code>import { AndroidImportance } from 'expo-notifications';</code>, as Step 3 does, and the error goes. Read lint errors like this one for what they are: a rule (<code>import/namespace</code>) with an opinion about how you reached a name, not proof that the name is missing. And pick the importance you need, not the loudest: <code>MAX</code> means heads-up banners with sound for every reminder, the kind of app people silence. <code>DEFAULT</code> makes a sound and shows in the list.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Passing a <code>Date</code> as the trigger</h3>
+                    <p>Older examples write <code>trigger: someDate</code>. In expo-notifications 58, a trigger is an object with a <code>type</code>, and TypeScript says so:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/notifications/reminders.ts:120:9 - error TS2322: Type 'Date' is not assignable to type 'NotificationTriggerInput'.
+
+120         trigger: reminderTime(event),
+            ~~~~~~~
+
+  node_modules/expo-notifications/build/Notifications.types.d.ts:638:5
+    638     trigger: NotificationTriggerInput;
+            ~~~~~~~
+    The expected type comes from property 'trigger' which is declared here on type 'NotificationRequestInput'
+
+
+Found 1 error in src/notifications/reminders.ts:120</code></pre>
+                    </div>
+                    <p>The first line says it all: a <code>Date</code> is not a <code>NotificationTriggerInput</code>, the type the second part points to in the library's declarations. Write <code>{ type: Notifications.SchedulableTriggerInputTypes.DATE, date: reminderTime(event) }</code>. (Plain JavaScript would get through, and the library would print a "deprecated parameter type" warning and still schedule it, according to its source; TypeScript catches it first.)</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Opening whatever the notification says</h3>
+                    <pre data-snippet data-legacy><code class="language-tsx">// Don't: a notification's data is outside input
+router.push(response.notification.request.content.data.url);</code></pre>
+                    <p>TypeScript stops this one too:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/hooks/useReminderTaps.ts:18:19 - error TS18048: 'response.notification.request.content.data' is possibly 'undefined'.
+
+18       router.push(response.notification.request.content.data.url);
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+src/hooks/useReminderTaps.ts:18:19 - error TS2345: Argument of type 'unknown' is not assignable to parameter of type '`/cleanups/${string}` | RelativePathString | ExternalPathString | "/before-you-go" | `/before-you-go?${string}` | `/before-you-go#${string}` | "/sign-in" | `/sign-in?${string}` | `/sign-in#${string}` | "/_sitemap" | ... 35 more ... | { ...; }'.
+
+18       router.push(response.notification.request.content.data.url);
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Found 2 errors in the same file, starting at: src/hooks/useReminderTaps.ts:18</code></pre>
+                    </div>
+                    <p>Two errors, both right. <code>data</code> may be missing altogether (a notification from elsewhere need not carry any), and when it is there, its values are <code>unknown</code>, while <code>router.push</code> wants one of the app's routes (the long list in the message is your typed routes, Lesson 4.1). A cast (<code>as Href</code>) would silence it and open whatever a future push server, or a bug, put there. The type guard <code>isCleanupPath</code> turns <code>unknown</code> into a cleanup's path only after checking it, the same move as the API's type guards since Lesson 1.3.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ No notification handler</h3>
+                    <p>Schedule the test reminder, keep Shoreline Crew open on the screen, and wait: without <code>Notifications.setNotificationHandler(…)</code>, nothing appears. Expo's documentation is clear that a notification arriving while the app is in the foreground is not shown unless a handler says how. Leave the app and it appears, which makes this one confusing to debug: "it only works sometimes". Shoreline Crew sets the handler once, when its reminders module loads, with a banner, a place in the list and a sound, and no badge. (Not measurable here: the web preview has no notifications to show. Check it on your phone in Step 7.)</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Reminders Before Every Cleanup</h2>
+                <p>You install expo-notifications with only what Shoreline Crew uses, add a reminders setting, write the reminders module (the permission Hook, the channel, the time, and <code>updateReminders</code>), keep reminders in step from the root layout and after every sign-up, open cleanups from taps, and give the Profile tab its switch. Then you try it in the web preview and, for real, on your phone. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal and Metro running (<code>npx expo start</code>) unless a step says otherwise.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install expo-notifications, local only <span class="step-time">(10 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac), then:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-notifications</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 5 packages, and audited 821 packages in 3s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>"1 SDK 58.0.0 compatible native module": version 58.1, the one SDK 58 expects. Like expo-location in Lesson 6.1, there is no "Added config plugin" line: expo-notifications' plugin is applied automatically. Run <code>npx expo config --type introspect</code> (Lesson 6.1's Exercise 3) and look for <code>entitlements</code>; the iPhone's section says:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (the matching lines)</h4>
+                        <pre><code>...
+    entitlements: {
+      'aps-environment': 'development'
+    }
+  }
+}</code></pre>
+                    </div>
+                    <p><code>aps-environment</code> is the entitlement that lets an iPhone app receive pushes from Apple. Shoreline Crew never receives a push, so it says so: in <code>app.json</code>, add an entry at the end of <code>plugins</code> (and a comma after the closing <code>]</code> of the expo-image-picker entry):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">         }
++      ],
++      [
++        "expo-notifications",
++        {
++          "enableRemoteNotifications": false
++        }
+       ]</code></pre>
+                    </div>
+                    <p>Run the introspect command again, and the same lines now read:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (the matching lines)</h4>
+                        <pre><code>...
+    entitlements: {}
+  }
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>enableRemoteNotifications: false</code> is the plugin's own option for "local notifications only" (read in its source: without it, the plugin adds <code>aps-environment</code>; with <code>false</code>, it does not). It shapes your own builds from Module 9 on; Expo Go is its own app and ignores it.</li>
+                        <li>Android needs no entry: the library's manifest brings <code>POST_NOTIFICATIONS</code> (the Android 13 question) and <code>RECEIVE_BOOT_COMPLETED</code> (so reminders are set again after the phone restarts), and Shoreline Crew asks for nothing more. In particular, no "exact alarm" permission: a reminder a few minutes late is fine.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: A reminders setting <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 5.3 left a place for it. In <code>src/state/settings.ts</code>, add <code>remindersOn</code> to the type and the defaults, check it like the theme when reading what was saved, and add a way to read the settings outside a component:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/settings.ts</div>
+                        <pre data-src="shoreline-crew/src/state/settings.ts" data-match="diff"><code class="language-diff-ts"> // The volunteer's settings, kept on the phone with AsyncStorage (new). Small, not secret, and read
+-// once at startup; every change is saved at once. Lesson 6.4 adds the reminders switch here.
++// once at startup; every change is saved at once.
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+ // ...
+   theme: ThemeChoice;
++  /** Remind me the evening before each cleanup I have a spot at (off until the volunteer says so) */
++  remindersOn: boolean;
+ };
+ // ...
+ 
+-const defaults: Settings = { theme: 'system' };
++const defaults: Settings = { theme: 'system', remindersOn: false };
+ const themeChoices: ThemeChoice[] = ['system', 'light', 'dark'];
+ // ...
+   const value: unknown = saved === null ? null : JSON.parse(saved);
+-  if (typeof value !== 'object' || value === null || !('theme' in value)) {
++  if (typeof value !== 'object' || value === null) {
+     return defaults;
+   }
+-  const theme = themeChoices.find((choice) =&gt; choice === value.theme);
+-  return { theme: theme ?? defaults.theme };
++  // Each setting on its own: settings saved before a setting existed simply lack it
++  const theme = 'theme' in value ? themeChoices.find((choice) =&gt; choice === value.theme) : undefined;
++  const remindersOn =
++    'remindersOn' in value &amp;&amp; typeof value.remindersOn === 'boolean' ? value.remindersOn : undefined;
++  return {
++    theme: theme ?? defaults.theme,
++    remindersOn: remindersOn ?? defaults.remindersOn,
++  };
+ }
+ // ...
+ 
++/** The current settings, outside a component (a component uses useSettings) */
++export function readSettings(): Settings {
++  return current;
++}
++
+ function subscribe(listener: () =&gt; void) {</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Off by default.</strong> The phone never asks about notifications until the volunteer turns reminders on.</li>
+                        <li><strong>Every phone that ran Lesson 5.3 already has saved settings</strong>: <code>{"theme":"dark"}</code>, with no <code>remindersOn</code>. The old <code>fromSaved</code> would accept that object without the new field, and TypeScript would not notice, because <code>Settings</code> comes from your own code. The new version checks each setting on its own, so old settings keep their theme and get reminders off (measured in the web preview with exactly that saved value), and a <code>remindersOn</code> that is not a boolean falls back to the default too.</li>
+                        <li><code>readSettings()</code> is for code that is not a component, like <code>updateReminders</code> in the next step; components keep using <code>useSettings()</code>, which redraws them when the settings change.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The reminders module <span class="step-time">(20 min)</span></h3>
+                    <p>Create <code>src/notifications/reminders.ts</code>, a new folder for everything about notifications:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/notifications/reminders.ts</div>
+                        <pre data-src="shoreline-crew/src/notifications/reminders.ts"><code class="language-ts">// Reminders before a cleanup (new): local notifications, scheduled on the phone itself. No server
+// sends them: the phone's own scheduler shows them at the right time, even with no signal.
+import { createPermissionHook } from 'expo';
+import * as Notifications from 'expo-notifications';
+// By name: ESLint's import/namespace rule cannot find this enum through Notifications.
+import { AndroidImportance } from 'expo-notifications';
+import { Platform } from 'react-native';
+
+import { readSession } from '@/api/client';
+import { mySignupsQuery, queryClient, viewerId } from '@/api/queries';
+import type { CleanupEvent } from '@/api/types';
+import { readSettings } from '@/state/settings';
+import { cleanupPath } from '@/utils/links';
+
+/**
+ * The web preview can ask for the permission (the browser's own question), but expo-notifications
+ * has no scheduler there: reminders work in the app on a phone
+ */
+export const remindersWork = Platform.OS !== 'web';
+
+// Android files every notification under a channel, which people can tune in Settings
+const channelId = 'reminders';
+// Every reminder's id starts with this, so the app can find its own among the phone's
+const idPrefix = 'reminder-';
+
+if (remindersWork) {
+  // A reminder that arrives while Shoreline Crew is open is shown like any other (without this,
+  // the phone shows nothing while the app is in the foreground)
+  Notifications.setNotificationHandler({
+    handleNotification: async () =&gt; ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
+async function askForNotifications() {
+  if (Platform.OS === 'android') {
+    // Android 13 and later ask only once the app has a channel: create it first
+    await Notifications.setNotificationChannelAsync(channelId, {
+      name: 'Cleanup reminders',
+      importance: AndroidImportance.DEFAULT,
+    });
+  }
+  // iPhone: alerts and sounds only, no badge on the app icon. (Android has one question.)
+  return Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true } });
+}
+
+/**
+ * expo-notifications has no permission Hook of its own: make one from its two functions, the way
+ * every Expo module makes its own. Use it with usePermission(useNotificationPermissions()).
+ */
+export const useNotificationPermissions = createPermissionHook({
+  getMethod: Notifications.getPermissionsAsync,
+  requestMethod: askForNotifications,
+});
+
+/** When to remind: 6 pm the evening before the cleanup, by the phone's clock */
+export function reminderTime(event: CleanupEvent): Date {
+  const time = new Date(`${event.date}T18:00`);
+  time.setDate(time.getDate() - 1);
+  return time;
+}
+
+function reminderContent(event: CleanupEvent): Notifications.NotificationContentInput {
+  return {
+    title: `Tomorrow: ${event.title}`,
+    body: `${event.startTime} to ${event.endTime}. Meet at ${event.meetingPoint}.`,
+    // What a tap opens: the same path as a link to the cleanup (Lesson 4.4)
+    data: { url: cleanupPath(event.id) },
+  };
+}
+
+// The cleanups this phone should remind its volunteer about, soonest first: confirmed spots whose
+// reminder time is still ahead. None when nobody is signed in, reminders are off, or notifications are not allowed.
+async function cleanupsToRemind(): Promise&lt;CleanupEvent[]&gt; {
+  const session = readSession();
+  if (session === null || !readSettings().remindersOn) {
+    return [];
+  }
+  const { granted } = await Notifications.getPermissionsAsync();
+  if (!granted) {
+    return [];
+  }
+  // The cached sign-ups if they are fresh, else a request (offline, it waits for the connection)
+  const signups = await queryClient.fetchQuery(mySignupsQuery(viewerId(session)));
+  const now = new Date();
+  return signups
+    .filter(({ status, event }) =&gt; status === 'confirmed' &amp;&amp; reminderTime(event) &gt; now)
+    .map(({ event }) =&gt; event)
+    .sort((a, b) =&gt; reminderTime(a).getTime() - reminderTime(b).getTime()); // soonest first
+}
+
+/**
+ * Make the phone's reminders match the volunteer's sign-ups: cancel the ones nobody needs any more
+ * (a cancelled sign-up, a different person signed in, reminders turned off), set the rest. Safe to
+ * call any time, as often as you like: it always ends in the same state. It never fails.
+ */
+export async function updateReminders(): Promise&lt;void&gt; {
+  if (!remindersWork) {
+    return;
+  }
+  try {
+    const events = await cleanupsToRemind();
+    const wanted = new Set(events.map((event) =&gt; idPrefix + event.id));
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const { identifier } of scheduled) {
+      if (identifier.startsWith(idPrefix) &amp;&amp; !wanted.has(identifier)) {
+        await Notifications.cancelScheduledNotificationAsync(identifier);
+      }
+    }
+    // Scheduling with an id the phone already has replaces that reminder, so a cleanup whose
+    // time changed gets the new time
+    for (const event of events) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: idPrefix + event.id,
+        content: reminderContent(event),
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: reminderTime(event),
+          channelId,
+        },
+      });
+    }
+  } catch (error) {
+    console.warn('Could not update the reminders', error);
+  }
+}
+
+/**
+ * For trying it out on your phone: the next cleanup's reminder, in 10 seconds instead of the
+ * evening before. false when there is no cleanup to remind you about.
+ */
+export async function sendTestReminder(): Promise&lt;boolean&gt; {
+  const [event] = await cleanupsToRemind();
+  if (event === undefined) {
+    return false;
+  }
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'test-reminder',
+    content: reminderContent(event),
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 10, channelId },
+  });
+  return true;
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>remindersWork</code> is false only in the web preview, which can ask (<a href="#asking">Asking to Notify</a>) but has no scheduler. Every function that schedules checks it first.</li>
+                        <li><code>setNotificationHandler</code> runs once, when the module loads (the root layout imports it through the hooks in Step 4): reminders that arrive while the app is open are shown too. <code>shouldSetBadge: false</code> matches the permission: no badge was asked for.</li>
+                        <li><code>askForNotifications</code> is Shoreline Crew's <code>requestMethod</code>: the channel first on Android ("Cleanup reminders" is the name the volunteer sees in Settings), then the question, for alerts and sounds. <code>useNotificationPermissions</code> is the Hook Lesson 6.1 promised.</li>
+                        <li><code>reminderTime</code> builds 6 pm on the cleanup's date by the phone's clock, then steps back one day with <code>setDate</code>, which handles month ends and clock changes. Like <code>formatDate</code>, it treats the cleanup's date as local time: right for volunteers in the crew's own time zone, which is where cleanups happen.</li>
+                        <li><code>cleanupsToRemind</code> reads the truth: the session (<code>readSession</code>, Lesson 4.3), the setting, the permission (read again every time: it can change in Settings) and the sign-ups through <code>queryClient.fetchQuery</code>, which answers from Lesson 5.2's cache when it is fresh and asks the API otherwise. Offline, the request waits for the connection, and the phone keeps the reminders it has: no answer, no change.</li>
+                        <li><code>updateReminders</code> is the three steps from <a href="#scheduling">Reminders That Stay True</a>. It never throws (a warning instead, like <code>loadSettings</code>), because it runs in the background where nobody could catch it. <code>sendTestReminder</code> sends the next cleanup's reminder after 10 seconds, for Step 7 (soonest first is why <code>cleanupsToRemind</code> sorts).</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Keep them in step, and open cleanups from taps <span class="step-time">(15 min)</span></h3>
+                    <p>First the path. In <code>src/utils/links.ts</code>, give Lesson 4.4's link a path function of its own, and a type guard for paths that come from outside:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/links.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/links.ts" data-match="diff"><code class="language-diff-ts"> 
++/** The path of one cleanup's screen: what a link, and a reminder, opens */
++export function cleanupPath(id: string) {
++  return `/cleanups/${id}` as const;
++}
++
++/**
++ * Is this a path to a cleanup's screen? For paths that come from outside the app (a notification),
++ * which only ever open a screen, and only one of these
++ */
++export function isCleanupPath(value: unknown): value is ReturnType&lt;typeof cleanupPath&gt; {
++  return typeof value === 'string' &amp;&amp; /^\/cleanups\/[\w-]+$/.test(value);
++}
++
+ /**
+ // ...
+ export function cleanupLink(id: string): string {
+-  return Linking.createURL(`/cleanups/${id}`);
++  return Linking.createURL(cleanupPath(id));
+ }</code></pre>
+                    </div>
+                    <p><code>as const</code> keeps the type <code>`/cleanups/${string}`</code> instead of <code>string</code>, which Expo Router's typed routes (Lesson 4.1) accept as a route. The guard's regular expression allows letters, digits, <code>_</code> and <code>-</code> after <code>/cleanups/</code>, and nothing else: no second slash, no <code>..</code>, no address. Then the Hook that keeps reminders in step, <code>src/hooks/useReminders.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useReminders.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useReminders.ts"><code class="language-ts">import { focusManager } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
+import { useSession } from '@/hooks/useSession';
+import { updateReminders } from '@/notifications/reminders';
+import { useSettings } from '@/state/settings';
+
+/**
+ * Keep the phone's reminders in step with the sign-ups: once the saved session and settings have
+ * loaded, again whenever someone signs in or out or the reminders switch changes, and each time the
+ * app is back in the foreground (sign-ups made on another device, a permission changed in Settings).
+ * Use once, in the root layout.
+ */
+export function useReminders(loaded: boolean): void {
+  const session = useSession();
+  const { remindersOn } = useSettings();
+  const volunteerId = session?.user.id ?? null;
+
+  useEffect(() =&gt; {
+    if (!loaded) {
+      return; // before the saved session loads, "nobody signed in" would cancel every reminder
+    }
+    void updateReminders();
+    // The focus manager from Lesson 5.2: AppState on a phone
+    return focusManager.subscribe((focused) =&gt; {
+      if (focused) {
+        void updateReminders();
+      }
+    });
+  }, [loaded, volunteerId, remindersOn]);
+}</code></pre>
+                    </div>
+                    <p>It is Lesson 5.5's <code>useSendWaitingLogs</code> again: run now, and again whenever the app returns to the foreground. The <code>loaded</code> guard matters. Before the saved session has loaded, nobody seems to be signed in, and <code>updateReminders</code> would faithfully cancel every reminder at each launch. And the taps, <code>src/hooks/useReminderTaps.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useReminderTaps.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useReminderTaps.ts"><code class="language-ts">import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+
+import { remindersWork } from '@/notifications/reminders';
+import { isCleanupPath } from '@/utils/links';
+
+/**
+ * A tap on a reminder opens its cleanup: the tap that started the app, and every tap while it runs.
+ * Use once, in the root layout, with true once the screens are on show.
+ */
+export function useReminderTaps(ready: boolean): void {
+  useEffect(() =&gt; {
+    if (!ready || !remindersWork) {
+      return;
+    }
+    function open(response: Notifications.NotificationResponse) {
+      // A notification's data comes from outside the app: check it, and only ever open a screen
+      const url = response.notification.request.content.data?.url;
+      if (isCleanupPath(url)) {
+        router.push(url);
+      }
+    }
+    // The app was closed, and a tap on a reminder opened it
+    const first = Notifications.getLastNotificationResponse();
+    if (first !== null) {
+      open(first);
+      Notifications.clearLastNotificationResponse(); // handled: never open it twice
+    }
+    const subscription = Notifications.addNotificationResponseReceivedListener(open);
+    return () =&gt; subscription.remove();
+  }, [ready]);
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>It waits for <code>ready</code> (fonts and saved data loaded, the splash gone), so the stack exists when <code>router.push</code> runs.</li>
+                        <li>The tap that opened the app is read once and then cleared, so a later remount (in development, Fast Refresh does that) cannot open the cleanup a second time.</li>
+                        <li>The listener's <code>remove()</code> in the cleanup function is the usual effect hygiene: one listener, never two.</li>
+                    </ul>
+                    <p>Use both in <code>src/app/_layout.tsx</code>, after <code>useSendWaitingLogs</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useOnlineManager } from '@/hooks/useOnlineManager';
++import { useReminders } from '@/hooks/useReminders';
++import { useReminderTaps } from '@/hooks/useReminderTaps';
+ import { useSendWaitingLogs } from '@/hooks/useSendWaitingLogs';
+ // ...
+   useSendWaitingLogs(savedLoaded &amp;&amp; session !== null ? session.user.id : null);
++  // The reminders before each cleanup follow the sign-ups, and a tap on one opens its cleanup
++  useReminders(savedLoaded);
++  useReminderTaps(ready);
+ </code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: After every sign-up, and the switch on Profile <span class="step-time">(15 min)</span></h3>
+                    <p>Signing up and cancelling change the reminders at once, not at the next return to the foreground. In <code>src/api/mutations.ts</code>, <code>refreshSignups</code> (shared by both mutations since Lesson 5.2) updates them after the sign-ups are fresh:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/mutations.ts</div>
+                        <pre data-src="shoreline-crew/src/api/mutations.ts" data-match="diff"><code class="language-diff-ts"> import { mySignupsQuery, queryClient } from '@/api/queries';
++import { updateReminders } from '@/notifications/reminders';
+ import { saveSentLogs } from '@/storage/logbook';
+ // ...
+ 
+-// A sign-up changes the spots left (on every list and cleanup screen) and your own sign-ups.
+-// Returning the promise keeps the mutation pending until the screens have the new answers.
+-function refreshSignups() {
+-  return Promise.all([
++// A sign-up changes the spots left (on every list and cleanup screen), your own sign-ups, and the
++// reminders on this phone. Returning the promise keeps the mutation pending until the screens have
++// the new answers; the reminders follow without holding the button up.
++async function refreshSignups() {
++  await Promise.all([
+     queryClient.invalidateQueries({ queryKey: ['events'] }),
+ // ...
+   ]);
++  void updateReminders();
+ }</code></pre>
+                    </div>
+                    <p>The invalidations are still awaited (the button says <strong>Signing up…</strong> until the screens know); <code>updateReminders</code> is not, because it reads the sign-ups the invalidation just fetched and has nothing to tell the button. This is where "cancelling when a sign-up is cancelled" happens: the cancelled sign-up is no longer <code>confirmed</code>, so its reminder is not wanted, so it is cancelled. Now the switch, <code>src/components/ReminderSettings.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/ReminderSettings.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/ReminderSettings.tsx"><code class="language-tsx">import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { PermissionGate } from '@/components/PermissionGate';
+import { SwitchRow } from '@/components/SwitchRow';
+import { usePermission } from '@/hooks/usePermission';
+import {
+  remindersWork,
+  sendTestReminder,
+  updateReminders,
+  useNotificationPermissions,
+} from '@/notifications/reminders';
+import { changeSettings, useSettings } from '@/state/settings';
+import { spacing } from '@/theme/spacing';
+
+// "Reminders" on the Profile tab. Nothing asks for notifications until the volunteer turns the
+// switch on: that is the moment the question makes sense.
+export function ReminderSettings() {
+  const { remindersOn } = useSettings();
+  return (
+    &lt;View style={styles.panel}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Reminders
+      &lt;/AppText&gt;
+      &lt;SwitchRow
+        label="Remind me the evening before my cleanups"
+        value={remindersOn}
+        onValueChange={(on) =&gt; changeSettings({ remindersOn: on })}
+      /&gt;
+      {remindersOn &amp;&amp; &lt;RemindersAllowed onNotNow={() =&gt; changeSettings({ remindersOn: false })} /&gt;}
+    &lt;/View&gt;
+  );
+}
+
+// Mounted once the switch is on: the permission Hook reads the answer here, and asks nobody
+function RemindersAllowed({ onNotNow }: { onNotNow: () =&gt; void }) {
+  const notifications = usePermission(useNotificationPermissions());
+
+  // After the phone's question, set the reminders at once (whatever the answer, updateReminders
+  // reads it again)
+  async function ask() {
+    const answer = await notifications.ask();
+    void updateReminders();
+    return answer;
+  }
+
+  return (
+    &lt;PermissionGate
+      permission={{ ...notifications, ask }}
+      what="notifications"
+      why="At 6 pm the evening before each cleanup you have a spot at, Shoreline Crew reminds you when and where to meet. The reminders are set on this phone: no server sends them."
+      onNotNow={onNotNow}
+    &gt;
+      &lt;RemindersOn /&gt;
+    &lt;/PermissionGate&gt;
+  );
+}
+
+// Only rendered after a yes
+function RemindersOn() {
+  const [testNote, setTestNote] = useState&lt;string | null&gt;(null);
+
+  if (!remindersWork) {
+    return (
+      &lt;AppText variant="muted"&gt;
+        The web preview cannot set reminders. They work in the app on your phone.
+      &lt;/AppText&gt;
+    );
+  }
+
+  async function test() {
+    const sent = await sendTestReminder();
+    setTestNote(
+      sent
+        ? 'A test reminder arrives in 10 seconds. Lock your phone or go to the home screen to see it.'
+        : 'Nothing to remind you about yet: sign up for a cleanup first.',
+    );
+  }
+
+  return (
+    &lt;&gt;
+      &lt;AppText variant="muted"&gt;
+        Reminders are on for every cleanup you have a spot at. Tap one to open its cleanup.
+      &lt;/AppText&gt;
+      {/* For trying it out: only in development, never in the app people install */}
+      {__DEV__ &amp;&amp; &lt;Button label="Send a test reminder" onPress={test} /&gt;}
+      {testNote !== null &amp;&amp; &lt;AppText accessibilityLiveRegion="polite"&gt;{testNote}&lt;/AppText&gt;}
+    &lt;/&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  panel: {
+    gap: spacing.sm,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>The same three moments as Lesson 6.1's <code>DistancePanel</code>: <code>ReminderSettings</code> waits for the switch, <code>RemindersAllowed</code> exists only once it is on (so the Hook reads the answer then, and asks nobody), and <code>RemindersOn</code> only after a yes. <strong>Not now</strong> turns the switch back off.</li>
+                        <li><code>ask</code> wraps the gate's ask: once the phone's question is answered, <code>updateReminders</code> runs at once, instead of waiting for the next return to the foreground. <code>{ ...notifications, ask }</code> passes the gate the same <code>Permission</code> with that one function swapped.</li>
+                        <li>The switch is the volunteer's wish, saved on the phone; the permission is the phone's rule. Reminders are set only when both say yes, and <code>updateReminders</code> checks both every time.</li>
+                        <li><code>__DEV__</code> is true while Metro serves the app and false in the app people install (and in <code>npx expo export</code>), so <strong>Send a test reminder</strong> is a developer's button that never ships.</li>
+                    </ul>
+                    <p>Put it on the Profile tab, under Appearance, in <code>src/app/(tabs)/profile.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { ConnectionCheck } from '@/components/ConnectionCheck';
++import { ReminderSettings } from '@/components/ReminderSettings';
+ import { Screen } from '@/components/Screen';
+ // ...
+ 
+-// Profile: who you are, signing in and out, how the app looks, and the beach safety guide
++// Profile: who you are, signing in and out, how the app looks, reminders, and the beach safety guide
+ export default function ProfileScreen() {
+ // ...
+       /&gt;
++      {/* Off until the volunteer turns it on: only then does the phone ask about notifications */}
++      &lt;ReminderSettings /&gt;
+       &lt;AppText variant="heading" accessibilityRole="header"&gt;</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The switch in the web preview <span class="step-time">(10 min)</span></h3>
+                    <p>Start Metro, press <kbd>w</kbd>, sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>) and open the Profile tab. Under Appearance, <strong>Reminders</strong> has its switch, off. Turn it on:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_23/23-explain.png" alt="The Profile tab in the web preview, scrolled to Reminders: the switch Remind me the evening before my cleanups, now on, then At 6 pm the evening before each cleanup you have a spot at, Shoreline Crew reminds you when and where to meet. The reminders are set on this phone: no server sends them., Your phone asks next. You can change your answer at any time in Settings., and the buttons Continue and Not now; switch and explanation outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>Turning the switch on is the moment the question makes sense. Lesson 6.1's gate says why first; Continue leads to the phone's own question (in the web preview, the browser's).</figcaption>
+</figure>
+                    <p>Press <strong>Continue</strong>. Chrome shows its notification bubble under the address bar (in a private window, or if you have blocked notifications for every site, it may answer no by itself). Allow it, and the gate's last face appears:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_23/23-web-allowed.png" alt="The Profile tab in the web preview, dark theme, scrolled to Reminders: the switch Remind me the evening before my cleanups is on, and under it The web preview cannot set reminders. They work in the app on your phone., both outlined in red; Appearance with its Theme choice is above." width="420" height="814" loading="lazy">
+    <figcaption>Notifications allowed in the browser: the permission step is done, but expo-notifications has no scheduler on the web, so the web preview says where reminders really happen.</figcaption>
+</figure>
+                    <p>That is the honest end of the road in a browser: the permission step works, and the reminders themselves happen on a phone. Now try the other answers, as in Lesson 6.1: reset the site's notification permission (the icon left of the address bar), reload, sign in, turn the switch on, press <strong>Continue</strong> and block it: the blocked face, with the web preview's note about site settings after <strong>Open Settings</strong>. <strong>Not now</strong> turns the switch off. Reload once more: the switch remembers what you left it at (the settings store from Lesson 5.3), and the reminders section draws the right face straight away.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Reminders on your phone, then check and commit <span class="step-time">(15 min)</span></h3>
+                    <p>Open the app in Expo Go (shoreline-api running <code>--host</code> and <code>.env.local</code> on your computer's network address, as in Lesson 5.1), sign in as Theo and open the Profile tab:</p>
+                    <ol>
+                        <li><strong>The question.</strong> Turn on <strong>Remind me the evening before my cleanups</strong>, read the explanation, press <strong>Continue</strong>: the phone's question, naming Expo Go. Allow it. The section says "Reminders are on for every cleanup you have a spot at."</li>
+                        <li><strong>A test reminder, app closed.</strong> Press <strong>Send a test reminder</strong>, then go to the home screen or lock the phone. About ten seconds later: "Tomorrow: Weekend Cove Cleanup" (the next cleanup with a reminder still ahead; yours may differ), with the time and the meeting point. Tap it: Shoreline Crew opens on that cleanup, with a back button to the Cleanups tab.</li>
+                        <li><strong>A test reminder, app open.</strong> Press the button again and stay on the Profile tab: the reminder still appears, as a banner over the app (the handler from Step 3). Tap it: the cleanup opens on top of Profile.</li>
+                        <li><strong>A tap that starts the app.</strong> Send one more, then close Shoreline Crew completely (swipe it away in the app switcher; in Expo Go, close Expo Go). Tap the reminder when it arrives: the app starts and goes straight to the cleanup (<code>getLastNotificationResponse</code>).</li>
+                        <li><strong>The destination, without waiting.</strong> On an emulator or simulator, Lesson 4.4's command opens the same screen a reminder's tap does:</li>
+                    </ol>
+                    <pre class="terminal"><code class="language-bash">npx uri-scheme open "exp://192.168.1.42:8081/--/cleanups/e08" --android
+npx uri-scheme open "exp://192.168.1.42:8081/--/cleanups/e08" --ios</code></pre>
+                    <p>Use the address Expo prints under its QR code instead of <code>192.168.1.42</code>. Then cancel your sign-up for a cleanup and sign up again: the reminders follow (you will not see that until the evening before; the web preview measurement in <a href="#scheduling">Reminders That Stay True</a> is your evidence, and Exercise 1 makes you predict it).</p>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The question, the banner, the sound, the lock-screen entry and the taps come from Expo's, Apple's and Google's documentation and could not be run here. On Android, long-press the reminder (or open Settings, Apps, Expo Go, Notifications) to find the "Cleanup reminders" channel; in Expo Go, the channel belongs to Expo Go. If nothing arrives, check in this order: the answer to the question (Settings), Do Not Disturb or a Focus mode, the channel, and whether you stayed in the app before Step 3's handler existed. Write down what your phone did; that is the evidence the web preview cannot give.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🧭 For your own app</h3>
+                    <p>For your final project, list every message your app could send. For each one, write down: who knows it first (the phone, ahead of time, or a server, later); whether it is worth an interruption, and at what hour; how the person turns it off; and which screen a tap opens. Messages the phone knows in advance can be local, like Shoreline Crew's. If any need push, add the pieces from <a href="#push">What Server Push Would Need</a> to your plan now, including the cost.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ expo-notifications installed with <code>npx expo install</code>, with <code>enableRemoteNotifications: false</code> in its plugin entry</li>
+                        <li>☐ <code>remindersOn</code> in the settings store, off by default, checked when read back</li>
+                        <li>☐ <code>src/notifications/reminders.ts</code> asks through Lesson 6.1's step, creates the Android channel first, and <code>updateReminders</code> makes the phone's reminders match the confirmed sign-ups</li>
+                        <li>☐ Reminders update at startup, on sign-in and sign-out, on the switch, on return to the foreground, and after every sign-up or cancellation</li>
+                        <li>☐ A tap opens the cleanup, whether the app was open or closed, and only a checked cleanup path is ever opened</li>
+                        <li>☐ You saw the switch and the permission faces in the web preview and a real reminder on your phone; <code>tsc</code> and <code>expo lint</code> are clean, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Which reminders does the phone hold?</h3>
+                    <p>Theo has reminders on and allowed. Without running anything, say what happens to the reminders on his phone, and when:</p>
+                    <ol>
+                        <li>He joins the waiting list for a full cleanup next week.</li>
+                        <li>Two days later, someone cancels, and shoreline-api gives Theo the spot. His phone is in his pocket, Shoreline Crew in the background.</li>
+                        <li>On the morning of a cleanup, he signs up for it.</li>
+                        <li>He turns notifications off for the app in Settings, then switches back to Shoreline Crew.</li>
+                        <li>He signs out, and Maya signs in on the same phone.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>For each case, ask two questions: when does <code>updateReminders</code> run (the list at the end of <a href="#scheduling">Reminders That Stay True</a>), and what does <code>cleanupsToRemind</code> return then?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) No reminder: a waiting-list sign-up is not <code>confirmed</code>. (2) Nothing yet: the phone does not know. The next time the app comes to the foreground (or starts), <code>updateReminders</code> reads the sign-ups, finds the confirmed spot, and schedules its reminder. A push notification is what could tell him at once. (3) No reminder: 6 pm the evening before has passed (Exercise 2 changes that). (4) On the return to the foreground, the permission is read again, it is no longer granted, so nothing is wanted and every Shoreline Crew reminder is cancelled. (5) Signing out cancels all of Theo's (nobody is signed in); Maya's sign-in runs <code>updateReminders</code> again, and her confirmed cleanups get reminders if her phone's switch is on: the switch belongs to the phone, not to the person. Cases 3 and 5 match what was measured with the stand-in scheduler (no reminder for the day's own cleanup; none after a sign-out); check the others on your phone.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A reminder on the day</h3>
+                    <p>A volunteer who signs up at breakfast for a cleanup that starts at 10 gets no reminder at all. Change <code>reminderTime</code> so that, when 6 pm the evening before has passed, the reminder comes two hours before the start instead, and say "Today" instead of "Tomorrow" in that case. When both times have passed, there is no reminder.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Let <code>reminderTime</code> return <code>Date | null</code> and take <code>now</code> as a parameter. TypeScript will then show you every caller that needs to handle <code>null</code>. For the title, compare the reminder's date with the cleanup's.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">/** 6 pm the evening before; once that has passed, 2 hours before the start; null after that */
+export function reminderTime(event: CleanupEvent, now = new Date()): Date | null {
+  const evening = new Date(`${event.date}T18:00`);
+  evening.setDate(evening.getDate() - 1);
+  if (evening &gt; now) {
+    return evening;
+  }
+  const early = new Date(`${event.date}T${event.startTime}`);
+  early.setHours(early.getHours() - 2);
+  return early &gt; now ? early : null;
+}
+
+function reminderContent(event: CleanupEvent, at: Date): Notifications.NotificationContentInput {
+  // The day of the reminder is the day of the cleanup: it is today
+  const today = at.getDate() === new Date(`${event.date}T00:00`).getDate();
+  return {
+    title: `${today ? 'Today' : 'Tomorrow'}: ${event.title}`,
+    body: `${event.startTime} to ${event.endTime}. Meet at ${event.meetingPoint}.`,
+    data: { url: cleanupPath(event.id) },
+  };
+}</code></pre>
+                        <p><code>npx tsc --noEmit</code> then points at the callers: <code>cleanupsToRemind</code> filters with <code>reminderTime(event) !== null</code> (and sorts by it), and <code>updateReminders</code> and <code>sendTestReminder</code> work it out once per cleanup and pass it to both <code>reminderContent(event, at)</code> and the trigger's <code>date</code>. Following the compiler from one changed signature to every place that depends on it is how you change code like this safely. The cleanup's start time is <code>"09:00"</code>-style text from the API, so <code>`${event.date}T${event.startTime}`</code> is a local time, like the 6 pm one.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Offer reminders right after a sign-up (Stretch)</h3>
+                    <p>The best moment to ask about reminders may not be the Profile tab at all: it is the moment a volunteer has just signed up and is thinking "I hope I remember". Offer the reminders switch in <code>SignupPanel</code>, under "You are signed up. See you on the beach!", without writing a second permission flow. Then decide: should it still show once reminders are on?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>ReminderSettings</code> is a component with no props. What does it read, and would two of them on screen at once disagree?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>SignupPanel</code>, read the setting and show the same component while reminders are off:</p>
+                        <pre data-snippet><code class="language-tsx">const { remindersOn } = useSettings();
+// ...
+{mine?.status === 'confirmed' &amp;&amp; !remindersOn &amp;&amp; &lt;ReminderSettings /&gt;}</code></pre>
+                        <p>Both copies read the one settings store through <code>useSyncExternalStore</code> (Lesson 5.3), so they can never disagree, and the permission step is Lesson 6.1's gate either way. Hiding it once <code>remindersOn</code> is true keeps the cleanup screen calm; the Profile tab is where people go to turn things off. Note one wrinkle: with this exact condition, the gate disappears the moment the switch turns on, before Continue. A good fix is to remember in the panel that the volunteer started here (<code>useState</code>), and keep showing <code>ReminderSettings</code> until the gate's question is answered.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Why are Shoreline Crew's reminders local notifications rather than push notifications?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Do push notifications need the permission too?">
+                                A) Local notifications need no permission
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a push arrive with no signal at all?">
+                                B) Push notifications cannot carry a cleanup's id
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Think about what the phone already knows when the volunteer signs up.">
+                                C) Local notifications are delivered more reliably by Apple and Google
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The cleanup's date and time are in the sign-up, so the phone can schedule the reminder itself. No server, no push credentials, no token, and no signal at 6 pm. Push is for things only a server knows, when they happen.">
+                                D) The reminder time is known when the volunteer signs up, so the phone can schedule it without a server, an account or a signal
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Theo cancels his sign-up for Family Beach Morning on his phone. What happens to its reminder?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Who else knows about the reminder, apart from the phone?">
+                                A) The server deletes it
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="cancelSignupMutation settles through refreshSignups, which fetches the sign-ups again and then runs updateReminders. The cancelled sign-up is no longer confirmed, so its reminder is not wanted, and the phone cancels it.">
+                                B) After the sign-ups are refetched, <code>updateReminders</code> cancels it: the sign-up is no longer confirmed
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the phone's scheduler know anything about sign-ups?">
+                                C) It still fires the evening before, and the cleanup screen explains
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is a sign-out needed for the reminders to change?">
+                                D) Nothing until he signs out
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Shoreline Crew is closed. A reminder for Weekend Cove Cleanup arrives and Theo taps it. What opens the cleanup?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is the reminder a link with a scheme?">
+                                A) The phone opens <code>shorelinecrew://cleanups/e08</code> through the deep-link system
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Was any listener running when the tap happened?">
+                                B) <code>addNotificationResponseReceivedListener</code> hears the tap
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The tap started the app before any listener existed, so useReminderTaps reads it once with getLastNotificationResponse when the app is ready, checks content.data.url with isCleanupPath, and calls router.push. The listener handles taps while the app runs.">
+                                C) <code>useReminderTaps</code> reads <code>getLastNotificationResponse()</code> once the app is ready, checks the path and calls <code>router.push</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the notification handler deal with taps?">
+                                D) <code>setNotificationHandler</code> opens it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> In the web preview, reminders are on and Chrome has allowed notifications. What happens at 6 pm the evening before Theo's next cleanup?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="expo-notifications uses the browser's permission on the web, but its web scheduler is empty, so nothing was ever scheduled. remindersWork is false there, and the Profile tab says reminders work in the app on a phone.">
+                                A) Nothing: expo-notifications has no scheduler on the web, which is why the preview says reminders work on a phone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What did the web code of scheduleNotificationAsync turn out to be?">
+                                B) Chrome shows the reminder, because the permission was granted
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does any server know about Theo's reminders?">
+                                C) shoreline-api sends it to the browser
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Why does <code>useReminders</code> do nothing until the saved session and settings have loaded?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is scheduling slow?">
+                                A) Scheduling notifications slows down the splash screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does updateReminders get the permission from?">
+                                B) The permission cannot be read before the splash screen hides
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Before loadSession finishes, readSession() returns null, so updateReminders would decide that nobody is signed in and cancel every reminder at each launch, then set them again, or not at all when the app starts offline.">
+                                C) Before then nobody seems signed in, so <code>updateReminders</code> would cancel every reminder at each launch
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Expo Router have anything to do with the reminders' list?">
+                                D) Expo Router needs the stack before reminders can be scheduled
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Do reminders survive a restart of the phone, or an app update?</summary>
+                    <p>They should. On Android, expo-notifications keeps its scheduled requests in the app's storage and sets them again after a restart or an update (that is what its <code>RECEIVE_BOOT_COMPLETED</code> permission and "package replaced" receiver are for, read in its Android manifest); an iPhone keeps scheduled notifications itself. Uninstalling the app removes them. And Shoreline Crew does not rely on it: <code>updateReminders</code> runs at every start and sets whatever is missing. Check a restart on your phone if your own app depends on it.</p>
+                </details>
+
+                <details class="card">
+                    <summary>What is "provisional" permission on iPhone?</summary>
+                    <p>An iPhone app may ask for provisional authorization (<code>requestPermissionsAsync({ ios: { allowProvisional: true } })</code>): no question at all, and notifications are delivered quietly to Notification Center, with buttons for the person to keep or turn them off. Expo's documentation shows how to recognize it (<code>ios.status</code> is <code>IosAuthorizationStatus.PROVISIONAL</code>, while <code>granted</code> is false). It suits news and tips that can wait. A cleanup reminder is only useful if it is noticed the evening before, so Shoreline Crew asks properly, once, after the volunteer turned the switch on.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why does the reminder show Expo Go's icon, and how do I give it Shoreline Crew's?</summary>
+                    <p>In Expo Go, notifications belong to Expo Go, so they carry its icon and its channels. In your own build, Android draws the small notification icon from the plugin's <code>icon</code> option (a 96 by 96 white PNG with transparency, per the plugin's documentation) tinted with <code>color</code>; an iPhone uses the app icon. Shoreline Crew leaves both for Module 9, when the app gets its final icons and its first build.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Could a reminder have buttons, like "I can't come"?</summary>
+                    <p>Yes: notification categories (<code>setNotificationCategoryAsync</code>) add buttons to a notification, and the response tells you which one was pressed (<code>actionIdentifier</code>). But "I can't come" would cancel a sign-up from outside the app, and this lesson's rule says a notification only opens a screen. If you ever add one, have it open the cleanup with the cancel button in view, or confirm on screen, so a pocket tap never gives a spot away.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why not a badge with the number of upcoming cleanups?</summary>
+                    <p>A badge is a red number that asks for attention every time the home screen is seen, and an upcoming cleanup is not something to clear. Shoreline Crew asks the iPhone for alerts and sounds only, and its handler sets <code>shouldSetBadge: false</code>. The Logbook tab's badge (Lesson 5.5) is different: it lives inside the app, and it counts something the volunteer can act on.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Design, on paper, the push feature Shoreline Crew does not have: "A spot opened up, and it is yours", sent when the API moves a volunteer from the waiting list to confirmed. Write down the endpoint the app would call to register its push token (and to remove it on sign-out), the table the server would keep, the moment the server would send, the JSON it would send (with which <code>data.url</code>), what it does with a "device not registered" receipt, and the sentence for the stores' privacy details (Lesson 9.4). Then compare: which parts of today's code would change, and which would work as they are? (Hint: look at <code>useReminderTaps</code>.) If you have a development build later, Expo's push notifications tool lets you send a test push to your own token.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Look at the last ten notifications on your phone. For each, decide: local or push? Did it arrive at a good moment? Where did the tap take you, and was it the right screen? Then write the one reminder your own app would send, in the exact words, at the exact time, and say how someone would turn it off.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Local notifications are scheduled by the app and delivered by the phone, with no server and no signal; push notifications need a server, credentials, a token per device and a development build, and are for things only a server knows</li>
+                        <li>Notifications go through the same permission step as location and the camera: <code>createPermissionHook</code> makes the missing Hook, Android needs a channel first, and the moment to ask is the switch, not the launch</li>
+                        <li>A scheduled reminder is a copy of the truth: one function that makes the phone's reminders match the server's sign-ups, safe to run any time, keeps them true after sign-ups, cancellations, sign-outs and Settings changes</li>
+                        <li>A tap reaches the app through a listener while it runs and <code>getLastNotificationResponse</code> when it started the app; the notification's data is outside input, checked by a type guard, and it only ever opens a screen</li>
+                        <li>The web preview can ask but not schedule, and Expo Go shows the flow under Expo Go's name: the reminders themselves are tested on a phone</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up every expo-notifications function and trigger</td><td><a href="https://docs.expo.dev/versions/latest/sdk/notifications/">Expo: Notifications</a></td></tr>
+                            <tr><td>Set up push notifications from start to finish</td><td><a href="https://docs.expo.dev/push-notifications/overview/">Expo: Push notifications overview</a></td></tr>
+                            <tr><td>Send pushes from a server with Expo's push service</td><td><a href="https://docs.expo.dev/push-notifications/sending-notifications/">Expo: Send notifications with the Expo Push Service</a></td></tr>
+                            <tr><td>Read Apple's advice on notifications</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/notifications">Apple Human Interface Guidelines: Notifications</a></td></tr>
+                            <tr><td>Read Android's notification permission and channel guides</td><td><a href="https://developer.android.com/develop/ui/views/notifications/notification-permission">Android Developers: Notification runtime permission</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Volunteers can turn on reminders, asked for at the moment it makes sense, and turn them off again</li>
+                        <li>The phone reminds them the evening before every cleanup they have a spot at, with no server and no signal</li>
+                        <li>Reminders follow the sign-ups: a cancellation, a sign-out or a "no" in Settings takes them away</li>
+                        <li>A tap opens the right cleanup, whether the app was open or closed, and nothing else</li>
+                        <li>You can explain what push notifications would need, and what they would cost, before anyone asks you to add them</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Shoreline Crew now speaks up at the right time. In <a href="lesson_24.html">Lesson 6.5: Haptics, Sharing and Files</a>, it learns to answer the volunteer's hand: a small, well-chosen buzz when a sign-up or a debris log goes through (and none for people who turned vibration off), the whole logbook written to a CSV file and handed to the share sheet with expo-sharing (Lesson 4.4's share button sends text; files are new), and a closer look at the file system the photos from Lesson 6.2 already live in.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 7 on your phone (the question, the test reminders with the app open, in the background and closed) and commit your work</li>
+                    <li>Notice where your phone vibrates under your thumb today: a keyboard, a toggle, a payment, a pull to refresh. Which buzzes helped, and which did you not notice at all?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's hardest idea was not an API: it was that a reminder on the phone is a copy that can go stale, and that one function run often beats a dozen careful "schedule here, cancel there" calls. That shape (read the truth, compute what should exist, make it so) will follow you into caches, offline queues and sync engines for the rest of your career. If notifications still feel slippery because you cannot see them on your desk, that is normal: send yourself a few test reminders, tap them from every state, and the picture will settle.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_22.html" class="prev-lesson">← Previous: Location and Maps</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_24.html" class="next-lesson">Next: Haptics, Sharing and Files →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

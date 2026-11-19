@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 8</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 8: FlatList, SectionList and Big Lists</h1>
+    <p class="sub">Answers and reasoning for every Session 8 item: the warm-up, both self-checks, the predict-then-check items, the lab reference outputs, the lesson pages' own quizzes, the Part 1 project as handed out, and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>8</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Opening: Warm-up Answers</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>A color baked into a style sheet</b> stays light in dark mode: it was worked out once, when the file loaded. Colors in style sheets come through <code class="inline">createThemedStyles</code>, colors for props from <code class="inline">useTheme()</code> (Lesson 2.5).</li>
+  <li><b><code class="inline">Platform.OS</code></b> for a real platform difference: today, the web preview has no pull-to-refresh gesture, so Shoreline Crew shows a Refresh button on the web only.</li>
+  <li><b>Two columns</b> come from <code class="inline">useColumns()</code>: <code class="inline">useWindowDimensions().width &gt;= layout.twoColumns</code> (700).</li>
+</ol>
+
+  <div class="sec"><h2>3.1 · FlatList and SectionList: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">The course opened two screens of 1,000 rows at phone size and counted the rows in the page. What did it find when they opened?</div><div class="opts"><div class="opt">A) Both drew about 20 rows</div><div class="opt correct">B) ScrollView 1,000; FlatList 358, about ten screens above and below what shows</div><div class="opt">C) ScrollView 358; FlatList 1,000</div><div class="opt">D) FlatList drew only the rows on screen, about 15</div></div><div class="why"><b>Why:</b> A ScrollView draws every child at once; a FlatList draws what is near the screen (its windowSize is 21 screens) and more as you scroll: virtualization. A row thrown away is drawn again from data (Lesson 3.1, Why a List Component).<br><b>A</b> is wrong: A ScrollView never skips a child.<br><b>C</b> is wrong: The other way round.<br><b>D</b> is wrong: FlatList draws generously: ten screens' worth each way.</div></div>
+  <div class="q" data-sc="2" data-kind="short"><div class="qn">Q2</div><div class="qt">The kit ran the lesson's "header made inside the screen" in Jest: <code class="inline">ListHeaderComponent={() =&gt; &lt;TextInput ... /&gt;}</code>, then typed <code class="inline">lo</code>. Why does the field hold only <code class="inline">l</code>, and what do you write instead?</div><pre class="code">expect(instance).toHaveDisplayValue()
+
+Expected instance to have display value:
+  lo
+Received:
+  l</pre><div class="opts"><div class="opt correct">Each render makes a new function, so React sees a new component and builds a new text field after the first letter; pass an ELEMENT (<code class="inline">const header = (...)</code>)</div></div><div class="why"><b>Why:</b> On a phone the keyboard closes after every letter. tsc and <code class="inline">npx expo lint</code> say nothing (the kit ran both: silent); only running it shows it (Lesson 3.1, Common Mistakes; Lab 3.1 Task 1).</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this in shoreline-crew. Which change fixes it?</div><pre class="code">src/app/index.tsx:178:7 - error TS2322: Type '(card: Card) =&gt; number' is not assignable to type '(item: Card, index: number) =&gt; string'.
+Found 1 error in src/app/index.tsx:178</pre><div class="opts"><div class="opt">A) <code class="inline">keyExtractor={(card) =&gt; String(card.event.capacity)}</code></div><div class="opt">B) Delete <code class="inline">keyExtractor</code>: FlatList finds a key itself</div><div class="opt correct">C) <code class="inline">keyExtractor={(card) =&gt; card.event.id}</code></div><div class="opt">D) Add <code class="inline">// @ts-expect-error</code> above the line</div></div><div class="why"><b>Why:</b> Keys are strings, and they come from the data's identity: the API's id is unique and never changes. Capacity is not unique even as a string (Lesson 3.1, Exercise 2).<br><b>A</b> is wrong: It type-checks, but two cleanups can have the same capacity.<br><b>B</b> is wrong: Without one, React Native 0.88 quietly falls back to the item's position: the index-key bug.<br><b>D</b> is wrong: Silences the check and keeps a wrong key.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">A volunteer pulls the list to refresh with no signal. The spinner never stops. Which line is missing?</div><div class="opts"><div class="opt">A) <code class="inline">onRefresh={refresh}</code></div><div class="opt">B) <code class="inline">refreshing={refreshing}</code></div><div class="opt">C) <code class="inline">key={columns}</code></div><div class="opt correct">D) <code class="inline">setRefreshing(false)</code> in the <code class="inline">.catch</code>, not only in the <code class="inline">.then</code></div></div><div class="why"><b>Why:</b> The list shows the platform's spinner for as long as <code class="inline">refreshing</code> is true: switch it off when the data arrives AND when the request fails (Lesson 3.1, Step 5).<br><b>A</b> is wrong: Then nothing would refresh at all.<br><b>B</b> is wrong: Then no spinner would show.<br><b>C</b> is wrong: The number of columns has nothing to do with refreshing.</div></div>
+  <div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt">In the web preview, a learner drags the Cleanups list down and nothing refreshes. What is going on?</div><div class="opts"><div class="opt correct">A) A browser has no pull gesture for a list, and react-native-web's RefreshControl draws a plain View: test the pull in Expo Go</div><div class="opt">B) onRefresh is spelled wrong</div><div class="opt">C) The list needs a ScrollView around it</div><div class="opt">D) The API is down</div></div><div class="why"><b>Why:</b> A real platform difference: Shoreline Crew shows a Refresh button only on the web (<code class="inline">Platform.OS === 'web'</code>) and leaves the gesture to phones (Lesson 3.1, the web preview has no pull to refresh).<br><b>B</b> is wrong: The same code refreshes on a phone.<br><b>C</b> is wrong: A list inside a ScrollView breaks virtualization.<br><b>D</b> is wrong: With the API down, the Refresh button would show the error view.</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Group by date on Android: the headings scroll away instead of staying on top. What is missing?</div><div class="opts"><div class="opt">A) numColumns on the SectionList</div><div class="opt correct">B) <code class="inline">stickySectionHeadersEnabled</code>, set explicitly, with a background on the heading</div><div class="opt">C) A key on each section</div><div class="opt">D) <code class="inline">renderSectionHeader</code> must return a View</div></div><div class="why"><b>Why:</b> React Native turns sticky headings on for iOS only; Shoreline Crew sets the prop so every platform behaves the same, and gives the heading the page color so cards do not show through it.<br><b>A</b> is wrong: SectionList has no numColumns (the lesson's quiz Q5).<br><b>C</b> is wrong: Sections have titles, not keys.<br><b>D</b> is wrong: Any element works; the AppText heading is fine.</div></div>
+
+  <div class="sec"><h2>3.1 · FlatList and SectionList: predict, then check</h2><span class="rule"></span></div>
+<p>Both are one run of the kit's demo test (<code class="inline">src/mistakes.test.tsx</code> in a copy of Lab 3.1's solution: the lesson's InlineHeader and NoKey with plain React Native components). The test file:</p>
+<pre class="code"><span class="k">import</span> { render, screen, userEvent } <span class="k">from</span> <span class="s">'@testing-library/react-native'</span>;
+<span class="k">import</span> { useState } <span class="k">from</span> <span class="s">'react'</span>;
+<span class="k">import</span> { FlatList, Text, TextInput } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">const</span> beaches = [<span class="s">'Driftwood Cove'</span>, <span class="s">'Otter Creek Mouth'</span>, <span class="s">'Long Strand'</span>, <span class="s">'Jetty Rocks'</span>];
+jest.setTimeout(<span class="s">30</span>_000); <span class="c">// a first render on a busy laptop can take seconds</span>
+
+<span class="c">// Don't: a new header component on every render (Lesson 3.1, Common Mistakes)</span>
+<span class="k">function</span> InlineHeader() {
+  <span class="k">const</span> [query, setQuery] = useState(<span class="s">''</span>);
+  <span class="k">return</span> (
+    &lt;FlatList
+      data={beaches.filter((beach) =&gt; beach.toLowerCase().includes(query.toLowerCase()))}
+      keyExtractor={(beach) =&gt; beach}
+      renderItem={({ item }) =&gt; &lt;Text&gt;{item}&lt;/Text&gt;}
+      ListHeaderComponent={() =&gt; (
+        &lt;TextInput accessibilityLabel=<span class="s">"Search beaches"</span> value={query} onChangeText={setQuery} /&gt;
+      )}
+    /&gt;
+  );
+}
+
+<span class="c">// Don't: the number of columns changes, but the FlatList is the same one</span>
+<span class="k">function</span> NoKey({ columns }: { columns: <span class="k">number</span> }) {
+  <span class="k">return</span> (
+    &lt;FlatList
+      data={beaches}
+      keyExtractor={(beach) =&gt; beach}
+      numColumns={columns}
+      renderItem={({ item }) =&gt; &lt;Text&gt;{item}&lt;/Text&gt;}
+    /&gt;
+  );
+}
+
+test(<span class="s">'an inline header: type "lo"'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;InlineHeader /&gt;);
+  <span class="k">await</span> user.type(screen.getByLabelText(<span class="s">'Search beaches'</span>), <span class="s">'lo'</span>);
+  expect(screen.getByLabelText(<span class="s">'Search beaches'</span>)).toHaveDisplayValue(<span class="s">'lo'</span>);
+});
+
+test(<span class="s">'numColumns from 1 to 2, no key'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> render(&lt;NoKey columns={<span class="s">1</span>} /&gt;);
+  <span class="k">await</span> screen.rerender(&lt;NoKey columns={<span class="s">2</span>} /&gt;);
+});</pre><div class="q"><div class="qn">P1</div><div class="qt">Predict, then run it.</div><pre class="code">npm test -- src/mistakes.test.tsx</pre><div class="opts"><div class="opt correct"><pre class="out">expect(instance).toHaveDisplayValue()
+
+Expected instance to have display value:
+  lo
+Received:
+  l</pre></div></div><div class="why"><b>Why:</b> <code class="inline">l</code>: a new header component on every render, so React builds a new text field after the first letter; the rest of the typing goes nowhere. On a phone the keyboard closes after every letter. tsc and the linter print nothing. Self-check Q2, Lab 3.1 Task 1.</div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Predict, then run it.</div><pre class="code">npm test -- src/mistakes.test.tsx</pre><div class="opts"><div class="opt correct"><pre class="out">Invariant Violation: Changing numColumns on the fly is not supported. Change the key prop on FlatList when changing the number of columns to force a fresh render of the component.</pre></div></div><div class="why"><b>Why:</b> tsc says nothing; the run stops with React Native's invariant, the words the lesson's browser console showed (on a phone, the red screen). <code class="inline">key={columns}</code>. Lab 3.1 Task 1.</div></div>
+
+  <div class="sec"><h2>3.2 · Big Lists, Fast: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">In the course's list lab, which number shows FlashList's big idea most clearly?</div><div class="opts"><div class="opt">A) Rows in the page when it opens</div><div class="opt">B) Frames per second at full speed</div><div class="opt">C) The time the first row takes to appear</div><div class="opt correct">D) Row components created during the scroll test: thousands for FlatList, a few dozen for FlashList</div></div><div class="why"><b>Why:</b> FlatList unmounts rows that leave its window and creates new ones; FlashList keeps them in pools and draws them again with new data: recycling. At full speed both stayed near 60 fps; the gap opened with the CPU slowed six times (Lesson 3.2, Measure, Don't Guess).<br><b>A</b> is wrong: That shows the drawn area, not the reuse.<br><b>B</b> is wrong: Both stayed close to 60 on a desktop at full speed.<br><b>C</b> is wrong: The lesson did not measure that.</div></div>
+  <div class="q" data-sc="8" data-kind="short"><div class="qn">Q8</div><div class="qt">Moving the list to FlashList, a learner left <code class="inline">columnWrapperStyle={styles.cell}</code> on it. tsc prints this (its long first line shortened). Which line names the problem, and where does the spacing go instead?</div><pre class="code">src/app/index.tsx:221:9 - error TS2322: Type '{ data: …; … 16 more …; }' is not assignable to type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.
+Found 1 error in src/app/index.tsx:221
+Property 'columnWrapperStyle' does not exist on type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.</pre><div class="opts"><div class="opt correct">The line after it: <code class="inline">Property 'columnWrapperStyle' does not exist</code>; FlashList has no row style, so the spacing lives inside each cell (half the gap on each side)</div></div><div class="why"><b>Why:</b> With long tsc errors, read the last indented line first: it is the specific reason. FlashList places every cell itself (Lesson 3.2, Exercise 3).</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt"><code class="inline">useScreenScroll()</code> puts the safe-area padding in <code class="inline">style</code>. Why does the Cleanups screen put that part on a View around the FlashList?</div><div class="opts"><div class="opt">A) tsc rejects padding on FlashList</div><div class="opt correct">B) FlashList's documentation says padding in <code class="inline">style</code> is not supported; margin is fine</div><div class="opt">C) A View is faster than a list</div><div class="opt">D) The safe areas only work on a View</div></div><div class="why"><b>Why:</b> The type checker accepts it (style is an ordinary view style), so this is one only the documentation tells you: <code class="inline">const { style: frame, ...scroll } = useScreenScroll();</code> and <code class="inline">&lt;View style={frame}&gt;&lt;FlashList {...scroll} ...</code> (Lesson 3.2, Step 4).<br><b>A</b> is wrong: It type-checks: that is the trap.<br><b>C</b> is wrong: Speed has nothing to do with it.<br><b>D</b> is wrong: Padding works on any view; FlashList's own style is the exception.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">The lab screen without its two casts: tsc prints this. What is the honest fix?</div><pre class="code">src/app/list-lab.tsx:39:34 - error TS2345: Argument of type 'RefObject&lt;FlashListRef&lt;string&gt; | null&gt;' is not assignable to parameter of type 'RefObject&lt;FlashListRef&lt;any&gt;&gt;'.</pre><div class="opts"><div class="opt correct">A) <code class="inline">useBenchmark(flashRef as RefObject&lt;FlashListRef&lt;string&gt;&gt;, ...)</code>: the ref is only used after the button is pressed, when the list exists</div><div class="opt">B) <code class="inline">useRef&lt;FlashListRef&lt;string&gt;&gt;()</code> without null</div><div class="opt">C) <code class="inline">// @ts-ignore</code> on both lines</div><div class="opt">D) Turn off <code class="inline">strict</code> in tsconfig.json</div></div><div class="why"><b>Why:</b> The hooks were typed before React 19 changed what <code class="inline">useRef(null)</code> returns. A cast tells TypeScript what you know; use one only when you can say that sentence (Lesson 3.2, Step 2).<br><b>B</b> is wrong: React 19's useRef wants an initial value.<br><b>C</b> is wrong: Hides every other error on those lines too.<br><b>D</b> is wrong: Switches off checks for the whole project.</div></div>
+  <div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">Page 2 failed and the volunteer is still at the end of the list. Why must <code class="inline">onEndReached</code> NOT call <code class="inline">loadNextPage</code> now, and what asks again?</div><div class="opts"><div class="opt correct">Every failure changes the footer, FlashList checks the end again and would ask again and again (a busy radio, a drained battery); only when <code class="inline">more</code> is idle; after a failure only the footer's Try again asks</div></div><div class="why"><b>Why:</b> Ask once, stop after a failure, never show a cleanup twice: the three details that make infinite scroll shippable (Lesson 3.2; Lab 3.2 Task 2 counts the requests).</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">While a volunteer scrolls, a new cleanup is added before the ones already loaded. Page 2 then starts with a cleanup the list already has. What does Shoreline Crew do?</div><div class="opts"><div class="opt">A) Asks for page 2 again</div><div class="opt">B) Shows it twice: the API's order is the truth</div><div class="opt correct">C) Keeps only the items of page 2 whose id it does not have yet</div><div class="opt">D) Reloads every page from 1</div></div><div class="why"><b>Why:</b> Pages are counted from the start of the list, so items shift by one. A Set of the known ids makes "never show it twice" one line, and keeps the list's keys unique (Lesson 3.2, Step 6).<br><b>A</b> is wrong: Page 2 would still start with the same item.<br><b>B</b> is wrong: A repeated cleanup repeats a key: the list's bookkeeping breaks.<br><b>D</b> is wrong: Throws away what the volunteer already sees.</div></div>
+
+  <div class="sec"><h2>3.2 · Big Lists, Fast: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P3</div><div class="qt">Predict, then run it.</div><pre class="code">curl -s -D - -o /dev/null "http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5"</pre><div class="opts"><div class="opt correct"><pre class="out">HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json; charset=utf-8
+link: &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="first", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="prev", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5&gt;; rel="last"
+vary: Origin
+x-total-count: 8
+x-total-pages: 2
+Date: (the time of your request)
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked</pre></div></div><div class="why"><b>Why:</b> <code class="inline">x-total-count: 8</code> and <code class="inline">x-total-pages: 2</code>: the app asks for page 3 never, because 2 is the last page. The kit's run equals the lesson's card but for the Date line.</div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">Predict, then run it.</div><pre class="code">npx tsc --noEmit</pre><div class="opts"><div class="opt correct"><pre class="out">src/app/index.tsx:221:9 - error TS2322: Type '{ data: SectionRow&lt;Card&gt;[]; keyExtractor: (row: SectionRow&lt;Card&gt;) =&gt; string; renderItem: ({ item: row, target }: ListRenderItemInfo&lt;SectionRow&lt;Card&gt;&gt;) =&gt; Element; ... 16 more ...; keyboardDismissMode: "on-drag"; }' is not assignable to type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.
+  Property 'columnWrapperStyle' does not exist on type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.
+
+221         columnWrapperStyle={styles.cell}
+            ~~~~~~~~~~~~~~~~~~
+
+
+Found 1 error in src/app/index.tsx:221</pre></div></div><div class="why"><b>Why:</b> The second line: <code class="inline">Property 'columnWrapperStyle' does not exist</code>. The first one lists every prop the FlashList was given. The kit's run is the lesson's card (Exercise 3).</div></div>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, in a terminal like a learner's, in a fresh copy of the lab folder with the shared install). Test durations are left out.</p>
+<div class="blk lab"><div class="h">Lab 3.1 (guided): labs/module-08/l3_1-flatlist-and-sectionlist/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (each failure's first line):</p>
+<pre class="out">● Task 1: the search field keeps every letter you type
+  expect(instance).toHaveDisplayValue()
+● Task 1: the list survives a wider window (one column, then two)
+  Invariant Violation: Changing numColumns on the fly is not supported. Change the key prop on FlatList when changing the number of columns to force a fresh render of the component.
+● Task 2: while loading: the search field and "Loading beaches…"
+  Unable to find an element with text: Loading beaches…
+● Task 2: after a failure: the message and a Try again that loads again
+  Unable to find an element with role: alert
+● Task 2: nothing matches: the message, and Show all beaches clears the search
+  Unable to find an element with text: No beaches match your search.
+● Task 3: groupByTown: three towns in alphabetical order, two beaches each
+  TODO 3: group the 6 beaches by town
+● Task 3: the beaches under their towns: the towns are headings
+  Unable to find an element with role: header</pre><p><code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> in the starter: nothing after their two <code class="inline">&gt;</code> lines. Every bug in this lab type-checks and lints clean. The solution:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: the search field keeps every letter you type
+  ✓ Task 1: the list survives a wider window (one column, then two)
+  ✓ Task 2: while loading: the search field and "Loading beaches…"
+  ✓ Task 2: after a failure: the message and a Try again that loads again
+  ✓ Task 2: nothing matches: the message, and Show all beaches clears the search
+  ✓ Task 3: groupByTown: three towns in alphabetical order, two beaches each
+  ✓ Task 3: the beaches under their towns: the towns are headings
+Tests:       7 passed, 7 total</pre><p>What each task shows: (1) the header as an element keeps the field (the inline component remounts it), and <code class="inline">key={columns}</code> rebuilds the list when the columns change; (2) one ListEmptyComponent chosen by the load state, the header in every state; (3) <code class="inline">groupByTown</code> is plain TypeScript (a Set of towns, sorted, then a filter per town), the SectionList's headings are headers with a background and <code class="inline">stickySectionHeadersEnabled</code>. Accept a <code class="inline">reduce</code> for the grouping if the order matches.</p>
+<p>The solution's <code class="inline">BeachList</code> header and empty element:</p>
+<pre class="code">  <span class="c">// Above the beaches, in every state. An element, not a component: the field keeps its text and its focus.</span>
+  <span class="k">const</span> header = (
+    &lt;View style={styles.header}&gt;
+      &lt;TextInput
+        accessibilityLabel=<span class="s">"Search beaches"</span>
+        placeholder=<span class="s">"Search beaches"</span>
+        value={query}
+        onChangeText={setQuery}
+        style={styles.input}
+      /&gt;
+    &lt;/View&gt;
+  );
+
+  <span class="c">// What the list shows when it has no beaches: still loading, a failed load, or nothing matches</span>
+  <span class="k">const</span> empty =
+    load.status === <span class="s">'loading'</span> ? (
+      &lt;Loading label=<span class="s">"Loading beaches…"</span> /&gt;
+    ) : load.status === <span class="s">'failed'</span> ? (
+      &lt;Failed message={load.message} onRetry={onRetry} /&gt;
+    ) : (
+      &lt;Empty message=<span class="s">"No beaches match your search."</span> action={{ label: <span class="s">'Show all beaches'</span>, onPress: () =&gt; setQuery(<span class="s">''</span>) }} /&gt;
+    );</pre></div>
+<div class="blk lab"><div class="h">Lab 3.2 (guided): labs/module-08/l3_2-big-lists-fast/starter → solution</div>
+<p>As shipped (each failure's first line):</p>
+<pre class="out">● Task 1: a recycled row does not keep the last cleanup's report open
+  Unable to find an element with role: button, name: Show report
+● Task 2: near the end twice while page 2 is on its way: page 2 is asked for once
+  expect(received).toEqual(expected) // deep equality
+● Task 2: page 2 fails: the list stops asking until Try again
+  expect(received).toEqual(expected) // deep equality
+● Task 2: a cleanup that moved to page 2 is not shown twice
+  expect(received).toEqual(expected) // deep equality
+● Task 3: one heading before the first cleanup of each month
+  TODO 3: headings and rows for 7 cleanups
+● Task 3: the months are headings in the FlashList
+  TODO 3: headings and rows for 3 cleanups</pre><p>The solution:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: a recycled row does not keep the last cleanup's report open
+  ✓ Task 2: near the end twice while page 2 is on its way: page 2 is asked for once
+  ✓ Task 2: page 2 fails: the list stops asking until Try again
+  ✓ Task 2: a cleanup that moved to page 2 is not shown twice
+  ✓ Task 3: one heading before the first cleanup of each month
+  ✓ Task 3: the months are headings in the FlashList
+Tests:       6 passed, 6 total</pre><p>What each task shows: (1) <code class="inline">rerender</code> with another cleanup is what recycling does, and <code class="inline">useRecyclingState(false, [cleanup.id])</code> closes the report for the new cleanup; (2) the idle check (<code class="inline">more.status === 'idle'</code>) and the Set of known ids, exactly Lesson 3.2's two details, with MSW holding page 2 "on its way" so a second call really happens while it waits; (3) the flattened month rows, <code class="inline">getItemType</code> and <code class="inline">stickyHeaderIndices</code> (the test counts each month once: FlashList draws a pinned copy of the current heading). The solution's hook:</p>
+<pre class="code">  <span class="c">// The next page, added after the cleanups the list already has</span>
+  <span class="k">function</span> loadNextPage() {
+    <span class="k">if</span> (load.status !== <span class="s">'loaded'</span> || !hasMore) {
+      <span class="k">return</span>;
+    }
+    setMore({ status: <span class="s">'loading'</span> });
+    getPastPage(api, load.page.page + <span class="s">1</span>)
+      .then((next) =&gt; {
+        setLoad((current) =&gt; {
+          <span class="k">if</span> (current.status !== <span class="s">'loaded'</span>) {
+            <span class="k">return</span> current;
+          }
+
+          <span class="c">// A cleanup can move to the next page while you scroll: never show it twice</span>
+          <span class="k">const</span> known = <span class="k">new</span> Set(current.cleanups.map((cleanup) =&gt; cleanup.id));
+          <span class="k">const</span> added = next.items.filter((cleanup) =&gt; !known.has(cleanup.id));
+          <span class="k">return</span> { ...current, cleanups: [...current.cleanups, ...added], page: next.page };
+        });
+        setMore({ status: <span class="s">'idle'</span> });
+      })
+      .catch((error: <span class="k">unknown</span>) =&gt; setMore({ status: <span class="s">'failed'</span>, message: message(error) }));
+  }
+
+  <span class="c">// The list is near its end. Only ask when nothing is on its way and the last page did not fail:</span>
+  <span class="c">// after a failure, Try again (loadNextPage) is the only way to ask again</span>
+  <span class="k">function</span> onEndReached() {
+    <span class="k">if</span> (more.status === <span class="s">'idle'</span>) {
+      loadNextPage();
+    }
+  }
+
+  <span class="k">return</span> { load, more, hasMore, loadNextPage, onEndReached };
+}</pre><p><code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their <code class="inline">&gt;</code> lines; the solution also bundles for the web (<code class="inline">npx expo export --platform web</code>: <code class="inline">Exported: dist</code>).</p>
+</div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 3.1 · FlatList and SectionList</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="3.1">
+  <li><b>D</b> The keyboard closes after every letter: The arrow function is a new component on every render, so React replaces the header, and its text field, after each letter. Focus is lost and the keyboard closes. Pass an element (const header = ...) instead.</li>
+  <li><b>B</b> An error: changing numColumns on the fly is not supported: FlatList cannot change numColumns in place: it stops with Changing numColumns on the fly is not supported. A key that changes with the number of columns, key={columns}, makes React build a new list instead.</li>
+  <li><b>C</b> (card) =&gt; card.event.id: The API's id is unique and never changes, so each drawn card stays with its cleanup while the list is filtered, refreshed or regrouped. Positions and titles can both change.</li>
+  <li><b>A</b> In the list's ListEmptyComponent, under the banner and the search field: The failed load leaves the list with no cards, so FlatList shows ListEmptyComponent, which is the ErrorView in the failed state. The header (banner, search, switches) stays above it.</li>
+  <li><b>B</b> SectionList has no numColumns: SectionList has no numColumns, so the grouped view is one card per line at any width. Getting columns there means putting rows of cards in each section yourself.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 3.2 · Big Lists, Fast</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="3.2">
+  <li><b>B</b> They are kept and reused to draw the cards coming into view: FlashList keeps them in a pool of spare rows of the same type and draws them again with the next items' data. That is why the lab counted a few dozen rows created for 1,000 items.</li>
+  <li><b>D</b> useRecyclingState(false, [event.id]): useRecyclingState resets to its initial value when a dependency changes. With the cleanup's id as the dependency, a recycled card starts closed for its new cleanup.</li>
+  <li><b>B</b> The footer shows the error and Try again; nothing is asked until the volunteer presses it: After a failure the next page is failed, not idle, so onEndReached does nothing. The footer shows describeError's message and Try again, which is the only thing that asks again.</li>
+  <li><b>C</b> The short list is near its end, so it loads page 2, where the cleanup is found: With no cards, the list is shorter than the screen, so it is near its end and calls onEndReached. Page 2 arrives, the filter runs again, and Night Heron Walk and Clean appears: 1 of 8 cleanups.</li>
+  <li><b>C</b> Half the gap of padding inside each cell, on both sides: FlashList positions every cell itself, so each cell carries half the gap on each side. The list's own side padding is halved, and the header, empty list and footer get the other half, so everything lines up.</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Part 1 Project Kickoff: Fix-It Tables</h2><span class="rule"></span></div>
+<p>The project's brief, rubric and instructor notes are in <code class="inline">labs/projects/part1-alder-row-repair-cafe/</code> (<code class="inline">TASKS.md</code>, <code class="inline">RUBRIC.md</code>, <code class="inline">solution/INSTRUCTOR-NOTES.md</code>) and in <code class="inline">final-assessment.html</code> (Part 1 section), with the scoring guidance and the model's outputs. As handed out, <code class="inline">npm test</code> in the starter fails every test (each failure's first line):</p>
+<pre class="out">● B1: a label for every table and every status
+  expect(received).toEqual(expected) // deep equality
+● B2: search matches the item or the owner, ignoring case and spaces
+  TODO B: filter 12 tickets (  BIKE , false)
+● B3: hiding finished repairs leaves out fixed and unfixable ones
+  TODO B: filter 12 tickets (, true)
+● B4: the tickets under their tables, in hall order, empty tables left out
+  TODO B: group 12 tickets by table
+● C1: the card shows the item as a heading, its tag, the owner, the status and the fixer
+  Unable to find an element with role: header, name: Toaster
+● C2: a waiting ticket has no fixer line and no Mark fixed button
+  Unable to find an element with text: Waiting
+● C3: Show problem opens the problem and says it is expanded
+  Unable to find an element with role: button, name: Show problem: Denim jacket
+● C4: Mark fixed tells the screen which ticket
+  Unable to find an element with role: button, name: Mark fixed: Backpack
+● D1: the queue: banner, search, two switches and the count
+  Unable to find an element with accessibility label: Search repairs
+● D2: typing a search keeps every letter and filters the list
+  Unable to find an element with accessibility label: Search repairs
+● D3: nothing matches: the message, and Show all repairs brings everything back
+  Unable to find an element with role: switch, name: Hide finished repairs
+● D4: Mark fixed changes the ticket, and a hidden finished ticket leaves the list
+  Unable to find an element with role: switch, name: Hide finished repairs
+● D5: Group by table shows the tables as headings, empty tables left out
+  Unable to find an element with role: switch, name: Group by table</pre><p>and <code class="inline">npm run typecheck</code> (the error lines):</p>
+<pre class="out">src/data/tickets.ts:5:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:6:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:7:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:8:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:9:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:10:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:11:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:12:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:13:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:14:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:15:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/data/tickets.ts:16:16 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+src/project.test.tsx:37:56 - error TS2339: Property 'number' does not exist on type 'Ticket'.
+src/types.check.ts:5:1 - error TS2578: Unused '@ts-expect-error' directive.
+src/types.check.ts:8:1 - error TS2578: Unused '@ts-expect-error' directive.
+src/types.check.ts:15:43 - error TS2353: Object literal may only specify known properties, and 'number' does not exist in type 'Ticket'.
+Found 16 errors in 3 files.</pre><p>The model solution passes all 13 tests (Session 9's check-in shows its full run):</p>
+<pre class="out"> PASS  src/project.test.tsx
+  ✓ B1: a label for every table and every status
+  ✓ B2: search matches the item or the owner, ignoring case and spaces
+  ✓ B3: hiding finished repairs leaves out fixed and unfixable ones
+  ✓ B4: the tickets under their tables, in hall order, empty tables left out
+  ✓ C1: the card shows the item as a heading, its tag, the owner, the status and the fixer
+  ✓ C2: a waiting ticket has no fixer line and no Mark fixed button
+  ✓ C3: Show problem opens the problem and says it is expanded
+  ✓ C4: Mark fixed tells the screen which ticket
+  ✓ D1: the queue: banner, search, two switches and the count
+  ✓ D2: typing a search keeps every letter and filters the list
+  ✓ D3: nothing matches: the message, and Show all repairs brings everything back
+  ✓ D4: Mark fixed changes the ticket, and a hidden finished ticket leaves the list
+  ✓ D5: Group by table shows the tables as headings, empty tables left out
+Tests:       13 passed, 13 total</pre>
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>Keys from the data:</b> the key keeps each drawn row with its item; a position points at another item after filtering, so state (an open Show details) moves to the wrong card. An id from the API never changes.</li>
+  <li><b>Infinite scroll:</b> ask once (only when the next page is idle), stop after a failure (only Try again asks), never show an item twice (drop the ids you have). And stop at the API's <code class="inline">X-Total-Pages</code>.</li>
+  <li><b>Fix-It Tables:</b> their own; check it against the milestones (TODO B and C before Session 9).</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 D.</b> Thinks virtualization draws only what is visible. The lesson's 358: ten screens each way.</li>
+  <li><b>Q3 A.</b> Fixes the type and keeps a non-unique key. Ask: can two cleanups have the same capacity?</li>
+  <li><b>Q5 B or C.</b> Debugs the code when the platform is the difference. Show the web-only Refresh button.</li>
+  <li><b>Q7 B.</b> Reads frame rates on a desktop as proof; full speed hides the gap. The 6x line and the rows created.</li>
+  <li><b>Q9 A.</b> Expects tsc to know FlashList's documentation. It type-checks: that is why it is a trap.</li>
+  <li><b>Q12 A or B.</b> Trusts page numbers as stable. Pages count from the start of the list, which can move.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 8 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

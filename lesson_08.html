@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Responsive, platform-specific and themed UI in an Expo app: useWindowDimensions and breakpoints instead of media queries, a two-column layout for tablets and wide windows, Platform.OS, Platform.select and platform files, and a real dark mode with color roles, a theme hook and themed styles for Shoreline Crew. React Native &amp; Expo: Build and Ship a Mobile App Lesson 2.5.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Responsive, Platform-Specific and Themed UI - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🌗 Lesson 2.5: Responsive, Platform-Specific and Themed UI</h1>
+                <p class="lead">Shoreline Crew will not only run on one phone held upright at noon. It will open on small phones and big ones, on tablets, in a browser window you can drag wider, on iPhones and Android phones that do some things differently, and at night, when half your volunteers have dark mode on. In this lesson the app learns to notice all of that: it lays its cards out by the room it has, it knows which platform it is on when that matters, and it gets a real dark mode, with every color it uses given a night-time value.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Read the window's size with <code>useWindowDimensions</code>, choose a layout with breakpoints in density-independent pixels, and explain why <code>Dimensions.get</code> at the top of a file goes stale</li>
+                        <li>Handle real platform differences with <code>Platform.OS</code>, <code>Platform.select</code>, platform-only props and platform files (<code>.ios.tsx</code>, <code>.android.tsx</code>, <code>.web.ts</code>), and know when not to</li>
+                        <li>Follow the phone's light or dark setting with <code>useColorScheme</code>, and design a dark set of color roles that passes the same contrast checks as the light one</li>
+                        <li>Build a typed theme: palettes TypeScript keeps complete, a <code>useTheme</code> hook, and styles that are made once per theme</li>
+                        <li>Give the navigator and the status bar the theme's colors, and fix the web preview's server-drawn first page</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_07.html">Lesson 2.4: Touch and Input</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> a dark set of every color role (badges and controls included), a typed theme with a <code>useTheme</code> hook and themed styles, a web-safe <code>useColorScheme</code>, themed navigation and status bar, and a Cleanups screen that shows two columns of cards on tablets and wide windows</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer (you will resize it and switch it to dark mode), with shoreline-api in a second terminal; Expo Go on your phone for the phone's own dark mode</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-08-start.zip">lesson-08-start.zip</a> · Finished code: <a href="downloads/lesson-08-end.zip">lesson-08-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: One App, Many Screens</a></li>
+                        <li><a href="#size" class="toc-link">Screen Size Without Media Queries</a></li>
+                        <li><a href="#platform" class="toc-link">Platform Differences</a></li>
+                        <li><a href="#dark" class="toc-link">Dark Mode on a Phone</a></li>
+                        <li><a href="#theme" class="toc-link">A Theme in Code</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew by Day and by Night</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: One App, Many Screens</h2>
+                <p>On the web you have media queries for screen size, <code>prefers-color-scheme</code> and CSS variables for dark mode, and one browser engine at a time. React Native has none of those as CSS. Instead, everything is a value your components read while they render:</p>
+                <ul>
+                    <li><strong>Size</strong> is a number from a hook: the window's width and height, which change when a tablet turns, a foldable opens, an iPad splits its screen or you drag the web preview wider.</li>
+                    <li><strong>Platform</strong> is a value too: <code>'ios'</code>, <code>'android'</code> or <code>'web'</code>, for the few places where the platforms really differ.</li>
+                    <li><strong>Dark mode</strong> is the phone's setting, read by a hook; there is no stylesheet that swaps itself. If a color was baked into a style when the file loaded, it stays a daytime color.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "it looks broken on my tablet" and "it blinds me at night" are some of the most common bug reports a new app gets, and app stores show screenshots from both phones and tablets. A layout that adapts and a dark mode that was designed (not inverted) are the details reviewers and clients notice.</p>
+                <p><strong>Why it matters for the volunteers:</strong> a crew leader checks the list at five in the morning before a sunrise cleanup, with the phone in dark mode; an organizer plans the week on a tablet at the kitchen table. Both should get an app that looks like it was made for them.</p>
+                <div class="card card-success">
+                    <h4>✅ What carries over</h4>
+                    <p>The ideas are the web's: breakpoints, design tokens, light and dark sets of the same tokens, "mobile first". What is new is where they live (hooks and TypeScript objects instead of CSS) and one trap the web preview adds, which you will meet and fix.</p>
+                </div>
+            </section>
+
+            <section id="size" class="lesson-section">
+                <h2>📐 Screen Size Without Media Queries</h2>
+                <p><code>useWindowDimensions()</code> returns the size of the window your app draws in, and re-renders your component whenever it changes:</p>
+                <pre data-snippet><code class="language-tsx">import { useWindowDimensions } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+
+// The window right now; the component draws again whenever it changes size
+export function WindowSize() {
+  const { width, height, fontScale, scale } = useWindowDimensions();
+  return (
+    &lt;AppText&gt;
+      {Math.round(width)} by {Math.round(height)}, text size ×{fontScale}, {scale} pixels per point
+    &lt;/AppText&gt;
+  );
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Value</th><th>What it is</th><th>In the web preview at phone size</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>width</code>, <code>height</code></td><td>The window in density-independent pixels (Lesson 2.1): the same units as your styles</td><td>390 by 844</td></tr>
+                            <tr><td><code>fontScale</code></td><td>The text size the person chose in the phone's settings (1 is the default)</td><td>1</td></tr>
+                            <tr><td><code>scale</code></td><td>Real pixels per density-independent pixel (2 or 3 on most phones)</td><td>1 here, the desktop browser's own</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The course rendered this component in the web preview at 390 by 844, then dragged the window to 1024 by 768 without reloading: the text changed to "1024 by 768" at once. That is the hook's whole job.</p>
+                <p>It measures the <strong>window</strong>, not the device. On a phone they are almost the same, but on an iPad running two apps side by side, or an Android phone in split screen, your app's window is a fraction of the screen, and the window is what your layout has to fit. (<code>Dimensions.get('screen')</code> gives the whole screen; you will rarely want it.)</p>
+
+                <h3>Breakpoints in dp, not device names</h3>
+                <p>Pick layouts by width, as you did with media queries. Because widths are in density-independent pixels, a breakpoint means the same thing on every phone: most phones held upright are 360 to 430 wide; small tablets and many phones on their side are 700 or more; big tablets are over 1000. Shoreline Crew uses one breakpoint, 700: from there on, cards go side by side. It does not ask "is this a tablet?", because a tablet in split screen can be narrower than a phone on its side. Ask how much room there is.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: setting up tables on the beach</h4>
+                    <p>On a narrow strip of sand at high tide, the crew sets up one long line of tables, one behind the other. At low tide, with a wide beach, the same tables go two side by side. Nobody checks which beach it is: they look at how much sand there is right now, and they look again when the tide moves. <code>useWindowDimensions</code> is that look, and it is taken again every time the window changes.</p>
+                </div>
+                <p>There are three other tools you met in Module 2 that already make layouts flexible, and you should reach for them first: <code>flex</code> (share whatever room there is), percentages, and <code>maxWidth</code> (stop growing past a readable width). Use the window's size only when the <em>structure</em> changes: one column becomes two, a list gains a side panel.</p>
+            </section>
+
+            <section id="platform" class="lesson-section">
+                <h2>🧭 Platform Differences</h2>
+                <p>Most of your code runs unchanged on iOS, Android and the web. When something really differs, React Native gives you four tools, from smallest to largest:</p>
+                <pre data-snippet><code class="language-tsx">import { Platform, StyleSheet } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+
+// 'ios', 'android' or 'web' (React Native for Windows and macOS add their own)
+const where = Platform.OS;
+
+// One value per platform; default covers the rest
+const backHint = Platform.select({
+  ios: 'Swipe from the left edge to go back',
+  android: 'Use the back gesture or button to go back',
+  default: 'Use the browser\'s back button to go back',
+});
+
+// The version of the phone's system: a number on Android (its API level), a string on iOS
+const newAndroid = Platform.OS === 'android' &amp;&amp; Platform.Version &gt;= 33;
+
+export function PlatformNote() {
+  return (
+    &lt;AppText style={styles.note}&gt;
+      {where}: {backHint}
+      {newAndroid &amp;&amp; ' (Android 13 or newer)'}
+    &lt;/AppText&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  note: {
+    // Platform.select inside a style: a different font on each platform
+    ...Platform.select({
+      ios: { fontFamily: 'Menlo' },
+      android: { fontFamily: 'monospace' },
+      default: { fontFamily: 'monospace' },
+    }),
+  },
+});</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Tool</th><th>Use it for</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>Platform.OS</code></td><td>A condition: <code>if (Platform.OS === 'android')</code></td><td>Not needed yet</td></tr>
+                            <tr><td><code>Platform.select({ ios, android, web, native, default })</code></td><td>One value per platform: a string, a number, a style object (spread it into a style)</td><td><code>Icon</code>'s table does the same job: expo-symbols takes one name per platform</td></tr>
+                            <tr><td>Platform-only props</td><td>Props React Native only applies on one platform: <code>ios_backgroundColor</code>, <code>android_ripple</code> (Lesson 2.4); the others ignore them</td><td>Today: <code>ios_backgroundColor</code> on the switch</td></tr>
+                            <tr><td>Platform files</td><td>Whole files that differ: <code>Map.ios.tsx</code> + <code>Map.android.tsx</code>, or <code>x.web.ts</code> + <code>x.ts</code>. You import <code>@/components/Map</code>; Metro picks the file for the platform it is bundling</td><td>Today: <code>useColorScheme.web.ts</code>; <code>SiteMap.web.tsx</code> in Lesson 6.3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The course ran the snippet in the web preview: <code>Platform.OS</code> was <code>'web'</code>, <code>Platform.select</code> picked the <code>default</code> hint, and <code>Platform.Version</code> was the string <code>"0.0.0"</code>. On a phone, <code>Platform.Version</code> is the Android API level as a number (33 is Android 13) or the iOS version as a string, which is why the snippet compares numbers only after checking <code>Platform.OS === 'android'</code>: TypeScript knows <code>Version</code> is a number in that branch.</p>
+                <p>A few rules keep platform code under control:</p>
+                <ul>
+                    <li><strong>Size and features before platform.</strong> Don't write <code>Platform.OS === 'ios' ? 2 : 1</code> for columns: an iPhone and an Android tablet would both get it wrong. Ask about the window, or whether a feature is available.</li>
+                    <li><strong>Keep the differences in one place.</strong> <code>Icon</code> holds every icon's per-platform names; a screen never has to know.</li>
+                    <li><strong>Platform files share one set of types.</strong> TypeScript checks the plain file (<code>x.ts</code>); the <code>.web.ts</code> or <code>.ios.tsx</code> version must export the same names with the same types, or one platform breaks without tsc noticing. Keep such files tiny.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>The web preview can only ever show the <code>web</code> or <code>default</code> branch. To see the <code>ios</code> or <code>android</code> branch, open the app in Expo Go: Expo Go on an iPhone runs the <code>ios</code> code, on an Android phone the <code>android</code> code. Testing on both (or asking a friend with the other kind of phone) is the only way to see both.</p>
+                </div>
+            </section>
+
+            <section id="dark" class="lesson-section">
+                <h2>🌙 Dark Mode on a Phone</h2>
+                <p>iPhones and Android phones both have a system-wide dark mode, often switched on automatically at sunset. An app can follow it, or ignore it and always look the same. Following it takes three things:</p>
+                <ol>
+                    <li><strong>Permission in the app's configuration.</strong> app.json's <code>"userInterfaceStyle"</code> says which styles the app supports: <code>"automatic"</code> (follow the phone), <code>"light"</code> or <code>"dark"</code>. Shoreline Crew's has said <code>"automatic"</code> since Lesson 1.2: create-expo-app's template sets it. Expo's documentation adds that on Android the setting only works when the <code>expo-system-ui</code> package is installed, which the template also did.</li>
+                    <li><strong>Reading the setting.</strong> <code>useColorScheme()</code> from <code>react-native</code> returns <code>'light'</code> or <code>'dark'</code> (or <code>null</code> where it is unknown), and re-renders when the person changes it, even while the app is open.</li>
+                    <li><strong>Colors for both.</strong> Every color the app draws needs a dark value, and nothing may be baked in as a daytime color. That is the real work, and this lesson's project.</li>
+                </ol>
+                <h3>Designing the dark set</h3>
+                <p>Dark mode is not "invert the colors". Some guidelines that Shoreline Crew follows, from Apple's and Google's design guidance:</p>
+                <ul>
+                    <li><strong>No pure black.</strong> The page is a deep blue-black (<code>#0f1b26</code>, the HQ's dark page) and cards are a shade lighter (<code>#16283a</code>): at night, "raised" means lighter, not shadowed.</li>
+                    <li><strong>Lighter, softer accents.</strong> Sea Teal <code>#1f6f8b</code> is too dark on a dark page (2.4:1), so its night version is <code>#7cc6d6</code> (9:1). A filled button in that light teal then needs <em>dark</em> text: the role <code>onAction</code> flips from white to the page color.</li>
+                    <li><strong>The same contrast rules.</strong> Text at least 4.5:1, edges of controls at least 3:1, in both sets. The course measured every pair of roles (the numbers are in the project).</li>
+                    <li><strong>Some colors stay.</strong> A badge is a little sticker with its own light background and dark text, so it reads the same on a white card and a dark one. The banner stays Deep Tide with white letters. Keeping them is a decision, written down in the palette, not an accident.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the beach at night</h4>
+                    <p>The crew's sunrise cleanups start in the dark. Nobody brings floodlights; they bring headlamps with a red setting and they wear reflective vests. The same beach, the same crew, the same jobs, with different equipment for each job. Your color roles are the jobs (<code>page</code>, <code>action</code>, <code>knob</code>); the light and dark palettes are the day kit and the night kit. A screen asks for "the page color", never for "Sand".</p>
+                </div>
+            </section>
+
+            <section id="theme" class="lesson-section">
+                <h2>🎨 A Theme in Code</h2>
+                <p>Lesson 2.1 named colors by their job and promised this lesson "a dark set with the same names". The plan, in four parts:</p>
+                <ol>
+                    <li><strong>Two palettes</strong> with the same keys: <code>lightColors</code> decides which roles exist; <code>darkColors</code> must fill every one (TypeScript's <code>satisfies</code> checks that).</li>
+                    <li><strong>A theme</strong> per scheme: the palette plus the badge colors and the scheme's name.</li>
+                    <li><strong>A hook</strong>, <code>useTheme()</code>, that reads the setting and returns the matching theme.</li>
+                    <li><strong>Themed styles.</strong> <code>StyleSheet.create</code> at the top of a file runs once, when the file loads, before any hook could tell it the scheme. So style sheets that use colors are made once <em>per theme</em>, and each component picks its set with a hook.</li>
+                </ol>
+<div class="mermaid">
+graph TD
+    A["Phone setting: dark"] --> B["useColorScheme"]
+    B --> C["useTheme: themes.dark"]
+    C --> D["useStyles: dark sheets"]
+    C --> E["colors for props"]
+    D --> F["The screen redraws"]
+    E --> F
+</div>
+                <p>When the setting changes, <code>useColorScheme</code> re-renders every component that (through <code>useTheme</code>) asked for it, and each one picks the other ready-made style sheet. No style is rebuilt and nothing is stored in state.</p>
+                <h3>Why not a context?</h3>
+                <p>In the web course you might have reached for a React context, and many React Native apps use a <code>ThemeProvider</code>. Shoreline Crew does not need one yet: the only input is the phone's setting, which <code>useColorScheme</code> already shares with every component. When Lesson 5.3 adds a "Theme: System, Light or Dark" choice saved on the device, <code>useTheme</code> is the one place that will read it, and no screen will change.</p>
+
+                <h3>The web preview's first page</h3>
+                <p>One platform difference shows up the moment the app follows dark mode. The web preview does not start in your browser: <code>npx expo start</code> and <code>npx expo serve</code> draw each page on a server first (app.json's <code>"output": "server"</code>, which create-expo-app's template sets), send that HTML, and then React takes over in the browser ("hydration"). A server cannot know whether your browser is in dark mode, so it draws the light page. React then expects the browser's first render to match what the server drew. With React Native's plain <code>useColorScheme</code>, it does not, and the course found that React kept the server's light colors for everything already on the page, while the cards that arrived later were dark:</p>
+                <figure class="screenshot">
+    <img src="images/lesson_08/08-half-dark.png" alt="A broken web preview in dark mode: the page behind everything is still light Sand and the heading Upcoming cleanups is still Deep Tide, while the card below it is dark blue with light text, and the 8 cleanups count is a pale gray that is hard to read on the Sand." width="420" height="814" loading="lazy">
+    <figcaption>Without <code>useColorScheme.web.ts</code>: the server drew the page in light colors, the browser drew the cards in dark ones, and React kept both. No error is printed. Phones do not have this problem; the web preview does.</figcaption>
+</figure>
+                <p>No error was printed. The fix is a web-only version of the hook that starts as <code>'light'</code>, exactly like the server, and switches to the real setting right after hydration. React has a tool for exactly that, <code>useSyncExternalStore</code> (the web course used it for the session in Lesson 6.3), whose third argument is "the value on the server". Phones have no server step, so they keep React Native's own hook. That is your first platform file, and it is in Step 2.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ A color baked in when the file loaded</h4>
+                    <p><code>const styles = StyleSheet.create({ screen: { backgroundColor: lightColors.page } })</code> at the bottom of a file is calculated once, when the app starts. The phone can switch to dark mode all night; this screen stays Sand. Every color in a style sheet comes through <code>createThemedStyles</code>, and every color handed to a prop comes from <code>useTheme()</code>. A quick test: search your <code>src/</code> folder for <code>lightColors</code> and <code>brand.</code>: outside <code>src/theme/</code>, there should be no hits.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Calling the hook where styles are made</h4>
+                    <p>The tempting shortcut is <code>const { colors } = useTheme();</code> at the top of the file, next to the styles. Hooks only work inside components and other hooks, and the React Hooks rule in <code>npx expo lint</code> says so:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+~/.cache/rn/l08/shoreline-crew/src/components/Screen.tsx
+  52:20  error  React Hook "useTheme" cannot be called at the top level. React Hooks must be called in a React function component or a custom React Hook function  react-hooks/rules-of-hooks
+
+✖ 1 problem (1 error, 0 warnings)</code></pre>
+                    </div>
+                    <p>(The line under the <code>env:</code> lines is the full path of <code>Screen.tsx</code> on your computer.) Even if it ran, it would run once: the same baked-in color as above. Use <code>createThemedStyles</code> outside the component and call the hook it returns inside.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The other <code>useTheme</code></h4>
+                    <p>Expo Router also exports a hook called <code>useTheme</code>: it returns the <em>navigator's</em> theme (Step 4). Editors happily auto-import it. In <code>SwitchRow.tsx</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/SwitchRow.tsx:25:37 - error TS2339: Property 'trackOff' does not exist on type '{ primary: ____ColorValue_Internal; background: ____ColorValue_Internal; card: ____ColorValue_Internal; text: ____ColorValue_Internal; border: ____ColorValue_Internal; notification: ____ColorValue_Internal; }'.
+
+25         trackColor={{ false: colors.trackOff, true: colors.action }}
+                                       ~~~~~~~~
+...
+
+Found 4 errors in the same file, starting at: src/components/SwitchRow.tsx:25</code></pre>
+                    </div>
+                    <p>The type in the message lists <code>primary</code>, <code>background</code>, <code>card</code>, <code>text</code>, <code>border</code>: the navigator's six colors, not Shoreline Crew's roles. Import <code>useTheme</code> from <code>@/hooks/useTheme</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>Dimensions.get</code> at the top of a file</h4>
+                    <pre data-snippet><code class="language-tsx">import { Dimensions } from 'react-native';
+
+// Don't: read once, when the file is first loaded, and never again
+const { width } = Dimensions.get('window');
+export const columns = width &gt;= 700 ? 2 : 1;</code></pre>
+                    <p>This reads the width once, when the file is first loaded. The course rendered it in the web preview at 390 wide, then widened the window to 1024: the hook version followed, while this <code>columns</code> stayed 1. Inside components, use <code>useWindowDimensions</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Window size in the web preview's first render</h4>
+                    <p>The server step has a second victim: the server does not know the browser window's size either. When the course rendered the window-size text above on a page that a server drew first, the browser reported a React hydration error (React error #418, "text content does not match") in its console. Shoreline Crew's cards only appear after the cleanups have loaded, long after hydration, so its two columns are safe. If you ever show the window size in a screen's very first render, expect this in the web preview (phones do not have it).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Platform checks for layout</h4>
+                    <p><code>Platform.OS === 'ios' &amp;&amp; Platform.isPad</code> for a tablet layout misses every Android tablet, every iPad in split screen and the web. Choose layouts by width; use <code>Platform</code> for what is truly different on a platform.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew by Day and by Night</h2>
+                <p>You give every color role a dark value, build the theme and its hook, move every component onto themed colors, theme the navigator and the status bar, and then let the Cleanups screen use two columns when there is room. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Two palettes, and a to-do list from TypeScript <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Replace <code>src/theme/colors.ts</code> with the version below. <code>brand</code> is unchanged; <code>night</code> is the same brand after dark; the old <code>colors</code> is now <code>lightColors</code>, with two new roles for the switch; <code>darkColors</code> fills every role; and the badge tones from Lesson 2.2 are now theme colors too:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/colors.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/colors.ts"><code class="language-ts">// Shoreline Crew's colors: the same brand as Shoreline Crew HQ's index.css, as plain values.
+export const brand = {
+  deepTide: '#0b3954',
+  seaTeal: '#1f6f8b',
+  sunrise: '#f4a259',
+  sand: '#fbf6ec',
+  seafoam: '#bfe3df',
+  kelp: '#2d6a4f',
+  coral: '#b23a22',
+  ink: '#1f2a37',
+  muted: '#5b6573',
+  white: '#ffffff',
+} as const;
+
+// The same brand after dark (the HQ's dark values): a deep blue-black page, lighter text
+export const night = {
+  page: '#0f1b26',
+  surface: '#16283a',
+  border: '#2b4257',
+  raised: '#21405a', // a pressed button, the frame behind a loading picture
+  ink: '#e9eef3',
+  muted: '#a9b4c0',
+  slate: '#6b7684', // a switch's track when off
+  seaTeal: '#7cc6d6',
+  coral: '#ff9b85',
+} as const;
+
+// What the screens use: a job, not a color name. The light set decides which jobs exist...
+export const lightColors = {
+  page: brand.sand,
+  surface: brand.white,
+  border: '#e4dccb',
+  text: brand.ink,
+  textMuted: brand.muted,
+  heading: brand.deepTide,
+  error: brand.coral,
+  banner: brand.deepTide,
+  onBanner: brand.white,
+  onBannerAccent: brand.seafoam,
+  icon: brand.seaTeal,
+  picture: brand.seafoam, // behind a picture while it loads
+  action: brand.seaTeal, // buttons, switches: things you press
+  actionPressed: brand.deepTide, // a filled button while a finger is on it
+  onAction: brand.white, // text on a filled button
+  pressed: '#d4ebe8', // behind an outlined button while pressed (paler than Seafoam: 4.5:1)
+  inputBorder: brand.muted, // the edge of a text field (3:1 or more against white)
+  knob: brand.white, // a switch's knob, on and off
+  trackOff: brand.muted, // a switch's track when off
+} as const;
+
+export type ColorRole = keyof typeof lightColors;
+export type ThemeColors = Record&lt;ColorRole, string&gt;;
+
+// ...and the dark set must fill every one of them: a missing or misspelled role is a type error
+export const darkColors = {
+  page: night.page,
+  surface: night.surface,
+  border: night.border,
+  text: night.ink,
+  textMuted: night.muted,
+  heading: brand.seafoam,
+  error: night.coral,
+  banner: brand.deepTide,
+  onBanner: brand.white,
+  onBannerAccent: brand.seafoam,
+  icon: night.seaTeal,
+  picture: night.raised,
+  action: night.seaTeal,
+  actionPressed: brand.seafoam,
+  onAction: night.page, // dark text on the light Sea Teal
+  pressed: night.raised,
+  inputBorder: night.muted,
+  knob: brand.white,
+  trackOff: night.slate,
+} satisfies ThemeColors;
+
+// A badge is a small sticker with its own background: most tones read the same by day and night
+export type BadgeColors = { background: string; text: string; border: string };
+export type BadgeTone = 'info' | 'success' | 'neutral' | 'danger' | 'attention';
+
+export const lightBadges = {
+  info: { background: brand.seafoam, text: brand.ink, border: brand.seafoam },
+  success: { background: brand.kelp, text: brand.white, border: brand.kelp },
+  neutral: { background: 'transparent', text: lightColors.text, border: lightColors.textMuted },
+  danger: { background: brand.coral, text: brand.white, border: brand.coral },
+  attention: { background: brand.sunrise, text: brand.ink, border: brand.sunrise },
+} satisfies Record&lt;BadgeTone, BadgeColors&gt;;
+
+export const darkBadges = {
+  info: { background: brand.seafoam, text: brand.ink, border: brand.seafoam },
+  success: { background: brand.kelp, text: brand.white, border: brand.kelp },
+  neutral: { background: 'transparent', text: darkColors.text, border: darkColors.textMuted },
+  danger: { background: brand.coral, text: brand.white, border: brand.coral },
+  attention: { background: brand.sunrise, text: brand.ink, border: brand.sunrise },
+} satisfies Record&lt;BadgeTone, BadgeColors&gt;;</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>ColorRole</code> is every key of <code>lightColors</code>, and <code>ThemeColors</code> is "a color string for each role". <code>darkColors</code> ends with <code>satisfies ThemeColors</code>: forget a role, or misspell one, and tsc stops you (Exercise 2 shows the message).</li>
+                                <li><code>knob</code> and <code>trackOff</code> are the switch's colors. Lesson 2.4 left the "off" track to each platform; the course found that the web preview then draws no off track at all (a white knob floating on the page), and on a dark page the knob is all you would see. Now both are roles.</li>
+                                <li>The light <code>pressed</code> is a paler Seafoam. Measuring every pair for this lesson showed that Sea Teal words on the full Seafoam (Lesson 2.4's outlined button while pressed) were 4.1:1, just under 4.5. <code>#d4ebe8</code> gives 4.55:1 and still looks pressed.</li>
+                                <li>Every badge tone has a background, a text color and a border (a filled tone's border is its background color). Giving all of them a 1-pixel border means a neutral badge is no longer 2 pixels taller than the others.</li>
+                            </ul>
+                            <p>The course measured every pair of roles that are drawn on top of each other, in both sets. A few of them:</p>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr><th>Pair</th><th>Light</th><th>Dark</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td><code>text</code> on <code>surface</code></td><td>14.5:1</td><td>12.9:1</td></tr>
+                                        <tr><td><code>textMuted</code> on <code>surface</code></td><td>5.9:1</td><td>7.1:1</td></tr>
+                                        <tr><td><code>heading</code> on <code>surface</code></td><td>12.2:1</td><td>10.9:1</td></tr>
+                                        <tr><td><code>action</code> on <code>surface</code> (outlined button, icons)</td><td>5.7:1</td><td>7.8:1</td></tr>
+                                        <tr><td><code>onAction</code> on <code>action</code> (filled button)</td><td>5.7:1</td><td>9.1:1</td></tr>
+                                        <tr><td><code>inputBorder</code> on <code>surface</code> (needs 3:1)</td><td>5.9:1</td><td>7.1:1</td></tr>
+                                        <tr><td><code>trackOff</code> on <code>page</code> (needs 3:1)</td><td>5.5:1</td><td>3.8:1</td></tr>
+                                        <tr><td>Badge text on its background (lowest: danger)</td><td>6.0:1</td><td>6.0:1</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </li>
+                        <li>Save, and ask TypeScript what you just broke:
+                            <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                            <div class="card card-output">
+                                <h4>Expected output (shortened)</h4>
+                                <pre><code>src/app/index.tsx:12:10 - error TS2305: Module '"@/theme/colors"' has no exported member 'colors'.
+
+12 import { colors } from '@/theme/colors';
+            ~~~~~~
+
+src/components/AppText.tsx:3:10 - error TS2305: Module '"@/theme/colors"' has no exported member 'colors'.
+
+3 import { colors } from '@/theme/colors';
+           ~~~~~~
+
+...
+
+Found 9 errors in 9 files.
+
+Errors  Files
+     1  src/app/index.tsx:12
+     1  src/components/AppText.tsx:3
+     1  src/components/Badge.tsx:4
+     1  src/components/Button.tsx:4
+     1  src/components/EventCard.tsx:11
+     1  src/components/Icon.tsx:4
+     1  src/components/Screen.tsx:5
+     1  src/components/SearchField.tsx:4
+     1  src/components/SwitchRow.tsx:4</code></pre>
+                            </div>
+                            <p>Nine files still import the old <code>colors</code>. This is not a setback: it is the exact list of files the rest of the project changes, and the last line of each step is "run tsc again and watch the list shrink". Renaming the export on purpose so the compiler finds every use is a habit worth keeping.</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The theme and its hooks <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Create <code>src/theme/theme.ts</code>: one <code>Theme</code> for each scheme.
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/theme.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/theme.ts"><code class="language-ts">import type { ColorSchemeName } from 'react-native';
+
+import {
+  type BadgeColors,
+  type BadgeTone,
+  darkBadges,
+  darkColors,
+  lightBadges,
+  lightColors,
+  type ThemeColors,
+} from '@/theme/colors';
+
+// Everything a screen needs to draw itself in one color scheme
+export type Theme = {
+  scheme: ColorSchemeName; // 'light' or 'dark'
+  colors: ThemeColors;
+  badges: Record&lt;BadgeTone, BadgeColors&gt;;
+};
+
+export const themes: Record&lt;ColorSchemeName, Theme&gt; = {
+  light: { scheme: 'light', colors: lightColors, badges: lightBadges },
+  dark: { scheme: 'dark', colors: darkColors, badges: darkBadges },
+};</code></pre>
+                            </div>
+                            <p><code>ColorSchemeName</code> is React Native's own type, <code>'light' | 'dark'</code>, so <code>Record&lt;ColorSchemeName, Theme&gt;</code> must have exactly those two themes.</p>
+                        </li>
+                        <li>Create the folder <code>src/hooks</code> and in it the phone's version of the scheme hook, <code>src/hooks/useColorScheme.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/hooks/useColorScheme.ts</div>
+                                <pre data-src="shoreline-crew/src/hooks/useColorScheme.ts"><code class="language-ts">// On a phone, React Native's own hook knows the setting from the very first frame
+export { useColorScheme } from 'react-native';</code></pre>
+                            </div>
+                        </li>
+                        <li>And next to it the web preview's version, <code>src/hooks/useColorScheme.web.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/hooks/useColorScheme.web.ts</div>
+                                <pre data-src="shoreline-crew/src/hooks/useColorScheme.web.ts"><code class="language-ts">import { useSyncExternalStore } from 'react';
+import { Appearance } from 'react-native';
+
+// The web preview's pages are drawn on a server first, and a server cannot know the browser's
+// setting. So start as 'light', like the server did, then switch once the page runs in the browser.
+export function useColorScheme() {
+  return useSyncExternalStore(subscribe, getColorScheme, () =&gt; 'light' as const);
+}
+
+function subscribe(onChange: () =&gt; void) {
+  const subscription = Appearance.addChangeListener(onChange);
+  return () =&gt; subscription.remove();
+}
+
+function getColorScheme() {
+  return Appearance.getColorScheme() ?? 'light';
+}</code></pre>
+                            </div>
+                            <ul>
+                                <li>Code imports <code>@/hooks/useColorScheme</code>. When Metro bundles for the web it takes the <code>.web.ts</code> file; for Android and iOS, the plain one. TypeScript checks the plain one, so both files return the same type (<code>'light' | 'dark'</code>, plus <code>null</code> from React Native's).</li>
+                                <li><code>useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)</code>: React calls <code>subscribe</code> to hear about changes, <code>getColorScheme</code> for the current value, and the third function while hydrating the server's page. <code>Appearance</code> is the non-hook side of React Native's color scheme: <code>getColorScheme()</code> and <code>addChangeListener()</code>.</li>
+                            </ul>
+                        </li>
+                        <li>Create <code>src/hooks/useTheme.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/hooks/useTheme.ts</div>
+                                <pre data-src="shoreline-crew/src/hooks/useTheme.ts"><code class="language-ts">import { useColorScheme } from '@/hooks/useColorScheme';
+import { type Theme, themes } from '@/theme/theme';
+
+// The theme for the phone's current setting: light, or dark when the phone is in dark mode
+export function useTheme(): Theme {
+  const scheme = useColorScheme();
+  return themes[scheme === 'dark' ? 'dark' : 'light'];
+}
+
+// Styles that use theme colors: made once for each theme, then picked by the current one.
+// Call it outside a component; it returns a hook to call inside one.
+export function createThemedStyles&lt;T&gt;(make: (theme: Theme) =&gt; T) {
+  const sheets = { light: make(themes.light), dark: make(themes.dark) };
+  return function useStyles(): T {
+    return sheets[useTheme().scheme];
+  };
+}</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>useTheme()</code> turns the scheme into a theme. <code>null</code> (unknown) counts as light.</li>
+                                <li><code>createThemedStyles(make)</code> runs <code>make</code> twice, when the file loads: once with the light theme and once with the dark one. It returns a small hook, <code>useStyles</code>, which a component calls to get the set for the current scheme. <code>T</code> is whatever <code>make</code> returns, so the styles keep their exact names and types: <code>styles.card</code> still type-checks, <code>styles.crad</code> still does not.</li>
+                                <li>Why not just call <code>StyleSheet.create</code> inside every component? It would work, but it would build new style objects on every render. Two ready-made sets cost nothing at run time.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Every component follows the theme <span class="step-time">(20 min)</span></h3>
+                    <p>Work down tsc's list. Most files need the same three small changes: import <code>createThemedStyles</code> instead of <code>colors</code>, wrap the style sheet, and call <code>useStyles()</code> in the component. The style sheet's contents do not change at all, because the callback's parameter is also called <code>colors</code>.</p>
+                    <ol>
+                        <li><code>src/components/AppText.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/AppText.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/AppText.tsx" data-match="diff"><code class="language-diff-tsx"> import { StyleSheet, Text, type TextProps } from 'react-native';
+
+-import { colors } from '@/theme/colors';
++import { createThemedStyles } from '@/hooks/useTheme';
+ import { fonts } from '@/theme/typography';
+ // ...
+ export function AppText({ variant = 'body', style, ...rest }: AppTextProps) {
++  const styles = useStyles();
+   // Later styles win: the base, then the variant, then whatever the screen passes in
+   return &lt;Text style={[styles.base, styles[variant], style]} {...rest} /&gt;;
+ }
+
+-const styles = StyleSheet.create({
++const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+   base: {
+ // ...
+   error: {
+     color: colors.error,
+   },
+-});
++}));</code></pre>
+                            </div>
+                        </li>
+                        <li>The same three changes in <code>src/components/Screen.tsx</code> (Step 5 changes its <code>spacing</code> import, so leave that line alone for now):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Screen.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { createThemedStyles } from '@/hooks/useTheme';
+ // ...
+ export function Screen({ children, scroll = false, edges = allEdges }: ScreenProps) {
++  const styles = useStyles();
+   const insets = useSafeAreaInsets();
+ // ...
+-const styles = StyleSheet.create({
++const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+   screen: {
+ // ...
+-});
++}));</code></pre>
+                            </div>
+                        </li>
+                        <li>In <code>src/components/EventCard.tsx</code>, both components in the file call the hook:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx"> import { StatusBadge } from '@/components/StatusBadge';
+-import { colors } from '@/theme/colors';
++import { createThemedStyles } from '@/hooks/useTheme';
+ import { radius, spacing } from '@/theme/spacing';
+ // ...
+   const [showDetails, setShowDetails] = useState(false);
++  const styles = useStyles();
+ // ...
+ function Detail({ icon, label, children }: DetailProps) {
++  const styles = useStyles();
+   return (
+ // ...
+-const styles = StyleSheet.create({
++const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+   card: {
+ // ...
+   strong: {
+     fontWeight: 'bold',
+   },
+-});
++}));</code></pre>
+                            </div>
+                        </li>
+                        <li>And in <code>src/app/index.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { createThemedStyles } from '@/hooks/useTheme';
+ import { radius, spacing } from '@/theme/spacing';
+ // ...
+   const [onlyOpen, setOnlyOpen] = useState(false);
++  const styles = useStyles();
+ // ...
+-const styles = StyleSheet.create({
++const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+   banner: {
+ // ...
+   empty: {
+     gap: spacing.md,
+   },
+-});
++}));</code></pre>
+                            </div>
+                            <p>Import order: <code>@/hooks/…</code> goes after <code>@/components/…</code> and before <code>@/theme/…</code>, alphabetically, as everywhere in the project.</p>
+                        </li>
+                        <li><code>src/components/Button.tsx</code> had three style sheets made from colors. The callback can return any object, so it returns all three:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Button.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Button.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { createThemedStyles } from '@/hooks/useTheme';
+ import { radius, spacing } from '@/theme/spacing';
+ // ...
+ export function Button({ label, variant = 'secondary', disabled, ...rest }: ButtonProps) {
++  const { boxes, pressedBoxes, labels } = useStyles();
+   return (
+ // ...
+-const boxes = StyleSheet.create({
+-  primary: { backgroundColor: colors.action, borderColor: colors.action },
+-  secondary: { backgroundColor: colors.surface, borderColor: colors.action },
+-});
+-
+-const pressedBoxes = StyleSheet.create({
+-  primary: { backgroundColor: colors.actionPressed, borderColor: colors.actionPressed },
+-  secondary: { backgroundColor: colors.pressed },
+-});
+-
+-const labels = StyleSheet.create({
+-  primary: { color: colors.onAction },
+-  secondary: { color: colors.action },
+-});
++// The colors, once for each theme: three small style sheets keyed by variant
++const useStyles = createThemedStyles(({ colors }) =&gt; ({
++  boxes: StyleSheet.create({
++    primary: { backgroundColor: colors.action, borderColor: colors.action },
++    secondary: { backgroundColor: colors.surface, borderColor: colors.action },
++  }),
++  pressedBoxes: StyleSheet.create({
++    primary: { backgroundColor: colors.actionPressed, borderColor: colors.actionPressed },
++    secondary: { backgroundColor: colors.pressed },
++  }),
++  labels: StyleSheet.create({
++    primary: { color: colors.onAction },
++    secondary: { color: colors.action },
++  }),
++}));</code></pre>
+                            </div>
+                            <p>The <code>styles</code> sheet with sizes and padding has no colors, so it stays a plain <code>StyleSheet.create</code>. Only what changes with the theme needs the wrapper.</p>
+                        </li>
+                        <li>Some colors are not styles but props: an icon's <code>tintColor</code>, a placeholder color, a switch's colors. Those come straight from <code>useTheme()</code>. In <code>src/components/Icon.tsx</code>, a default parameter can no longer be the color (it is only known inside the component):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { useTheme } from '@/hooks/useTheme';
+ // ...
+-export function Icon({ name, size = 20, color = colors.icon }: IconProps) {
++export function Icon({ name, size = 20, color }: IconProps) {
++  const { colors } = useTheme();
+   return (
+     &lt;SymbolView
+       name={icons[name]}
+       size={size}
+-      tintColor={color}
++      tintColor={color ?? colors.icon} // the theme's icon color unless the caller picks one</code></pre>
+                            </div>
+                        </li>
+                        <li><code>src/components/SearchField.tsx</code> needs both: themed styles for the box, and <code>colors</code> for the placeholder and the clear icon:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/SearchField.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/SearchField.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { createThemedStyles, useTheme } from '@/hooks/useTheme';
+ // ...
+ export function SearchField({ value, onChangeText, label, placeholder }: SearchFieldProps) {
++  const { colors } = useTheme();
++  const styles = useStyles();
+   return (
+ // ...
+-const styles = StyleSheet.create({
++const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+   field: {
+ // ...
+   clearPressed: {
+     backgroundColor: colors.pressed,
+   },
+-});
++}));</code></pre>
+                            </div>
+                        </li>
+                        <li><code>src/components/SwitchRow.tsx</code>: the switch's colors are props, and now there is an "off" color and a platform-only prop:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/SwitchRow.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/SwitchRow.tsx" data-match="diff"><code class="language-diff-tsx">-import { colors } from '@/theme/colors';
++import { useTheme } from '@/hooks/useTheme';
+ import { spacing } from '@/theme/spacing';
+ // ...
+ export function SwitchRow({ label, value, onValueChange }: SwitchRowProps) {
++  const { colors } = useTheme();
+   return (
+ // ...
+         accessibilityLabel={label} // a screen reader says the words with the switch
+-        trackColor={{ true: colors.action }} // Sea Teal when on; each platform's own gray when off
+-        thumbColor={colors.surface} // a white knob on every platform
++        // Gray when off, Sea Teal when on. iOS paints the off track with ios_backgroundColor
++        // (Android and the web ignore that prop).
++        trackColor={{ false: colors.trackOff, true: colors.action }}
++        ios_backgroundColor={colors.trackOff}
++        thumbColor={colors.knob} // a white knob on every platform, by day and by night</code></pre>
+                            </div>
+                            <p>React Native's own documentation for <code>Switch</code> explains the iOS detail: when an iOS switch is off, its track "shrinks into the border" and the space behind it shows <code>ios_backgroundColor</code>. Setting both gives the same gray everywhere.</p>
+                        </li>
+                        <li>Finally <code>src/components/Badge.tsx</code>, which used <code>brand</code> colors directly. Replace it: each badge reads its tone's three colors from the theme and passes them as a small inline style after the shared one (a style array, Lesson 2.1):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Badge.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Badge.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { useTheme } from '@/hooks/useTheme';
+import type { BadgeTone } from '@/theme/colors';
+
+export type { BadgeTone };
+
+type BadgeProps = {
+  label: string;
+  tone?: BadgeTone;
+};
+
+// A small rounded label. The View is the pill, the text inside it is the word.
+export function Badge({ label, tone = 'info' }: BadgeProps) {
+  // The tone's three colors for the current theme (the HQ's Badge.module.css, by day and by night)
+  const { background, text, border } = useTheme().badges[tone];
+  return (
+    &lt;View style={[styles.badge, { backgroundColor: background, borderColor: border }]}&gt;
+      &lt;AppText style={[styles.label, { color: text }]}&gt;{label}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  badge: {
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+    borderWidth: 1, // every tone has a border now, so all badges are the same height
+    borderRadius: 999,
+  },
+  label: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+});</code></pre>
+                            </div>
+                            <p><code>BadgeTone</code> now lives with the colors, and <code>export type { BadgeTone }</code> passes it on, so <code>StatusBadge.tsx</code>'s import from <code>@/components/Badge</code> keeps working unchanged.</p>
+                        </li>
+                        <li>Run <code>npx tsc --noEmit</code> again: it prints nothing. The list is done.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: The navigator and the status bar <span class="step-time">(10 min)</span></h3>
+                    <p>Two things outside your screens still have daytime colors: the navigator (Expo Router's <code>Stack</code> paints a background behind every screen, and from Lesson 4.1 the header bars) and the status bar's clock and battery icons, which Lesson 2.3 set to <code>"dark"</code>. Replace <code>src/app/_layout.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx"><code class="language-tsx">import { useFonts } from 'expo-font';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+
+import { useTheme } from '@/hooks/useTheme';
+import { fontFiles } from '@/theme/typography';
+
+// Keep the splash screen up while the fonts load (runs once, when the app starts)
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(fontFiles);
+  // If a font fails to load, carry on with the system font rather than a splash screen forever
+  const ready = fontsLoaded || fontError !== null;
+  const { scheme, colors } = useTheme();
+
+  useEffect(() =&gt; {
+    if (ready) {
+      SplashScreen.hideAsync();
+    }
+  }, [ready]);
+
+  if (!ready) {
+    return null; // the splash screen is still showing
+  }
+
+  // The navigator's own colors (headers, the background behind screens), taken from our theme
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.action,
+      background: colors.page,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+    },
+  };
+
+  return (
+    &lt;ThemeProvider value={navigationTheme}&gt;
+      {/* Dark clock and battery icons on a light page, light ones on a dark page */}
+      &lt;StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /&gt;
+      &lt;Stack&gt;
+        {/* The Cleanups screen draws its own banner, so it needs no header bar */}
+        &lt;Stack.Screen name="index" options={{ headerShown: false }} /&gt;
+      &lt;/Stack&gt;
+    &lt;/ThemeProvider&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>Expo Router exports the navigator's <code>ThemeProvider</code> and its two built-in themes, <code>DefaultTheme</code> and <code>DarkTheme</code>. The navigation theme has six colors of its own (<code>primary</code>, <code>background</code>, <code>card</code>, <code>text</code>, <code>border</code>, <code>notification</code>); the code starts from the built-in one for the scheme and fills five from Shoreline Crew's roles. (It also brings fonts; spreading <code>base</code> keeps them.)</li>
+                        <li>The status bar's <code>style</code> names the color of its icons: <code>"light"</code> icons on the dark page, <code>"dark"</code> icons on the light one. expo-status-bar also has <code>"auto"</code>, which follows the phone's setting; following the app's own scheme instead will matter once Lesson 5.3 lets volunteers choose a theme.</li>
+                        <li>The fonts, splash screen and <code>Stack.Screen</code> from Lesson 2.3 are unchanged.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Two columns when there is room <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li>Add the layout numbers to <code>src/theme/spacing.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/spacing.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/spacing.ts" data-match="diff"><code class="language-diff-ts">   control: 8, // buttons and text fields
+ } as const;
++
++// Window widths where the layout changes, in the same density-independent pixels
++export const layout = {
++  twoColumns: 700, // from here up (tablets, a phone on its side, a wide browser): 2 columns
++  maxContentWidth: 960, // on even wider screens, content stays this wide, in the middle
++} as const;</code></pre>
+                            </div>
+                        </li>
+                        <li>Stop <code>Screen</code>'s content from stretching across a desktop-wide window:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Screen.tsx" data-match="diff"><code class="language-diff-tsx">-import { spacing } from '@/theme/spacing';
++import { layout, spacing } from '@/theme/spacing';
+ // ...
+   content: {
+     gap: spacing.md,
+     padding: spacing.md,
++    // On a tablet or a wide browser, the content stops growing and sits in the middle
++    width: '100%',
++    maxWidth: layout.maxContentWidth,
++    alignSelf: 'center',
+   },</code></pre>
+                            </div>
+                            <p>This needs no window size at all: <code>maxWidth</code> with <code>alignSelf: 'center'</code> is the <code>max-width</code> + <code>margin: 0 auto</code> you know. Reach for the plain style tools first.</p>
+                        </li>
+                        <li>Create <code>src/hooks/useColumns.ts</code>, the one place that turns the window's width into a number of columns:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/hooks/useColumns.ts</div>
+                                <pre data-src="shoreline-crew/src/hooks/useColumns.ts"><code class="language-ts">import { useWindowDimensions } from 'react-native';
+
+import { layout } from '@/theme/spacing';
+
+// How many cards fit side by side in the window right now: 1 on a phone, 2 on a wider screen.
+// useWindowDimensions re-renders the component whenever the window changes size.
+export function useColumns() {
+  const { width } = useWindowDimensions();
+  return width &gt;= layout.twoColumns ? 2 : 1;
+}</code></pre>
+                            </div>
+                        </li>
+                        <li>Create <code>src/utils/rows.ts</code>, a small generic helper (<code>T</code> is "whatever the list holds", as in the web course):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/utils/rows.ts</div>
+                                <pre data-src="shoreline-crew/src/utils/rows.ts"><code class="language-ts">// Split a list into rows of `size` items: [a, b, c] in rows of 2 is [[a, b], [c]]
+export function toRows&lt;T&gt;(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let start = 0; start &lt; items.length; start += size) {
+    rows.push(items.slice(start, start + size));
+  }
+  return rows;
+}</code></pre>
+                            </div>
+                        </li>
+                        <li>Let <code>EventCard</code> take a <code>style</code> from the screen, so a card can share a row:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx">-import { StyleSheet, Text, View } from 'react-native';
++import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+ // ...
+   site: Site | undefined;
++  // Extra layout from the screen, such as flex: 1 to share a row with another card
++  style?: StyleProp&lt;ViewStyle&gt;;
+ };
+ // ...
+-export function EventCard({ event, site }: EventCardProps) {
++export function EventCard({ event, site, style }: EventCardProps) {
+ // ...
+-    &lt;View style={styles.card}&gt;
++    &lt;View style={[styles.card, style]}&gt;</code></pre>
+                            </div>
+                            <p><code>StyleProp&lt;ViewStyle&gt;</code> is React Native's type for "anything you may pass to a View's <code>style</code>": one style, an array, or <code>false</code>/<code>undefined</code>. The caller's style comes last, so it wins.</p>
+                        </li>
+                        <li>Put the cards in rows on the Cleanups screen, <code>src/app/index.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx"> import { SwitchRow } from '@/components/SwitchRow';
++import { useColumns } from '@/hooks/useColumns';
+ // ...
+ import { getAvailability } from '@/utils/availability';
++import { toRows } from '@/utils/rows';
+ import { matchesSearch } from '@/utils/search';
+ // ...
++  const columns = useColumns();
+ // ...
+       : [];
++  // The cards in rows: one card per row on a phone, two side by side on a wider screen
++  const rows = toRows(cards, columns);
+ // ...
+-      {cards.map(({ event, site }) =&gt; (
+-        &lt;EventCard key={event.id} event={event} site={site} /&gt;
+-      ))}
++      {rows.map((row) =&gt; (
++        &lt;View key={row[0].event.id} style={styles.row}&gt;
++          {row.map(({ event, site }) =&gt; (
++            &lt;EventCard key={event.id} event={event} site={site} style={styles.cell} /&gt;
++          ))}
++          {/* A last row with one card keeps an empty cell, so the card is as wide as the others */}
++          {row.length &lt; columns &amp;&amp; &lt;View style={styles.cell} /&gt;}
++        &lt;/View&gt;
++      ))}
+       {load.status === 'loaded' &amp;&amp; cards.length === 0 &amp;&amp; (
+ // ...
+   sectionTitle: {
+     flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
+   },
++  row: {
++    flexDirection: 'row',
++    gap: spacing.md,
++  },
++  cell: {
++    flex: 1, // cards in a row share its width equally (and stretch to the tallest one)
++  },
+   empty: {
+     gap: spacing.md,</code></pre>
+                            </div>
+                            <ul>
+                                <li>This is Lesson 2.2's "equal columns" pattern: a row, and cells with <code>flex: 1</code>. On a phone every row has one card, so nothing looks different.</li>
+                                <li>Each row's key is its first cleanup's id: stable while you filter, as keys should be.</li>
+                                <li>An odd number of cards leaves one alone in the last row. Without the empty cell it would stretch across both columns; with it, it keeps its column's width.</li>
+                                <li>In a row, <code>alignItems</code> is <code>stretch</code>, so the two cards are as tall as the taller one. Open the details on one card and its neighbor grows too, with empty space at the bottom: a grid's normal behavior.</li>
+                                <li>Module 3 replaces this <code>map</code> with <code>FlatList</code>, which has a <code>numColumns</code> prop for the same job; <code>useColumns</code> will feed it.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Try it at night and on a wide screen <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li><strong>Wider.</strong> In the web preview, make the browser window wide (or open the browser's device toolbar and pick a tablet). Around 700 wide, the cards jump into two columns; past about 1000, the content stops growing and centers.
+                            <figure class="screenshot">
+    <img src="images/lesson_08/08-wide.png" alt="The web preview in a wide desktop browser window, light mode. The content sits in the middle of the window with Sand on both sides: the banner, the search field and the switch row span it, and below the heading Upcoming cleanups the cards come in two columns, Tide Pool Morning Cleanup on the left and Weekend Cove Cleanup on the right, each with its beach picture." width="1100" height="688" loading="lazy">
+    <figcaption>The same code in a window 1280 wide: useWindowDimensions reports the width, the Cleanups screen puts two cards in each row, and Screen stops the content at 960 and centers it. A tablet gets the same layout.</figcaption>
+</figure>
+                        </li>
+                        <li><strong>Darker.</strong> The web preview follows your computer's setting: Windows, Settings &gt; Personalization &gt; Colors &gt; Choose your mode; macOS, System Settings &gt; Appearance; many Linux desktops have a dark style switch too. Or, without changing your computer, in Chrome's DevTools (<kbd>F12</kbd>, or <kbd>⌘ Cmd</kbd>+<kbd>Option</kbd>+<kbd>I</kbd> on a Mac) open the <strong>Rendering</strong> panel (from the ⋮ menu, <strong>More tools</strong>) and set "Emulate CSS media feature prefers-color-scheme" to <code>dark</code>. The app switches without a reload.
+                            <figure class="screenshot">
+    <img src="images/lesson_08/08-dark-cleanups.png" alt="The web preview of the Cleanups screen in dark mode, in a phone frame. The page is a deep blue-black; the Deep Tide banner still says Shoreline Crew and Many hands, cleaner sands. The search field is a dark box with a light gray edge, the switch row has a gray track, the heading Upcoming cleanups is pale Seafoam, and the first card, Tide Pool Morning Cleanup, is a dark blue card with light text, light teal icons, a Seafoam Scheduled badge and an orange Today badge." width="420" height="814" loading="lazy">
+    <figcaption>The same screen with the computer set to dark mode: every color comes from the dark set of the same roles. The badges keep their daytime colors on purpose: each is its own small light background.</figcaption>
+</figure>
+                        </li>
+                        <li>Open a card's details and hold a button down: every control has its night colors.
+                            <figure class="screenshot">
+    <img src="images/lesson_08/08-dark-details.png" alt="Further down in dark mode, the Weekend Cove Cleanup card: the line Full: new sign-ups join the waiting list in bold light text, an outlined button Hide details with a light teal edge and words, outlined in red, and below it the description and a muted line We bring: Gloves, Bags." width="420" height="814" loading="lazy">
+    <figcaption>The outlined button at night: its edge and words use the dark set's light Sea Teal, which is 7.8:1 against the card. Pressed, it gets the dark set's own pressed color.</figcaption>
+</figure>
+                        </li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>Open the app in Expo Go and switch the phone to dark mode: on an iPhone, Settings &gt; Display &amp; Brightness &gt; Dark (or the Control Center's brightness slider, held down); on an Android phone, Settings &gt; Display &gt; Dark theme (the names vary by maker). The app should change while it is open, the status bar's clock and battery should turn light, and the switch should look gray when off on both. The cleanups themselves still need Lesson 5.1 to reach the phone, but the banner, the search field and the switch are enough to see the theme work. If you have a tablet, open the app on it too: two columns once the cleanups load.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <p>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                    <p>Commit:</p>
+                    <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Dark mode with a typed theme, themed navigator and status bar, two columns on wide screens"</code></pre>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project: write its color roles (by job, not by color), and give each a day and a night value; check the pairs that sit on top of each other. Then sketch its main screen twice: at 390 wide and at 1024 wide. What changes structure (columns, a side panel), and what only needs <code>flex</code> or a <code>maxWidth</code>? Is there anything that should really differ between iPhone and Android?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>colors.ts</code> has <code>lightColors</code> and a <code>darkColors</code> that <code>satisfies ThemeColors</code>, plus light and dark badge colors</li>
+                        <li>☐ <code>theme.ts</code>, <code>useColorScheme.ts</code> + <code>useColorScheme.web.ts</code> and <code>useTheme.ts</code> exist, and no file outside <code>src/theme/</code> imports <code>lightColors</code> or <code>brand</code></li>
+                        <li>☐ In dark mode (web preview or phone), the page, cards, text, badges, search field, switch and buttons all use night colors, with no light patches</li>
+                        <li>☐ The navigator has the theme's colors and the status bar's icons turn light in dark mode</li>
+                        <li>☐ At 700 wide or more the cards are in two columns, and the content stops at 960 and centers</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Three columns on big screens</h3>
+                    <p>Give windows of 1100 or more three columns. What else has to change for the cards to have room, and what goes wrong with an odd number of cards?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Three numbers decide it: the breakpoints, the maximum content width, and how many empty cells a short last row needs.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>threeColumns: 1100</code> to <code>layout</code> and raise <code>maxContentWidth</code> to about 1200 (at 960, three cards would be under 300 wide each). In <code>useColumns</code>: <code>if (width &gt;= layout.threeColumns) return 3;</code> before the two-column check. Then the empty cell: with 8 cards in rows of 3, the last row has 2 cards (one cell missing), but with 7 it has 1 and needs two empty cells. Replace the single empty cell with <code>{Array.from({ length: columns - row.length }, (_, index) =&gt; &lt;View key={index} style={styles.cell} /&gt;)}</code>. <code>toRows</code> already works for any size: that is what the generic helper was for.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Read the palette error</h3>
+                    <p>In <code>colors.ts</code>, delete the line <code>trackOff: night.slate,</code> from <code>darkColors</code> and run <code>npx tsc --noEmit</code>. Where does TypeScript complain, and which words name the problem?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>There are two errors: one where the palette is written, one where it is used. Skip the long type and look for "Property … is missing".</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <div class="card card-output">
+                            <h4>Expected output (shortened)</h4>
+                            <pre><code>src/theme/colors.ts:74:3 - error TS1360: Type '{ page: "#0f1b26"; surface: "#16283a"; border: "#2b4257"; text: "#e9eef3"; textMuted: "#a9b4c0"; heading: "#bfe3df"; error: "#ff9b85"; banner: "#0b3954"; onBanner: "#ffffff"; onBannerAccent: "#bfe3df"; ... 7 more ...; knob: "#ffffff"; }' does not satisfy the expected type 'ThemeColors'.
+  Property 'trackOff' is missing in type '{ page: "#0f1b26"; surface: "#16283a"; border: "#2b4257"; text: "#e9eef3"; textMuted: "#a9b4c0"; heading: "#bfe3df"; error: "#ff9b85"; banner: "#0b3954"; onBanner: "#ffffff"; onBannerAccent: "#bfe3df"; ... 7 more ...; knob: "#ffffff"; }' but required in type 'ThemeColors'.
+
+74 } satisfies ThemeColors;
+     ~~~~~~~~~
+...
+
+Found 2 errors in 2 files.</code></pre>
+                        </div>
+                        <p>The first error points at <code>satisfies ThemeColors</code>, right in the palette: "Property 'trackOff' is missing". The second is in <code>theme.ts</code>, where the dark palette becomes a theme. Without <code>satisfies</code>, you would only get the second one, further from the cause. Put the line back.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A keyboard for the night</h3>
+                    <p>On iPhones, <code>TextInput</code> has an iOS-only prop, <code>keyboardAppearance</code> (<code>'default'</code>, <code>'light'</code> or <code>'dark'</code>). Make the search field's keyboard match the app's scheme.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>useTheme()</code> returns more than <code>colors</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>SearchField.tsx</code>: <code>const { colors, scheme } = useTheme();</code> and on the <code>TextInput</code>, <code>keyboardAppearance={scheme}</code>. It type-checks because <code>scheme</code> is <code>'light' | 'dark'</code>. Android and the web ignore the prop. With "follow the phone" an iPhone keyboard already matches by default (React Native's documentation for <code>TextInput</code>); this line starts to matter when Lesson 5.3 lets someone pick a theme that differs from the phone's.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Search and switch side by side (Stretch)</h3>
+                    <p>On a wide screen, the search field and the switch row each take a whole line. Put them side by side when there are two columns.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>useColumns()</code> already knows whether the screen is wide. Neither component takes a <code>style</code>, so wrap each in a <code>View</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>index.tsx</code>, wrap the two in <code>&lt;View style={columns &gt; 1 ? styles.controlsWide : styles.controls}&gt;</code> with each inside <code>&lt;View style={styles.control}&gt;</code>, and add <code>controls: { gap: spacing.md }</code>, <code>controlsWide: { flexDirection: 'row', alignItems: 'center', gap: spacing.md }</code> and <code>control: { flex: 1 }</code> to the themed styles (they hold no colors, so they could just as well go in a plain sheet). On a phone nothing changes; at 700 and up the field and the switch share a line. Check that "Only cleanups with spots left" still wraps rather than squeezing the switch.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate writes <code>const { width } = Dimensions.get('window');</code> at the top of the Cleanups screen's file and picks the columns from it. A volunteer opens the app on a tablet in split screen, then makes Shoreline Crew's half wider. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="When does code at the top of a file run, and does anything run it again?">
+                                A) The columns follow the new width at once
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Nothing is wrong with the value itself; the question is whether it is ever read again.">
+                                B) The app shows a red error screen
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The width was read once, when the file loaded, and never again. useWindowDimensions inside the component re-renders it whenever the window changes, which is what a split screen, a rotation or a resized browser needs.">
+                                C) The layout stays as it was when the file loaded
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> The phone is in dark mode and <code>useTheme()</code> returns the dark theme, but one screen still has a Sand background. Its file ends with <code>StyleSheet.create({ screen: { backgroundColor: lightColors.page } })</code>. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="StyleSheet.create at the top level runs once, when the file loads, with whatever color it was given. Colors in styles have to come through createThemedStyles (one sheet per theme, picked by a hook), and colors for props from useTheme().">
+                                A) The color was fixed when the file loaded; the screen needs themed styles
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Other screens already turn dark, so the app is allowed to follow the setting.">
+                                B) app.json says <code>"userInterfaceStyle": "light"</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The rest of the app turns dark in Expo Go, so dark mode works there.">
+                                C) Expo Go does not support dark mode
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Which check should decide whether Shoreline Crew shows two columns of cards?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Think of an Android tablet, and of an iPad running two apps side by side.">
+                                A) <code>Platform.OS === 'ios' &amp;&amp; Platform.isPad</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Platform.select picks a value by platform, and there is no tablet platform.">
+                                B) <code>Platform.select({ ios: 2, android: 1 })</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="That setting says which way the app may turn, not how much room it has right now.">
+                                C) app.json's <code>"orientation"</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Layouts follow the room the window has right now, in density-independent pixels, whatever the device or platform. useColumns reads useWindowDimensions and compares the width with layout.twoColumns.">
+                                D) The window's width from <code>useWindowDimensions</code>, compared with 700
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> In <code>SwitchRow.tsx</code>, the editor auto-imported <code>useTheme</code> from <code>expo-router</code> instead of <code>@/hooks/useTheme</code>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Two hooks with the same name do not have to return the same thing.">
+                                A) Nothing: it is the same hook
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo Router's useTheme returns the navigator's theme, whose colors are primary, background, card, text, border and notification. tsc reports that trackOff, action and knob do not exist on that type. Fix the import.">
+                                B) tsc reports that <code>trackOff</code>, <code>action</code> and <code>knob</code> do not exist on the navigator's colors
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="TypeScript checks the colors' names before the app ever runs.">
+                                C) The switch turns invisible at run time
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> With React Native's plain <code>useColorScheme</code>, the web preview in dark mode shows a Sand page under dark cards. What fixes it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That would only force one scheme, and the page and the cards would still disagree on the web.">
+                                A) Setting app.json's <code>"userInterfaceStyle"</code> to <code>"dark"</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The badges are fine; the problem is what the server drew before the browser took over.">
+                                B) Giving the badges dark colors
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The server cannot know the browser's setting and draws the light page. useColorScheme.web.ts starts as light, like the server (the third argument of useSyncExternalStore), then switches after hydration. Phones keep React Native's hook.">
+                                C) A <code>useColorScheme.web.ts</code> that starts as <code>'light'</code>, like the server, then switches
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Platform.select picks values per platform, but on the web it would still pick the same value the server and the browser disagree about.">
+                                D) <code>Platform.select</code> in <code>Screen</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Can volunteers pick light or dark themselves?</summary>
+                    <p>Not yet. A choice like "System, Light or Dark" has to be remembered between launches, and storing settings on the device is Lesson 5.3 (the Profile screen arrives in Lesson 4.2). When it comes, <code>useTheme</code> reads the saved choice first and falls back to the phone's setting; no screen changes. React Native also has <code>Appearance.setColorScheme()</code>, which overrides the setting for the whole app on phones, but react-native-web does not have it, so the course will not rely on it.</p>
+                </details>
+                <details>
+                    <summary>Should the app's look differ on iPhone and Android, beyond what the system draws?</summary>
+                    <p>Usually as little as possible. Shoreline Crew lets each platform draw its own controls (the switch, the keyboard, later the navigation headers) and keeps its own brand the same everywhere. Change things per platform when a convention really differs, such as how "back" works or how a date picker looks, not to make the two apps look different on purpose.</p>
+                </details>
+                <details>
+                    <summary>What about landscape on phones?</summary>
+                    <p>app.json's <code>"orientation": "portrait"</code> (from the template) keeps phones upright, which suits a list app used with one hand. It is part of the app's native configuration, which Lesson 9.1 revisits. Tablets, split screens and the web change size anyway, so your layout already copes.</p>
+                </details>
+                <details>
+                    <summary>Do images need a dark version?</summary>
+                    <p>Photos and the site pictures do not. Icons get the theme's <code>icon</code> color automatically now. A logo on a transparent background might: if it disappears on the dark page, pick a version by <code>scheme</code> (Exercise 2 of Lesson 2.3 used a logo on the Deep Tide banner, which looks the same in both).</p>
+                </details>
+                <details>
+                    <summary>What about text size?</summary>
+                    <p><code>useWindowDimensions().fontScale</code> tells you how large the person has made text. You rarely need it: Lessons 2.1 and 2.2 made text grow without breaking the layout (no fixed heights, <code>flexShrink</code>, wrapping). Lesson 8.1 tests the extremes.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Write a tiny contrast checker in TypeScript: a function <code>contrast(foreground: string, background: string): number</code> that implements the WCAG relative-luminance formula for <code>#rrggbb</code> colors. Then loop over pairs of roles (<code>text</code>/<code>surface</code>, <code>onAction</code>/<code>action</code>, …) for both <code>lightColors</code> and <code>darkColors</code> and print any pair under 4.5:1. Lesson 8.2 adds Jest: keep the function, because "every text role passes 4.5:1 in both themes" makes a good test.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Open three apps you use at night with your phone in dark mode. Which one looks designed for the dark, and which one looks like the day version with the lights off? Look closely at one detail in each (a button, a badge, a divider line) and write down what makes it work or not. Then write one rule you will follow for Shoreline Crew's colors.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><code>useWindowDimensions</code> gives the window's size in dp and re-renders when it changes; choose layouts by width (one breakpoint, 700, in Shoreline Crew), never by device or platform; <code>Dimensions.get</code> at the top of a file goes stale</li>
+                        <li>Try <code>flex</code>, percentages and <code>maxWidth</code> first; use the window's size when the structure changes (one column to two)</li>
+                        <li><code>Platform.OS</code>, <code>Platform.select</code>, platform-only props (<code>ios_…</code>, <code>android_…</code>) and platform files (<code>.ios</code>, <code>.android</code>, <code>.web</code>) handle real differences; keep them small and in one place</li>
+                        <li>Dark mode = app.json <code>"userInterfaceStyle": "automatic"</code> + <code>useColorScheme</code> + a dark value for every role, checked for contrast; some colors (badges, the banner) stay on purpose</li>
+                        <li>A typed theme: <code>satisfies ThemeColors</code> keeps the dark palette complete; <code>useTheme()</code> for colors in props; <code>createThemedStyles</code> for style sheets, made once per theme</li>
+                        <li>Give the navigator (<code>ThemeProvider</code>) and the status bar the theme too; on the web, start as light like the server (<code>useColorScheme.web.ts</code>)</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate a media query, <code>prefers-color-scheme</code> or a CSS variable habit</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (breakpoint, color scheme, hydration, platform file)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read about <code>useWindowDimensions</code></td><td><a href="https://reactnative.dev/docs/usewindowdimensions" target="_blank" rel="noopener">React Native: useWindowDimensions</a></td></tr>
+                            <tr><td>Read about <code>Platform</code> and platform files</td><td><a href="https://reactnative.dev/docs/platform-specific-code" target="_blank" rel="noopener">React Native: Platform-specific code</a></td></tr>
+                            <tr><td>Read about color schemes in Expo apps</td><td><a href="https://docs.expo.dev/develop/user-interface/color-themes/" target="_blank" rel="noopener">Expo: Color themes</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You gave every color role in Shoreline Crew a night-time value, badges and controls included, and checked their contrast</li>
+                        <li>You built a typed theme that TypeScript keeps complete, a <code>useTheme</code> hook and themed styles</li>
+                        <li>You wrote your first platform file, and fixed a web-preview bug that printed no error</li>
+                        <li>You themed the navigator and the status bar</li>
+                        <li>You made the Cleanups screen use two columns and a readable width on tablets and wide windows</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>That completes Module 2: Shoreline Crew's screen is built from the ground up, in both themes and at any size. In <a href="lesson_09.html"><strong>Lesson 3.1: FlatList and SectionList</strong></a> the hand-made list of cards becomes a real list: <code>FlatList</code> (which only draws what is on screen), loading and empty states, pull to refresh, and cleanups grouped under headings. The two columns and the keyboard behavior you built come along.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Check the Cleanups screen in light and dark mode and at a phone width and a wide width, and commit your work</li>
+                    <li>Switch your phone to dark mode with Shoreline Crew open in Expo Go</li>
+                    <li>Notice how long the Cleanups screen is: every card is drawn, even the ones far below the screen. Lesson 3.1 is about that</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today you changed nearly every file in the app, and for a while TypeScript reported nine errors. That is what a real refactor feels like: a list of red that gets shorter, one file at a time, until it prints nothing. You also met a bug with no error message at all and found its cause by asking what happened before the browser took over. Both are skills you will use on every app you ever maintain, and you just practiced them on your own.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_07.html" class="prev-lesson">← Previous: Touch and Input</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_09.html" class="next-lesson">Next: FlatList and SectionList →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

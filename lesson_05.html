@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Flexbox with React Native's defaults: every View is a flex column, flex is a single number, nothing shrinks unless you say so, and children stretch across. Sizing with flex, fixed widths and percentages, aligning with justifyContent and alignItems, wrapping rows with gap, filling the screen, the common layouts of phone screens, where the web preview's layout differs from a phone, and a Screen component, badges and label/value rows for Shoreline Crew. React Native &amp; Expo: Build and Ship a Mobile App Lesson 2.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Flexbox the Native Way - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📐 Lesson 2.2: Flexbox the Native Way</h1>
+                <p class="lead">You have built page layouts with flexbox for years, so here is the good news: React Native lays out every screen with flexbox too. The catch is that it starts from different defaults, and those defaults explain nearly every "why is this here?" moment you will have on a phone. In this lesson you learn the four defaults that differ, the handful of layouts that phone screens are made of, and the one place where the web preview's layout quietly disagrees with a phone. Then you give Shoreline Crew's cards some real structure: a row of badges, details side by side, and a shared <code>Screen</code> component.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how React Native's flexbox differs from CSS: every <code>View</code> is a flex <em>column</em>, <code>flex</code> is a single number, nothing shrinks by default, and there is no grid</li>
+                        <li>Line things up along the main and cross axes with <code>flexDirection</code>, <code>justifyContent</code>, <code>alignItems</code>, <code>alignSelf</code>, <code>flexWrap</code> and <code>gap</code></li>
+                        <li>Size boxes with <code>flex</code>, fixed widths and percentages, and keep text inside a row from running off the screen</li>
+                        <li>Build the common phone layouts: a header row, label and value side by side, a wrapping row of badges, a centered message, a bar pinned to the bottom</li>
+                        <li>Make a screen fill the phone with <code>flex: 1</code>, and say where the web preview's layout can differ from a phone's</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_04.html">Lesson 2.1: View, Text and StyleSheet</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> a <code>Screen</code> component, <code>Badge</code> and <code>StatusBadge</code>, cards with a badge row and label/value rows, and a header row with a count on the Cleanups screen</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3, Expo Router 58, TypeScript 6.0), the shoreline-api (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone shows the layout without data until Lesson 5.1</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-05-start.zip">lesson-05-start.zip</a> · Finished code: <a href="downloads/lesson-05-end.zip">lesson-05-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Same Flexbox, Different Starting Point</a></li>
+                        <li><a href="#defaults" class="toc-link">Every View Is a Flex Column</a></li>
+                        <li><a href="#sizing" class="toc-link">Sizing: flex, Fixed Sizes and Percentages</a></li>
+                        <li><a href="#alignment" class="toc-link">Lining Things Up</a></li>
+                        <li><a href="#fill" class="toc-link">Filling the Screen</a></li>
+                        <li><a href="#patterns" class="toc-link">Common Phone Layouts</a></li>
+                        <li><a href="#web-vs-phone" class="toc-link">Where the Web Preview Disagrees</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Cards with Structure</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Same Flexbox, Different Starting Point</h2>
+                <p>At the end of Lesson 2.1, every line of Shoreline Crew's cards sat under the one before it. That was not a choice you made: it is what React Native does when you say nothing about layout. Today you start saying something. A volunteer scanning the list wants to see at a glance that a cleanup is scheduled and happening today, and to find the meeting point without reading a paragraph. That takes rows inside columns, things pushed to an edge, and text that wraps in the right place.</p>
+                <p>On the web you would reach for <code>display: flex</code> on some elements, CSS Grid on others, and maybe a float you are not proud of. On a phone there is one layout system, flexbox, and it is already switched on for every <code>View</code>. Once you know where its defaults differ from the browser's, your web experience transfers almost completely.</p>
+                <ul>
+                    <li><strong>Why it matters for your work:</strong> layout is the part of a React Native job you touch every day. Teams notice quickly who can look at a design and build it with three flex properties, and who nests five <code>View</code>s and guesses.</li>
+                    <li><strong>Why it matters for the volunteers:</strong> phones come in many widths, people turn up their text size, and a layout built from fixed pixel positions breaks for some of them. Flexbox layouts bend instead of breaking.</li>
+                </ul>
+                <div class="card card-success">
+                    <h4>✅ Layout is learned by moving boxes</h4>
+                    <p>Nobody learns flexbox from a table of properties. You learn it by changing one property, saving, and watching what moves. This lesson gives you the map; Step 5 of the project asks you to break the layout on purpose, one line at a time. If something lands in a strange place, that is not a failure: it is the layout engine showing you exactly what you asked for, and the fastest way to understand what you meant.</p>
+                </div>
+            </section>
+
+            <section id="defaults" class="lesson-section">
+                <h2>🧭 Every View Is a Flex Column</h2>
+                <p>In a browser, a <code>&lt;div&gt;</code> is a block until you write <code>display: flex</code>. In React Native there is no "block" and no "inline": <strong>every <code>View</code> is already a flex container</strong>, and the properties you know (<code>justifyContent</code>, <code>alignItems</code>, <code>flexWrap</code>, <code>gap</code>) work on it straight away. The layout is calculated by <strong>Yoga</strong>, a flexbox engine written in C++ that React Native runs the same way on Android and iOS. The web preview does not use Yoga: react-native-web turns the same styles into the browser's CSS flexbox, which is why it looks almost, but not always exactly, the same (more in <a href="#web-vs-phone">Where the Web Preview Disagrees</a>).</p>
+                <p>Four defaults differ from CSS, and they are worth learning by heart:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Property</th><th>CSS default</th><th>React Native default</th><th>What you notice</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>flexDirection</code></td><td><code>row</code></td><td><strong><code>'column'</code></strong></td><td>Children stack from top to bottom unless you say <code>'row'</code></td></tr>
+                            <tr><td><code>flexShrink</code></td><td><code>1</code></td><td><strong><code>0</code></strong></td><td>Nothing gets smaller to fit: long content can run past the edge</td></tr>
+                            <tr><td><code>alignContent</code></td><td><code>normal</code> (stretch)</td><td><strong><code>'flex-start'</code></strong></td><td>Wrapped lines stay at the start instead of spreading out</td></tr>
+                            <tr><td><code>flex</code></td><td>a shorthand: <code>1 1 0%</code></td><td><strong>one number</strong></td><td><code>flex: 1</code> means "take a share of the free space"; strings are a type error</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The <code>flexShrink</code> default is easy to check for yourself: React Native ships Yoga's source in <code>node_modules/react-native/ReactCommon/yoga</code>, and its style defaults say <code>DefaultFlexShrink = 0.0f</code>, with a separate <code>WebDefaultFlexShrink = 1.0f</code> that React Native does not use. Everything else you know is the same: <code>alignItems</code> defaults to <code>'stretch'</code>, <code>justifyContent</code> to <code>'flex-start'</code>, and <code>gap</code>, <code>rowGap</code> and <code>columnGap</code> work as in CSS.</p>
+                <p>Here is the first default in action. Three <code>Text</code>s in a <code>View</code>, with no layout styles at all, stack from top to bottom; one line turns them into a row:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, Text, View } from 'react-native';
+
+// Three boxes with no layout styles at all: they stack from top to bottom
+export function Supplies() {
+  return (
+    &lt;View style={styles.list}&gt;
+      &lt;Text&gt;Gloves&lt;/Text&gt;
+      &lt;Text&gt;Bags&lt;/Text&gt;
+      &lt;Text&gt;Water and snacks&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// The same three, side by side: one line changes the main axis
+export function SuppliesInARow() {
+  return (
+    &lt;View style={[styles.list, styles.row]}&gt;
+      &lt;Text&gt;Gloves&lt;/Text&gt;
+      &lt;Text&gt;Bags&lt;/Text&gt;
+      &lt;Text&gt;Water and snacks&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  list: { gap: 8 },
+  row: { flexDirection: 'row' },
+});</code></pre>
+                <h3>Main axis and cross axis</h3>
+                <p>As on the web, every flex container has two directions. The <strong>main axis</strong> is the direction children are placed in: down the screen for a column, across it for a row. The <strong>cross axis</strong> is the other one. <code>justifyContent</code> works along the main axis and <code>alignItems</code> across it, so when you switch a container from column to row, the two properties swap the jobs they do on the screen. This is the single most common source of "I set <code>alignItems: 'center'</code> and it centered the wrong way".</p>
+                <figure class="diagram">
+                    <svg viewBox="0 0 480 300" role="img" aria-labelledby="axes-title axes-desc">
+                        <title id="axes-title">Main and cross axes in a column and in a row</title>
+                        <desc id="axes-desc">Left: a column container. Its three children are stacked from top to bottom, each stretched across the full width of the container. An arrow pointing down is labeled main axis. Right: a row container. Its three children sit side by side, each stretched to the full height of the row. An arrow pointing right is labeled main axis. In both, the cross axis is the other direction, where children stretch by default.</desc>
+                        <text class="d-text" x="110" y="24" font-size="16" text-anchor="middle">column (the default)</text>
+                        <rect class="d-box" x="20" y="40" width="150" height="176" rx="8"/>
+                        <rect class="d-accent" x="32" y="52" width="126" height="44" rx="4"/>
+                        <rect class="d-accent" x="32" y="106" width="126" height="44" rx="4"/>
+                        <rect class="d-accent" x="32" y="160" width="126" height="44" rx="4"/>
+                        <text class="d-text" x="95" y="79" font-size="15" text-anchor="middle">1</text>
+                        <text class="d-text" x="95" y="133" font-size="15" text-anchor="middle">2</text>
+                        <text class="d-text" x="95" y="187" font-size="15" text-anchor="middle">3</text>
+                        <line class="d-line" x1="190" y1="50" x2="190" y2="204" stroke-width="2"/>
+                        <polyline class="d-line" points="183,196 190,206 197,196" stroke-width="2"/>
+                        <text class="d-text" x="110" y="244" font-size="15" text-anchor="middle">main axis: down</text>
+                        <text class="d-muted" x="110" y="266" font-size="15" text-anchor="middle">cross axis: across,</text>
+                        <text class="d-muted" x="110" y="286" font-size="15" text-anchor="middle">children stretch</text>
+                        <text class="d-text" x="360" y="24" font-size="16" text-anchor="middle">flexDirection: 'row'</text>
+                        <rect class="d-box" x="250" y="40" width="210" height="84" rx="8"/>
+                        <rect class="d-accent" x="262" y="52" width="56" height="60" rx="4"/>
+                        <rect class="d-accent" x="326" y="52" width="56" height="60" rx="4"/>
+                        <rect class="d-accent" x="390" y="52" width="56" height="60" rx="4"/>
+                        <text class="d-text" x="290" y="87" font-size="15" text-anchor="middle">1</text>
+                        <text class="d-text" x="354" y="87" font-size="15" text-anchor="middle">2</text>
+                        <text class="d-text" x="418" y="87" font-size="15" text-anchor="middle">3</text>
+                        <line class="d-line" x1="262" y1="144" x2="446" y2="144" stroke-width="2"/>
+                        <polyline class="d-line" points="438,137 448,144 438,151" stroke-width="2"/>
+                        <text class="d-text" x="360" y="244" font-size="15" text-anchor="middle">main axis: across</text>
+                        <text class="d-muted" x="360" y="266" font-size="15" text-anchor="middle">cross axis: down,</text>
+                        <text class="d-muted" x="360" y="286" font-size="15" text-anchor="middle">children stretch</text>
+                    </svg>
+                    <figcaption>The same three children in a column and in a row. <code>justifyContent</code> places them along the arrow, <code>alignItems</code> across it; by default they stretch across.</figcaption>
+                </figure>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the crew lining up on the beach</h4>
+                    <p>Picture the volunteers gathering at the meeting point. Unless someone gives directions, they line up single file down the beach, away from the water: that is the default column. Say "row" and they stand shoulder to shoulder along the tide line instead. <code>justifyContent</code> is where they stand <em>along</em> the line (bunched at the start, spread out, gathered in the middle). <code>alignItems</code> is how each person stands <em>across</em> it, and the default, <code>'stretch'</code>, has everyone reaching all the way from the dunes to the water. And because nobody likes being squeezed, nobody shrinks to make room unless you ask (<code>flexShrink: 0</code>): if the line is too long for the beach, the last people end up standing in the sea.</p>
+                </div>
+                <h3>No grid, no floats, and positions that stay local</h3>
+                <ul>
+                    <li><strong><code>display</code></strong> accepts only <code>'flex'</code> (the default), <code>'none'</code> (hide it and take no space) and <code>'contents'</code>. There is no <code>'block'</code>, <code>'inline'</code> or <code>'grid'</code>: grids are rows of flexible boxes, or lists with columns (Module 3).</li>
+                    <li><strong><code>position</code></strong> defaults to <code>'relative'</code>. <code>position: 'absolute'</code> places a box relative to its <strong>parent</strong>, with <code>top</code>, <code>right</code>, <code>bottom</code> and <code>left</code> as numbers, and takes it out of the flex flow. Use it for small overlays (a label on the corner of a picture), not to build screens.</li>
+                    <li>There are no floats, no <code>margin: auto</code> centering tricks and no media queries. Lesson 2.5 handles different screen sizes in code.</li>
+                </ul>
+            </section>
+
+            <section id="sizing" class="lesson-section">
+                <h2>📏 Sizing: flex, Fixed Sizes and Percentages</h2>
+                <p>A box gets its size in one of three ways, and you will use all three on most screens:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>You want</th><th>Write</th><th>Example in Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Exactly this big</td><td><code>width: 72</code>, <code>height: 8</code></td><td>The label column of a card's details</td></tr>
+                            <tr><td>A share of the parent</td><td><code>width: '50%'</code></td><td>Two halves of a row, whatever the phone's width</td></tr>
+                            <tr><td>Whatever space is left</td><td><code>flex: 1</code></td><td>A detail's value, next to its label; the whole screen</td></tr>
+                            <tr><td>As big as the content</td><td>nothing</td><td>A badge, a line of text</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong><code>flex</code> is a number, and it means "take a share of the free space".</strong> Inside a row, a box with <code>flex: 1</code> takes whatever the other boxes leave. Two boxes with <code>flex: 1</code> and <code>flex: 2</code> split the free space one to two: in the course's web-preview test, a row 340 units wide (after padding and the gap) gave them 111 and 221. Behind the scenes, Yoga turns a positive <code>flex</code> into <code>flexGrow</code> with a starting size (<code>flexBasis</code>) of 0, and you can still write <code>flexGrow</code>, <code>flexShrink</code> and <code>flexBasis</code> separately when you need to. What you cannot write is the CSS shorthand <code>flex: '1 1 0%'</code>: it is a type error (see <a href="#mistakes">Common Mistakes</a>).</p>
+                <p>Ratios are useful for more than columns. This bar shows how full a cleanup is, with no arithmetic at all: the taken spots and the free spots each get a <code>flex</code> equal to their count, and Yoga does the division:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+type SpotsBarProps = { taken: number; capacity: number };
+
+// flex as a share: 7 taken and 5 free out of 12 split the bar 7 to 5
+export function SpotsBar({ taken, capacity }: SpotsBarProps) {
+  return (
+    &lt;View style={styles.track}&gt;
+      &lt;View style={[styles.taken, { flex: taken }]} /&gt;
+      &lt;View style={{ flex: capacity - taken }} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  track: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#bfe3df',
+  },
+  taken: { backgroundColor: '#1f6f8b' },
+});</code></pre>
+                <p>Two more sizing tools you will meet soon: <code>minWidth</code>/<code>maxWidth</code> (and the heights) work as on the web, and <code>aspectRatio</code> sizes one side from the other, which Lesson 2.3 uses for the site pictures.</p>
+                <h3>The rule that bites in rows: nothing shrinks</h3>
+                <p>Because <code>flexShrink</code> defaults to <code>0</code>, a box in a row keeps the size its content asks for, even when the row is too narrow. For short labels that never matters. For a line of text, such as a meeting point next to its label, it can push the text past the right edge of the card instead of wrapping. The fix is to tell the text it may give way:</p>
+                <ul>
+                    <li><code>flex: 1</code> on the text: "take the space the others leave, and wrap inside it". Use it when the text should fill the rest of the row.</li>
+                    <li><code>flexShrink: 1</code> on the text: "keep your natural size, but get smaller if you must". Use it when the text should stay as short as it is, with something else beside it (like a heading with a count next to it).</li>
+                </ul>
+                <p>You use both in the project. Learn the reflex: <strong>text in a row gets <code>flex: 1</code> or <code>flexShrink: 1</code></strong>.</p>
+            </section>
+
+            <section id="alignment" class="lesson-section">
+                <h2>🎯 Lining Things Up</h2>
+                <p>The alignment properties are the CSS ones, camelCased, with the values as strings:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Property</th><th>Along</th><th>Values</th><th>Typical use</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>justifyContent</code></td><td>main axis</td><td><code>'flex-start'</code> (default), <code>'center'</code>, <code>'flex-end'</code>, <code>'space-between'</code>, <code>'space-around'</code>, <code>'space-evenly'</code></td><td>Push a count to the far end of a header row</td></tr>
+                            <tr><td><code>alignItems</code></td><td>cross axis</td><td><code>'stretch'</code> (default), <code>'flex-start'</code>, <code>'center'</code>, <code>'flex-end'</code>, <code>'baseline'</code></td><td>Center an icon and a label vertically in a row</td></tr>
+                            <tr><td><code>alignSelf</code></td><td>cross axis, one child</td><td>the same, plus <code>'auto'</code></td><td>Stop one child from stretching</td></tr>
+                            <tr><td><code>flexWrap</code></td><td>main axis</td><td><code>'nowrap'</code> (default), <code>'wrap'</code></td><td>Badges or tags that continue on a second line</td></tr>
+                            <tr><td><code>gap</code>, <code>rowGap</code>, <code>columnGap</code></td><td>between children</td><td>numbers</td><td>Space between cards, lines and badges, never at the edges</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Stretch: why a badge becomes a bar</h3>
+                <p><code>alignItems: 'stretch'</code> is the default, so in a column every child is as wide as the column. That is perfect for cards and banners, and a surprise for anything small. The course measured it in the web preview: a pill-shaped badge with the word "Scheduled", placed directly in a 358-wide card, came out <strong>340 units wide</strong>, a long green bar. With <code>alignSelf: 'flex-start'</code> it was 93 units, just wider than its word. Putting small things in a <strong>row</strong> also stops it, because in a row the stretch goes up and down instead; that is what Shoreline Crew's badge row does.</p>
+                <p>The HQ's <code>EventCard.module.css</code> had exactly this badge row. Here is how it translates:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The HQ's CSS (<code>.badges</code>)</th><th>Shoreline Crew (<code>styles.badges</code>)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>display: flex;</code></td><td>nothing: every <code>View</code> is a flex container</td></tr>
+                            <tr><td>(row is the CSS default)</td><td><code>flexDirection: 'row'</code>: column is the native default</td></tr>
+                            <tr><td><code>flex-wrap: wrap;</code></td><td><code>flexWrap: 'wrap'</code></td></tr>
+                            <tr><td><code>gap: 0.5rem;</code></td><td><code>gap: spacing.sm</code> (8)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>In the project, the Cleanups screen's header row uses the other two properties you will write most: <code>justifyContent: 'space-between'</code> pushes the count to the right edge, and <code>alignItems: 'center'</code> lines the heading and the count up through their middles:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                    <pre data-src="shoreline-crew/src/app/index.tsx" data-match="excerpt"><code class="language-tsx">sectionHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: spacing.sm,
+},</code></pre>
+                </div>
+            </section>
+
+            <section id="fill" class="lesson-section">
+                <h2>📱 Filling the Screen</h2>
+                <p>On the web, a page is as tall as its content and the browser scrolls the window. On a phone, the navigator gives each screen a fixed box, the screen's height, and it is your job to fill it. A <code>View</code> with no size is only as tall as its content, so a screen whose outermost <code>View</code> has no <code>flex: 1</code> has two problems the course measured in the web preview at 390 by 844:</p>
+                <ul>
+                    <li><strong>The background stops where the content stops.</strong> A screen <code>View</code> with a Sand background and only the line "Loading cleanups…" was <strong>48 units tall</strong>, with the rest of the screen blank. With <code>flex: 1</code> it filled all <strong>780</strong> units below the header.</li>
+                    <li><strong>A <code>ScrollView</code> inside it cannot scroll.</strong> A <code>ScrollView</code> needs a fixed height to scroll within. Inside a <code>View</code> without <code>flex: 1</code>, it grew to the full height of its sixty rows (1,464 units), so there was nothing to scroll: setting its scroll position left it at 0 and the last row stayed far below the bottom of the screen. With <code>flex: 1</code> on the outer <code>View</code>, the same <code>ScrollView</code> was 780 tall and scrolled to the last row.</li>
+                </ul>
+                <p>The rule: <strong>the outermost <code>View</code> of a screen gets <code>flex: 1</code></strong>, and so does every <code>View</code> between it and anything that should fill the space (a list, a map). A <code>ScrollView</code> already grows by default (its base style in React Native has <code>flexGrow: 1</code> and <code>flexShrink: 1</code>), so you can put one straight at the top of a screen, as Lesson 2.1 did; it is a plain <code>View</code> wrapped around it that breaks things.</p>
+                <p>Rather than remember that rule on every screen, Shoreline Crew gets a <code>Screen</code> component today: the page color from edge to edge, the standard padding and gaps, and <code>flex: 1</code>, with an optional <code>scroll</code> prop for screens that are longer than the phone. Lesson 2.3 adds the safe areas around the notch and the home indicator to it, so every screen gets them at once.</p>
+            </section>
+
+            <section id="patterns" class="lesson-section">
+                <h2>🧩 Common Phone Layouts</h2>
+                <p>Most phone screens are built from a few patterns. Learn to see them in the apps you use, and a new design turns into a short list of rows and columns:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Pattern</th><th>Recipe</th><th>Where you see it</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Header row</td><td>row, <code>justifyContent: 'space-between'</code>, <code>alignItems: 'center'</code>; the title gets <code>flexShrink: 1</code></td><td>"Upcoming cleanups ... 8 cleanups"</td></tr>
+                            <tr><td>Label and value</td><td>row; the label a fixed <code>width</code>, the value <code>flex: 1</code></td><td>A card's "When" and "Meet at"</td></tr>
+                            <tr><td>Wrapping chips</td><td>row, <code>flexWrap: 'wrap'</code>, <code>gap</code></td><td>Badges, skills, supplies</td></tr>
+                            <tr><td>Centered message</td><td><code>flex: 1</code>, <code>justifyContent</code> and <code>alignItems</code> both <code>'center'</code></td><td>Empty states, errors, loading</td></tr>
+                            <tr><td>Bottom bar</td><td>column: content <code>flex: 1</code>, then the bar</td><td>A "Sign up" button under a detail screen</td></tr>
+                            <tr><td>Equal columns</td><td>row, each child <code>flex: 1</code></td><td>Two stats side by side</td></tr>
+                            <tr><td>Corner overlay</td><td>parent normal, child <code>position: 'absolute'</code> with <code>top</code>/<code>right</code></td><td>A label on a picture</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Four of them as components, so you can see how little code each takes (these are examples, not files in the project):</p>
+                <pre data-snippet><code class="language-tsx">import type { ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+// 1. Centered in the whole screen: an empty or error state
+export function CenteredMessage({ message }: { message: string }) {
+  return (
+    &lt;View style={styles.centered}&gt;
+      &lt;Text&gt;{message}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+// 2. Content that fills the screen, with a bar pinned to the bottom
+export function WithBottomBar({ children, bar }: { children: ReactNode; bar: ReactNode }) {
+  return (
+    &lt;View style={styles.fill}&gt;
+      &lt;View style={styles.fill}&gt;{children}&lt;/View&gt;
+      &lt;View style={styles.bar}&gt;{bar}&lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// 3. Two equal columns
+export function TwoColumns({ left, right }: { left: ReactNode; right: ReactNode }) {
+  return (
+    &lt;View style={styles.columns}&gt;
+      &lt;View style={styles.fill}&gt;{left}&lt;/View&gt;
+      &lt;View style={styles.fill}&gt;{right}&lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+// 4. A small label on top of a corner of something else
+export function WithCornerLabel({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    &lt;View&gt;
+      {children}
+      &lt;Text style={styles.corner}&gt;{label}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  bar: { padding: 16, borderTopWidth: 1, borderColor: '#e4dccb' },
+  columns: { flexDirection: 'row', gap: 16 },
+  corner: { position: 'absolute', top: 8, right: 8 },
+});</code></pre>
+                <ul>
+                    <li><code>CenteredMessage</code> needs <code>flex: 1</code> first: centering inside a box that is only as tall as its content centers nothing.</li>
+                    <li><code>WithBottomBar</code> pins the bar without any positioning: the content takes all the free space, so the bar ends up at the bottom. On a real screen, the bar also has to stay clear of the home indicator; that is Lesson 2.3.</li>
+                    <li><code>TwoColumns</code> gives both sides <code>flex: 1</code>, so they are equal whatever is in them, and text inside wraps in its own column.</li>
+                    <li><code>WithCornerLabel</code> is the one place <code>position: 'absolute'</code> belongs: the label sits on top of the corner of whatever is the parent's first child.</li>
+                </ul>
+            </section>
+
+            <section id="web-vs-phone" class="lesson-section">
+                <h2>🔍 Where the Web Preview Disagrees</h2>
+                <p>Lesson 2.1 showed that the web preview forgives a stray string a phone rejects. Layout has one forgiving spot too, and it is the "nothing shrinks" rule. react-native-web gives every <code>View</code> React Native's defaults, including <code>flexShrink: 0</code>, but it renders a <code>Text</code> as an element that keeps the browser's default of <code>flex-shrink: 1</code>. The course measured both in the web preview, in a 358-wide row with a 72-wide label and a long meeting point:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The long value is…</th><th>Web preview (measured)</th><th>A phone (Yoga, <code>flexShrink: 0</code>)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>a <code>Text</code> with no <code>flex</code></td><td>Shrinks and wraps; to make room, the browser also squeezed the 72-wide label to about 35</td><td>Should keep its natural width and run past the card's edge</td></tr>
+                            <tr><td>a <code>Text</code> inside a <code>View</code> with no <code>flex</code></td><td>Runs off: one line 645 units wide, far past the 390-wide screen</td><td>Should run off as well</td></tr>
+                            <tr><td>a <code>Text</code> with <code>flex: 1</code></td><td>Wraps inside the space next to the label; the label keeps its 72</td><td>Should wrap the same way</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So the web preview can look right in exactly the case where a phone does not. The habit that protects you is the one from <a href="#sizing">Sizing</a>: give text in a row <code>flex: 1</code> or <code>flexShrink: 1</code> whether or not the preview seems to need it, and look at row layouts on a phone.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Open the finished Cleanups screen in Expo Go. Even without data (until Lesson 5.1 the phone shows "Could not reach the server"), you can see the banner and the header row fill the width. To see the cards on a phone before then, use the web preview's layout as your guide and come back to this check after Lesson 5.1: the label column should stay 72 wide and long values should wrap inside the card. Then make the phone's text much larger (Lesson 2.1 showed where): the badges should wrap onto a second line, values should wrap onto more lines, and "Upcoming cleanups" should wrap rather than push the count off the screen.</p>
+                </div>
+                <p>When something is the wrong size or in the wrong place, this short check finds most causes (for text that should keep its natural width, read <code>flexShrink: 1</code> where it says <code>flex: 1</code>):</p>
+<div class="mermaid">
+graph TD
+    A["Wrong size or place?"] --> B["Text in a row?"]
+    B -->|"yes"| C["flex: 1 on the text"]
+    B -->|"no"| D["Parents flex: 1?"]
+    D -->|"no"| E["Add flex: 1"]
+    D -->|"yes"| F["Stretch? Axes?"]
+</div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ Writing <code>flex</code> the CSS way</h4>
+                    <p><code>flex: '1 1 0%'</code> or <code>flex: '1'</code> is caught. With it in <code>Screen.tsx</code>, TypeScript says:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/Screen.tsx:28:5 - error TS2322: Type 'string' is not assignable to type 'number'.
+
+28     flex: '1 1 0%', // fill the space the navigator gives the screen, not just the content's height
+       ~~~~
+
+  node_modules/react-native/types_generated/Libraries/StyleSheet/StyleSheetTypes.d.ts:514:3
+    514   flex?: number | undefined;
+          ~~~~
+...
+
+Found 1 error in src/components/Screen.tsx:28</code></pre>
+                    </div>
+                    <p>Write a number: <code>flex: 1</code>. If you really need different grow, shrink and basis values, write <code>flexGrow</code>, <code>flexShrink</code> and <code>flexBasis</code> as three properties.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Reaching for CSS Grid</h4>
+                    <p><code>display: 'grid'</code> is caught too, and the message lists what is allowed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/EventCard.tsx:76:5 - error TS2322: Type '"grid"' is not assignable to type '"none" | "flex" | "contents" | undefined'.
+
+76     display: 'grid',
+       ~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/StyleSheet/StyleSheetTypes.d.ts:68:3
+    68   display?: "none" | "flex" | "contents" | undefined;
+         ~~~~~~~
+...
+
+Found 1 error in src/components/EventCard.tsx:76</code></pre>
+                    </div>
+                    <p>Build grids from rows of <code>flex: 1</code> boxes, or a list with columns (Module 3).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Text in a row without <code>flex: 1</code> or <code>flexShrink: 1</code></h4>
+                    <p>No type error, and the web preview may look fine (<a href="#web-vs-phone">see why</a>). On a phone, long text keeps its width and can run past the edge of its card. Every <code>Text</code> that shares a row with something else gets <code>flex: 1</code> (fill the rest) or <code>flexShrink: 1</code> (shrink if needed).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A screen without <code>flex: 1</code></h4>
+                    <p>The page color stops under the last line, a centered message sits at the top, a <code>ScrollView</code> inside a plain <code>View</code> will not scroll. Nothing is printed anywhere. Use the <code>Screen</code> component, or give the outermost <code>View</code> <code>flex: 1</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A small thing stretched into a bar</h4>
+                    <p>A badge, a button or a picture placed directly in a column becomes as wide as the column (<code>alignItems: 'stretch'</code>). Put it in a row, or give it <code>alignSelf: 'flex-start'</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Swapped axes after switching to a row</h4>
+                    <p>You turned a column into a row and now <code>justifyContent: 'center'</code> centers sideways instead of up and down. Nothing is broken: the axes swapped. <code>justifyContent</code> follows the arrow of <code>flexDirection</code>; <code>alignItems</code> goes across it.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A fixed <code>height</code> on a row with text</h4>
+                    <p><code>height: 40</code> on a row of text looks tidy until someone uses a larger text size: the text grows and the row does not, so the text is cut off or overlaps the next row. Let rows take their height from their content and use <code>padding</code> and <code>minHeight</code> for breathing room.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Cards with Structure</h2>
+                <p>You give Shoreline Crew a <code>Screen</code> component, a <code>Badge</code> and a <code>StatusBadge</code>, rebuild the card with a badge row and label/value rows, and add a header row with a count to the Cleanups screen. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: The <code>Screen</code> component <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Create <code>src/components/Screen.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Screen.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+
+type ScreenProps = {
+  children: ReactNode;
+  // true: the content scrolls when it is taller than the screen
+  scroll?: boolean;
+};
+
+// Every screen starts here: the page color from edge to edge, and the same padding and gaps.
+// Lesson 2.3 keeps the content clear of the notch and the home indicator.
+export function Screen({ children, scroll = false }: ScreenProps) {
+  if (scroll) {
+    return (
+      &lt;ScrollView style={styles.screen} contentContainerStyle={styles.content}&gt;
+        {children}
+      &lt;/ScrollView&gt;
+    );
+  }
+  return &lt;View style={[styles.screen, styles.content]}&gt;{children}&lt;/View&gt;;
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1, // fill the space the navigator gives the screen, not just the content's height
+    backgroundColor: colors.page,
+  },
+  content: {
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+});</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>children: ReactNode</code> is the same type you used for wrapper components in the web course; <code>scroll?: boolean</code> is optional and defaults to <code>false</code>.</li>
+                                <li>With <code>scroll</code>, the screen is a <code>ScrollView</code>: <code>style</code> is the window (it fills the screen and shows the page color) and <code>contentContainerStyle</code> is the strip that scrolls (padding and gaps), as in Lesson 2.1.</li>
+                                <li>Without it, the screen is a <code>View</code> with both styles in one array. That is the branch where <code>flex: 1</code> is essential; Module 3's lists will use it.</li>
+                            </ul>
+                        </li>
+                        <li>Use it in <code>src/app/index.tsx</code>. The <code>ScrollView</code> and the two styles it needed move into <code>Screen</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-import { ScrollView, StyleSheet, View } from 'react-native';
++import { StyleSheet, View } from 'react-native';
+
+ import { describeError, getEvents } from '@/api/client';
+ import type { CleanupEvent } from '@/api/types';
+ import { AppText } from '@/components/AppText';
+ import { EventCard } from '@/components/EventCard';
++import { Screen } from '@/components/Screen';
+ import { colors } from '@/theme/colors';
+ // ...
+   return (
+-    &lt;ScrollView style={styles.screen} contentContainerStyle={styles.content}&gt;
++    &lt;Screen scroll&gt;
+       &lt;View style={styles.banner}&gt;
+ // ...
+         load.events.map((event) =&gt; &lt;EventCard key={event.id} event={event} /&gt;)}
+-    &lt;/ScrollView&gt;
++    &lt;/Screen&gt;
+   );
+ }
+
+ const styles = StyleSheet.create({
+-  screen: {
+-    backgroundColor: colors.page,
+-  },
+-  content: {
+-    gap: spacing.md,
+-    padding: spacing.md,
+-  },
+   banner: {</code></pre>
+                            </div>
+                        </li>
+                        <li>Save. The screen looks exactly as before: the same background, padding and gaps now come from one shared place.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: <code>Badge</code> and <code>StatusBadge</code> <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Create <code>src/components/Badge.tsx</code>. This is the HQ's <code>Badge</code> rebuilt: its CSS Module becomes style objects, and the pill is a <code>View</code> around an <code>AppText</code> (Exercise 1 of Lesson 2.1 sorted these properties into box and text):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Badge.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Badge.tsx"><code class="language-tsx">import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { brand, colors } from '@/theme/colors';
+
+export type BadgeTone = 'info' | 'success' | 'neutral' | 'danger' | 'attention';
+
+type BadgeProps = {
+  label: string;
+  tone?: BadgeTone;
+};
+
+// A small rounded label. The View is the pill, the text inside it is the word.
+export function Badge({ label, tone = 'info' }: BadgeProps) {
+  return (
+    &lt;View style={[styles.badge, boxes[tone]]}&gt;
+      &lt;AppText style={[styles.label, labels[tone]]}&gt;{label}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  badge: {
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+  },
+  label: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+});
+
+// One box style and one text style per BadgeTone, like the HQ's Badge.module.css
+const boxes = StyleSheet.create({
+  info: { backgroundColor: brand.seafoam },
+  success: { backgroundColor: brand.kelp },
+  neutral: { borderWidth: 1, borderColor: colors.textMuted },
+  danger: { backgroundColor: brand.coral },
+  attention: { backgroundColor: brand.sunrise },
+});
+
+const labels = StyleSheet.create({
+  info: { color: brand.ink },
+  success: { color: brand.white },
+  neutral: { color: colors.text },
+  danger: { color: brand.white },
+  attention: { color: brand.ink },
+});</code></pre>
+                            </div>
+                            <ul>
+                                <li>The HQ wrote <code>className={`${styles.badge} ${styles[tone]}`}</code>; here two style arrays do the same job, one for the box and one for the word.</li>
+                                <li><code>boxes[tone]</code> and <code>labels[tone]</code> are checked like <code>AppText</code>'s <code>styles[variant]</code>: add a tone to <code>BadgeTone</code> and forget a style, and <code>tsc</code> reports it.</li>
+                                <li>The new <code>'attention'</code> tone (Sunrise with Ink text, about 7:1) is for the "Today" badge. Ink on Seafoam is about 10.6:1, white on Kelp about 6.4:1 and white on Coral about 6:1, all above 4.5:1, the WCAG minimum for small text.</li>
+                                <li>The badge has no width: in a row it is as wide as its word.</li>
+                            </ul>
+                        </li>
+                        <li>Create <code>src/components/StatusBadge.tsx</code>. Its lookup table is <em>data</em>, so, following Lesson 1.3's rule, it is copied from the HQ unchanged apart from the imports and semicolons:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/StatusBadge.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/StatusBadge.tsx"><code class="language-tsx">import type { EventStatus } from '@/api/types';
+import { Badge, type BadgeTone } from '@/components/Badge';
+
+// One entry per status: TypeScript reports a missing or misspelled one.
+const statusBadges: Record&lt;EventStatus, { label: string; tone: BadgeTone }&gt; = {
+  draft: { label: 'Draft', tone: 'neutral' },
+  scheduled: { label: 'Scheduled', tone: 'info' },
+  completed: { label: 'Completed', tone: 'success' },
+  cancelled: { label: 'Cancelled', tone: 'danger' },
+};
+
+type StatusBadgeProps = {
+  status: EventStatus;
+};
+
+export function StatusBadge({ status }: StatusBadgeProps) {
+  const { label, tone } = statusBadges[status];
+  return &lt;Badge label={label} tone={tone} /&gt;;
+}</code></pre>
+                            </div>
+                            <p><code>Record&lt;EventStatus, …&gt;</code> makes TypeScript insist on an entry for every status the API can send, exactly as in the web course.</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The card's rows <span class="step-time">(20 min)</span></h3>
+                    <p>Replace <code>src/components/EventCard.tsx</code>. The spots line is unchanged from Lesson 2.1; the date and the meeting point move into label/value rows, and a badge row goes under the title:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+import type { CleanupEvent } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Badge } from '@/components/Badge';
+import { StatusBadge } from '@/components/StatusBadge';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+import { getAvailability } from '@/utils/availability';
+import { formatDate, toDateString } from '@/utils/format';
+
+type EventCardProps = {
+  event: CleanupEvent;
+};
+
+// One cleanup in a list: the phone's version of the HQ's EventCard
+export function EventCard({ event }: EventCardProps) {
+  const availability = getAvailability(event);
+  const isToday = event.date === toDateString(new Date());
+
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        {event.title}
+      &lt;/AppText&gt;
+      {/* A row of badges that wraps to a second line when it runs out of room */}
+      &lt;View style={styles.badges}&gt;
+        &lt;StatusBadge status={event.status} /&gt;
+        {isToday &amp;&amp; &lt;Badge label="Today" tone="attention" /&gt;}
+      &lt;/View&gt;
+      &lt;Detail label="When"&gt;
+        {formatDate(event.date)}, {event.startTime} to {event.endTime}
+      &lt;/Detail&gt;
+      &lt;Detail label="Meet at"&gt;{event.meetingPoint}&lt;/Detail&gt;
+      {availability.kind === 'open' &amp;&amp; (
+        &lt;AppText&gt;
+          {/* A Text inside a Text inherits its color and size: only the weight changes */}
+          &lt;Text style={styles.strong}&gt;{availability.spotsLeft}&lt;/Text&gt; of {event.capacity} spots left
+        &lt;/AppText&gt;
+      )}
+      {availability.kind === 'full' &amp;&amp; (
+        &lt;AppText style={styles.strong}&gt;Full: new sign-ups join the waiting list&lt;/AppText&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+type DetailProps = {
+  label: string;
+  children: ReactNode;
+};
+
+// A label and its value side by side: the label keeps its width, the value takes the rest
+function Detail({ label, children }: DetailProps) {
+  return (
+    &lt;View style={styles.detail}&gt;
+      &lt;AppText variant="muted" style={styles.detailLabel}&gt;
+        {label}
+      &lt;/AppText&gt;
+      &lt;AppText style={styles.detailValue}&gt;{children}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  detail: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  detailLabel: {
+    width: 72,
+  },
+  detailValue: {
+    flex: 1, // take the space the label leaves, and wrap inside it
+  },
+  strong: {
+    fontWeight: 'bold',
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The badge row</strong> (<code>styles.badges</code>) is the HQ's <code>.badges</code> rule from <a href="#alignment">Lining Things Up</a>. Because it is a row, the badges keep their own widths; because it wraps, a third or fourth badge (or a very large text size) moves to the next line instead of off the card.</li>
+                        <li><strong>"Today"</strong> compares the event's date with today on this phone's calendar, using the <code>toDateString</code> helper you copied from the HQ in Lesson 1.3. The sample data always has one cleanup today.</li>
+                        <li><strong><code>Detail</code></strong> is a small component that lives in the same file because only <code>EventCard</code> uses it. It is the label-and-value pattern: the label is exactly 72 wide, so all the values start at the same place, and the value has <code>flex: 1</code>, so it takes the rest of the row and wraps inside it. Its <code>children: ReactNode</code> lets a caller pass text with expressions in it, like the date line.</li>
+                        <li>The labels lose their colon ("Meet at" instead of "Meet at:"): the column of labels already says what is a label. The card's <code>gap</code> grows from <code>spacing.xs</code> to <code>spacing.sm</code> to give the rows room.</li>
+                    </ul>
+                    <p>Save and look at the web preview. The first card should have two badges, and every card a column of labels with their values beside them:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_05/05-cleanups-layout.png" alt="A phone-shaped frame showing the web preview of Shoreline Crew&#x27;s Cleanups screen, with two parts outlined in red: the row with the heading Upcoming cleanups on the left and 8 cleanups on the right, and, in the first card, a row of two rounded badges, Scheduled in light green and Today in orange. Under the badges, the labels When and Meet at sit in a narrow column on the left with their values beside them." width="420" height="814" loading="lazy">
+    <figcaption>Rows inside a column, in the web preview: the header row pushes the count to the right edge, and each card has a badge row and two label/value rows. The Today badge appears on the cleanup that happens today; dates move with today.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: A header row with a count <span class="step-time">(10 min)</span></h3>
+                    <p>Put "Upcoming cleanups" in a row with the number of cleanups pushed to the right edge. In <code>src/app/index.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+-        Upcoming cleanups
+-      &lt;/AppText&gt;
++      {/* The heading on the left, the count pushed to the right edge */}
++      &lt;View style={styles.sectionHeader}&gt;
++        &lt;AppText variant="heading" accessibilityRole="header" style={styles.sectionTitle}&gt;
++          Upcoming cleanups
++        &lt;/AppText&gt;
++        {load.status === 'loaded' &amp;&amp; (
++          &lt;AppText variant="muted"&gt;
++            {load.events.length} {load.events.length === 1 ? 'cleanup' : 'cleanups'}
++          &lt;/AppText&gt;
++        )}
++      &lt;/View&gt;
+       {load.status === 'loading' &amp;&amp; &lt;AppText variant="muted"&gt;Loading cleanups…&lt;/AppText&gt;}
+ // ...
+   bannerTagline: {
+     color: colors.onBannerAccent,
+     fontSize: 18,
+   },
++  sectionHeader: {
++    flexDirection: 'row',
++    justifyContent: 'space-between',
++    alignItems: 'center',
++    gap: spacing.sm,
++  },
++  sectionTitle: {
++    flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
++  },
+ });</code></pre>
+                    </div>
+                    <ul>
+                        <li>The count appears only once the cleanups have loaded, and says "1 cleanup" or "8 cleanups".</li>
+                        <li>The title gets <code>flexShrink: 1</code>, not <code>flex: 1</code>: it should keep its natural width (so <code>space-between</code> has free space to push the count with) and shrink only if the two no longer fit side by side.</li>
+                        <li><code>gap: spacing.sm</code> keeps at least 8 units between them even when the row is full.</li>
+                    </ul>
+                    <p>Scroll down to a card with a long date line and look at the label column: the values wrap inside their own column, never under the label:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_05/05-detail-rows.png" alt="The same web preview scrolled down to the card Jetty Rocks Deep Clean, with its two label/value rows outlined in red: the gray labels When and Meet at keep a narrow column on the left, and the values, the date and times and Harbor lot B, by the bait shop, fill the rest of the card&#x27;s width and wrap inside it." width="420" height="814" loading="lazy">
+    <figcaption>Label/value rows: the label keeps its width of 72, the value has <code>flex: 1</code> and takes the rest of the row, wrapping inside its own column when it is long.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Break it on purpose <span class="step-time">(15 min)</span></h3>
+                    <p>Make one change at a time, save, look at the web preview, and undo it. Each one shows a default doing its job:</p>
+                    <ol>
+                        <li>In <code>EventCard</code>'s <code>badges</code> style, delete <code>flexDirection: 'row',</code> and <code>flexWrap: 'wrap',</code>. The badges become full-width bars, one under the other: the column's stretch. (The course measured the "Scheduled" badge at 324 units wide, the card's full inner width, instead of 102.)</li>
+                        <li>Put them back, then delete only <code>flexDirection: 'row',</code>. The badges stack but stay narrow. That is the <code>alignContent: 'flex-start'</code> default from the table at the top: with wrapping on, each line is only as wide as its widest badge. Put it back.</li>
+                        <li>In <code>detailLabel</code>, delete <code>width: 72,</code>. Each label is now as wide as its own word, so "When" values start further left than "Meet at" values (the course measured 87 and 102). The fixed width is what makes the values line up. Put it back.</li>
+                        <li>In the screen's <code>sectionHeader</code>, delete <code>justifyContent: 'space-between',</code>. The count moves next to the heading, 8 units away (the <code>gap</code>). Put it back.</li>
+                        <li>In <code>detailValue</code>, delete <code>flex: 1,</code>. In the web preview, almost nothing changes (the course measured the "When" label giving up 5 of its 72 units). This is the case from <a href="#web-vs-phone">Where the Web Preview Disagrees</a>: on a phone, a long value could now run past the card's edge. Put it back, and remember that "looks the same in the preview" is not proof for rows of text.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:
+                            <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                        </li>
+                        <li>Commit:
+                            <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Layout: Screen component, badges and label/value rows"</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>Open the first screen you sketched for your final project (Lesson 2.1's journal) and draw it again as boxes, marking every box "row" or "column". Which parts are header rows, label/value rows, wrapping chips or a bottom bar? Which text shares a row with something else and needs <code>flex: 1</code> or <code>flexShrink: 1</code>?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>Screen</code> fills the screen with the page color (<code>flex: 1</code>) and the Cleanups screen uses <code>&lt;Screen scroll&gt;</code></li>
+                        <li>☐ <code>Badge</code> has five tones and <code>StatusBadge</code> maps every <code>EventStatus</code> to one</li>
+                        <li>☐ Every card shows a wrapping badge row ("Scheduled", plus "Today" on today's cleanup) and "When" and "Meet at" rows with the values lined up</li>
+                        <li>☐ The header row shows "Upcoming cleanups" on the left and the count on the right edge</li>
+                        <li>☐ You broke the badge row, the label width and the header row on purpose and saw why each default matters</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: A bar that shows how full a cleanup is</h3>
+                    <p>Use the <code>SpotsBar</code> idea from <a href="#sizing">Sizing</a> in <code>EventCard</code>, under the spots line of an open cleanup. Take its colors from the theme instead of hex codes.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The taken part gets <code>flex: event.spotsTaken</code> and the free part <code>flex: availability.spotsLeft</code>. Which theme colors fit a track and a filled part?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Create <code>src/components/SpotsBar.tsx</code> from the example, replace <code>'#bfe3df'</code> with <code>brand.seafoam</code> and <code>'#1f6f8b'</code> with <code>brand.seaTeal</code> (import <code>brand</code> from <code>@/theme/colors</code>), and render <code>&lt;SpotsBar taken={event.spotsTaken} capacity={event.capacity} /&gt;</code> inside the <code>availability.kind === 'open'</code> branch (wrap the line and the bar in a fragment). The bar repeats what the words already say, so it is decoration: keep the words, because a screen reader reads those and has nothing to read in a bar of colored boxes. Lesson 8.1 looks at how screen readers move through a screen.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: What the crew brings</h3>
+                    <p>The HQ's card listed "We bring: Gloves, Bags". Show <code>event.suppliesProvided</code> as a wrapping row of neutral badges at the bottom of the card, with a muted "We bring" label in front.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>It is the badge row again, with one more child at the front, and <code>map</code> over the supplies with each supply as the <code>key</code>. Should the label be part of the row?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>&lt;View style={styles.badges}&gt;&lt;AppText variant="muted"&gt;We bring&lt;/AppText&gt;{event.suppliesProvided.map((item) =&gt; &lt;Badge key={item} label={item} tone="neutral" /&gt;)}&lt;/View&gt;</code>. Put it inside <code>{event.suppliesProvided.length &gt; 0 &amp;&amp; (…)}</code> so an empty list shows nothing. With "Water and snacks" in the list, you will see the row wrap on a narrow phone. Because the row's <code>alignItems</code> is the default <code>'stretch'</code>, the label and the badges are the same height; try <code>alignItems: 'center'</code> and compare.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A centered loading state</h3>
+                    <p>While the cleanups load, the screen shows "Loading cleanups…" under the header row. Move it to the middle of the space below the heading instead.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The screen scrolls, so the content strip is only as tall as its content. Inside a scrolling screen, <code>contentContainerStyle</code> needs <code>flexGrow: 1</code> before anything can be centered in the leftover space.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Wrap the loading text in <code>&lt;View style={styles.centered}&gt;</code> with <code>centered: { flex: 1, justifyContent: 'center', alignItems: 'center' }</code>, and add <code>flexGrow: 1</code> to <code>Screen</code>'s <code>content</code> style so the strip is at least as tall as the screen. Without the <code>flexGrow</code>, <code>flex: 1</code> has no free space to fill, which is the <a href="#fill">Filling the Screen</a> rule one level down. (If you keep this change, check that the loaded list still scrolls: <code>flexGrow</code> lets the strip grow beyond the screen, it never caps it.)</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: A date tile (Stretch)</h3>
+                    <p>Many event apps show a small square on the left of each card with the day of the month in large type, and the details to its right. Build it: a 56-by-56 tile with the day number, beside a column with the title, badges and details.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The card becomes a row: the tile has a fixed <code>width</code> and <code>height</code>, the column next to it gets <code>flex: 1</code> and keeps the old card's <code>gap</code>. The day is <code>new Date(`${event.date}T00:00`).getDate()</code> (the local-midnight trick from <code>format.ts</code>).</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Card style: <code>flexDirection: 'row'</code>, <code>gap: spacing.md</code>, <code>alignItems: 'flex-start'</code> (so the tile does not stretch to the card's height). Tile: <code>width: 56</code>, <code>height: 56</code>, <code>borderRadius: radius.card</code>, <code>backgroundColor: colors.banner</code>, <code>justifyContent: 'center'</code>, <code>alignItems: 'center'</code>, with an <code>AppText variant="title"</code> in <code>colors.onBanner</code>. The rest of the old card goes into <code>&lt;View style={{ flex: 1, gap: spacing.sm }}&gt;</code>. Without <code>flex: 1</code> on that column, its text would not wrap beside the tile on a phone. A fixed-size tile with text in it has the same weakness as any fixed height: try the largest text size, and consider <code>minWidth</code>/<code>minHeight</code> instead.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A new <code>View</code> holds three <code>Text</code>s and has no layout styles. How does the phone show them?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Every View is a flex container whose default flexDirection is column, and the default alignItems is stretch, so the three stack from top to bottom across the full width.">
+                                A) Stacked from top to bottom, each as wide as the View
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Text in React Native is not an inline element inside a paragraph. What is a View's default flexDirection?">
+                                B) Side by side on one line, like inline text in a paragraph
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="That is the CSS default for display: flex. Is React Native's default the same?">
+                                C) Side by side, because flexbox puts children in a row by default
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Why does the value in Shoreline Crew's <code>Detail</code> row have <code>flex: 1</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="flex is about size, not text style. What does a positive flex do with the free space in a row?">
+                                A) To make the value bold enough to read in the sun
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Scrolling needs a ScrollView. What does flex: 1 do inside a row?">
+                                B) So a long value scrolls sideways inside the card
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Centering is alignItems or justifyContent. Where should the value sit, and how wide should it be?">
+                                C) To center the value between the label and the card's edge
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Nothing shrinks by default on a phone (flexShrink is 0), so a long Text in a row could run past the card. flex: 1 makes the value take exactly the space the 72-wide label leaves, and wrap inside it.">
+                                D) So it takes the space the label leaves and wraps inside it instead of running past the card
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> A teammate puts a <code>Badge</code> directly inside the card, outside the badge row, and it turns into a green bar as wide as the card. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="borderRadius only rounds the corners. What decides how wide a child of a column is?">
+                                A) <code>borderRadius: 999</code> makes the box as wide as possible
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The card is a column with the default alignItems: stretch, so every child fills its width. In a row, or with alignSelf: flex-start, the badge keeps the width of its word.">
+                                B) The card is a column and its children stretch across it by default
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The word Scheduled is short. Which default of the card makes its children wide?">
+                                C) The text inside the badge is too long to fit on one line
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> A screen's outermost <code>View</code> has no <code>flex: 1</code>, and a <code>ScrollView</code> with sixty rows sits inside it. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="This is a layout problem, not an error. Does anything get printed?">
+                                A) A red error screen about the missing style
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A ScrollView scrolls within its own height. How tall is it when its parent is only as tall as its content?">
+                                B) It works, because a ScrollView always scrolls
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A View without flex: 1 is as tall as its content, so the ScrollView grows to the height of all sixty rows and has nothing to scroll; the last rows stay below the screen. The course measured exactly this in the web preview.">
+                                C) The ScrollView grows to the height of all its rows, so it cannot scroll and the last rows are out of reach
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> In a row, you want the heading on the left and the count at the far right, both centered vertically. Which styles do it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="In a row the main axis runs across, so justifyContent: space-between pushes the two to opposite ends, and alignItems: center centers them across the row, which is now up and down.">
+                                A) <code>justifyContent: 'space-between'</code> and <code>alignItems: 'center'</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is space-between a value of alignItems? Which property works along the row?">
+                                B) <code>alignItems: 'space-between'</code> and <code>justifyContent: 'center'</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="textAlign moves text inside its own box. Which property moves the boxes in the row?">
+                                C) <code>textAlign: 'right'</code> on the count
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="React Native has no floats. Which flexbox property spreads children along the main axis?">
+                                D) <code>float: 'right'</code> on the count
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Is there really no CSS Grid?</summary>
+                    <p>Not in React Native's styles: <code>display</code> accepts <code>'flex'</code>, <code>'none'</code> and <code>'contents'</code>. Phone screens rarely need a two-dimensional grid. Rows of <code>flex: 1</code> boxes cover forms and stats, <code>flexWrap</code> covers tags, and lists with several columns (a photo gallery, for example) come from the list components in Module 3.</p>
+                </details>
+                <details>
+                    <summary>What is Yoga, and do I ever touch it?</summary>
+                    <p>Yoga is the layout engine React Native uses on Android and iOS: it takes your style objects, works out every box's position and size, and hands the result to the native views. You never call it directly; your styles are its input. Because Android and iOS use the same engine, a layout comes out the same on both; differences come from fonts and from the web preview, which uses the browser's flexbox instead.</p>
+                </details>
+                <details>
+                    <summary>When should I use <code>position: 'absolute'</code>?</summary>
+                    <p>For things that sit <em>on top of</em> other things: a label on a picture, a small count on an icon, a floating button. It is measured from the parent, takes no space in the row or column, and does not move when the content around it grows, which is exactly why it is a poor tool for laying out a whole screen.</p>
+                </details>
+                <details>
+                    <summary>Percentages or <code>flex</code>?</summary>
+                    <p>Both size things relative to the parent. <code>flex</code> shares the <em>free</em> space after fixed-size siblings, which is usually what you want ("the rest of the row"). A percentage is a fixed fraction of the parent's size, whatever the siblings need. For layouts that change with the screen's width (two columns on a tablet), Lesson 2.5 reads the window size in code.</p>
+                </details>
+                <details>
+                    <summary>Why is the header bar white when the screen is Sand?</summary>
+                    <p>The header bar ("index") belongs to the Stack navigator, not to your screen, and keeps React Navigation's default look until later lessons style it (Lesson 4.1 gives screens their titles). Your <code>Screen</code> fills the box the navigator gives it, which starts under the header.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Every <code>View</code> and <code>Text</code> can tell you its final size: add <code>onLayout={(event) =&gt; console.log(label, event.nativeEvent.layout)}</code> to the outer <code>View</code> of <code>Detail</code>. Each card's rows print their <code>x</code>, <code>y</code>, <code>width</code> and <code>height</code> once they are laid out (in the browser's console for the web preview, in Metro's terminal for a phone). Compare the widths in the web preview with those on your phone, then make the phone's text much larger and watch the heights change. Remove the log when you are done: <code>onLayout</code> runs on every layout change.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Write the four flexbox defaults that differ from CSS from memory, and next to each, one thing on the Shoreline Crew screen that would look different without the style that overrides it. Which of the "break it" changes in Step 5 surprised you most, and why?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><strong>Every <code>View</code> is a flex container</strong>, laid out by Yoga on Android and iOS; there is no block, inline or grid</li>
+                        <li>Four defaults differ from CSS: <code>flexDirection: 'column'</code>, <code>flexShrink: 0</code>, <code>alignContent: 'flex-start'</code>, and <code>flex</code> as a single number</li>
+                        <li><code>justifyContent</code> works along the main axis, <code>alignItems</code> across it; switching to a row swaps what they do on the screen, and children stretch across by default</li>
+                        <li>Sizes: a number for exact, a percentage string for a share of the parent, <code>flex: 1</code> for "the rest", nothing for "as big as the content"</li>
+                        <li><strong>Text in a row gets <code>flex: 1</code> or <code>flexShrink: 1</code></strong>, even when the web preview looks fine without it</li>
+                        <li>The outermost <code>View</code> of a screen gets <code>flex: 1</code>; Shoreline Crew's <code>Screen</code> component does it for every screen</li>
+                        <li>Phone screens are built from a few patterns: header row, label and value, wrapping chips, centered message, bottom bar, equal columns, corner overlay</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate a CSS layout habit into React Native</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (main axis, Yoga, flexShrink)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read React Native's own flexbox guide</td><td><a href="https://reactnative.dev/docs/flexbox" target="_blank" rel="noopener">React Native: Layout with Flexbox</a></td></tr>
+                            <tr><td>See every layout property</td><td><a href="https://reactnative.dev/docs/layout-props" target="_blank" rel="noopener">React Native: Layout Props</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You gave Shoreline Crew a <code>Screen</code> component that every later screen will start from</li>
+                        <li>You rebuilt the HQ's badges for the phone and copied its status table unchanged</li>
+                        <li>You laid out cards with a wrapping badge row and lined-up label/value rows</li>
+                        <li>You built a header row that keeps working at large text sizes</li>
+                        <li>You broke the layout on purpose and can explain each result from a default</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_06.html"><strong>Lesson 2.3: Images, Icons, Fonts and Safe Areas</strong></a> you add the beach pictures with expo-image (and <code>aspectRatio</code>), icons with expo-symbols, the crew's heading font Outfit, and Shoreline Crew's own app icon and splash screen. The <code>Screen</code> component learns about safe areas, so content stays clear of the notch, the status bar and the home indicator on every phone.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the web preview shows the badges and the label/value rows, and that your work is committed</li>
+                    <li>Look at the top and bottom edges of a few apps on your phone: where does the content stop, and what sits behind the status bar and the home indicator?</li>
+                    <li>Write today's journal entry, including the four defaults from memory</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Two lessons ago this screen was a list of plain lines. Now it has structure a volunteer can scan in a second, and you know why every box sits where it does. Flexbox on a phone rewards a little patience: when a layout surprises you, ask which default is at work, change one property, and look again. A few screens from now you will read designs as rows and columns without thinking, and that is a skill every mobile team values.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_04.html" class="prev-lesson">← Previous: View, Text and StyleSheet</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_06.html" class="next-lesson">Next: Images, Icons, Fonts and Safe Areas →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

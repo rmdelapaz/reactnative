@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Big lists in an Expo app: FlashList 2 and how recycling differs from FlatList, measuring two lists of 1,000 rows in the web preview, item state that survives recycling, infinite scroll page by page from the API, and grouped headings in one FlashList for Shoreline Crew. React Native &amp; Expo: Build and Ship a Mobile App Lesson 3.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Big Lists, Fast - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>⚡ Lesson 3.2: Big Lists, Fast</h1>
+                <p class="lead">A list of eight cleanups is easy. A list of eight hundred, on a five-year-old phone, while the volunteer scrolls with one thumb on a windy beach, is where apps feel smooth or fall apart. In this lesson Shoreline Crew's list moves to FlashList, a list that reuses the rows it has already drawn, loads cleanups a page at a time as the volunteer nears the end, and you measure the difference yourself instead of taking anyone's word for it.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how FlashList's <strong>recycling</strong> differs from FlatList's virtualization, and measure both in the web preview</li>
+                        <li>Move a FlatList to FlashList 2 and adapt what is different: spacing inside the cells, no padding on the list's own style, item types and column spans</li>
+                        <li>Keep each item's state with the right item when its cell is recycled, with <code>useRecyclingState</code></li>
+                        <li>Load a list page by page from the API's <code>X-Total-Pages</code> with <code>onEndReached</code>, with loading, failed and end-of-list footers that never ask twice or loop</li>
+                        <li>Show items under headings in one FlashList by flattening sections into rows with sticky header indices</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 150 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_09.html">Lesson 3.1: FlatList and SectionList</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> the Cleanups list on FlashList (one list for the plain and the grouped view, headings across both columns), cards that reset when recycled, infinite scroll five cleanups at a time with footers for loading, failure and the end, and a temporary lab screen that measures two lists of 1,000 rows</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), @shopify/flash-list 2.3.2, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone for the feel of scrolling and the performance monitor</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-10-start.zip">lesson-10-start.zip</a> · Finished code: <a href="downloads/lesson-10-end.zip">lesson-10-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: When the List Gets Long</a></li>
+                        <li><a href="#recycling" class="toc-link">Recycling: FlashList's Big Idea</a></li>
+                        <li><a href="#measure" class="toc-link">Measure, Don't Guess</a></li>
+                        <li><a href="#paging" class="toc-link">Page by Page: Infinite Scroll</a></li>
+                        <li><a href="#headings" class="toc-link">Headings Without SectionList</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: A Fast, Paged Cleanups List</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: When the List Gets Long</h2>
+                <p>Lesson 3.1 turned the Cleanups screen into a <code>FlatList</code> that draws only the rows near the screen. Two things are still missing for a list that can grow:</p>
+                <ul>
+                    <li><strong>The app still asks for every cleanup at once.</strong> shoreline-api answers lists a page at a time (ten items unless you ask for another size), and "Before the Next Lesson" had you look at the headers that say how many pages there are. Today the app asks for the first page, then the next one only when the volunteer scrolls close to the end: <strong>infinite scroll</strong>.</li>
+                    <li><strong>FlatList keeps creating and destroying rows.</strong> Scroll a long FlatList and React builds new row components ahead of you and throws old ones away behind you, thousands of times in a long scroll. Shopify's <strong>FlashList</strong> takes the rows that scroll out of view and reuses them for the rows coming in. You will measure how big that difference is.</li>
+                </ul>
+                <p>Along the way you will hit two real bugs that only appear with these techniques (a card that "remembers" another card's state, and a list that asks the server for the same page hundreds of times), see them with your own eyes, and fix them.</p>
+                <p><strong>Why it matters for your work:</strong> "the list stutters" and "the list is slow to open" are among the most common performance complaints about React Native apps, and FlashList is the usual answer on React Native teams. Paging is everywhere a server has more than a screenful: feeds, orders, messages. Being able to say "I measured it, here are the numbers" is what separates a guess from an engineering decision.</p>
+                <p><strong>Why it matters for the volunteers:</strong> on one bar of signal, asking for five cleanups is faster than asking for fifty, and the first cards show sooner. On an older phone, a list that reuses its rows keeps scrolling smooth.</p>
+            </section>
+
+            <section id="recycling" class="lesson-section">
+                <h2>♻️ Recycling: FlashList's Big Idea</h2>
+                <p>Both lists draw only what is near the screen. The difference is what happens to a row that scrolls far out of view:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th><code>FlatList</code> (virtualization)</th><th><code>FlashList</code> (recycling)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A row leaves the drawn area</td><td>Its component is unmounted: thrown away</td><td>Its component goes into a pool of spare rows of the same type</td></tr>
+                            <tr><td>A new row comes into view</td><td>A new component is created and mounted</td><td>A spare row from the pool is drawn again with the new item's data</td></tr>
+                            <tr><td>How much it draws ahead</td><td>About ten screens above and below (<code>windowSize</code> 21)</td><td>A small margin around the screen, more of it in the direction you scroll (<code>drawDistance</code>: 250 on phones, 500 in the web preview, from FlashList's source)</td></tr>
+                            <tr><td>Where it comes from</td><td>React Native itself</td><td><code>@shopify/flash-list</code>, a package (JavaScript only in version 2, so it runs in Expo Go)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Creating and mounting a component is real work: React runs the function, builds the native views, measures them. Giving an existing row new props is much less work. That is why FlashList can draw a much smaller area around the screen and still keep up with a fast scroll.</p>
+<div class="mermaid">
+graph TD
+    A["Card scrolls far off the top"] --> B["Spare cards pool"]
+    B --> C["Drawn again lower down"]
+    C -->|"new item, same component"| A
+</div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the bucket pile at the sign-in table</h4>
+                    <p>Last lesson's sign-in table wrote name tags for the people in line and threw the old ones away. Buckets work differently: when a volunteer comes back up the beach, their bucket goes on the pile, and the next volunteer in line takes it. Nobody buys a new bucket for each person. FlashList treats rows like buckets. Two rules come with that: keep the buckets for different jobs in separate piles (a heading is not a card: <code>getItemType</code>), and <strong>empty the bucket before handing it on</strong>, or the next volunteer walks off with someone else's shells (item state: <code>useRecyclingState</code>).</p>
+                </div>
+                <h3>What stays the same, and what does not</h3>
+                <p>FlashList's props are almost FlatList's: <code>data</code>, <code>renderItem</code>, <code>keyExtractor</code>, <code>numColumns</code>, the header, empty and footer components, <code>refreshing</code>/<code>onRefresh</code>, <code>onEndReached</code>, and every ScrollView prop. You change the import and most of the list keeps working. The differences Shoreline Crew runs into:</p>
+                <ul>
+                    <li><strong>The list positions every cell itself</strong>, absolutely, one under the other. The content container's <code>gap</code> does not go between items, and there is no <code>columnWrapperStyle</code>: spacing lives inside each cell.</li>
+                    <li><strong>No padding on the list's <code>style</code>.</strong> FlashList's documentation for <code>style</code> says "margin is okay but padding is not". Shoreline Crew's <code>useScreenScroll</code> puts the safe-area padding in <code>style</code>, so that part goes on a <code>View</code> around the list.</li>
+                    <li><strong>Changing <code>numColumns</code> is fine.</strong> FlatList needed <code>key={columns}</code>; FlashList lays itself out again when the number of columns changes (the course widened the window from 390 to 1024 with no key: two columns, no error).</li>
+                    <li><strong>Item types and spans.</strong> <code>getItemType</code> keeps a separate pool per kind of row; <code>overrideItemLayout</code> can make a row span several columns.</li>
+                    <li><strong>State inside a row travels with the recycled row</strong>, unless you reset it (Common Mistakes, and Step 5).</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>🧩 Version note: FlashList 2</h4>
+                    <p>FlashList 2 was rebuilt for React Native's New Architecture, which is the only architecture in SDK 58, and it no longer needs size estimates. Many articles and answers online are about version 1 and tell you to set <code>estimatedItemSize</code>: version 2 does not have that prop. <code>npx expo install</code> picks the version that matches your SDK (2.3.2 for SDK 58).</p>
+                </div>
+            </section>
+
+            <section id="measure" class="lesson-section">
+                <h2>📏 Measure, Don't Guess</h2>
+                <p>"FlashList is faster" is a claim. A habit worth building now: measure before and after, on the same screen, the same way. What you can measure depends on where the app runs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Measure</th><th>Where</th><th>What it tells you</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Row components created during a scroll</td><td>Anywhere (a counter in your code)</td><td>How much creating and throwing away the list does</td></tr>
+                            <tr><td>Rows in the page</td><td>Web preview (count elements)</td><td>How much the list keeps drawn</td></tr>
+                            <tr><td>JavaScript frames per second during a scroll</td><td>Anywhere: FlashList's <code>useBenchmark</code> and <code>useFlatListBenchmark</code> scroll the list for you and count frames</td><td>Whether your code keeps up; 60 is smooth on most screens</td></tr>
+                            <tr><td>UI and JS frame rates while you scroll by hand</td><td>A phone: the developer menu's performance monitor</td><td>How the real device copes, including the native side</td></tr>
+                            <tr><td>Memory, CPU, slow frames</td><td>A phone or emulator with platform tools (Lesson 8.4)</td><td>Leaks and heavy work</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The course built a temporary lab screen (you build the same one in Step 2) with 1,000 rows, a switch between FlatList and FlashList, and FlashList's benchmark hooks, then ran each list's scroll test three times in the web preview at phone size: once at full speed and once with Chrome slowing its CPU down six times, which is closer to an inexpensive phone.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>1,000 rows, scroll to the end and back</th><th><code>FlatList</code></th><th><code>FlashList</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Rows in the page when it opens</td><td>132</td><td>38</td></tr>
+                            <tr><td>Row components created during the test</td><td>5,614 to 7,895</td><td>39</td></tr>
+                            <tr><td>JS frames per second, full speed (average)</td><td>53 to 60</td><td>57 to 58</td></tr>
+                            <tr><td>JS frames per second, CPU 6x slower (average)</td><td>42 to 48</td><td>57 to 58</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Read it from the top. FlashList keeps fewer rows in the page because its drawn area is smaller, and over a full scroll of 1,000 rows it created only a few dozen row components, because it keeps reusing them. FlatList created thousands: a new component for nearly every row it drew, and again on the way back up. At full speed both stayed close to 60 frames per second, because a desktop computer has power to spare. With the CPU slowed six times, FlatList's JavaScript fell behind while FlashList stayed near 60. Each range comes from three runs; the numbers move a little from run to run, the pattern does not. (The lab also reports the worst second, which includes the moment the test starts and jumps around a lot: compare the averages.)</p>
+                <div class="card card-warning">
+                    <h4>⚠️ What the web preview cannot tell you</h4>
+                    <p>The web preview runs your JavaScript in your computer's browser, and react-native-web turns views into HTML. It is good for counting (rows created, rows drawn) and for comparing two versions of the same screen on the same machine. It says nothing reliable about a phone's native side, its memory, or its real frame rate. Two more rules from FlashList's and React Native's documentation: measure a real phone, ideally an older one, and measure a <strong>release build</strong>, because development mode adds checks that make everything slower (Module 9 makes release builds). In Expo Go, open the developer menu (shake the phone, or press <kbd>m</kbd> in Metro's terminal) and turn on the performance monitor to watch the UI and JS frame rates while you scroll.</p>
+                </div>
+            </section>
+
+            <section id="paging" class="lesson-section">
+                <h2>📄 Page by Page: Infinite Scroll</h2>
+                <p>Since Lesson 1.3, <code>getEvents</code> has returned a <code>Page&lt;CleanupEvent&gt;</code>: the items, plus <code>page</code>, <code>perPage</code>, <code>total</code> and <code>totalPages</code> read from the response headers. Ask shoreline-api for the second page of upcoming cleanups, five at a time, and look only at the headers:</p>
+                <pre class="terminal"><code class="language-bash">curl -s -D - -o /dev/null "http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5"</code></pre>
+                <div class="card card-output">
+                    <h4>Expected output</h4>
+                    <pre><code>HTTP/1.1 200 OK
+cache-control: no-store
+content-type: application/json; charset=utf-8
+link: &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="first", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=1&amp;perPage=5&gt;; rel="prev", &lt;http://localhost:4000/api/events?when=upcoming&amp;page=2&amp;perPage=5&gt;; rel="last"
+vary: Origin
+x-total-count: 8
+x-total-pages: 2
+Date: Sat, 14 Nov 2026 04:25:11 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked</code></pre>
+                </div>
+                <p>(On Windows PowerShell, type <code>curl.exe</code> and <code>NUL</code> instead of <code>/dev/null</code>. Your <code>Date</code> will differ, and the header names come out in lowercase, which HTTP allows: <code>x-total-pages</code> is <code>X-Total-Pages</code>.) Eight upcoming cleanups, two pages of five. The <code>Link</code> header lists the first, previous and last pages too; Shoreline Crew only needs the numbers.</p>
+                <h3>How infinite scroll works</h3>
+                <ol>
+                    <li>Load page 1 and show it.</li>
+                    <li>When the volunteer scrolls close to the end, the list calls <code>onEndReached</code>. "Close" is <code>onEndReachedThreshold</code>, in screen heights: the default 0.5 means "the end is less than half a screen below what you see".</li>
+                    <li>If there is a next page and nothing is already on its way, ask for it, show "Loading more cleanups…" below the last card, and add the answer after the cleanups you have.</li>
+                    <li>When the last page is in, say so: "That is every upcoming cleanup."</li>
+                </ol>
+<div class="mermaid">
+graph TD
+    A["List is near its end"] --> B{"Page on its way, or failed?"}
+    B -->|"yes"| C["Do nothing"]
+    B -->|"no"| D{"Another page?"}
+    D -->|"no"| E["Footer: every cleanup"]
+    D -->|"yes"| F["Ask for the next page"]
+    F --> G["Footer: loading more"]
+</div>
+                <p>Three details turn this from a demo into something you can ship:</p>
+                <ul>
+                    <li><strong>Ask once.</strong> <code>onEndReached</code> can be called again while a page is on its way (each time the data changes, FlashList checks the end again). Remember that a page is loading, and ignore calls until it arrives.</li>
+                    <li><strong>Stop after a failure.</strong> If the next page fails, show the error with <strong>Try again</strong> in the footer, and let only that button ask again. Common Mistakes shows what happens otherwise.</li>
+                    <li><strong>Never show a cleanup twice.</strong> Pages are counted from the start of the list (page 2 is items 6 to 10). If a new cleanup is added before the ones you have while the volunteer scrolls, everything moves down one place, and the first item of page 2 is one you already have. Drop items whose id you already have.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the supply runs</h4>
+                    <p>The crew does not carry every bag and glove to the far end of the beach at dawn. A runner brings a box when the crew is near the end of the last one. Only one runner goes at a time (ask once). If the runner comes back saying the van is locked, nobody sends another runner every second; the crew leader decides when to try again (stop after a failure). And the runner checks the crew does not already have that box (no duplicates).</p>
+                </div>
+                <h3>Filters and pages</h3>
+                <p>Shoreline Crew's search and "spots left" switch filter the cleanups the phone has <em>so far</em>. With paging, that is not all of them: search for <code>calder</code> right after the screen opens and you see two Calder Bay cleanups; scroll down, page 2 arrives, and a third one (Night Heron Walk and Clean) appears. The count says "2 of 8 cleanups" and then "3 of 8 cleanups": shown out of the total the API reported. When a search leaves too few cards to fill the screen, the list is already "near its end", so it asks for the next page by itself: searching <code>heron</code> loaded page 2 straight away and found the cleanup. For eight cleanups this is good enough. For a catalog of thousands, the search belongs on the server (shoreline-api has a <code>q</code> parameter), so the server filters everything and pages the results (FAQ).</p>
+            </section>
+
+            <section id="headings" class="lesson-section">
+                <h2>🗂️ Headings Without SectionList</h2>
+                <p>FlashList has no <code>SectionList</code> version. Its documented way is to <strong>flatten</strong>: one array where some rows are headings and the rest are items, plus the positions of the headings in <code>stickyHeaderIndices</code>. With the <code>flattenSections</code> helper you write in Step 3:</p>
+                <pre data-snippet><code class="language-ts">import { flattenSections, type Section } from '@/utils/sections';
+
+// Sections, as in Lesson 3.1 (titles stand in for the cards)
+const sections: Section&lt;string&gt;[] = [
+  { title: 'Today', data: ['Tide Pool Morning Cleanup'] },
+  { title: 'Within a week', data: ['Weekend Cove Cleanup'] },
+  { title: 'Within a month', data: ['Boardwalk and Mudflats', 'Family Beach Morning'] },
+];
+
+// The same groups as one array: the headings are at positions 0, 2 and 4
+// [
+//   { kind: 'heading', title: 'Today' },
+//   { kind: 'item', item: 'Tide Pool Morning Cleanup' },
+//   { kind: 'heading', title: 'Within a week' },
+//   { kind: 'item', item: 'Weekend Cove Cleanup' },
+//   { kind: 'heading', title: 'Within a month' },
+//   { kind: 'item', item: 'Boardwalk and Mudflats' },
+//   { kind: 'item', item: 'Family Beach Morning' },
+// ]
+export const rows = flattenSections(sections);</code></pre>
+                <p>A discriminated union (<code>kind: 'heading' | 'item'</code>, as in the web course's load states) tells TypeScript which fields each row has, and <code>renderItem</code> draws a heading or a card depending on <code>kind</code>. Three props finish the job:</p>
+                <ul>
+                    <li><code>getItemType={(row) =&gt; row.kind}</code>: headings and cards go into separate pools of spare rows, so a heading is never reused to draw a card.</li>
+                    <li><code>stickyHeaderIndices</code>: the positions of the headings. FlashList pins the current one at the top, like SectionList's sticky headings.</li>
+                    <li><code>overrideItemLayout</code>: lets a row take several columns (<code>span</code>). A heading spans every column, so the grouped view can finally have two columns on a tablet, which SectionList could not do (Lesson 3.1's quiz).</li>
+                </ul>
+                <p><strong>The decision for Shoreline Crew:</strong> Lesson 3.1's grouped view becomes the <em>same</em> FlashList with different rows, and <code>SectionList</code> leaves the screen. The other options were to keep a SectionList for the grouped view (two list components to keep in step, and no columns) or to drop the sticky headings. One list means one place for paging, refreshing, empty states and spacing, and the "Group by date" switch becomes a matter of which rows you hand it. SectionList is still a fine choice for short grouped lists, such as a settings screen.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ State that travels with a recycled card</h4>
+                    <p>EventCard keeps its "Show details" state inside itself with <code>useState</code>. That was right for FlatList, which throws a card away and creates a new one. With FlashList, the same component is handed a different cleanup. The course opened the details of the first card, Tide Pool Morning Cleanup, and scrolled down: a few screens down, the card <strong>Creek Mouth Willows</strong> showed its details open, though nobody had touched it. With <code>useRecyclingState</code>, the same test left every other card closed. Nothing warns you: tsc, the linter and the console stay quiet. The fix is FlashList's <code>useRecyclingState(initial, deps)</code>, a <code>useState</code> that goes back to its initial value when a dependency changes, here the cleanup's id (Step 5). If the state must survive scrolling away and back (a list of favorites, say), it does not belong in the row at all: keep it in the screen, keyed by id, and pass it down (Exercise 4).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ An onEndReached that asks again after a failure</h4>
+                    <p>The tempting version calls the page loader directly: <code>onEndReached={loadNextPage}</code>, where <code>loadNextPage</code> only checks that there is another page. The course made page 2 fail in the web preview and scrolled to the end: the list asked for page 2 three times within a hundredth of a second, every time. In an earlier layout of the same screen it did not stop at three: hundreds of requests in a few seconds. Here is why: each failure changes the footer (spinner, then error), which changes the list's height and its rows, so FlashList checks the end again; the volunteer is still at the end, so it asks again, and fails again. Whether that dies out or runs forever depends on details such as the footer's height, which is exactly why you must not rely on it. On a phone it means a busy radio and a draining battery on a beach with no signal. The fix: only ask when nothing is loading and the last attempt did not fail; after a failure, the footer's <strong>Try again</strong> button is the only way to ask (Step 6). With the fix, the same test sent one request, and Try again sent one more.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A key on the row inside renderItem</h4>
+                    <p>Habit from the web says "a list item needs a key", so <code>renderItem={({ item }) =&gt; &lt;Row key={item} name={item} /&gt;}</code> looks harmless. In FlashList it defeats recycling: when a spare row is handed a new item, the key changes, so React throws the old component away and creates a new one, exactly what FlashList is built to avoid. In the lab, that one change took FlashList from 39 rows created during the scroll test to about 1,900 (three runs: 1,904 to 1,961): every reuse became a brand-new component. The key belongs in <code>keyExtractor</code>, which FlashList uses for its own bookkeeping; never put one on the row component.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ FlatList-only props and padding on the list</h4>
+                    <p>Moving a FlatList across, tsc catches props FlashList does not have. Leaving <code>columnWrapperStyle={styles.row}</code> on the list gives:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/index.tsx:221:9 - error TS2322: Type '{ data: SectionRow&lt;Card&gt;[]; keyExtractor: (row: SectionRow&lt;Card&gt;) =&gt; string; renderItem: ({ item: row, target }: ListRenderItemInfo&lt;SectionRow&lt;Card&gt;&gt;) =&gt; Element; ... 16 more ...; keyboardDismissMode: "on-drag"; }' is not assignable to type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.
+  Property 'columnWrapperStyle' does not exist on type 'IntrinsicAttributes &amp; FlashListProps&lt;SectionRow&lt;Card&gt;&gt; &amp; { ref?: Ref&lt;FlashListRef&lt;SectionRow&lt;Card&gt;&gt;&gt; | undefined; }'.
+
+221         columnWrapperStyle={styles.cell}
+            ~~~~~~~~~~~~~~~~~~
+
+
+Found 1 error in src/app/index.tsx:221</code></pre>
+                    </div>
+                    <p>The first line is long because tsc prints the whole set of props it was given (shortened with "... 16 more ..."); skip it and read the second line: "Property 'columnWrapperStyle' does not exist". What tsc cannot catch is padding in <code>style</code>: it type-checks, because FlashList's <code>style</code> is an ordinary view style, but FlashList's documentation says padding there is not supported. Shoreline Crew puts the safe-area padding on a <code>View</code> around the list instead.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: A Fast, Paged Cleanups List</h2>
+                <p>You install FlashList, measure it against FlatList in a lab screen, turn the Cleanups screen (both views) into one FlashList, make the cards safe to recycle, and load the cleanups five at a time. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install FlashList <span class="step-time">(5 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx expo install @shopify/flash-list</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 1 package, and audited 795 packages in 2s
+
+164 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p><code>npx expo install</code> says it installed an "SDK 58.0.0 compatible native module" and pins the version your SDK was tested with: <code>"@shopify/flash-list": "2.3.2"</code> in <code>package.json</code>, without a <code>^</code>. The audit lines are npm's usual report about the whole project, not about this package. FlashList 2 is JavaScript only, so Expo Go runs it without a development build.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Measure first: a list lab <span class="step-time">(20 min)</span></h3>
+                    <p>Before changing the real screen, measure. Create a temporary screen, <code>src/app/list-lab.tsx</code>. Any file in <code>src/app</code> is a screen with its own address (Lesson 4.1 explains how), so this one opens at <code>http://localhost:8081/list-lab</code> in the web preview. It is lab equipment, not part of the app: you delete it in Step 7.</p>
+                    <pre data-snippet><code class="language-tsx">import {
+  FlashList,
+  type FlashListRef,
+  type BenchmarkResult,
+  useBenchmark,
+  useFlatListBenchmark,
+} from '@shopify/flash-list';
+import { type RefObject, useEffect, useRef, useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { useScreenScroll } from '@/components/Screen';
+import { SwitchRow } from '@/components/SwitchRow';
+import { spacing } from '@/theme/spacing';
+
+// A TEMPORARY screen for measuring two lists of 1,000 rows. Delete it when you are done.
+const names = Array.from({ length: 1000 }, (_, index) =&gt; `Volunteer ${index + 1}`);
+const rowHeight = 48;
+let created = 0; // Row components created since the list (re)started
+
+function Row({ name }: { name: string }) {
+  useEffect(() =&gt; {
+    created += 1; // runs once for every Row React creates, never for a reused one
+  }, []);
+  return &lt;AppText style={styles.row}&gt;{name}&lt;/AppText&gt;;
+}
+
+export default function ListLab() {
+  const [flash, setFlash] = useState(true);
+  const [report, setReport] = useState('Not measured yet');
+  const flashRef = useRef&lt;FlashListRef&lt;string&gt;&gt;(null);
+  const flatRef = useRef&lt;FlatList&lt;string&gt;&gt;(null);
+  const { style: frame, ...scroll } = useScreenScroll();
+
+  // FlashList's own measuring tools: scroll the list to the end and back, counting JS frames
+  const done = (result: BenchmarkResult) =&gt;
+    setReport(`${created} rows created · JS ${result.js?.averageFPS} fps on average, ${result.js?.minFPS} at worst`);
+  const flashTest = useBenchmark(flashRef as RefObject&lt;FlashListRef&lt;string&gt;&gt;, done, { startManually: true });
+  const flatTest = useFlatListBenchmark(flatRef as RefObject&lt;FlatList&lt;string&gt;&gt;, done, {
+    startManually: true,
+    targetOffset: names.length * rowHeight,
+  });
+
+  function choose(useFlash: boolean) {
+    created = 0;
+    setReport('Not measured yet');
+    setFlash(useFlash);
+  }
+
+  const header = (
+    &lt;View style={styles.header}&gt;
+      &lt;SwitchRow label="Use FlashList" value={flash} onValueChange={choose} /&gt;
+      &lt;Button
+        label="Run the scroll test"
+        onPress={flash ? flashTest.startBenchmark : flatTest.startBenchmark}
+      /&gt;
+      &lt;AppText accessibilityLiveRegion="polite"&gt;{report}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+  const renderRow = ({ item }: { item: string }) =&gt; &lt;Row name={item} /&gt;;
+
+  return (
+    &lt;View style={frame}&gt;
+      {flash ? (
+        &lt;FlashList ref={flashRef} {...scroll} data={names} renderItem={renderRow} ListHeaderComponent={header} /&gt;
+      ) : (
+        &lt;FlatList ref={flatRef} {...scroll} data={names} renderItem={renderRow} ListHeaderComponent={header} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    gap: spacing.md,
+  },
+  row: {
+    height: rowHeight,
+    paddingVertical: spacing.sm,
+  },
+});</code></pre>
+                    <ul>
+                        <li><code>created</code> is a plain variable outside the component, counting how many <code>Row</code> components React created: the effect with <code>[]</code> runs once per created component, and never when a recycled row is given a new name.</li>
+                        <li><code>useBenchmark</code> (for FlashList) and <code>useFlatListBenchmark</code> (for FlatList) come with FlashList. With <code>startManually</code>, they wait for you to call <code>startBenchmark</code>; then they scroll the list to the end and back and report JavaScript frames per second. FlatList's version needs to know how far to scroll: 1,000 rows of 48.</li>
+                        <li>The two <code>as RefObject&lt;…&gt;</code> casts are there because these hooks were typed before React 19 changed what <code>useRef(null)</code> returns. Without them, tsc says:</li>
+                    </ul>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/list-lab.tsx:39:34 - error TS2345: Argument of type 'RefObject&lt;FlashListRef&lt;string&gt; | null&gt;' is not assignable to parameter of type 'RefObject&lt;FlashListRef&lt;any&gt;&gt;'.
+  Type 'FlashListRef&lt;string&gt; | null' is not assignable to type 'FlashListRef&lt;any&gt;'.
+    Type 'null' is not assignable to type 'FlashListRef&lt;any&gt;'.
+
+39   const flashTest = useBenchmark(flashRef, done, { startManually: true });
+                                    ~~~~~~~~
+...
+
+Found 2 errors in the same file, starting at: src/app/list-lab.tsx:39</code></pre>
+                    </div>
+                    <p>The ref really can be <code>null</code> (before the list exists); the hooks only use it after you press the button, when it is not. The cast tells TypeScript what you know. Use one only when you can say that sentence.</p>
+                    <ol>
+                        <li>Open <code>http://localhost:8081/list-lab</code> and press <strong>Run the scroll test</strong>. Write down the report.</li>
+                        <li>Turn <strong>Use FlashList</strong> off (the counter starts again) and run the test with FlatList.</li>
+                        <li>Now slow the computer down like a cheaper phone: in Chrome, open DevTools (<kbd>F12</kbd>, or <kbd>⌘ Cmd</kbd>+<kbd>Option</kbd>+<kbd>I</kbd> on a Mac), go to the <strong>Performance</strong> panel and set <strong>CPU</strong> throttling to <strong>6x slowdown</strong> (in the panel's settings, the gear icon, if you do not see it). Reload the page and run both tests again.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_10/10-lab.png" alt="The temporary list lab screen in the web preview: a Stack header list-lab, the switch Use FlashList turned on, the button Run the scroll test, the report outlined in red giving the rows created and the average and worst JS frames per second, and the first rows Volunteer 1, Volunteer 2 and so on below." width="420" height="814" loading="lazy">
+    <figcaption>The lab after FlashList's scroll test with the CPU slowed six times. The count of rows created stays a few dozen however far the test scrolls. Your numbers will differ.</figcaption>
+</figure>
+                    <p>Your numbers will differ from the course's (other computer, other browser), but the pattern should not: a few dozen rows created for FlashList against thousands for FlatList, and a frame rate gap once the CPU is slowed. Put your four reports in today's journal.</p>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>Lesson 4.1 adds links between screens; until then, open the Cleanups screen in Expo Go, open the developer menu (shake the phone, or press <kbd>m</kbd> in Metro's terminal) and turn on the performance monitor. It shows the UI and JS frame rates at the top of the screen while you scroll. With eight cleanups both stay near 60; remember the monitor for when your lists get long, and remember that Expo Go runs your app in development mode, which is slower than the release build your users get.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Rows with headings <span class="step-time">(10 min)</span></h3>
+                    <p>FlashList takes one array, so the grouped view needs its sections flattened. Add the row type and the flattening helper at the end of <code>src/utils/sections.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/sections.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/sections.ts" data-match="diff"><code class="language-diff-ts">     .filter((section) =&gt; section.data.length &gt; 0);
+ }
++
++// One row of a flat list with headings: a heading, or one of the items under it
++export type SectionRow&lt;T&gt; = { kind: 'heading'; title: WhenGroup } | { kind: 'item'; item: T };
++
++// FlashList has no sections: the same groups as one list, each heading followed by its items
++export function flattenSections&lt;T&gt;(sections: Section&lt;T&gt;[]): SectionRow&lt;T&gt;[] {
++  return sections.flatMap((section): SectionRow&lt;T&gt;[] =&gt; [
++    { kind: 'heading', title: section.title },
++    ...section.data.map((item): SectionRow&lt;T&gt; =&gt; ({ kind: 'item', item })),
++  ]);
++}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>SectionRow&lt;T&gt;</code> is a discriminated union: TypeScript knows a row with <code>kind: 'heading'</code> has a <code>title</code>, and one with <code>kind: 'item'</code> has an <code>item</code>.</li>
+                        <li><code>flatMap</code> turns each section into a short array (its heading, then its items) and joins them. The return type annotations on the two arrow functions keep <code>'heading'</code> and <code>'item'</code> as those exact words; without them TypeScript would widen them to <code>string</code> and the union would not match.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: One FlashList for both views <span class="step-time">(25 min)</span></h3>
+                    <p>Now <code>src/app/index.tsx</code>. Four parts; tsc complains in between.</p>
+                    <ol>
+                        <li>The imports. FlashList comes from its package, with its own <code>ListRenderItemInfo</code> type (FlashList's adds a <code>target</code>, below); <code>FlatList</code> and <code>SectionList</code> go; <code>layout</code> and the new helpers come in:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-import { useEffect, useState } from 'react';
+-import {
+-  FlatList,
+-  type ListRenderItemInfo,
+-  Platform,
+-  SectionList,
+-  StyleSheet,
+-  View,
+-} from 'react-native';
++import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
++import { useEffect, useState } from 'react';
++import { Platform, StyleSheet, View } from 'react-native';
+ // ...
+-import { radius, spacing } from '@/theme/spacing';
++import { layout, radius, spacing } from '@/theme/spacing';
+ // ...
+-import { groupByWhen } from '@/utils/sections';
++import { flattenSections, groupByWhen, type SectionRow } from '@/utils/sections';</code></pre>
+                            </div>
+                        </li>
+                        <li>The screen's scroll settings, split in two. <code>style</code> holds the page color and the safe-area padding, which FlashList does not want; it goes on a <code>View</code> around the list. The rest (content padding, keyboard props) goes on the list:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">   const styles = useStyles();
+-  const screen = useScreenScroll();
++  // The frame (page color, safe areas) goes on a View around the list; FlashList takes the rest
++  const { style: frame, ...scroll } = useScreenScroll();
+   const columns = useColumns();</code></pre>
+                            </div>
+                            <p>Destructuring with a rest (<code>...scroll</code>) takes <code>style</code> out under a new name and keeps the other three props together, typed.</p>
+                        </li>
+                        <li>The list. Delete everything after the <code>empty</code> element up to the component's closing <code>}</code>: the <code>if (grouped) { … }</code> block with its SectionList, and the FlatList with its grid variables. In their place:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="excerpt"><code class="language-tsx">  // One list for both views: just cards, or cards under date headings (Today, Within a week, ...)
+  const rows: SectionRow&lt;Card&gt;[] = grouped
+    ? flattenSections(groupByWhen(cards, (card) =&gt; card.event.date, toDateString(new Date())))
+    : cards.map((card) =&gt; ({ kind: 'item', item: card }));
+  // Where the headings are in rows: FlashList keeps the current one pinned at the top
+  const headingIndices = rows.flatMap((row, index) =&gt; (row.kind === 'heading' ? [index] : []));
+
+  // target is 'StickyHeader' for the copy of a heading pinned at the top, which FlashList draws
+  // across the whole list, outside its padding: that copy lines itself up with the cards
+  const renderRow = ({ item: row, target }: ListRenderItemInfo&lt;SectionRow&lt;Card&gt;&gt;) =&gt;
+    row.kind === 'heading' ? (
+      &lt;View style={target === 'StickyHeader' &amp;&amp; styles.pinned}&gt;
+        &lt;AppText variant="heading" accessibilityRole="header" style={styles.groupTitle}&gt;
+          {row.title}
+        &lt;/AppText&gt;
+      &lt;/View&gt;
+    ) : (
+      &lt;View style={styles.cell}&gt;
+        &lt;EventCard event={row.item.event} site={row.item.site} style={styles.fill} /&gt;
+      &lt;/View&gt;
+    );
+
+  return (
+    &lt;View style={frame}&gt;
+      &lt;FlashList
+        {...scroll}
+        data={rows}
+        keyExtractor={(row) =&gt; (row.kind === 'heading' ? row.title : row.item.event.id)}
+        renderItem={renderRow}
+        // Headings and cards are recycled separately: a heading is never reused to draw a card
+        getItemType={(row) =&gt; row.kind}
+        numColumns={columns}
+        // A heading takes the whole width; a card takes one column
+        overrideItemLayout={(itemLayout, row) =&gt; {
+          itemLayout.span = row.kind === 'heading' ? columns : 1;
+        }}
+        stickyHeaderIndices={grouped ? headingIndices : undefined}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        // ...
+        refreshing={refreshing}
+        onRefresh={refresh}
+        // FlashList places every cell itself, so the spacing lives in the cells (see the styles)
+        contentContainerStyle={[scroll.contentContainerStyle, styles.list]}
+        ListHeaderComponentStyle={styles.listHeader}
+        ListEmptyComponentStyle={styles.edge}
+        // ...
+      /&gt;
+    &lt;/View&gt;
+  );</code></pre>
+                            </div>
+                            <p>The two <code>// ...</code> lines mark where Step 6 adds the footer and paging props; leave them out for now.</p>
+                            <ul>
+                                <li><code>rows</code> is the only difference between the two views. Ungrouped, every card becomes an <code>item</code> row; grouped, <code>flattenSections</code> puts the headings in between. The <code>SectionRow&lt;Card&gt;[]</code> annotation keeps the plain branch's <code>'item'</code> exact.</li>
+                                <li>One list, so <code>numColumns</code> applies to both views, and no <code>key={columns}</code> any more. <code>overrideItemLayout</code> receives a layout object to change (not to return): a heading spans all <code>columns</code>.</li>
+                                <li>Sticky headings are pinned only in the grouped view; the ungrouped view has no headings to pin.</li>
+                                <li>FlashList draws the pinned heading as a <em>copy</em> on top of the list, from the list's own edge, outside the content's padding and maximum width. <code>renderItem</code> tells you which copy it is drawing with <code>target</code> (<code>'Cell'</code> for a normal row, <code>'StickyHeader'</code> for the pinned copy), and the pinned copy gets <code>styles.pinned</code> to line up with the cards. <code>style={false}</code> is allowed in React Native: it means "no style".</li>
+                            </ul>
+                        </li>
+                        <li>The styles. The cells carry the spacing now: half the gap on each side of every card, so two cards side by side are 16 apart; the list's side padding becomes half too, and the header, the empty list (and, in Step 6, the footer) get the other half, so everything still lines up 16 from the edge:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx"> const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
++  list: {
++    gap: 0, // FlashList adds views of its own between the header and the cards: no gaps here
++    paddingHorizontal: spacing.sm, // half the usual side padding: each cell adds the other half
++  },
++  listHeader: {
++    paddingHorizontal: spacing.sm, // the other half for the header...
++    paddingBottom: spacing.md,
++  },
+   header: {
+     gap: spacing.md,
+   },
++  edge: {
++    paddingHorizontal: spacing.sm, // ...and for the empty list and the footer
++  },
+   banner: {
+ // ...
+   sectionTitle: {
+     flexShrink: 1, // with very large text, wrap instead of pushing the count off the screen
+   },
++  pinned: {
++    // The pinned copy spans the whole list: the same maximum width and edges as the cards
++    width: '100%',
++    maxWidth: layout.maxContentWidth,
++    alignSelf: 'center',
++    paddingHorizontal: spacing.sm,
++  },
+   groupTitle: {
+     backgroundColor: colors.page, // a sticky heading covers the cards scrolling under it
+     paddingVertical: spacing.xs,
++    paddingHorizontal: spacing.sm,
++    marginBottom: spacing.sm,
+   },
+-  row: {
+-    marginHorizontal: -spacing.sm, // the outer cells' padding lines up with the header's edges
+-  },
+   cell: {
+     paddingHorizontal: spacing.sm, // half the gap on each side of a card
++    paddingBottom: spacing.md,
+   },
+ // ...</code></pre>
+                            </div>
+                            <p>Why <code>gap: 0</code>? The course measured the screen in the web preview: FlashList puts an empty view of its own between the header and the cards, so the content's <code>gap</code> appeared twice there (32 instead of 16). The cells' <code>paddingBottom</code> makes the space between rows instead.</p>
+                        </li>
+                    </ol>
+                    <p>Run <code>npx tsc --noEmit</code> (it prints nothing) and <code>npx expo lint</code> (only Expo's two <code>env:</code> lines). The web preview looks as before; turn on <strong>Group by date</strong>, widen the window past 700: two columns of cards under full-width headings, and the current heading stays pinned as you scroll.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_10/10-grouped-wide.png" alt="The web preview 1024 wide with Group by date on, scrolled down: the heading Within a month is pinned at the top of the window, the heading Later runs across both columns, and under it the cards Long Strand Coastal Cleanup Day and Night Heron Walk and Clean side by side." width="1024" height="768" loading="lazy">
+    <figcaption>One FlashList for the grouped view: headings are rows that span both columns (<code>overrideItemLayout</code>), and the current one stays pinned (<code>stickyHeaderIndices</code>). SectionList could not do two columns.</figcaption>
+</figure>
+                    <p>In the browser's console you may see a yellow warning that starts "Animated: `useNativeDriver` is not supported because the native animated module is missing". It comes from FlashList's pinned heading in the web preview, which has no native animation module; on a phone that module exists. It is a warning, not an error.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Cards that forget when recycled <span class="step-time">(10 min)</span></h3>
+                    <p>First, see the bug. In the web preview, at phone width, press <strong>Show details</strong> on the first card, then scroll slowly down through the list. A card further down shows its details open, though you never touched it: it is the first card's component, recycled, with its state still set. Now fix it in <code>src/components/EventCard.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx">+import { useRecyclingState } from '@shopify/flash-list';
+ import { Image } from 'expo-image';
+-import { type ReactNode, useState } from 'react';
++import type { ReactNode } from 'react';
+ // ...
+   const isToday = event.date === toDateString(new Date());
+-  const [showDetails, setShowDetails] = useState(false);
++  // Like useState, but back to false when this card is reused for another cleanup (FlashList
++  // recycles cards as you scroll): an open card never hands its open details to the next one
++  const [showDetails, setShowDetails] = useRecyclingState(false, [event.id]);</code></pre>
+                    </div>
+                    <p><code>useRecyclingState(initial, deps)</code> works like <code>useState</code> and resets to <code>initial</code> when anything in <code>deps</code> changes. When FlashList hands this card another cleanup, <code>event.id</code> changes and the details close. Repeat the test: no other card opens. One honest trade-off: scroll far enough away from the open card and back, and it is closed again, because its component was reused in between. For Shoreline Crew that is fine; Exercise 4 shows how to remember it.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Five at a time <span class="step-time">(25 min)</span></h3>
+                    <ol>
+                        <li>The types and the page size. The loaded state remembers which page it has (<code>PageInfo</code>, from <code>types.ts</code>), and a second, smaller state describes the next page. Add <code>PageInfo</code> to the types import:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-import type { CleanupEvent, Site } from '@/api/types';
++import type { CleanupEvent, PageInfo, Site } from '@/api/types';
+ // ...
+ type Load =
+   | { status: 'loading' }
+   | { status: 'failed'; message: string }
+-  | { status: 'loaded'; events: CleanupEvent[]; sites: Site[] };
++  | { status: 'loaded'; events: CleanupEvent[]; sites: Site[]; page: PageInfo };
++
++// The next page: not asked for yet, on its way, or failed (with describeError's words)
++type More = { status: 'idle' } | { status: 'loading' } | { status: 'failed'; message: string };
+
+ // One item of the list: a cleanup and the beach it happens at
+ type Card = { event: CleanupEvent; site: Site | undefined };
++
++// How many cleanups to ask the API for at a time
++const perPage = 5;
++
++function upcomingPage(page: number) {
++  return `when=upcoming&amp;page=${page}&amp;perPage=${perPage}`;
++}</code></pre>
+                            </div>
+                            <p>Five is small on purpose, so eight cleanups make two pages and you can watch the second one arrive. A real app would ask for 20 or 30.</p>
+                        </li>
+                        <li>The state for the next page, and the first page in the effect. A successful (re)load also clears an old "next page failed", so pull to refresh starts clean:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">   const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
++  const [more, setMore] = useState&lt;More&gt;({ status: 'idle' });
+   const [attempt, setAttempt] = useState(0); // a new number loads the cleanups again
+ // ...
+     const controller = new AbortController();
+-    // Both requests at once: the cards need the cleanups and the beaches they happen at
+-    Promise.all([getEvents('when=upcoming', controller.signal), getSites(controller.signal)])
+-      .then(([page, sites]) =&gt; {
+-        setLoad({ status: 'loaded', events: page.items, sites });
++    // The first page of cleanups and the beaches, both at once
++    Promise.all([getEvents(upcomingPage(1), controller.signal), getSites(controller.signal)])
++      .then(([first, sites]) =&gt; {
++        setLoad({ status: 'loaded', events: first.items, sites, page: first.page });
++        setMore({ status: 'idle' });
+         setRefreshing(false);
+       })</code></pre>
+                            </div>
+                        </li>
+                        <li>Whether there is more, the loader, and what the list calls. Put <code>hasMore</code> right after <code>cards</code>, and the two functions after <code>refresh</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">           .filter(({ event }) =&gt; !onlyOpen || getAvailability(event).kind === 'open')
+       : [];
++  const hasMore = load.status === 'loaded' &amp;&amp; load.page.page &lt; load.page.totalPages;
+ // ...
+   function refresh() {
+     setRefreshing(true);
+     setAttempt((count) =&gt; count + 1);
+   }
++
++  // The next page, added after the cleanups the list already has
++  function loadNextPage() {
++    if (load.status !== 'loaded' || !hasMore) {
++      return;
++    }
++    setMore({ status: 'loading' });
++    getEvents(upcomingPage(load.page.page + 1))
++      .then((next) =&gt; {
++        setLoad((current) =&gt; {
++          if (current.status !== 'loaded') {
++            return current;
++          }
++          // A cleanup can move to the next page while you scroll: never show it twice
++          const known = new Set(current.events.map((event) =&gt; event.id));
++          const added = next.items.filter((event) =&gt; !known.has(event.id));
++          return { ...current, events: [...current.events, ...added], page: next.page };
++        });
++        setMore({ status: 'idle' });
++      })
++      .catch((error: unknown) =&gt; setMore({ status: 'failed', message: describeError(error) }));
++  }
++
++  // The list is near its end. Only ask when nothing is on its way and the last page did not fail:
++  // after a failure, the Try again button asks (or the list would ask again and again)
++  function onEndReached() {
++    if (more.status === 'idle') {
++      loadNextPage();
++    }
++  }</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>setLoad</code> gets a function, as in the web course: the answer arrives later, and by then the state may have changed (a refresh, for example). The function always receives the current state, and if that is no longer "loaded" it leaves it alone.</li>
+                                <li>A <code>Set</code> of the ids you already have makes "never show it twice" one line. Without it, a repeated cleanup would also repeat a key, which breaks the list's bookkeeping.</li>
+                                <li>The next page number comes from the page you have (<code>load.page.page + 1</code>), and <code>hasMore</code> from the API's <code>totalPages</code>, never from guessing "fewer than five came back".</li>
+                                <li>There is no AbortController here. If the screen goes away while a page is on its way, React ignores the late state update; Lesson 5.2's TanStack Query will handle cancelling and caching pages for you.</li>
+                            </ul>
+                        </li>
+                        <li>The count uses the API's total, so it reads "5 of 8 cleanups" until page 2 arrives:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-          &lt;AppText variant="muted"&gt;{countLabel(cards.length, load.events.length)}&lt;/AppText&gt;
++          &lt;AppText variant="muted"&gt;{countLabel(cards.length, load.page.total)}&lt;/AppText&gt;
+ // ...
+-// "8 cleanups" with no filters, "3 of 8 cleanups" while filtering
++// "8 cleanups" when the list shows them all; "5 of 8 cleanups" while filtering, or before the last page</code></pre>
+                            </div>
+                        </li>
+                        <li>The footer, after <code>empty</code>; then the props that use it (<code>ListFooterComponentStyle</code> goes last, after <code>ListEmptyComponentStyle</code>); then its style, after <code>cell</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">+  // Below the last card: the next page on its way, a failed page, or the end of the list
++  const footer =
++    more.status === 'loading' ? (
++      &lt;LoadingView label="Loading more cleanups…" /&gt;
++    ) : more.status === 'failed' ? (
++      &lt;ErrorView message={more.message} onRetry={loadNextPage} /&gt;
++    ) : load.status === 'loaded' &amp;&amp; !hasMore &amp;&amp; cards.length &gt; 0 ? (
++      &lt;AppText variant="muted" style={styles.end}&gt;
++        That is every upcoming cleanup.
++      &lt;/AppText&gt;
++    ) : undefined;
+ // ...
+         ListEmptyComponent={empty}
++        ListFooterComponent={footer}
++        onEndReached={onEndReached}
+         refreshing={refreshing}
+ // ...
++        ListFooterComponentStyle={styles.edge}
+ // ...
++  end: {
++    textAlign: 'center',
++  },</code></pre>
+                            </div>
+                            <p>The footer reuses Lesson 3.1's <code>LoadingView</code> and <code>ErrorView</code>. Its Try again calls <code>loadNextPage</code> directly, the one way to ask again after a failure. As Lesson 3.1 found, the footer prop accepts an element or <code>undefined</code>, not <code>null</code>.</p>
+                        </li>
+                    </ol>
+                    <p>Try it. To see "Loading more cleanups…", give the API some latency (stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then <code>node server.ts --latency=1500</code>), reload the web preview at phone width, and scroll down: the count says "5 of 8 cleanups", the spinner shows under the fifth card, then three more cards arrive and the count says "8 cleanups". Scroll to the end: "That is every upcoming cleanup."</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_10/10-loading-more.png" alt="The web preview of the Cleanups screen scrolled to the end of the first page, in a phone frame: the bottom of the card Jetty Rocks Deep Clean with its Show details button, and under it a large Sea Teal spinner with the muted words Loading more cleanups." width="420" height="814" loading="lazy">
+    <figcaption>The volunteer reached the end of page 1, so the list called <code>onEndReached</code> and the footer shows <code>LoadingView</code> while page 2 is on its way. The cards already loaded stay where they are. (For this picture the course gave the web preview the bottom space a notched iPhone has, so the home indicator does not cover the footer.)</figcaption>
+</figure>
+                    <p>Now the failure: start the API normally, reload, then stop the API and scroll down. The footer shows the error and Try again; nothing else is asked for (DevTools' Network tab shows one request for page 2). Start the API, press Try again: the last three cards arrive.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_10/10-more-failed.png" alt="The end of the first page after page 2 failed: under the last card, the coral message Could not reach the server. Check that shoreline-api is running, then try again, and a filled Sea Teal button Try again, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>A failed page shows <code>ErrorView</code> in the footer. The five cleanups already loaded stay, and only <strong>Try again</strong> asks for page 2 again.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Clean up, check and commit <span class="step-time">(5 min)</span></h3>
+                    <p>The lab screen was equipment, not a feature: delete <code>src/app/list-lab.tsx</code> (keep your numbers in the journal). Then run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Cleanups on FlashList: one list for both views, recycling-safe cards, infinite scroll"</code></pre>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project, take its longest list. How long could it get in a year of real use? Does its API page (look for <code>page</code>/<code>perPage</code>, <code>limit</code>/<code>offset</code>, or a "cursor")? Does any row keep state of its own (an expanded panel, a half-typed reply) that recycling would hand to another row? Write down the one number you would measure first, and how.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>@shopify/flash-list</code> 2.3.2 is installed with <code>npx expo install</code></li>
+                        <li>☐ You ran the lab's scroll test for both lists, at full speed and with a 6x CPU slowdown, wrote the numbers in your journal, and deleted the lab screen</li>
+                        <li>☐ The Cleanups screen is one <code>FlashList</code> inside a framed <code>View</code>: cards, or cards under pinned headings that span both columns when the window is wide</li>
+                        <li>☐ Opening a card's details and scrolling never opens another card (<code>useRecyclingState</code>)</li>
+                        <li>☐ The list loads five cleanups at a time, shows "Loading more cleanups…", stops with Try again when a page fails, and ends with "That is every upcoming cleanup."</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Three pages</h3>
+                    <p>Change the page size so the eight upcoming cleanups arrive in three pages. How many requests for cleanups does the web preview send if you scroll to the very end? Check in DevTools' Network tab.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>One constant decides the page size; the API tells the app how many pages there are.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p><code>const perPage = 3;</code>. The API now answers <code>X-Total-Pages: 3</code> (3 + 3 + 2), so <code>hasMore</code> stays true after page 2 and the list asks for page 3 when you near the end again: three requests for cleanups (plus one for the beaches). Nothing else changes, because the code reads the page count from the answer instead of assuming one. Put it back to 5 afterwards.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A Load more button</h3>
+                    <p>Infinite scroll is invisible: a screen reader user, or someone using a keyboard, may never trigger it. Add a <strong>Load more cleanups</strong> button to the footer whenever there is a next page and nothing is loading or failed, so there is always a visible way to get more.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The footer is a chain of conditions ending in <code>undefined</code>. Which condition is true when the next page exists and nothing has happened to it yet?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Before the final <code>: undefined</code>, add one more branch: <code>: hasMore ? ( &lt;Button label="Load more cleanups" variant="secondary" onPress={loadNextPage} /&gt; )</code>. When the volunteer scrolls, <code>onEndReached</code> usually gets there first and the button turns into the spinner; when nobody scrolls, the button is there. Infinite scroll and a button work well together.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Read a long error</h3>
+                    <p>Put <code>columnWrapperStyle={styles.cell}</code> back on the FlashList and run <code>npx tsc --noEmit</code>. Which line names the real problem, and why is the first line so long?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for the prop's name, after the word "Property".</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The second line, "Property 'columnWrapperStyle' does not exist on type …", names it: FlashList has no such prop. The first line describes everything you passed (every prop of the list, including the ones spread from <code>scroll</code>, cut short with "... 16 more ...") and the type it had to fit. With long errors, read the last indented line first; it is usually the specific reason. Remove the prop: FlashList's spacing lives in the cells.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Remember the open cards (Stretch)</h3>
+                    <p>Make the open details survive scrolling away and back: keep which cards are open in the screen, not in the card.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The screen holds a <code>Set</code> of open cleanup ids; EventCard gets <code>open</code> and <code>onToggle</code> props instead of its own state. FlashList must know to draw again when the set changes: that is what <code>extraData</code> is for (Lesson 3.1's FAQ).</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In EventCard, replace the state with two props, <code>open: boolean</code> and <code>onToggle: () =&gt; void</code>, and use them where <code>showDetails</code> and <code>setShowDetails</code> were. In the screen: <code>const [openIds, setOpenIds] = useState&lt;ReadonlySet&lt;string&gt;&gt;(new Set());</code> and a <code>toggle(id)</code> that copies the set, adds or deletes the id, and sets the copy (a new Set, so React sees a change). Pass <code>open={openIds.has(row.item.event.id)}</code> and <code>onToggle={() =&gt; toggle(row.item.event.id)}</code> in <code>renderRow</code>, and <code>extraData={openIds}</code> to the FlashList. Now the state belongs to the data, and recycling cannot lose it or move it.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A volunteer scrolls a FlashList of 500 cleanups from top to bottom. What happens to the card components that scroll far off the top?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That is what FlatList does. What does FlashList do differently?">
+                                A) They are unmounted, and new ones are created for the cards coming in
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="FlashList keeps them in a pool of spare rows of the same type and draws them again with the next items' data. That is why the lab counted a few dozen rows created for 1,000 items.">
+                                B) They are kept and reused to draw the cards coming into view
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Neither list keeps every row drawn; the lab counted the rows in the page.">
+                                C) They stay drawn above the screen until the list is closed
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A volunteer opens the details of one cleanup, scrolls down, and sees another cleanup's details open. The card uses <code>useState</code>. What is the fix?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="A key on the row defeats recycling; the lab measured what that costs.">
+                                A) Put <code>key={event.id}</code> on the EventCard inside renderItem
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="keyExtractor already returns the id; the state lives inside the reused component.">
+                                B) Change keyExtractor to return the title
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="getItemType separates kinds of rows; all the cards are the same kind.">
+                                C) Give every card its own item type
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="useRecyclingState resets to its initial value when a dependency changes. With the cleanup's id as the dependency, a recycled card starts closed for its new cleanup.">
+                                D) <code>useRecyclingState(false, [event.id])</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Page 2 fails because the phone lost signal. The volunteer is still at the end of the list. With Shoreline Crew's code, what happens next?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="onEndReached only asks when the next page is idle. What is its status after a failure?">
+                                A) The list asks for page 2 again every time FlashList checks the end
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="After a failure the next page is failed, not idle, so onEndReached does nothing. The footer shows describeError's message and Try again, which is the only thing that asks again.">
+                                B) The footer shows the error and Try again; nothing is asked until the volunteer presses it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The first page and its cards are untouched; only the footer changes.">
+                                C) The cards disappear and the full-screen error view shows
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> The headers say <code>X-Total-Count: 8</code> and <code>X-Total-Pages: 2</code>, and the app has page 1. A volunteer searches for <code>heron</code>; no cleanup on page 1 matches. What does the screen do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is a list with no cards near its end?">
+                                A) Shows "No cleanups match your search." and stops there
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The search runs in the app, on the cleanups it has; it does not change the request.">
+                                B) Sends the search to the API with the q parameter
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="With no cards, the list is shorter than the screen, so it is near its end and calls onEndReached. Page 2 arrives, the filter runs again, and Night Heron Walk and Clean appears: 1 of 8 cleanups.">
+                                C) The short list is near its end, so it loads page 2, where the cleanup is found
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Where does the grouped view's spacing between two cards side by side come from?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="FlashList has no such prop; tsc says so.">
+                                A) <code>columnWrapperStyle</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The course measured what gap does in a FlashList's content: it does not go between cells.">
+                                B) The content container's <code>gap</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="FlashList positions every cell itself, so each cell carries half the gap on each side. The list's own side padding is halved, and the header, empty list and footer get the other half, so everything lines up.">
+                                C) Half the gap of padding inside each cell, on both sides
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Padding on FlashList's style is not supported, and it would not separate two cells anyway.">
+                                D) Padding on the FlashList's <code>style</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Should every list be a FlashList now?</summary>
+                    <p>No. For a short list that will stay short (a settings screen, five tabs of options), FlatList or even a ScrollView is simpler and fast enough. Reach for FlashList when a list comes from data that can grow, or when you measure a problem. That is why you measured first: the lab showed where the difference is, and Shoreline Crew's list is the kind that grows.</p>
+                </details>
+                <details>
+                    <summary>Why not put the search on the server?</summary>
+                    <p>For a real catalog you should: with thousands of items, filtering only what the phone has loaded misses most matches until the volunteer scrolls. shoreline-api's <code>q</code> parameter searches title, description and beach name (not the town, so results would differ a little from the app's search). It would mean a request on every search, which wants waiting until the volunteer stops typing and cancelling outdated requests. TanStack Query (Module 5) makes that kind of request management much easier; for eight cleanups, filtering on the phone is the simpler choice.</p>
+                </details>
+                <details>
+                    <summary>What about "pull up to load newer" or a chat list that starts at the bottom?</summary>
+                    <p>FlashList 2 has <code>onStartReached</code> for loading when you near the top, and <code>maintainVisibleContentPosition</code> (on by default) so items added above do not make the list jump. A chat screen also uses <code>maintainVisibleContentPosition.startRenderingFromBottom</code>. Shoreline Crew does not need them; they are worth knowing when you meet a feed or a chat.</p>
+                </details>
+                <details>
+                    <summary>Do I still need keyExtractor with FlashList?</summary>
+                    <p>Yes. FlashList uses it to keep track of which item each row is showing, to keep your place when items are added, and for layout animations. What you must not do is put a key on the row component itself (Common Mistakes).</p>
+                </details>
+                <details>
+                    <summary>Will TanStack Query change this code?</summary>
+                    <p>Yes, in Lesson 5.2. TanStack Query has a hook made for exactly this, which keeps the pages, knows whether there is a next one, and stops duplicate requests. The list itself (FlashList, the footer states, <code>onEndReached</code> asking only when idle) stays.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make the lab more like the real screen: replace the volunteer names with 1,000 copies of the eight cleanups (FlashList's <code>useDataMultiplier(data, 1000)</code> makes copies; give each copy a new id, or <code>keyExtractor</code> sees duplicates) and draw them with <code>EventCard</code>. Run the scroll test for both lists at 6x slowdown. Is the gap between FlatList and FlashList bigger or smaller with heavy cards than with one line of text? Why might that be?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Copy your four lab reports. Before you ran them, what did you expect? Which number surprised you most, and what would you now tell a teammate who says "just switch to FlashList, it's faster"?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>FlatList unmounts rows that leave its window and creates new ones; FlashList keeps them in pools by item type and draws them again with new data (recycling)</li>
+                        <li>Measure before and after: rows created and JS frames per second with FlashList's benchmark hooks, CPU throttling for a slow phone; real devices and release builds for the final word</li>
+                        <li>Moving to FlashList: spacing inside the cells, no padding on the list's style, no columnWrapperStyle, no key needed when the number of columns changes</li>
+                        <li>Row state moves with recycled rows: reset it with <code>useRecyclingState</code>, or keep it in the screen; never put a key on the row inside renderItem</li>
+                        <li>Infinite scroll: page 1, then the next page from <code>onEndReached</code> only when idle, items deduplicated by id, the API's <code>totalPages</code> to know when to stop, and footers for loading, failure (Try again) and the end</li>
+                        <li>Grouped data in FlashList: flatten into heading and item rows, <code>getItemType</code>, <code>stickyHeaderIndices</code>, and spans so headings cross columns</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up a term (recycling, infinite scroll, pagination)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read FlashList's guides (usage, recycling, performance)</td><td><a href="https://shopify.github.io/flash-list/" target="_blank" rel="noopener">FlashList documentation</a></td></tr>
+                            <tr><td>See every page and header the API sends</td><td><a href="api.html">The shoreline-api reference</a></td></tr>
+                            <tr><td>Read about the performance monitor and release builds</td><td><a href="https://reactnative.dev/docs/performance" target="_blank" rel="noopener">React Native: Performance Overview</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You measured two lists of 1,000 rows and can explain the numbers, including what the web preview cannot tell you</li>
+                        <li>You moved Shoreline Crew's list to FlashList with one list for both views, and headings across two columns</li>
+                        <li>You found and fixed a recycling bug that no tool warns about</li>
+                        <li>You built infinite scroll that asks once, stops after a failure, never shows a cleanup twice, and says when the list is complete</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 3 is done: Shoreline Crew's list is fast and loads as you go. In <a href="lesson_11.html"><strong>Lesson 4.1: File-Based Routing</strong></a> you give each cleanup its own screen. Tapping a card opens its detail page with Expo Router, the address carries the cleanup's id, and TypeScript checks your links (and you will see why the lab screen had an address of its own).</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the lab screen is deleted and your work is committed</li>
+                    <li>In Expo Go, turn on the performance monitor and scroll the Cleanups screen; turn it off again from the same menu</li>
+                    <li>Open the web preview at <code>http://localhost:8081/list-lab</code> now that the file is gone: what does Expo Router show? Lesson 4.1 replaces that page with your own</li>
+                    <li>Write today's journal entry, with your lab numbers</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today you did what experienced engineers do and many skip: you measured before changing anything, you broke your own code on purpose (a failing page, a recycled card) to see how it fails, and you kept only the changes the numbers supported. If recycling still feels slippery, that is normal: it is a different way of thinking about components, and the bucket pile will come back to you the next time a row "remembers" something it should not. You are building the instincts that make apps feel fast.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_09.html" class="prev-lesson">← Previous: FlatList and SectionList</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_11.html" class="next-lesson">Next: File-Based Routing →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 22</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 22: Performance, Debugging and App Config</h1>
+    <p class="sub">Answers and real outputs for Session 22: the warm-up, both self-checks with reasons, the predict-then-check runs, both labs with check_labs.py's own outputs and the solution files, the lessons' own quizzes, and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Lessons <b>8.4, 9.1</b></span>
+      <span class="chip">Session <b>22</b> · 3 hours</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Warm-up: Lesson 8.3</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>From <code class="inline">@testing-library/react-native</code>. Expo Router's testing library exports it as a type only, and tsc reports TS1362.</li>
+  <li><code class="inline">findByText</code>: it waits for the API's answer and retries; <code class="inline">getByText</code> looks once, now.</li>
+  <li>Anything native: the real keyboard, the native Switch, the system's permission question, the app as installed.</li>
+</ol>
+
+  <div class="sec"><h2>8.4 · Performance and Debugging: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">Only the web preview is open. You press j in the terminal running Metro and it prints this. What now?</div><pre class="code">Debug: No compatible apps connected, React Native DevTools can only be used with Hermes. Learn more: https://docs.expo.dev/guides/using-hermes/</pre><div class="opts"><div class="opt">A) Install a development build: Expo Go cannot be debugged</div><div class="opt correct">B) Open the app in Expo Go on a phone (or an emulator) and press j again; for the web preview, use the browser's DevTools</div><div class="opt">C) Restart Metro with <code class="inline">npx expo start --clear</code></div><div class="opt">D) Add <code class="inline">debugger;</code> to the first screen so DevTools can attach</div></div><div class="why"><b>Why:</b> React Native DevTools connects to an app running Hermes, such as Expo Go on a phone. The web preview runs in the browser's engine, so its tools are the browser's DevTools and the React Developer Tools extension. Nothing is broken (Lesson 8.4, The Debugging Toolbox).<br><b>A</b> is wrong: Expo Go and development builds both run Hermes and both connect.<br><b>C</b> is wrong: The cache has nothing to do with it: there is no Hermes app connected.<br><b>D</b> is wrong: A statement pause needs a debugger that is connected first.</div></div>
+  <div class="q" data-sc="2" data-kind="short"><div class="qn">Q2</div><div class="qt">A new screen test fails before any test runs (the kit's run, trimmed). The stack, read from the bottom up, goes test file → my-cleanups.tsx → <code class="inline">src/api/mutations.ts</code> → <code class="inline">src/notifications/reminders.ts</code>. What do you add to the test file, and why with a factory?</div><pre class="code"> FAIL  src/test/screens/my-cleanups.test.tsx
+  ● Test suite failed to run
+
+    TypeError: handleSubscription.remove is not a function
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total</pre><div class="opts"><div class="opt correct"><code class="inline">jest.mock('@/notifications/reminders', () =&gt; ({ updateReminders: jest.fn() }))</code>: a stand-in for the app's own module at the edge of what the test is about; without a factory Jest loads the real module to copy its shape</div></div><div class="why"><b>Why:</b> The chain of imports ends in expo-notifications, which cannot load in Jest (Lesson 8.2). The reminders are not what this test checks, so the module is replaced where the app's code meets it; an automatic mock (no factory) would load it anyway. This is the setup's error, not the volunteer's bug (Lesson 8.4, Step 5).</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">React Developer Tools shows ConnectionCheck WITHOUT the "Memo ✨" badge. It renders three times when a volunteer presses its button. What do you do?</div><div class="opts"><div class="opt correct">A) Leave it: the compiler skipped it, and the measurement says it does not matter</div><div class="opt">B) Rewrite it without try/finally so the compiler accepts it</div><div class="opt">C) Wrap it in <code class="inline">memo()</code> and its handler in <code class="inline">useCallback</code></div><div class="opt">D) Turn the React Compiler off: it skipped a component</div></div><div class="why"><b>Why:</b> The compiler skips code it cannot prove safe (here a try with finally); the app still works, without the memory. A component that renders a few times at a button press costs nothing measurable: memoize only where a measurement says so (Lesson 8.4, Exercise 2).<br><b>B</b> is wrong: Rewriting working code to please the compiler, with no measurement, is the seawall built by feel.<br><b>C</b> is wrong: Manual memoization waits for a measurement too.<br><b>D</b> is wrong: The compiler cut renders per keystroke about fivefold on the Cleanups screen: keep it on.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">While you scroll the Cleanups list fast on a phone, the performance monitor shows the UI frame rate falling to about 30 while the JS frame rate stays near 60. Where do you look first?</div><div class="opts"><div class="opt">A) The rows' JavaScript work, in the Profiler</div><div class="opt">B) The API: it answers too slowly</div><div class="opt correct">C) The native side: big images being decoded, too many views, heavy shadows</div><div class="opt">D) Zustand's selectors</div></div><div class="why"><b>Why:</b> Two threads, two numbers. The JS number is your components and hooks; the UI number is native layout, drawing and scrolling. JavaScript keeps up here, so the native drawing is struggling (Lesson 8.4, Frames, Threads and Memory). The lesson's own quiz asks the opposite case.<br><b>A</b> is wrong: That is the answer when the JS number drops.<br><b>B</b> is wrong: A slow answer shows as a spinner, not dropped frames.<br><b>D</b> is wrong: Selectors run in JavaScript: the JS number would show it.</div></div>
+  <div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt">After <code class="inline">npm uninstall @expo/ui</code>, <code class="inline">npx tsc --noEmit</code> prints this. What happened, and what was the check that would have prevented it?</div><pre class="code">src/components/Toolbar.tsx:1:22 - error TS2307: Cannot find module '@expo/ui/jetpack-compose' or its corresponding type declarations.
+
+1 import { Host } from '@expo/ui/jetpack-compose';
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Found 1 error in src/components/Toolbar.tsx:1</pre><div class="opts"><div class="opt">A) The uninstall failed: run it again</div><div class="opt">B) TypeScript's cache is stale: restart VS Code</div><div class="opt">C) Expo Router still needs @expo/ui: reinstall it with <code class="inline">npx expo install</code></div><div class="opt correct">D) A file of yours still imports the package: search <code class="inline">src</code> for its name and run <code class="inline">npm ls</code> with it before removing</div></div><div class="why"><b>Why:</b> "Unused" means nothing imports it: not your code, not a library. The type check names the file and line at once; Metro would fail with "Unable to resolve module". Before removing a package: search src, and <code class="inline">npm ls &lt;name&gt;</code> lists every package that depends on it (Lesson 8.4, Common Mistakes and Step 4).<br><b>A</b> is wrong: The uninstall worked: that is why the import cannot be found.<br><b>B</b> is wrong: No cache: a real missing module.<br><b>C</b> is wrong: Here the import is in your own Toolbar.tsx; <code class="inline">npm ls</code> showed Expo Router only uses @expo/ui optionally.</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">"I checked in and my cleanup vanished." A failing test reproduces it. In the browser's Network tab, <code class="inline">/api/me/signups</code> after the check-in still lists Tide Pool Morning Cleanup with <code class="inline">"status": "attended"</code>. Where is the bug?</div><div class="opts"><div class="opt">A) In the API: it should keep the status confirmed</div><div class="opt correct">B) In the screen's own logic: what My cleanups keeps from the sign-ups it receives</div><div class="opt">C) In TanStack Query's cache: it dropped the sign-up</div><div class="opt">D) In the test: it checks in before the screen opens</div></div><div class="why"><b>Why:</b> Narrow it down by halves: the API answered right, and the cache holds what the API sent, so the bug is in what the screen keeps. comingUp kept only confirmed and waitlisted sign-ups (Lesson 8.4, Step 5, "Narrow it down").<br><b>A</b> is wrong: attended is the right status after a check-in.<br><b>C</b> is wrong: The hook's data would show the attended sign-up.<br><b>D</b> is wrong: Checking in through the app's own client first is the volunteer's exact situation.</div></div>
+
+  <div class="sec"><h2>8.4 · Performance and Debugging: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">Predict, then run it.</div><pre class="code">npm test -- --watchAll=false src/test/screens/my-cleanups.test.tsx</pre><div class="opts"><div class="opt correct"><pre class="out"> FAIL  src/test/screens/my-cleanups.test.tsx
+  ✓ lists the cleanups Theo signed up for, each with a Cancel button
+  ✕ keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+
+● keeps today's cleanup after check-in, marked Checked in, with nothing to cancel
+  Unable to find an element with text: Tide Pool Morning Cleanup
+
+Tests:       1 failed, 1 passed, 2 total</pre></div></div><div class="why"><b>Why:</b> The first test passes; the second fails for the volunteer's reason: after the check-in the list no longer has Tide Pool Morning Cleanup. That is the reproduction you want before touching the screen.</div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Predict, then run it.</div><pre class="code">npx expo export --platform ios</pre><div class="opts"><div class="opt correct"><pre class="out">React Compiler enabled
+iOS Bundled …ms node_modules/expo-router/entry.js (2081 modules)
+› ios bundles (1):
+_expo/static/js/ios/entry-….hbc (5.4MB)</pre></div></div><div class="why"><b>Why:</b> Only Zod's languages: Expo Router loads @expo/ui on Android only, so removing it changed nothing on iOS. Android went 5.9MB → 5.5MB, iOS 5,671,712 → 5,428,303 bytes (the lesson's table).</div></div>
+
+  <div class="sec"><h2>8.4 · Lab: Performance and Debugging</h2><span class="rule"></span></div>
+<p>Every output below is check_labs.py's own run of <code class="inline">labs/module-22/l8_4-performance-and-debugging/lab.json</code>. As shipped, the search test file fails before any test runs (the lab's own reminders module imports expo-notifications):</p>
+<pre class="out">● Test suite failed to run
+TypeError: handleSubscription.remove is not a function
+at Object.remove (../../../node_modules/expo-notifications/build/NotificationsHandler.ts:94:24)
+at Object.setNotificationHandler (src/reminders.ts:5:15)
+at Object.require (src/SiteSearch.tsx:6:1)
+at Object.require (src/SiteSearch.test.tsx:4:1)</pre><p><b>Task 1:</b> the stand-in at the top of <code class="inline">src/SiteSearch.test.tsx</code>. With it, three tests pass and one says TODO 2:</p>
+<pre class="out"> FAIL  src/SiteSearch.test.tsx
+  ✓ Task 1: lists all six beaches before anything is typed
+  ✓ Task 1: finds a beach by its name, typed as it is written
+  ✓ Task 1: Remind me sets a reminder for that beach
+  ✕ Task 2: finds a beach whatever the case of the letters typed
+Tests:       1 failed, 3 passed, 4 total</pre><p><b>Task 2:</b> the test first. The kit ran the solution's test file on the starter's <code class="inline">matchingSites</code>; it fails for the report's reason, which proves it is a test of this bug:</p>
+<pre class="out">● Task 2: finds a beach whatever the case of the letters typed
+  Unable to find an element with text: Driftwood Cove</pre><p><b>Task 3:</b> <code class="inline">useOnForeground</code> keeps the subscription and returns <code class="inline">() =&gt; subscription.remove()</code>. As shipped, its test file says:</p>
+<pre class="out">● Task 3: stops listening when the screen closes
+  expect(jest.fn()).toHaveBeenCalledTimes(expected)</pre><p>The solution's files (the test files are the same in starter and solution, except Task 1's line and Task 2's body):</p>
+<div class="codefile">labs/module-22/l8_4-performance-and-debugging/solution/src/SiteSearch.tsx</div>
+<pre class="code"><span class="c">// A beach search for crew leaders: type part of a beach's name, set a low-tide reminder for one</span>
+<span class="k">import</span> { useState } <span class="k">from</span> <span class="s">'react'</span>;
+<span class="k">import</span> { Pressable, StyleSheet, Text, TextInput, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">import</span> sites <span class="k">from</span> <span class="s">'./data/sites.json'</span>;
+<span class="k">import</span> { remindMe } <span class="k">from</span> <span class="s">'./reminders'</span>;
+
+<span class="k">export</span> <span class="k">type</span> Site = { id: <span class="k">string</span>; name: <span class="k">string</span>; town: <span class="k">string</span> };
+
+<span class="c">// The beaches whose name contains what the crew leader typed, whatever the case of the letters</span>
+<span class="k">export</span> <span class="k">function</span> matchingSites(all: Site[], query: <span class="k">string</span>): Site[] {
+  <span class="k">const</span> wanted = query.trim().toLowerCase();
+  <span class="k">return</span> all.filter((site) =&gt; site.name.toLowerCase().includes(wanted));
+}
+
+<span class="k">export</span> <span class="k">function</span> SiteSearch() {
+  <span class="k">const</span> [query, setQuery] = useState(<span class="s">''</span>);
+  <span class="k">const</span> [reminded, setReminded] = useState&lt;<span class="k">string</span> | <span class="k">null</span>&gt;(<span class="k">null</span>);
+  <span class="k">const</span> found = matchingSites(sites, query);
+
+  <span class="k">return</span> (
+    &lt;View style={styles.screen}&gt;
+      &lt;TextInput
+        accessibilityLabel=<span class="s">"Search beaches"</span>
+        placeholder=<span class="s">"Search beaches"</span>
+        value={query}
+        onChangeText={setQuery}
+        style={styles.field}
+      /&gt;
+      &lt;Text&gt;{found.length === <span class="s">1</span> ? <span class="s">'1 beach'</span> : <span class="s">`${found.length} beaches`</span>}&lt;/Text&gt;
+      {found.map((site) =&gt; (
+        &lt;View key={site.id} style={styles.row}&gt;
+          &lt;View style={styles.words}&gt;
+            &lt;Text style={styles.name}&gt;{site.name}&lt;/Text&gt;
+            &lt;Text&gt;{site.town}&lt;/Text&gt;
+          &lt;/View&gt;
+          &lt;Pressable
+            accessibilityRole=<span class="s">"button"</span>
+            accessibilityLabel={<span class="s">`Remind me about low tide at ${site.name}`</span>}
+            onPress={<span class="k">async</span> () =&gt; {
+              <span class="k">await</span> remindMe(site.name);
+              setReminded(site.name);
+            }}
+            style={styles.button}
+          &gt;
+            &lt;Text style={styles.buttonText}&gt;Remind me&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      ))}
+      {reminded !== <span class="k">null</span> &amp;&amp; &lt;Text&gt;Reminder set <span class="k">for</span> {reminded}&lt;/Text&gt;}
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  screen: { flex: <span class="s">1</span>, gap: <span class="s">12</span>, padding: <span class="s">24</span>, backgroundColor: <span class="s">'#fbf6ec'</span> },
+  field: { borderWidth: <span class="s">1</span>, borderColor: <span class="s">'#0b3954'</span>, borderRadius: <span class="s">8</span>, padding: <span class="s">12</span>, fontSize: <span class="s">16</span> },
+  row: { flexDirection: <span class="s">'row'</span>, alignItems: <span class="s">'center'</span>, gap: <span class="s">12</span> },
+  words: { flex: <span class="s">1</span> },
+  name: { fontSize: <span class="s">16</span>, fontWeight: <span class="s">'600'</span>, color: <span class="s">'#0b3954'</span> },
+  button: { minHeight: <span class="s">48</span>, justifyContent: <span class="s">'center'</span>, paddingHorizontal: <span class="s">12</span>, borderRadius: <span class="s">8</span>, backgroundColor: <span class="s">'#1f6f8b'</span> },
+  buttonText: { color: <span class="s">'#ffffff'</span>, fontWeight: <span class="s">'600'</span> },
+});</pre><div class="codefile">labs/module-22/l8_4-performance-and-debugging/solution/src/useOnForeground.ts</div>
+<pre class="code"><span class="k">import</span> { useEffect } <span class="k">from</span> <span class="s">'react'</span>;
+<span class="k">import</span> { AppState } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="c">// Runs refresh each time the app comes back to the foreground (a crew leader returns from a call, the camera...)</span>
+<span class="k">export</span> <span class="k">function</span> useOnForeground(refresh: () =&gt; <span class="k">void</span>) {
+  useEffect(() =&gt; {
+    <span class="k">const</span> subscription = AppState.addEventListener(<span class="s">'change'</span>, (state) =&gt; {
+      <span class="k">if</span> (state === <span class="s">'active'</span>) refresh();
+    });
+    <span class="c">// The screen closes: stop listening, or every visit adds one more listener that never goes away</span>
+    <span class="k">return</span> () =&gt; subscription.remove();
+  }, [refresh]);
+}</pre><div class="codefile">labs/module-22/l8_4-performance-and-debugging/solution/src/SiteSearch.test.tsx</div>
+<pre class="code"><span class="c">// Tests: npm test -- src/SiteSearch.test.tsx (Tasks 1 and 2)</span>
+<span class="k">import</span> { render, screen, userEvent } <span class="k">from</span> <span class="s">'@testing-library/react-native'</span>;
+
+<span class="k">import</span> { SiteSearch } <span class="k">from</span> <span class="s">'./SiteSearch'</span>;
+
+<span class="c">// SiteSearch imports ./reminders, which imports expo-notifications: it cannot load in Jest (Lesson 8.4)</span>
+jest.mock(<span class="s">'./reminders'</span>, () =&gt; ({ remindMe: jest.fn(<span class="k">async</span> () =&gt; <span class="s">'reminder-1'</span>) }));
+
+test(<span class="s">'Task 1: lists all six beaches before anything is typed'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">await</span> render(&lt;SiteSearch /&gt;);
+  expect(screen.getByText(<span class="s">'6 beaches'</span>)).toBeOnTheScreen();
+});
+
+test(<span class="s">'Task 1: finds a beach by its name, typed as it is written'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;SiteSearch /&gt;);
+  <span class="k">await</span> user.type(screen.getByLabelText(<span class="s">'Search beaches'</span>), <span class="s">'Cove'</span>);
+  expect(screen.getByText(<span class="s">'Driftwood Cove'</span>)).toBeOnTheScreen();
+  expect(screen.getByText(<span class="s">'1 beach'</span>)).toBeOnTheScreen();
+});
+
+test(<span class="s">'Task 1: Remind me sets a reminder for that beach'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;SiteSearch /&gt;);
+  <span class="k">await</span> user.press(screen.getByRole(<span class="s">'button'</span>, { name: <span class="s">'Remind me about low tide at North Jetty'</span> }));
+  expect(<span class="k">await</span> screen.findByText(<span class="s">'Reminder set for North Jetty'</span>)).toBeOnTheScreen();
+});
+
+<span class="c">// The report: "I typed cove and nothing came up, but the beach is called Driftwood Cove!"</span>
+test(<span class="s">'Task 2: finds a beach whatever the case of the letters typed'</span>, <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup();
+  <span class="k">await</span> render(&lt;SiteSearch /&gt;);
+  <span class="k">await</span> user.type(screen.getByLabelText(<span class="s">'Search beaches'</span>), <span class="s">'cove'</span>);
+  expect(screen.getByText(<span class="s">'Driftwood Cove'</span>)).toBeOnTheScreen();
+  expect(screen.getByText(<span class="s">'1 beach'</span>)).toBeOnTheScreen();
+});</pre><p>The solution's run; <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines:</p>
+<pre class="out"> PASS  src/useOnForeground.test.tsx
+ PASS  src/SiteSearch.test.tsx
+Tests:       6 passed, 6 total</pre>
+  <div class="sec"><h2>9.1 · App Config and Environments: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt"><code class="inline">APP_VARIANT=prod npx expo config --type public</code> prints this (the kit's run, the stack cut after its first line). What is going on?</div><pre class="code">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+Error: Error reading Expo config at ~/shoreline/shoreline-crew/app.config.ts:
+
+APP_VARIANT must be development, preview or production, not "prod".
+Error: APP_VARIANT must be development, preview or production, not "prod".
+    at Object.&lt;anonymous&gt; (~/shoreline/shoreline-crew/app.config.js:15:11)</pre><div class="opts"><div class="opt">A) Expo does not support a variant called production</div><div class="opt">B) app.config.ts has a syntax error on line 15</div><div class="opt correct">C) The config's own guard refused a name it does not know; the variant is spelled production</div><div class="opt">D) Expo cannot find app.json</div></div><div class="why"><b>Why:</b> The message is yours: <code class="inline">isVariant</code> (Object.hasOwn) knows exactly three names, case-sensitive, and the throw stops every Expo command before anything is built. The stack names app.config.js because Expo compiled your TypeScript to run it (Lesson 9.1, Step 3).<br><b>A</b> is wrong: production is one of the three; prod is not.<br><b>B</b> is wrong: Line 15 is the throw doing its job, not a syntax error.<br><b>D</b> is wrong: app.json is gone on purpose: app.config.ts is the only config.</div></div>
+  <div class="q" data-sc="8" data-kind="short"><div class="qn">Q8</div><div class="qt">Your <code class="inline">.env.local</code> holds <code class="inline">EXPO_PUBLIC_API_URL=http://localhost:4000</code>. Predict what this prints, and why.</div><pre class="code">APP_VARIANT=production npx expo config --type public</pre><div class="opts"><div class="opt correct">An error: <code class="inline">A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://localhost:4000".</code>: Expo loaded .env.local before it ran app.config.ts, and the guard refuses plain http for production</div></div><div class="why"><b>Why:</b> The guard runs every time Expo reads the config, so a store build pointed at a laptop can never be made. Set an https address in the shell (<code class="inline">EXPO_PUBLIC_API_URL=https://crew-api.example.org</code>), which beats .env.local; Expo then prints no <code class="inline">env:</code> lines at all (Lesson 9.1, Step 4).</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt"><code class="inline">npx tsc --noEmit</code> prints this after a change to app.config.ts. What would the same misspelling have done in app.json?</div><pre class="code">app.config.ts:44:5 - error TS2561: Object literal may only specify known properties, but 'bundleIdentifer' does not exist in type 'IOS'. Did you mean to write 'bundleIdentifier'?
+
+44     bundleIdentifer: variants[variant].appId,
+       ~~~~~~~~~~~~~~~</pre><div class="opts"><div class="opt correct">A) Nothing at once: Expo ignores an unknown key, and you find out when a build has no id</div><div class="opt">B) Exactly the same error</div><div class="opt">C) Expo would refuse to start</div><div class="opt">D) Expo corrects it to bundleIdentifier</div></div><div class="why"><b>Why:</b> JSON has no types: Expo's config reader prints the misspelled key back without a word. In app.config.ts the object is an ExpoConfig, so tsc names the key and suggests the right one. That is the main reason to write the config in TypeScript, and to run <code class="inline">npx tsc --noEmit</code> after every config change (Lesson 9.1, Common Mistakes).<br><b>B</b> is wrong: tsc does not check JSON files against ExpoConfig.<br><b>C</b> is wrong: It starts; the key is just ignored.<br><b>D</b> is wrong: Nothing corrects keys for you.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">Where does the real Google Maps key for Android builds belong?</div><div class="opts"><div class="opt">A) In app.config.ts, so the config can read it</div><div class="opt">B) In <code class="inline">.env.example</code>, so every developer has it</div><div class="opt">C) In <code class="inline">.env.local</code> as <code class="inline">EXPO_PUBLIC_ANDROID_GOOGLE_MAPS_API_KEY</code></div><div class="opt correct">D) In <code class="inline">.env.local</code> (never committed) or the build service's secrets, as ANDROID_GOOGLE_MAPS_API_KEY, and restricted in Google Cloud</div></div><div class="why"><b>Why:</b> The config reads it from the environment; without the EXPO_PUBLIC_ prefix it never enters your JavaScript. It still ships inside the Android app (plugin options are in the public config and the manifest), so restrict it to Maps on Android, your package name and your signing certificate (Lesson 9.1, Settings, Environments and Secrets).<br><b>A</b> is wrong: A committed file: a public repository is searched for keys within minutes.<br><b>B</b> is wrong: .env.example is committed: that is the lesson's quiz mistake.<br><b>C</b> is wrong: EXPO_PUBLIC_ puts it in the bundle, which the app does not need.</div></div>
+  <div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Why does only the preview variant get <code class="inline">usesCleartextTraffic: true</code> from expo-build-properties?</div><div class="opts"><div class="opt">A) Development builds cannot use expo-build-properties</div><div class="opt correct">B) A preview build is a release build, which refuses plain http; this lets it reach shoreline-api on your Wi-Fi, and production uses https instead</div><div class="opt">C) iPhones need it for local addresses</div><div class="opt">D) Expo Go reads it to allow localhost</div></div><div class="why"><b>Why:</b> Android 9 and newer refuse cleartext http in release builds unless the manifest allows it. Expo Go and the debug build's own manifest already allow it, so development needs nothing; production must never talk plain http, which the guard enforces (Lesson 9.1, Plain http in Release Builds).<br><b>A</b> is wrong: It works for every variant; development simply does not need it.<br><b>C</b> is wrong: It is an Android setting; iOS uses App Transport Security.<br><b>D</b> is wrong: Expo Go keeps its own native settings and never reads yours.</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">After this lesson, Expo Go still shows its own icon, its own splash and its own sentence when it asks for the camera. What does that tell you?</div><div class="opts"><div class="opt">A) The config plugins did not run: reinstall them</div><div class="opt">B) app.config.ts is not being read</div><div class="opt correct">C) Nothing is wrong: Expo Go is one app that opens many projects; check native settings with <code class="inline">npx expo config --type introspect</code> until Lesson 9.2's build</div><div class="opt">D) Expo Go needs <code class="inline">APP_VARIANT=development</code> to use your icon</div></div><div class="why"><b>Why:</b> Expo Go uses only the public config Metro sends (name, version, scheme). Icons, ids and permission sentences go into your own build's native projects (prebuild), which Lesson 9.2 makes. Today, introspect shows what the plugins would write (Lesson 9.1, Common Mistakes).<br><b>A</b> is wrong: Plugins run at prebuild; introspect shows their result.<br><b>B</b> is wrong: It is read: Expo Go's project list shows the config name Shoreline Dev.<br><b>D</b> is wrong: No setting changes what Expo Go shows; development is already the default.</div></div>
+
+  <div class="sec"><h2>9.1 · App Config and Environments: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P3</div><div class="qt">Predict, then run it.</div><pre class="code">APP_VARIANT=production EXPO_PUBLIC_API_URL=https://crew-api.example.org npx expo config --type public</pre><div class="opts"><div class="opt correct"><pre class="out">name: 'Shoreline Crew',
+usesCleartextTraffic: false
+bundleIdentifier: 'com.example.shorelinecrew'
+package: 'com.example.shorelinecrew',</pre></div></div><div class="why"><b>Why:</b> Shoreline Crew with the plain ids, cleartext false. No <code class="inline">env:</code> lines: the shell already set EXPO_PUBLIC_API_URL, so Expo did not need .env.local's value and did not list it.</div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">Predict, then run it.</div><pre class="code">npx expo config --type public</pre><div class="opts"><div class="opt correct"><pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+{
+  name: 'Shoreline Dev',
+  slug: 'shoreline-crew',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+...</pre></div></div><div class="why"><b>Why:</b> Shoreline Dev: Expo read app.json first and passed it to the function as <code class="inline">config</code>; <code class="inline">...config</code> kept everything, and the two keys after it won.</div></div>
+
+  <div class="sec"><h2>9.1 · Lab: App Config and Environments</h2><span class="rule"></span></div>
+<p>Every output below is check_labs.py's own run of <code class="inline">labs/module-22/l9_1-app-config-and-environments/lab.json</code>. As shipped, the six tests fail, and the type check names the misspelled key:</p>
+<pre class="out">app.config.ts:19:5 - error TS2561: Object literal may only specify known properties, but 'pacakge' does not exist in type 'Android'. Did you mean to write 'package'?
+Found 1 error in app.config.ts:19</pre><p><b>Task 1:</b> the key fixed, the variants, the guard against an unknown name. <code class="inline">npx expo config --type public</code> without and with APP_VARIANT=preview:</p>
+<pre class="out">  name: 'Lookout Dev',
+  scheme: 'shorelinelookout-dev',
+    bundleIdentifier: 'com.example.shorelinelookout.dev'
+    package: 'com.example.shorelinelookout.dev',
+
+  name: 'Lookout Preview',
+  scheme: 'shorelinelookout',
+    bundleIdentifier: 'com.example.shorelinelookout.preview'
+    package: 'com.example.shorelinelookout.preview',</pre><p><b>Task 2:</b> the guard and the scheme. A misspelled variant and production on plain http stop with the config's own messages:</p>
+<pre class="out">APP_VARIANT must be development, preview or production, not "Preview".
+A production build needs an https:// EXPO_PUBLIC_API_URL, not "http://lookout-api.example.org".</pre><p><b>Task 3:</b> <code class="inline">process.env.ANDROID_GOOGLE_MAPS_API_KEY</code>. Then the introspect check for preview:</p>
+<pre class="out">CFBundleDisplayName: 'Lookout Preview',
+NSLocationWhenInUseUsageDescription: 'Shoreline Lookout uses your location to show the beach nearest to you.',</pre><p>The solution's config, and its run (the type check and lint print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<div class="codefile">labs/module-22/l9_1-app-config-and-environments/solution/app.config.ts</div>
+<pre class="code"><span class="c">// Shoreline Lookout's app config: a crew leader's beach-conditions app (Lab 9.1), three variants of one project</span>
+<span class="k">import</span> <span class="k">type</span> { ConfigContext, ExpoConfig } <span class="k">from</span> <span class="s">'expo/config'</span>;
+
+<span class="k">const</span> variants = {
+  development: { name: <span class="s">'Lookout Dev'</span>, appId: <span class="s">'com.example.shorelinelookout.dev'</span> },
+  preview: { name: <span class="s">'Lookout Preview'</span>, appId: <span class="s">'com.example.shorelinelookout.preview'</span> },
+  production: { name: <span class="s">'Shoreline Lookout'</span>, appId: <span class="s">'com.example.shorelinelookout'</span> },
+};
+<span class="k">type</span> Variant = <span class="k">keyof</span> <span class="k">typeof</span> variants;
+
+<span class="k">function</span> isVariant(value: <span class="k">string</span>): value <span class="k">is</span> Variant {
+  <span class="k">return</span> Object.hasOwn(variants, value);
+}
+
+<span class="c">// APP_VARIANT picks the variant; nothing set means development, so a forgotten setting never makes the store app</span>
+<span class="k">const</span> variant = process.env.APP_VARIANT ?? <span class="s">'development'</span>;
+<span class="k">if</span> (!isVariant(variant)) {
+  <span class="k">throw</span> <span class="k">new</span> Error(<span class="s">`APP_VARIANT must be development, preview or production, not "${variant}".`</span>);
+}
+
+<span class="c">// A store build must not talk plain http (release builds block it, and anyone on the Wi-Fi could read it)</span>
+<span class="k">const</span> apiUrl = process.env.EXPO_PUBLIC_API_URL ?? <span class="s">''</span>;
+<span class="k">if</span> (variant === <span class="s">'production'</span> &amp;&amp; !apiUrl.startsWith(<span class="s">'https://'</span>)) {
+  <span class="k">throw</span> <span class="k">new</span> Error(<span class="s">`A production build needs an https:// EXPO_PUBLIC_API_URL, not "${apiUrl}".`</span>);
+}
+
+<span class="k">export</span> <span class="k">default</span> ({ config }: ConfigContext): ExpoConfig =&gt; ({
+  ...config,
+  name: variants[variant].name,
+  slug: <span class="s">'shoreline-lookout'</span>,
+  version: <span class="s">'1.0.0'</span>,
+  <span class="c">// With the development build and the store app on one phone, a link should open the right one</span>
+  scheme: variant === <span class="s">'development'</span> ? <span class="s">'shorelinelookout-dev'</span> : <span class="s">'shorelinelookout'</span>,
+  ios: {
+    bundleIdentifier: variants[variant].appId,
+  },
+  android: {
+    package: variants[variant].appId,
+  },
+  plugins: [
+    [
+      <span class="s">'expo-location'</span>,
+      {
+        locationWhenInUsePermission: <span class="s">'Shoreline Lookout uses your location to show the beach nearest to you.'</span>,
+        locationAlwaysAndWhenInUsePermission: <span class="k">false</span>,
+        locationAlwaysPermission: <span class="k">false</span>,
+      },
+    ],
+    <span class="c">// A key from .env.local or the build service's secrets: never written in this file</span>
+    [<span class="s">'react-native-maps'</span>, { androidGoogleMapsApiKey: process.env.ANDROID_GOOGLE_MAPS_API_KEY }],
+  ],
+});</pre><pre class="out"> PASS  src/config.test.ts
+  ✓ Task 1: development by default: Lookout Dev, with the .dev id on both platforms
+  ✓ Task 1: APP_VARIANT=preview gives Lookout Preview and the .preview id
+  ✓ Task 1: a misspelled variant stops with a message that names it
+  ✓ Task 2: production refuses plain http and accepts https
+  ✓ Task 2: only development gets its own link scheme
+  ✓ Task 3: the Maps key comes from ANDROID_GOOGLE_MAPS_API_KEY, never from the file
+Tests:       6 passed, 6 total</pre>
+  <div class="sec"><h2>The Lessons' Own Quick Quizzes</h2><span class="rule"></span></div>
+<p>The five questions on each lesson page, with the answers the page marks as correct.</p>
+<div class="blk"><div class="h">Lesson 8.4 · Performance and Debugging</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="8.4">
+  <li><b>B</b> DevTools needs the app running in Hermes, on a phone or emulator; the web preview runs in the browser's engine: React Native DevTools connects to an app running Hermes, such as Shoreline Crew in Expo Go on a phone or emulator. The web preview runs in the browser's own JavaScript engine: debug it with the browser's DevTools and the React Developer Tools extension.</li>
+  <li><b>D</b> Record the slow interaction in the Profiler and see whether EventCard renders needlessly, and whether it matters: With the compiler on, EventCard is already memoized where the compiler can prove it safe. Record the interaction in the Profiler, see whether EventCard renders more than it should and whether it costs real time, and only then change one thing and measure again.</li>
+  <li><b>A</b> The JavaScript work done when rows render, using the Profiler: The JS number is the JavaScript thread: rendering the rows that scroll into view is its work. The native side keeps up, so look at what the rows do in JavaScript on each render, with the Profiler.</li>
+  <li><b>C</b> Expo Router only loads @expo/ui on Android, so it was never in the iOS bundle: Expo Router loads @expo/ui only in its Android code (its Android toolbar), so the package was only ever in the Android bundle. Each platform gets its own bundle, which is why you measure each one.</li>
+  <li><b>B</b> A test that fails without the fix proves it catches this bug, and it reproduces the report in a second: A test that fails without the fix and passes with it proves it checks this bug. Written after the fix, it might pass for an unrelated reason and never catch the bug if it came back. The failing test was also the quickest way to reproduce the report again and again.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 9.1 · App Config and Environments</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="9.1">
+  <li><b>D</b> Shoreline Dev, version 1.0.0: No APP_VARIANT means development, so the name is Shoreline Dev. Choosing development as the default keeps npx expo start working as before, and a build that forgot its variant gets the .dev id, so it can never replace the real app.</li>
+  <li><b>B</b> .env.example is committed, so the key is now in the repository: replace the key, keep it in .env.local or the build service's secrets, and restrict it: .env.example is committed for everyone to copy, so the key is now in the repository and its history. Replace the key in Google Cloud, keep the real one in .env.local and the build service's secrets, and restrict it to Maps on Android, the app's package name and the signing certificate.</li>
+  <li><b>A</b> Android release builds block plain http unless the app's manifest allows cleartext traffic: Android release builds refuse cleartext http unless the manifest allows it. Expo Go and debug builds allow it, which is why it worked before. The preview variant allows it with expo-build-properties; production uses an https server instead.</li>
+  <li><b>C</b> Add the plugin entry the message shows to the plugins array in app.config.ts, then check it with introspect: The package is installed; only the config edit is left to you. Add the entry the message shows (with the options the package documents, such as its permission sentence) to the plugins array, then check the result with npx expo config --type introspect.</li>
+  <li><b>B</b> A phone replaces an installed app with any build that has the same id, so different ids let the three sit side by side: A phone treats the id as the app's identity: a build with an id that is already installed replaces that app and its data. With three ids, a crew leader can have the preview and the store app side by side, and a test build never overwrites the volunteers' app.</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li>Reproduce, read the error, narrow it down, fix one thing, keep a test that fails without the fix.</li>
+  <li>Zod's messages in about 40 languages (275 KB on Android) or @expo/ui (78 KB, used by nothing); found with Expo Atlas, the export's numbers, a search of src and <code class="inline">npm ls</code>.</li>
+  <li>Shoreline Dev, com.example.shorelinecrew.dev; a build that forgot its variant can never replace the real app, and <code class="inline">npx expo start</code> keeps working with the laptop's http address.</li>
+</ol>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 22 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

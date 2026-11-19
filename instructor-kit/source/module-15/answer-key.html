@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 15</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 15: Camera, Photos, Location and Maps</h1>
+    <p class="sub">Answers and reasoning for every Session 15 item: the warm-up, both self-checks, the predict-then-check items, the demo scripts, the lab reference outputs, the lesson pages' own quizzes and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>15</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Start Here · Warm-up</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>W1:</b> the blocked face with Open Settings: an iPhone asks once, and one Don't Allow is final (Lesson 6.1; documentation-based). He can still choose photos: the library needs no permission, so a photo taken with the phone's camera app can go on the log (tonight, Lesson 6.2).</li>
+  <li><b>W2:</b> the photos, each answered with an id; then the log listing those ids. The API refuses a log that names a photo it has never seen ("Upload each photo first and send the ids it returned."): bags first, then the tally sheet.</li>
+  <li><b>W3:</b> usually a few megabytes each, some bigger. Over one bar of signal that is slow at best, and over 5 MB the API refuses it (413). Tonight: <code class="inline">quality: 0.6</code>, no EXIF, JPEG, checked when added.</li>
+</ol>
+
+  <div class="sec"><h2>6.2 · Camera and Photos: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">On his iPhone Theo answered "Don't Allow" to Shoreline Crew's camera question. Which photo feature still works for him, and why?</div><div class="opts"><div class="opt">A) None: photos need the camera permission</div><div class="opt">B) Take a photo, once he presses Continue again</div><div class="opt correct">C) Choose photos: the photo library needs no permission, so a picture he took with the camera app can still go on the log</div><div class="opt">D) Only uploading photos he chose before</div></div><div class="why"><b>Why:</b> <code class="inline">launchImageLibraryAsync</code> opens the system picker, which runs outside the app: no permission on current iPhones and Android phones. That is Lesson 6.1's "a no is an answer": Not now brings the buttons back, and Choose photos is the other way round. (Documentation-based: the course could not run a phone.)<br><b>A</b> is wrong: Only the camera needs a yes.<br><b>B</b> is wrong: On an iPhone one no is final: the blocked face, Open Settings.<br><b>D</b> is wrong: Uploading needs no permission at all; and nothing was uploaded when chosen.</div></div>
+  <div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The classic React Native upload from older answers, written in postPhoto. <code class="inline">npx tsc --noEmit</code> prints this (the kit ran it). What is the fix?</div><pre class="code">src/api/client.ts:452:8 - error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: string, value: string | Blob): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+  Overload 2 of 3, '(name: string, value: string): void', gave the following error.
+    Argument of type '{ uri: string; name: string; type: string; }' is not assignable to parameter of type 'string'.
+  Overload 3 of 3, '(name: string, blobValue: Blob, filename?: string | undefined): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+
+452   body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+           ~~~~~~</pre><div class="opts"><div class="opt">A) Silence it: <code class="inline">as unknown as Blob</code></div><div class="opt correct">B) Send the photo itself as the body (an expo-file-system File is a Blob), with its kind in Content-Type</div><div class="opt">C) Install a FormData polyfill</div><div class="opt">D) Set <code class="inline">Content-Type: multipart/form-data</code> by hand</div></div><div class="why"><b>Why:</b> Read the overloads: <code class="inline">append</code> takes a string or a Blob, and <code class="inline">{ uri, name, type }</code> is neither. SDK 58's fetch is Expo's own (expo/fetch) and sends Blobs, not file addresses. postPhoto sends the API's second form: the image as the body, <code class="inline">Content-Type: image/jpeg</code>.<br><b>A</b> is wrong: The error is right: with the cast, Expo's fetch fails at run time ("Unsupported FormDataPart implementation").<br><b>C</b> is wrong: FormData exists; the part is the problem.<br><b>D</b> is wrong: The body is still not bytes; and a hand-written multipart type has no boundary.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">Someone adds the cast and ships the old FormData part. What happens on a phone when the queue sends the log?</div><div class="opts"><div class="opt">A) The photo is uploaded as before</div><div class="opt">B) shoreline-api answers 415</div><div class="opt">C) tsc catches it at the next build</div><div class="opt correct">D) Expo's fetch throws "Unsupported FormDataPart implementation" inside itself: the client reports a NetworkError, and the queue counts a try and waits for a signal that is already there</div></div><div class="why"><b>Why:</b> The kit ran Expo's own <code class="inline">convertFormDataAsync</code> (copied from node_modules/expo, as the lesson did): <code class="inline">old way: Error: Unsupported FormDataPart implementation</code>, while a Blob part converts. The error never reaches the server, so it looks like no signal. The lesson's advice: when only uploads "cannot reach the server", suspect the body.<br><b>A</b> is wrong: Not with SDK 58's fetch: it only turns text and Blobs into bytes.<br><b>B</b> is wrong: Nothing reaches the server.<br><b>C</b> is wrong: The cast silences tsc for good.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">The kit sent one real JPEG to <code class="inline">POST /api/photos</code> labeled <code class="inline">image/heic</code>, as an iPhone photo can arrive without the picker's "compatible" option. What did shoreline-api answer, and what does the queue do with the log?</div><div class="opts"><div class="opt correct">A) 415 "Photos must be JPEG, PNG or WebP images.": refused with the server's words, never sent again by itself</div><div class="opt">B) 201: the API converts HEIC</div><div class="opt">C) 413: HEIC files are too big</div><div class="opt">D) 500: try again later</div></div><div class="why"><b>Why:</b> A 415 (and a 413 for a 9 MB PNG: "Photos must be 5 MB or smaller.") will not change on the next try, so it lands in the sender's 4xx branch, like Lesson 5.5's 403. That is why LogPhotos checks the type and size when a photo is ADDED, while the volunteer can still choose another.<br><b>B</b> is wrong: The API takes JPEG, PNG and WebP only.<br><b>C</b> is wrong: The bytes were 28,955: size was not the problem.<br><b>D</b> is wrong: Nothing went wrong on the server; the answer is final.</div></div>
+  <div class="q" data-sc="5" data-kind="short"><div class="qn">Q5</div><div class="qt">Two decisions in Lesson 6.2's queue: why does each photo move from the cache into the app's documents, and why is each photo's id saved with <code class="inline">setPhotoId</code> the moment it arrives?</div><div class="opts"><div class="opt correct">The phone may empty the cache when storage runs low, and a log can wait for days: in documents its photos survive until the server has them (then forgetPhoto deletes them). Photos have no clientId: shoreline-api stores every upload as a new photo, so if the photos went up and the log's answer was lost, the next try must send the log with the saved ids instead of uploading again.</div></div><div class="why"><b>Why:</b> The four questions of "For your own app": how big, where it waits, when it goes, what a retry may repeat. Lab 6.2 Task 2 has a test for the lost answer: two uploads in all, the item sent twice with the same ids.</div></div>
+  <div class="q" data-sc="6"><div class="qn">Q6</div><div class="qt">Lesson 6.2 adds <code class="inline">photos</code> to every queued log. Theo updates the app with two logs saved yesterday, without a photos list. What keeps them?</div><div class="opts"><div class="opt">A) Nothing is needed: merge keeps everything</div><div class="opt correct">B) <code class="inline">version: 1</code> and a <code class="inline">migrate</code> that gives each version-0 log <code class="inline">photos: []</code> before the check</div><div class="opt">C) Clearing AsyncStorage at startup</div><div class="opt">D) <code class="inline">skipHydration: true</code></div></div><div class="why"><b>Why:</b> persist saves a version number with the data and calls migrate when the saved version is older. Without it, Lesson 5.5's merge check (which now requires photos) throws yesterday's logs away. Lab 6.2's Task 3 fails exactly that way until migrate is there.<br><b>A</b> is wrong: merge checks the shape: logs without photos fail it.<br><b>C</b> is wrong: That throws the logs away on purpose.<br><b>D</b> is wrong: That decides WHEN the queue is read back, not what survives.</div></div>
+
+  <div class="sec"><h2>6.2 · Camera and Photos: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">One real JPEG (28,955 bytes) is sent to <code class="inline">POST /api/photos</code> twice more: labeled <code class="inline">image/heic</code>, and then a 9 MB PNG. Predict each status code and message, and what the queue would do with a log that carried each photo.</div><pre class="code"><span class="c">// What shoreline-api answers to a HEIC photo and to a 9 MB PNG</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">async</span> <span class="k">function</span> send(label, body, <span class="k">type</span>) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/photos`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span>, <span class="s">'Content-Type'</span>: <span class="k">type</span> },
+    body,
+  });
+  console.log(<span class="s">`# ${label}`</span>);
+  console.log(<span class="s">`HTTP/1.1 ${response.status} ${response.statusText}`</span>);
+  console.log(JSON.stringify(<span class="k">await</span> response.json(), <span class="k">null</span>, <span class="s">2</span>));
+}
+<span class="k">const</span> jpeg = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/images/sites/otter-creek.jpg`</span>)).blob();
+<span class="k">await</span> send(<span class="s">'Content-Type: image/heic'</span>, jpeg, <span class="s">'image/heic'</span>);
+console.log(<span class="s">''</span>);
+<span class="k">await</span> send(<span class="s">'a 9 MB PNG'</span>, <span class="k">new</span> Blob([<span class="k">new</span> Uint8Array(<span class="s">9</span> * <span class="s">1024</span> * <span class="s">1024</span>)]), <span class="s">'image/png'</span>);</pre><div class="opts"><div class="opt correct"><pre class="out"># Content-Type: image/heic
+HTTP/1.1 415 Unsupported Media Type
+{
+  "error": "unsupported_media_type",
+  "message": "Photos must be JPEG, PNG or WebP images."
+}
+
+# a 9 MB PNG
+HTTP/1.1 413 Payload Too Large
+{
+  "error": "payload_too_large",
+  "message": "Photos must be 5 MB or smaller."
+}</pre></div></div><div class="why"><b>Why:</b> Run against the course API (a private copy, sample data built around one fixed day): the lesson card of Common Mistakes, line for line (its <code class="inline">...</code> lines aside). The bytes were a real JPEG of 28,955 bytes: only the label changed, so the API refuses by Content-Type. Both answers are final for that photo, and in the queue they make the whole log refused, like Lesson 5.5's 403. The same photo labeled <code class="inline">image/jpeg</code> gets 201 (the demo's first script).</div></div>
+
+  <div class="sec"><h2>6.3 · Location and Maps: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">Theo checks in at today's cleanup with the right code; the answer is lost and he presses Check in again. What does shoreline-api answer the second time? (The kit ran it.)</div><div class="opts"><div class="opt correct">A) 200, still attended, with the same checkedInAt: a retry is safe</div><div class="opt">B) 409: already checked in</div><div class="opt">C) 400: the code was used</div><div class="opt">D) 201 and a second sign-up</div></div><div class="why"><b>Why:</b> The kit's run: <code class="inline">Theo at e17 with 6544: 200, status attended</code>, then <code class="inline">Again: 200, status attended, same checkedInAt: true</code>. The check-in is idempotent, which is why a paused mutation may simply be sent again when the phone is back online.<br><b>B</b> is wrong: 409s are the wrong day and no confirmed spot.<br><b>C</b> is wrong: The code is the day's, not single-use.<br><b>D</b> is wrong: The check-in changes the existing sign-up to attended.</div></div>
+  <div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">Why does Shoreline Crew NOT put check-ins in Lesson 5.5's saved queue?</div><div class="opts"><div class="opt">A) A check-in is too big for AsyncStorage</div><div class="opt">B) The API has no clientId for check-ins</div><div class="opt">C) TanStack Query cannot pause a mutation</div><div class="opt correct">D) A late check-in can never work (only on the day), a wrong code needs the volunteer now, and the organizer needs to see it now</div></div><div class="why"><b>Why:</b> Offline, the check-in is a paused mutation in memory with the honest line "No connection: your check-in is sent when you are back online. Keep Shoreline Crew open until then." If the app closes, the volunteer checks in again or the organizer marks them present in Shoreline Crew HQ. A debris log, by contrast, is welcome hours later.<br><b>A</b> is wrong: It is four digits.<br><b>B</b> is wrong: Idempotency comes from the API's rule (attended stays attended), not a clientId.<br><b>C</b> is wrong: Pausing is exactly what it does offline (Lesson 5.2).</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">You created <code class="inline">src/app/check-in/[id].tsx</code> and linked to it while Metro was stopped. <code class="inline">npx tsc --noEmit</code> prints (among others) this. What is the fix?</div><pre class="code">src/app/check-in/[id].tsx:34:39 - error TS2344: Type '"/check-in/[id]"' does not satisfy the constraint 'RoutePath'.
+
+34   const { id } = useLocalSearchParams&lt;'/check-in/[id]'&gt;();</pre><div class="opts"><div class="opt">A) Change the type parameter to <code class="inline">RoutePath</code></div><div class="opt">B) Add the route to <code class="inline">.expo/types/router.d.ts</code> by hand</div><div class="opt correct">C) Start Metro (<code class="inline">npx expo start</code>): Expo Router rewrites the route list, then tsc prints nothing</div><div class="opt">D) Remove the type parameter from useLocalSearchParams</div></div><div class="why"><b>Why:</b> The code is right; the list of routes is old. The kit ran it: three errors with Metro stopped (the lesson's card), then <code class="inline">npx expo start</code>, then <code class="inline">npx tsc --noEmit</code> printed nothing. router.d.ts is rewritten every time: never edit it.<br><b>A</b> is wrong: '/check-in/[id]' IS the right route: it is just not in the list yet.<br><b>B</b> is wrong: It is rewritten each time Metro runs.<br><b>D</b> is wrong: That hides the error and loses the typed <code class="inline">id</code>.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">An organizer suggests: "Only allow check-in within 300 m of the meeting point." Under the cliff at Otter Creek, Theo's phone reports <code class="inline">accuracy: 400</code>. What is the problem?</div><div class="opts"><div class="opt">A) None: 300 m is generous</div><div class="opt correct">B) The circle is 400 m wide, so the rule could refuse someone standing on the right spot; and a check on the phone can be changed by whoever holds it</div><div class="opt">C) accuracy 400 means the phone is 400 m from the pin</div><div class="opt">D) Accuracy.Highest always fixes it</div></div><div class="why"><b>Why:</b> A position is a circle: accuracy is its radius in meters. Phones report 50 to 500 m under cliffs and in creek valleys, and mocked or edited positions exist. Rules belong on the server; the code is the proof, the location a hint (Exercise 3, Lab 6.3 Task 1).<br><b>A</b> is wrong: Not when the circle is wider than the rule.<br><b>C</b> is wrong: It is the uncertainty, not the distance.<br><b>D</b> is wrong: More accuracy costs time and battery and still depends on the sky; it does not change who controls the phone.</div></div>
+  <div class="q" data-sc="11" data-kind="short"><div class="qn">Q11</div><div class="qt">What does <code class="inline">npx expo export --platform web</code> do when a route imports react-native-maps with no <code class="inline">.web.tsx</code> stand-in, why the WHOLE web build, and what is the fix?</div><div class="opts"><div class="opt correct">It stops: "Metro error: (0 , r(...).codegenNativeComponent) is not a function". react-native-maps defines native components when it is loaded, and react-native-web has no codegenNativeComponent. Expo Router's web build loads every route to render the pages on the server, so one import stops all of them. Fix: SiteMap.web.tsx next to SiteMap.tsx, same props, never importing react-native-maps.</div></div><div class="why"><b>Why:</b> The kit removed SiteMap.web.tsx from the finished code and ran the export: the lesson's card, line for line (the bundle sizes aside). Lab 6.3's web check shows the same message for a plain app.</div></div>
+  <div class="q" data-sc="12"><div class="qn">Q12</div><div class="qt">In the web preview, Open in Maps opens OpenStreetMap. Why does the button use React Native's <code class="inline">Linking.openURL</code> and not expo-linking's?</div><div class="opts"><div class="opt">A) expo-linking cannot open https links</div><div class="opt">B) React Native's Linking adds the map provider</div><div class="opt">C) expo-linking needs a permission on the web</div><div class="opt correct">D) On the web, expo-linking's openURL replaces the page (leaving the app and, with the memory-only session, signing the volunteer out); React Native's opens a new tab</div></div><div class="why"><b>Why:</b> Measured in the lesson. On a phone both hand the link to the system: maps.apple.com on an iPhone, a geo: link on Android (documentation-based). Platform.select in mapLink picks the link.<br><b>A</b> is wrong: It opens them: in the same tab.<br><b>B</b> is wrong: The link itself names the map.<br><b>C</b> is wrong: Opening a link needs no permission.</div></div>
+
+  <div class="sec"><h2>6.3 · Location and Maps: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Four check-ins and two reads: Theo at a cleanup three days away; Amara (no spot) at today's; Theo at today's with 6544, twice; then today's cleanup as the organizer and as Theo. Predict each answer.</div><pre class="code"><span class="c">// The check-in's answers: the wrong day, no spot, the right code twice, and who sees the code</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">async</span> <span class="k">function</span> checkIn(token, eventId, code) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/${eventId}/check-in`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { Authorization: <span class="s">`Bearer ${token}`</span>, <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+    body: JSON.stringify({ code }),
+  });
+  <span class="k">return</span> { status: response.status, body: <span class="k">await</span> response.json() };
+}
+<span class="k">const</span> signIn = <span class="k">await</span> fetch(<span class="s">`${api}/api/auth/sign-in`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+  body: JSON.stringify({ email: <span class="s">'amara.diallo@example.com'</span>, password: <span class="s">'shoreline-demo'</span> }),
+});
+<span class="k">const</span> amara = (<span class="k">await</span> signIn.json()).token;
+
+<span class="k">const</span> early = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e08'</span>, <span class="s">'6544'</span>); <span class="c">// Theo, Weekend Cove Cleanup: in three days</span>
+console.log(<span class="s">`Theo at e08 (not today): ${early.status} ${early.body.message}`</span>);
+<span class="k">const</span> noSpot = <span class="k">await</span> checkIn(amara, <span class="s">'e17'</span>, <span class="s">'6544'</span>); <span class="c">// Amara has no spot at today's cleanup</span>
+console.log(<span class="s">`Amara at e17 (no spot): ${noSpot.status} ${noSpot.body.message}`</span>);
+
+<span class="k">const</span> first = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e17'</span>, <span class="s">'6544'</span>);
+console.log(<span class="s">`Theo at e17 with 6544: ${first.status}, status ${first.body.status}`</span>);
+<span class="k">const</span> again = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e17'</span>, <span class="s">'6544'</span>); <span class="c">// the answer was lost: he presses again</span>
+console.log(<span class="s">`Again: ${again.status}, status ${again.body.status}, same checkedInAt: ${again.body.checkedInAt === first.body.checkedInAt}`</span>);
+
+<span class="k">const</span> asMaya = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17`</span>, { headers: { Authorization: <span class="s">'Bearer dev-organizer'</span> } })).json();
+<span class="k">const</span> asTheo = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17`</span>, { headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span> } })).json();
+console.log(<span class="s">`GET /api/events/e17 as Maya (organizer): checkInCode ${asMaya.checkInCode}`</span>);
+console.log(<span class="s">`GET /api/events/e17 as Theo: checkInCode ${'checkInCode' in asTheo ? asTheo.checkInCode : '(not sent)'}`</span>);</pre><div class="opts"><div class="opt correct"><pre class="out">Theo at e08 (not today): 409 Check-in opens on the day of the cleanup.
+Amara at e17 (no spot): 409 You need a confirmed spot to check in.
+Theo at e17 with 6544: 200, status attended
+Again: 200, status attended, same checkedInAt: true
+GET /api/events/e17 as Maya (organizer): checkInCode 6544
+GET /api/events/e17 as Theo: checkInCode (not sent)</pre></div></div><div class="why"><b>Why:</b> The wrong day and no confirmed spot are 409s in the API's words (the modal says them before anyone types). The right code twice is 200 both times, and the second keeps the first time: idempotent, so a paused mutation may simply be sent again. Only an organizer's sign-in gets the code. And with a wrong code, the 400 names the field:<pre class="out">HTTP/1.1 400 Bad Request
+cache-control: no-store
+content-type: application/json; charset=utf-8
+
+{
+  "error": "validation_failed",
+  "message": "Some fields need attention.",
+  "fieldErrors": {
+    "code": [
+      "That code does not match. Ask the organizer for today's code."
+    ]
+  }
+}</pre></div></div>
+
+  <div class="sec"><h2>Demo Scripts (for the projector)</h2><span class="rule"></span></div>
+<p>The scripts of the two demos, exactly as the kit ran them (Node 24). Save the first three in the copy of the finished Lesson 6.2 code (<code class="inline">lesson-21-end</code>, with <code class="inline">npm ci</code> done) and run them from its <code class="inline">shoreline-crew</code> folder; <code class="inline">formdata.mjs</code> reads Expo's own code from that folder's <code class="inline">node_modules</code> and needs no API. Save <code class="inline">checkins.mjs</code> in the Lesson 6.3 copy. The others need the API running at <code class="inline">http://localhost:4000</code> (or the address in <code class="inline">API_URL</code>); restart the API before the session, so Theo's check-in at today's cleanup is not already done (or <code class="inline">curl -X POST http://localhost:4000/api/_reset</code>, as the lesson says).</p>
+<div class="blk"><div class="h">photo.mjs (one real photo, the way postPhoto sends it)</div>
+<pre class="code"><span class="c">// A real JPEG (one of the API's own site pictures), sent the way postPhoto sends it: the photo is the body</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">const</span> theo = { Authorization: <span class="s">'Bearer dev-volunteer'</span> };
+<span class="k">const</span> jpeg = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/images/sites/otter-creek.jpg`</span>)).blob();
+
+<span class="k">const</span> upload = <span class="k">await</span> fetch(<span class="s">`${api}/api/photos`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { ...theo, <span class="s">'Content-Type'</span>: <span class="s">'image/jpeg'</span> },
+  body: jpeg,
+});
+<span class="k">const</span> photo = <span class="k">await</span> upload.json();
+console.log(<span class="s">`POST /api/photos (${jpeg.size} bytes): ${upload.status} ${upload.statusText}`</span>);
+console.log(<span class="s">`  the answer's fields: ${Object.keys(photo).join(', ')}`</span>);
+console.log(<span class="s">`  contentType ${photo.contentType}, bytes ${photo.bytes}, uploadedBy ${photo.uploadedBy}`</span>);
+
+<span class="k">const</span> back = <span class="k">await</span> fetch(photo.url); <span class="c">// no sign-in needed</span>
+console.log(<span class="s">`GET its url: ${back.status}, ${back.headers.get('content-type')}, ${(await back.arrayBuffer()).byteLength} bytes`</span>);
+
+<span class="c">// The tally sheet names the bag: a debris log for today's cleanup, listing the photo's id</span>
+<span class="k">const</span> log = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17/logs`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { ...theo, <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+  body: JSON.stringify({
+    clientId: <span class="s">'6f1d2c3b-8a47-4e0b-9b1e-5c2a7d9e4f10'</span>,
+    items: [{ category: <span class="s">'fishing-gear'</span>, count: <span class="s">3</span> }],
+    bags: <span class="s">1</span>,
+    weightKg: <span class="s">2.5</span>,
+    recordedAt: <span class="k">new</span> Date().toISOString(),
+    photoIds: [photo.id],
+  }),
+});
+<span class="k">const</span> saved = <span class="k">await</span> log.json();
+console.log(<span class="s">`POST /api/events/e17/logs with photoIds [its id]: ${log.status}, photoIds kept: ${saved.photoIds?.[0] === photo.id}`</span>);</pre><pre class="out">POST /api/photos (28955 bytes): 201 Created
+  the answer's fields: id, url, contentType, bytes, uploadedBy, createdAt
+  contentType image/jpeg, bytes 28955, uploadedBy v04
+GET its url: 200, image/jpeg, 28955 bytes
+POST /api/events/e17/logs with photoIds [its id]: 201, photoIds kept: true</pre></div>
+<div class="blk"><div class="h">refusals.mjs (Predict P1)</div>
+<pre class="code"><span class="c">// What shoreline-api answers to a HEIC photo and to a 9 MB PNG</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">async</span> <span class="k">function</span> send(label, body, <span class="k">type</span>) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/photos`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span>, <span class="s">'Content-Type'</span>: <span class="k">type</span> },
+    body,
+  });
+  console.log(<span class="s">`# ${label}`</span>);
+  console.log(<span class="s">`HTTP/1.1 ${response.status} ${response.statusText}`</span>);
+  console.log(JSON.stringify(<span class="k">await</span> response.json(), <span class="k">null</span>, <span class="s">2</span>));
+}
+<span class="k">const</span> jpeg = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/images/sites/otter-creek.jpg`</span>)).blob();
+<span class="k">await</span> send(<span class="s">'Content-Type: image/heic'</span>, jpeg, <span class="s">'image/heic'</span>);
+console.log(<span class="s">''</span>);
+<span class="k">await</span> send(<span class="s">'a 9 MB PNG'</span>, <span class="k">new</span> Blob([<span class="k">new</span> Uint8Array(<span class="s">9</span> * <span class="s">1024</span> * <span class="s">1024</span>)]), <span class="s">'image/png'</span>);</pre><pre class="out"># Content-Type: image/heic
+HTTP/1.1 415 Unsupported Media Type
+{
+  "error": "unsupported_media_type",
+  "message": "Photos must be JPEG, PNG or WebP images."
+}
+
+# a 9 MB PNG
+HTTP/1.1 413 Payload Too Large
+{
+  "error": "payload_too_large",
+  "message": "Photos must be 5 MB or smaller."
+}</pre></div>
+<div class="blk"><div class="h">formdata.mjs (Expo's own fetch code on the old FormData part: the lesson's measurement)</div>
+<pre class="code"><span class="c">// Expo's own code from node_modules: SDK 58's fetch turns a FormData into bytes with convertFormDataAsync</span>
+<span class="k">import</span> { readFileSync, writeFileSync } <span class="k">from</span> <span class="s">'node:fs'</span>;
+<span class="k">const</span> build = <span class="s">'node_modules/expo/build'</span>;
+writeFileSync(<span class="s">'blobUtils.mjs'</span>, readFileSync(<span class="s">`${build}/utils/blobUtils.js`</span>, <span class="s">'utf8'</span>));
+writeFileSync(<span class="s">'convertFormData.mjs'</span>, readFileSync(<span class="s">`${build}/winter/fetch/convertFormData.js`</span>, <span class="s">'utf8'</span>)
+  .replace(<span class="s">'../../utils/blobUtils'</span>, <span class="s">'./blobUtils.mjs'</span>));
+<span class="k">const</span> { convertFormDataAsync } = <span class="k">await</span> <span class="k">import</span>(<span class="s">'./convertFormData.mjs'</span>);
+
+<span class="k">function</span> rnFormData() { <span class="c">// React Native's FormData keeps each part as it was appended</span>
+  <span class="k">const</span> parts = [];
+  <span class="k">return</span> { append: (name, value) =&gt; parts.push([name, value]), entries: <span class="k">function</span>* () { <span class="k">yield</span>* parts; } };
+}
+<span class="k">const</span> old = rnFormData();
+old.append(<span class="s">'photo'</span>, { uri: <span class="s">'file:///data/user/0/host.exp.exponent/cache/ImagePicker/1234.jpeg'</span>, name: <span class="s">'photo.jpg'</span>, <span class="k">type</span>: <span class="s">'image/jpeg'</span> });
+<span class="k">try</span> {
+  <span class="k">await</span> convertFormDataAsync(old);
+  console.log(<span class="s">'old way: converted'</span>);
+} <span class="k">catch</span> (error) {
+  console.log(<span class="s">`old way: ${error.name}: ${error.message}`</span>);
+}
+<span class="k">const</span> blobWay = rnFormData();
+blobWay.append(<span class="s">'photo'</span>, <span class="k">new</span> Blob([<span class="k">new</span> Uint8Array([<span class="s">0</span>xff, <span class="s">0</span>xd8, <span class="s">0</span>xff])], { <span class="k">type</span>: <span class="s">'image/jpeg'</span> }));
+<span class="k">const</span> { body } = <span class="k">await</span> convertFormDataAsync(blobWay);
+console.log(<span class="s">`a Blob part: converted, ${body.length} bytes`</span>);</pre><pre class="out">old way: Error: Unsupported FormDataPart implementation
+a Blob part: converted, 171 bytes</pre></div>
+<div class="blk"><div class="h">checkins.mjs (Predict P2)</div>
+<pre class="code"><span class="c">// The check-in's answers: the wrong day, no spot, the right code twice, and who sees the code</span>
+<span class="k">const</span> api = process.env.API_URL ?? <span class="s">'http://localhost:4000'</span>;
+<span class="k">async</span> <span class="k">function</span> checkIn(token, eventId, code) {
+  <span class="k">const</span> response = <span class="k">await</span> fetch(<span class="s">`${api}/api/events/${eventId}/check-in`</span>, {
+    method: <span class="s">'POST'</span>,
+    headers: { Authorization: <span class="s">`Bearer ${token}`</span>, <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+    body: JSON.stringify({ code }),
+  });
+  <span class="k">return</span> { status: response.status, body: <span class="k">await</span> response.json() };
+}
+<span class="k">const</span> signIn = <span class="k">await</span> fetch(<span class="s">`${api}/api/auth/sign-in`</span>, {
+  method: <span class="s">'POST'</span>,
+  headers: { <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span> },
+  body: JSON.stringify({ email: <span class="s">'amara.diallo@example.com'</span>, password: <span class="s">'shoreline-demo'</span> }),
+});
+<span class="k">const</span> amara = (<span class="k">await</span> signIn.json()).token;
+
+<span class="k">const</span> early = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e08'</span>, <span class="s">'6544'</span>); <span class="c">// Theo, Weekend Cove Cleanup: in three days</span>
+console.log(<span class="s">`Theo at e08 (not today): ${early.status} ${early.body.message}`</span>);
+<span class="k">const</span> noSpot = <span class="k">await</span> checkIn(amara, <span class="s">'e17'</span>, <span class="s">'6544'</span>); <span class="c">// Amara has no spot at today's cleanup</span>
+console.log(<span class="s">`Amara at e17 (no spot): ${noSpot.status} ${noSpot.body.message}`</span>);
+
+<span class="k">const</span> first = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e17'</span>, <span class="s">'6544'</span>);
+console.log(<span class="s">`Theo at e17 with 6544: ${first.status}, status ${first.body.status}`</span>);
+<span class="k">const</span> again = <span class="k">await</span> checkIn(<span class="s">'dev-volunteer'</span>, <span class="s">'e17'</span>, <span class="s">'6544'</span>); <span class="c">// the answer was lost: he presses again</span>
+console.log(<span class="s">`Again: ${again.status}, status ${again.body.status}, same checkedInAt: ${again.body.checkedInAt === first.body.checkedInAt}`</span>);
+
+<span class="k">const</span> asMaya = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17`</span>, { headers: { Authorization: <span class="s">'Bearer dev-organizer'</span> } })).json();
+<span class="k">const</span> asTheo = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${api}/api/events/e17`</span>, { headers: { Authorization: <span class="s">'Bearer dev-volunteer'</span> } })).json();
+console.log(<span class="s">`GET /api/events/e17 as Maya (organizer): checkInCode ${asMaya.checkInCode}`</span>);
+console.log(<span class="s">`GET /api/events/e17 as Theo: checkInCode ${'checkInCode' in asTheo ? asTheo.checkInCode : '(not sent)'}`</span>);</pre><pre class="out">Theo at e08 (not today): 409 Check-in opens on the day of the cleanup.
+Amara at e17 (no spot): 409 You need a confirmed spot to check in.
+Theo at e17 with 6544: 200, status attended
+Again: 200, status attended, same checkedInAt: true
+GET /api/events/e17 as Maya (organizer): checkInCode 6544
+GET /api/events/e17 as Theo: checkInCode (not sent)</pre></div>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, in a terminal like a learner's, in a fresh copy of the lab folder with the shared install). Test durations are left out; everything else is as printed.</p>
+<div class="blk lab"><div class="h">Lab 6.2 (guided): labs/module-15/l6_2-camera-and-photos/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> (verdict lines): Task 1's two rules, all of Task 2 (the old FormData part never gets a photo to the practice server) and Task 3's version fail:</p>
+<pre class="out"> FAIL  src/lab.test.tsx
+  ✓ Task 1: closing the picker changes nothing
+  ✓ Task 1: JPEG, PNG and WebP photos of 5 MB or less are added, with their kind and no id yet
+  ✕ Task 1: a HEIC, a GIF and a 9 MB PNG are not added, and one sentence says why
+  ✕ Task 1: never more than three photos, and "One photo was" for one
+  ✕ Task 2: the photos go up first, as themselves, then the item names their ids
+  ✕ Task 2: the answer was lost: the next try sends the item with the saved ids, no second upload
+  ✕ Task 2: a photo whose file is gone: the item goes without it
+  ✕ Task 2: a GIF in the queue: refused in the server's words, the JPEG before it kept its id
+  ✕ Task 3: the saved queue says which version wrote it
+  ✕ Task 3: an item saved before photos existed is kept, with an empty photo list
+  ✓ Task 3: a saved item nobody can read is still dropped
+Tests:       8 failed, 3 passed, 11 total</pre><p><code class="inline">npm run typecheck</code> as shipped: the lesson's TS2769, in the lab's sender:</p>
+<pre class="out">src/sendFound.ts:11:8 - error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: string, value: string | Blob): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+  Overload 2 of 3, '(name: string, value: string): void', gave the following error.
+    Argument of type '{ uri: string; name: string; type: string; }' is not assignable to parameter of type 'string'.
+  Overload 3 of 3, '(name: string, blobValue: Blob, filename?: string | undefined): void', gave the following error.
+    Object literal may only specify known properties, and 'uri' does not exist in type 'Blob'.
+
+11   body.append('photo', { uri: photo.uri, name: 'photo.jpg', type: photo.type });
+          ~~~~~~
+
+
+
+Found 1 error in src/sendFound.ts:11</pre><p>The solution: <code class="inline">npm test</code>; <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: closing the picker changes nothing
+  ✓ Task 1: JPEG, PNG and WebP photos of 5 MB or less are added, with their kind and no id yet
+  ✓ Task 1: a HEIC, a GIF and a 9 MB PNG are not added, and one sentence says why
+  ✓ Task 1: never more than three photos, and "One photo was" for one
+  ✓ Task 2: the photos go up first, as themselves, then the item names their ids
+  ✓ Task 2: the answer was lost: the next try sends the item with the saved ids, no second upload
+  ✓ Task 2: a photo whose file is gone: the item goes without it
+  ✓ Task 2: a GIF in the queue: refused in the server's words, the JPEG before it kept its id
+  ✓ Task 3: the saved queue says which version wrote it
+  ✓ Task 3: an item saved before photos existed is kept, with an empty photo list
+  ✓ Task 3: a saved item nobody can read is still dropped
+Tests:       11 passed, 11 total</pre><p>What each task shows: (1) the file's kind is <code class="inline">asset.mimeType</code>; keep JPEG, PNG and WebP of 5 MB or less, <code class="inline">slice(0, room)</code>, and one sentence counting the refused; (2) <code class="inline">postPhoto(photo: Blob, contentType)</code> sends the Blob as the body with <code class="inline">Content-Type</code>; uploadPhotos reads each file (<code class="inline">readPhoto</code>), skips a gone one, saves each id with <code class="inline">setPhotoId</code> before the next, reuses saved ids; after the item <code class="inline">forgetPhoto</code> each file; a 415 marks the item refused with the server's words; (3) <code class="inline">version: 1</code> and <code class="inline">migrate: (saved, version) =&gt; ({ items: ... .map(old =&gt; version === 0 ? { ...old, photos: [] } : old).filter(isQueuedItem) })</code>. Watch for ids saved only after the item went (the lost-answer test then counts four uploads).</p>
+</div>
+<div class="blk lab"><div class="h">Lab 6.3 (guided): labs/module-15/l6_3-location-and-maps/starter → solution</div>
+<p>As shipped: the tests (verdict lines), each failure's first message, the type check and the web check's last line:</p>
+<pre class="out"> FAIL  src/lab.test.tsx
+  ✓ Task 1: 60 m away, measured to 10 m: the van is here
+  ✓ Task 1: 900 m away: about 900 m
+  ✓ Task 1: the wrong beach, 6.2 km away: far
+  ✕ Task 1: under the cliff, a 400 m circle: unsure, never "here"
+  ✕ Task 1: no accuracy at all: unsure
+  ✕ Task 2: an iPhone link names the place, encoded
+  ✕ Task 2: an Android geo: link puts the pin at the place, with its label
+  ✓ Task 2: the web preview opens OpenStreetMap
+  ✕ Task 2: the blue dot only after a yes
+  ✕ Task 3: two digits is not a code: the form says so and asks nobody
+  ✕ Task 3: a wrong code: the server's words, for the code field
+  ✕ Task 3: the code with a leading zero: sent as it is, and the screen shows the kit picked up
+  ✓ Task 3: not the day yet: the server's words for the whole form
+Tests:       8 failed, 5 passed, 13 total</pre><pre class="out">● Task 1: under the cliff, a 400 m circle: unsure, never "here"
+  expect(received).toEqual(expected) // deep equality
+● Task 1: no accuracy at all: unsure
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: an iPhone link names the place, encoded
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: an Android geo: link puts the pin at the place, with its label
+  expect(received).toBe(expected) // Object.is equality
+● Task 2: the blue dot only after a yes
+  expect(received).toBeFalsy()
+● Task 3: two digits is not a code: the form says so and asks nobody
+  Unable to find an element with text: Enter the 4-digit code on the tag.
+● Task 3: a wrong code: the server's words, for the code field
+  Unable to find an element with text: That code does not match the tag on this kit.
+● Task 3: the code with a leading zero: sent as it is, and the screen shows the kit picked up
+  Unable to find an element with text: Kit 7: gloves, grabber, two bags: picked up. Have a good cleanup!</pre><pre class="out">src/PickupForm.tsx:48:13 - error TS2322: Type 'unknown' is not assignable to type 'string | undefined'.
+
+48             value={value}
+               ~~~~~
+
+  ../../../node_modules/react-native/types_generated/Libraries/Components/TextInput/TextInput.flow.d.ts:744:3
+    744   value?: string | undefined;
+          ~~~~~
+    The expected type comes from property 'value' which is declared here on type 'IntrinsicAttributes &amp; Omit&lt;TextInputProps, "ref"&gt; &amp; { ref?: Ref&lt;_TextInputInstance&gt; | undefined; }'
+
+
+Found 1 error in src/PickupForm.tsx:48</pre><pre class="out">The web bundle stops while loading: (0 , r(...).codegenNativeComponent) is not a function</pre><p>The solution: <code class="inline">npm test</code>, the web check, then <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines:</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: 60 m away, measured to 10 m: the van is here
+  ✓ Task 1: 900 m away: about 900 m
+  ✓ Task 1: the wrong beach, 6.2 km away: far
+  ✓ Task 1: under the cliff, a 400 m circle: unsure, never "here"
+  ✓ Task 1: no accuracy at all: unsure
+  ✓ Task 2: an iPhone link names the place, encoded
+  ✓ Task 2: an Android geo: link puts the pin at the place, with its label
+  ✓ Task 2: the web preview opens OpenStreetMap
+  ✓ Task 2: the blue dot only after a yes
+  ✓ Task 3: two digits is not a code: the form says so and asks nobody
+  ✓ Task 3: a wrong code: the server's words, for the code field
+  ✓ Task 3: the code with a leading zero: sent as it is, and the screen shows the kit picked up
+  ✓ Task 3: not the day yet: the server's words for the whole form
+Tests:       13 passed, 13 total</pre><pre class="out">The web bundle loads without an error.</pre><p>What each task shows: (1) <code class="inline">if (accuracy === null || accuracy &gt; 150) return { kind: 'unsure', ... }</code> before any distance: a 400 m circle cannot say "here"; (2) <code class="inline">encodeURIComponent(label)</code>; Android <code class="inline">geo:${at}?q=${at}(${name})</code>; <code class="inline">showsUserLocation={locationAllowed}</code>; <code class="inline">VanMap.web.tsx</code> with the same props and no react-native-maps (the web check then loads); (3) <code class="inline">z.string().trim().regex(/^\d{4}$/, ...)</code> (the field's value is a string again, so the type check passes), <code class="inline">onSettled: () =&gt; queryClient.invalidateQueries({ queryKey: ['kits', kitId] })</code>, and <code class="inline">setError('code', { message: error.fieldErrors.code[0] })</code> for a wrong code (anything else on the root). The 409 test passes even in the starter: a message for the whole form belongs on the root.</p>
+</div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 6.2 · Camera and Photos</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="6.2">
+  <li><b>B</b> Take a photo, which opens the camera: The camera needs the camera permission, so Take a photo goes through usePermission and PermissionGate. The library picker needs no permission on current phones, and uploading or showing your own files needs none either.</li>
+  <li><b>D</b> The log waits in the queue with its photos' file addresses; back online, the photos are uploaded first, then the log with their ids: The log and its photos' file addresses go into the queue, and the files wait in the app's documents. When the phone is back online, the sender uploads each photo, saves its id, then sends the log with those ids.</li>
+  <li><b>A</b> The phone may empty the cache when storage runs low, and a log can wait a long time to be sent: The phone may empty an app's cache when storage runs low, and a queued log can wait days for a signal. Documents are left alone, and Shoreline Crew deletes each photo itself once the server has it.</li>
+  <li><b>C</b> The photo's bytes as the body (an expo-file-system File is a Blob), with Content-Type such as image/jpeg: The body is the photo itself: an expo-file-system File, which is a Blob, with Content-Type set to the type the picker reported. shoreline-api accepts a raw image body as well as a multipart form, and SDK 58's fetch sends Blobs.</li>
+  <li><b>A</b> It sends the log again with the two saved photo ids, without uploading the photos again: setPhotoId saved each id in the queue the moment it arrived, so uploadPhotos skips both uploads and the log goes with the saved ids. The log's clientId then makes a resend safe, as in Lesson 5.5: the API answers 200 with the log it already has.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 6.3 · Location and Maps</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="6.3">
+  <li><b>B</b> The server checks the code; a position comes from the phone, can be faked or far off, and needs a yes to location: The server checks the code, and the app cannot change its answer. A position comes from the phone, can be faked by whoever holds it, can be hundreds of meters off under a cliff, and would lock out volunteers who said no to location.</li>
+  <li><b>D</b> It is gone: he checks in again, or the organizer marks him present: A paused mutation lives in memory only. Closing the app loses it, which the screen warned about. Theo checks in again when he has signal, or the organizer marks him present in Shoreline Crew HQ. Retrying is safe: the API's check-in is idempotent.</li>
+  <li><b>A</b> A SiteMap.web.tsx next to SiteMap.tsx that never imports react-native-maps: react-native-maps defines native components when it is imported, and the web has none. A SiteMap.web.tsx with the same props that never imports the package is what the web bundle uses instead; the phone keeps SiteMap.tsx.</li>
+  <li><b>C</b> The build has no Google Maps API key of its own (react-native-maps' androidGoogleMapsApiKey): Expo Go carries its own Google Maps key. Your own Android build needs yours, from a Google Cloud project, added with react-native-maps' config plugin (androidGoogleMapsApiKey) and restricted to your app.</li>
+  <li><b>B</b> On an iPhone, the prop alone makes the phone ask for location, with no reason given first: react-native-maps documents that showsUserLocation makes iOS ask for location. Always on, the phone would ask the moment the screen opens, with no explanation, and a Don't Allow there is final on an iPhone. Reading the answer asks nobody, so the dot appears only after an earlier yes.</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>The Lessons' Exercises: the Kit's Runs</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>6.2 Exercise 1 (predict the requests):</b> the lesson's solution was measured in the web preview; the kit's <code class="inline">photo.mjs</code> shows the server's side of case 1 (a photo up, then the log naming its id, 201) and <code class="inline">refusals.mjs</code> why case 4's PNG must never get into the log.</li>
+  <li><b>6.2, Step 3's tsc:</b> the kit's run is the lesson's TS2554 card, word for word (the form as Lesson 6.1 left it).</li>
+  <li><b>6.3 Exercise 1 (predict the face):</b> cases 1 and 2 are the API's 409 sentences, which the modal says before anyone types (<code class="inline">checkins.mjs</code>: "Check-in opens on the day of the cleanup." for Theo at e08); case 5 is the 400 above, under the field.</li>
+  <li><b>6.3, the new route:</b> three errors with Metro stopped (the lesson's card), then <code class="inline">npx expo start</code> and <code class="inline">npx tsc --noEmit</code> printed nothing (Self-check Q9).</li>
+</ul>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>The order:</b> each photo without an id is uploaded first (its id saved in the queue the moment it arrives), then the log with photoIds; then the logbook, then the files are deleted. The API refuses a log that names a photo it has never seen; a saved id means a retry never uploads twice.</li>
+  <li><b>The code:</b> the server checks it (the app cannot change the answer), it works under a cliff and after a no to location, and it proves the volunteer heard the organizer. A position comes from the phone (mock locations, edited code), can be hundreds of meters off, and needs a yes to location: a hint, never a rule.</li>
+  <li><b>A stand-in:</b> <code class="inline">SiteMap.web.tsx</code> next to <code class="inline">SiteMap.tsx</code>, with the same props, never importing react-native-maps; otherwise <code class="inline">npx expo export --platform web</code> stops with "codegenNativeComponent is not a function" (the web preview shows it full screen).</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 A.</b> Thinks every photo needs the camera permission. Back to the two ways to a photo.</li>
+  <li><b>Q2 A.</b> Trusts the online answers' cast. Show the demo's <code class="inline">formdata.mjs</code> run.</li>
+  <li><b>Q4 B or C.</b> Expects the API to convert or misreads the size. Show <code class="inline">refusals.mjs</code>: same bytes, only the label changed.</li>
+  <li><b>Q8 A.</b> Puts everything offline in the queue. Ask when a late check-in could ever succeed.</li>
+  <li><b>Q9 B.</b> Edits generated files. Show the run: start Metro, then tsc prints nothing.</li>
+  <li><b>Q10 A or C.</b> Reads accuracy as a distance. Draw the circle around the dot.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 15 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

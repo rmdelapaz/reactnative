@@ -1,0 +1,30 @@
+# Runs on GitHub's computers for every push to main and every pull request (Lesson 9.3).
+# This folder is the whole repository: package.json sits next to .github.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The checks only read the code: no write access to the repository
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Types, lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # expo-env.d.ts and the typed routes are made by `npx expo start`, which never runs here:
+      # this writes them without starting Metro (tsconfig.json itself stays as it is)
+      - run: npx expo customize tsconfig.json
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      - run: npm test -- --watchAll=false

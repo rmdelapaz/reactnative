@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sign-in flows and protected routes in an Expo app: a volunteer signs in against shoreline-api, the session is kept in the phone's secure storage with expo-secure-store (and in memory in the web preview), Expo Router's Stack.Protected guards the sign-in modal, the app waits for the saved session before the splash screen goes, signs out, and signs in again when the API answers 401. React Native &amp; Expo: Build and Ship a Mobile App Lesson 4.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Sign-In Flows and Protected Routes - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🔐 Lesson 4.3: Sign-In Flows and Protected Routes</h1>
+                <p class="lead">A volunteer opens Shoreline Crew on the beach at seven in the morning, gloves already on. The app should know who they are without asking for a password again, it should never leave that password or its token lying where another app can read it, and it should quietly ask them to sign in again when the server no longer recognizes them. Today you build exactly that: a real sign-in against shoreline-api, a session locked in the phone's secure storage, screens that exist only for the right people, and a clean way out.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Store a session token in the phone's secure storage with <code>expo-secure-store</code>, explain why it is async, and say what the web preview does instead</li>
+                        <li>Restore a saved session at startup while the splash screen stays up, so the first screen already knows who is signed in</li>
+                        <li>Guard routes with Expo Router's <code>Stack.Protected</code>, and predict where the app goes when a guard changes or someone opens a guarded address</li>
+                        <li>Build a sign-in modal that shows the API's own error messages, never keeps a failed password, and closes back to the screen that opened it</li>
+                        <li>Sign out, and handle a 401 from the API by forgetting the session and asking the volunteer to sign in again</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_12.html">Lesson 4.2: Tabs, Nesting and Modals</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> Shoreline Crew's sign-in: a <strong>Sign in</strong> modal for guests, a session kept in secure storage and restored at startup, a Profile tab that shows who you are and signs you out, a My cleanups tab that asks guests to sign in, and a sign-in that ends gracefully when the API forgets it</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58.0.31 (<code>Stack.Protected</code>), expo-secure-store 58.0.3, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; secure storage itself only works on a phone or emulator (Expo Go reaches the API in Lesson 5.1)</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-13-start.zip">lesson-13-start.zip</a> · Finished code: <a href="downloads/lesson-13-end.zip">lesson-13-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Who Is Holding the Phone?</a></li>
+                        <li><a href="#storage" class="toc-link">Where a Session Lives on a Phone</a></li>
+                        <li><a href="#guards" class="toc-link">Protected Routes</a></li>
+                        <li><a href="#expired" class="toc-link">When the API Forgets You</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Signing In to Shoreline Crew</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Who Is Holding the Phone?</h2>
+                <p>Since Lesson 4.2, Shoreline Crew has two tabs that say "coming soon": My cleanups and Profile both need to know who the volunteer is. shoreline-api already knows how to answer that. You met its sign-in in the React + TypeScript course: <code>POST /api/auth/sign-in</code> with an email and a password returns a <strong>token</strong> and the user, and every later request that carries <code>Authorization: Bearer &lt;token&gt;</code> is made as that person. By the end of today:</p>
+                <ul>
+                    <li><strong>A Sign in modal</strong> for guests, opened from Profile or My cleanups, that shows the API's own words when something is wrong ("Email or password is incorrect.") and closes back to where you were.</li>
+                    <li><strong>A session that survives a restart.</strong> On a phone, the token goes into secure storage (the iOS Keychain, or storage encrypted with the Android Keystore), and the app reads it back while the splash screen is still up.</li>
+                    <li><strong>A guarded route.</strong> The sign-in screen exists only while nobody is signed in, using Expo Router's <code>Stack.Protected</code>.</li>
+                    <li><strong>Profile and My cleanups that know you</strong>: your name, email and role, a <strong>Sign out</strong> button, and for guests, a clear way to sign in.</li>
+                    <li><strong>A graceful ending.</strong> shoreline-api keeps its sessions in memory, so restarting it forgets every token. When the API answers 401, the app forgets the session too and says "Your sign-in has ended. Sign in again."</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> nearly every app you will be paid to build has accounts, and sign-in is where security reviews, app store reviewers and angry users all look first. A token in the wrong place, a password kept in memory after a failed try, or an app that crashes when a session expires are classic bugs. Getting the shape right once gives you a pattern you can reuse in every app.</p>
+                <p><strong>Why it matters for the volunteers:</strong> phones are shared, lost and handed around at a cleanup. The session has to be hard for anything else on the phone to read, and easy for the volunteer to end with one tap.</p>
+                <p>The web version of this was Lesson 6.3 of the React + TypeScript course: the HQ kept its session in <code>sessionStorage</code>, read it with <code>useSyncExternalStore</code>, sent it with every request, and forgot it on a 401. Most of that code carries over unchanged. What changes on a phone is <em>where</em> the session is stored, the fact that reading it is async, and how screens are guarded.</p>
+            </section>
+
+            <section id="storage" class="lesson-section">
+                <h2>🗝️ Where a Session Lives on a Phone</h2>
+                <p>A phone app has three places to keep data between launches, and Lesson 5.3 compares them in depth. For a sign-in token, only one is right:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Place</th><th>What it is</th><th>A token there?</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>expo-secure-store</code></td><td>The <strong>iOS Keychain</strong>; on Android, values encrypted with a key from the <strong>Android Keystore</strong>. Strings only, small values, async</td><td><strong>Yes.</strong> This is what it is for</td></tr>
+                            <tr><td>AsyncStorage</td><td>An unencrypted key-value file in the app's folder (Lesson 5.3)</td><td>No: fine for a theme choice, not for secrets</td></tr>
+                            <tr><td>An <code>EXPO_PUBLIC_</code> variable</td><td>Text copied into the app's JavaScript when it is built (Lesson 1.3)</td><td>Never: anyone who has the app can read it</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Compared with the HQ, three things change:</p>
+                <ul>
+                    <li><strong>It is async.</strong> <code>sessionStorage.getItem()</code> answered at once; <code>SecureStore.getItemAsync()</code> returns a Promise, because the operating system has to unlock and decrypt the value. So the app cannot know who is signed in during its very first render. Shoreline Crew keeps the splash screen up until the answer arrives (Step 4), the same way it already waits for its fonts.</li>
+                    <li><strong>It survives a restart.</strong> <code>sessionStorage</code> was gone when the browser tab closed. Secure storage keeps the token until the app deletes it or the app is removed (the Expo documentation notes that on iOS, Keychain items can even outlive an uninstall). That is why <strong>Sign out</strong> must delete it.</li>
+                    <li><strong>Strings only, and keys with simple names.</strong> The session is an object, so it is saved as JSON; the key, <code>shoreline-crew-session</code>, may contain only letters, numbers, <code>.</code>, <code>-</code> and <code>_</code> (the library checks).</li>
+                </ul>
+                <h3>What the web preview does</h3>
+                <p>A browser has no keychain. The course measured what <code>expo-secure-store</code> 58.0.3 does in the web preview, with a small test screen that tries each call:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Call</th><th>In the web preview (measured)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>SecureStore.isAvailableAsync()</code></td><td>Resolves to <code>false</code></td></tr>
+                            <tr><td><code>SecureStore.setItemAsync('lab', 'hello')</code></td><td>Rejects: <code>TypeError: ExpoSecureStore.default.setValueWithKeyAsync is not a function</code></td></tr>
+                            <tr><td><code>SecureStore.getItemAsync('lab')</code></td><td>Rejects: <code>TypeError: ExpoSecureStore.default.getValueWithKeyAsync is not a function</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>So the library tells you honestly that it is not available, and fails if you use it anyway. Shoreline Crew asks first: when <code>isAvailableAsync()</code> is <code>false</code>, the session lives in memory only. In the web preview that means <strong>reloading the page signs you out</strong>. That is the safe choice: the obvious alternative, <code>localStorage</code>, is readable by any script on the page, and the web preview is only a development tool for this app. On a phone, the session is saved and restored.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the wristband and the lockbox</h4>
+                    <p>At a big cleanup, the crew leader checks your name once and gives you a wristband: that is the token, and showing it gets you gear without signing in again. Overnight, you keep it in the crew van's lockbox, which only you can open: that is secure storage. The leader's list of wristbands lives on a clipboard, and if the clipboard blows away (the API restarts), your wristband stops meaning anything. Then you go back to the sign-in table, and you throw the old band away.</p>
+                </div>
+                <div class="card card-danger">
+                    <h4>🛑 Never store the password</h4>
+                    <p>The app sends the password once, gets a token back, and forgets the password at once (the screen even empties the field after a try that did not work). Only the token is stored. A token can be ended by the server or by signing out; a stolen password works everywhere the volunteer reused it.</p>
+                </div>
+            </section>
+
+            <section id="guards" class="lesson-section">
+                <h2>🚧 Protected Routes</h2>
+                <p>In the HQ, a route loader checked the session before a page rendered and threw a <code>redirect()</code>. Expo Router has no loaders for this; instead, a layout says which screens <em>exist</em> for the current user, with <code>Stack.Protected</code>:</p>
+                <pre data-snippet><code class="language-tsx">import { Stack } from 'expo-router';
+
+import { useSession } from '@/hooks/useSession';
+
+// Two guards side by side: screens for signed-in volunteers, and screens for guests
+export function GuardedStack() {
+  const session = useSession();
+  return (
+    &lt;Stack&gt;
+      &lt;Stack.Protected guard={session !== null}&gt;
+        &lt;Stack.Screen name="log/[id]" options={{ presentation: 'modal', title: 'New debris log' }} /&gt;
+      &lt;/Stack.Protected&gt;
+      &lt;Stack.Protected guard={session === null}&gt;
+        &lt;Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Sign in' }} /&gt;
+      &lt;/Stack.Protected&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
+                <p>That sketch type-checks in the project. <code>guard</code> is a boolean: while it is <code>true</code>, the screens inside are ordinary screens; while it is <code>false</code>, they are taken out. The second group is what Shoreline Crew uses today. The first shows where Lesson 5.4's debris log will go: only signed-in volunteers record what the crew collected. The Expo Router source and the course's measurements in the web preview give the rules:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Situation</th><th>What happens</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Someone opens a guarded screen's address (a link, a typed address) while its guard is <code>false</code></td><td>Expo Router redirects to the navigator's <strong>anchor</strong>: its first screen, here the tabs, so the Cleanups tab (measured: a link to <code>/sign-in</code> on a signed-in Profile opened Cleanups)</td></tr>
+                            <tr><td>The guard turns <code>false</code> while that screen is open</td><td>The same redirect: measured, signing in while the sign-in screen was still open landed on Cleanups, not on the Profile tab that opened it</td></tr>
+                            <tr><td>You pass <code>redirectTo="/profile"</code> to <code>Stack.Protected</code></td><td>The redirect goes there instead (Exercise 4)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Notice that the guard does the "you are signed in now, go away" part of a sign-in flow for you: nothing in the app can open the sign-in screen for a signed-in volunteer. But it does not know <em>where</em> the volunteer came from, so the sign-in screen closes itself first and only then switches the app to signed in (Step 5 explains the order).</p>
+<div class="mermaid">
+graph TD
+    A["App starts"] --> B["Splash stays up"]
+    B --> C["Fonts + saved session"]
+    C --> D["Root layout renders"]
+    D --> E{"Signed in?"}
+    E -->|"yes"| F["Tabs, no sign-in route"]
+    E -->|"no"| G["Tabs + Sign in modal"]
+</div>
+                <h3>The other way: Redirect in a screen</h3>
+                <p>Before <code>Stack.Protected</code> existed (it arrived in SDK 53), apps redirected from inside a screen or layout, and you will meet it in older code and articles. It still works, and it type-checks here:</p>
+                <pre data-snippet><code class="language-tsx">import { Redirect } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+import { useSession } from '@/hooks/useSession';
+
+// The other way: a screen that sends guests elsewhere itself, every time it is drawn
+export function MembersOnly() {
+  const session = useSession();
+  if (session === null) {
+    return &lt;Redirect href="/sign-in" /&gt;;
+  }
+  return &lt;AppText&gt;Hello, {session.user.name}&lt;/AppText&gt;;
+}</code></pre>
+                <p>The difference: with <code>&lt;Redirect&gt;</code>, the screen still exists, and every screen has to remember to check. With <code>Stack.Protected</code>, one place in the layout decides, and a guarded screen cannot be reached at all. Prefer the guard for whole screens; <code>&lt;Redirect&gt;</code> and <code>router.replace()</code> are still the tools when code decides where to go.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ A guard hides screens; the API protects data</h4>
+                    <p><code>Stack.Protected</code> decides what the app shows. It is not security: anyone can call shoreline-api with curl. The API's 401 and 403 answers are what protect volunteers' data, exactly as in the HQ. The app's guard is about a sensible experience.</p>
+                </div>
+            </section>
+
+            <section id="expired" class="lesson-section">
+                <h2>⏳ When the API Forgets You</h2>
+                <p>shoreline-api keeps its sessions in memory. Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> and start it again, and every token it handed out means nothing. Real APIs end sessions too: they expire, a password changes, an administrator signs someone out. A phone app meets this more often than a website, because its session lasts for weeks, not for one browser tab.</p>
+                <p>The API's answer to a token it does not know is the same everywhere: <strong>401</strong> with "Your session has ended. Sign in again." It sends that even for public addresses like the cleanup list, because the request <em>claimed</em> to be someone. Shoreline Crew copies the HQ's rule into <code>request()</code>: if a request that carried a token gets a 401, the client forgets the session. Every screen that reads the session redraws as signed out, and secure storage is cleared too.</p>
+                <p>One more question is when the app finds out. Profile asks <code>GET /api/auth/me</code> each time it comes into view, with <code>useFocusEffect</code> (Lesson 4.2's FAQ named it): a tab switch or a return to the app is enough. If that check cannot reach the API at all (no signal on the beach), Profile keeps the volunteer signed in and checks next time: only a 401 means the sign-in is really over. Lesson 5.2 replaces this hand-written check with TanStack Query, which refreshes on focus by itself.</p>
+                <figure class="screenshot">
+    <img src="images/lesson_13/13-ended.png" alt="The Profile tab in dark mode in the web preview: the heading Not signed in, then the message Your sign-in has ended. Sign in again. in light coral, outlined in red, a sentence about signing in, a filled Sign in button, and the Before you go section." width="420" height="814" loading="lazy">
+    <figcaption>After shoreline-api restarted: coming back to Profile, the app asked <code>GET /api/auth/me</code>, the API answered 401, and the client forgot the session. Profile says why, and offers to sign in again.</figcaption>
+</figure>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Sign-in bugs often look like something else: a page that renders twice, a warning about files, a modal that "goes to the wrong place". Each one below was produced on purpose in the finished project and is quoted the way the tools printed it. Reading the message closely is how you get from the symptom to the cause.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ "Missing getServerSnapshot"</h4>
+                    <p>Write <code>useSession</code> the way the HQ did, with two functions: <code>useSyncExternalStore(onSessionChange, readSession)</code>. It type-checks. Open the web preview and Metro's terminal shows:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+λ  ERROR  SSR streaming render error: Error: Missing getServerSnapshot, which is required for server-rendered content. Will revert to client rendering.
+...
+Web  ERROR  [Error: Switched to client rendering because the server rendering errored:
+Missing getServerSnapshot, which is required for server-rendered content. Will revert to client rendering.]
+...</code></pre>
+                    </div>
+                    <p>The web preview draws each page on a server first (the <code>λ</code> line), and on a server there is no session to read, so React needs a third function that says what the server should assume. The page still appeared, because React gave up on the server's version and drew it again in the browser, but every page load hits this error. You met the same fix for the color scheme in Lesson 2.5: pass <code>() =&gt; null</code>, "nobody is signed in on the server". Phones never call it.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Two files that import each other</h4>
+                    <p>A tempting design: the client calls <code>signOut()</code> from <code>session.ts</code> on a 401, while <code>session.ts</code> already imports from the client. <code>tsc</code> and ESLint say nothing, but Metro does:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>...
+Require cycle: src/api/client.ts -&gt; src/auth/session.ts -&gt; src/api/client.ts
+...
+Web  WARN  Require cycle: src/auth/session.ts -&gt; src/api/client.ts -&gt; src/auth/session.ts
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+...</code></pre>
+                    </div>
+                    <p>In a cycle, one of the two files runs while the other is only half loaded, so a value it imports can still be <code>undefined</code>. Shoreline Crew keeps the arrows pointing one way: the client knows nothing about secure storage, and <code>session.ts</code> listens to the client (Step 3).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Signed in, but on the wrong tab</h4>
+                    <p>Switch the app to signed in first and close the modal afterwards (for example, <code>await</code> a helper that sets the session, then call <code>router.back()</code>). The course measured it: opened from Profile, the volunteer landed on the Cleanups tab. The guard removed the sign-in screen before <code>back()</code> ran, and Expo Router redirected to the anchor. Close first, then set the session.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ "'session' is possibly 'null'"</h4>
+                    <p>A session is either there or not, and TypeScript makes you say which. In Profile, write <code>session.token</code> instead of <code>session?.token</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/(tabs)/profile.tsx:14:17 - error TS18047: 'session' is possibly 'null'.
+
+14   const token = session.token;
+                   ~~~~~~~
+
+
+Found 1 error in src/app/(tabs)/profile.tsx:14</code></pre>
+                    </div>
+                    <p>This is TypeScript doing its job: a guest has no token. Check for <code>null</code> first, or use <code>?.</code> when "no token" is a fine answer, as Profile does.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Calling SecureStore without asking</h4>
+                    <p>Calling <code>SecureStore.getItemAsync()</code> in the web preview rejects with the <code>TypeError</code> from the table in Where a Session Lives. It is easy to miss because a phone never shows it. Ask <code>isAvailableAsync()</code> first, and decide what the app does without secure storage.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Signing In to Shoreline Crew</h2>
+                <p>You install secure storage, teach the API client about sessions, keep a copy of the session on the phone, guard the sign-in route, build the Sign in modal, and give Profile and My cleanups their signed-in and signed-out faces. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd>). Work in the <code>shoreline-crew</code> folder. The account you will use is the API's sample volunteer: <code>theo.nakamura@example.com</code>, password <code>shoreline-demo</code>.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install secure storage <span class="step-time">(5 min)</span></h3>
+                    <p>In a third terminal (or after stopping Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd>, which is the same on a Mac), install the library the Expo way, so you get the version made for SDK 58:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-secure-store</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 1 package, and audited 796 packages in 3s
+
+164 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+› Added config plugin: expo-secure-store</code></pre>
+                    </div>
+                    <p>The audit lines are npm's usual report about the whole project (Lesson 1.2), not about this package. The last line is new: <code>npx expo install</code> also added a <strong>config plugin</strong> to <code>app.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.json</div>
+                        <pre data-src="shoreline-crew/app.json" data-match="diff"><code class="language-diff-json">           "imageWidth": 200
+         }
+-      ]
++      ],
++      "expo-secure-store"
+     ],</code></pre>
+                    </div>
+                    <p>A config plugin changes the native projects when an app is <em>built</em>. Reading the plugin's source: it adds the text iOS shows if an app asks for Face ID, and Android backup rules that keep the encrypted values out of the phone's automatic backups (they could not be decrypted on another phone anyway). Expo Go already contains secure storage, so nothing changes for you today; the plugin matters when you make your own builds in Module 9. If you stopped Metro, start it again (<code>npx expo start</code>, then <kbd>w</kbd>).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The client learns about sessions <span class="step-time">(15 min)</span></h3>
+                    <p>Most of this is copied from the HQ's <code>src/api/client.ts</code>: two type guards, the session kept in memory with its listeners, the <code>Authorization</code> header, the 401 rule and three calls. What is <em>not</em> copied is the storage: the HQ wrote to <code>sessionStorage</code> inside <code>saveSession</code>; here the client only keeps the session in memory, and Step 3 adds the phone's copy. So the function is called <code>setSession</code>. In <code>src/api/client.ts</code>, first the types:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   PageInfo,
++  Role,
++  SignInRequest,
++  SignInResponse,
+   Site,
+   Terrain,
++  User,
+ } from '@/api/types';</code></pre>
+                    </div>
+                    <p>Then the two guards, copied unchanged, above <code>isApiErrorBody</code>. <code>isSignInResponse</code> is exported, because Step 3 checks the saved copy with it:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">+const roles: Role[] = ['organizer', 'volunteer'];
++
++function isUser(value: unknown): value is User {
++  return (
++    isRecord(value) &amp;&amp;
++    typeof value.id === 'string' &amp;&amp;
++    typeof value.name === 'string' &amp;&amp;
++    typeof value.email === 'string' &amp;&amp;
++    roles.some((role) =&gt; role === value.role)
++  );
++}
++
++export function isSignInResponse(value: unknown): value is SignInResponse {
++  return isRecord(value) &amp;&amp; typeof value.token === 'string' &amp;&amp; isUser(value.user);
++}
++
+ function isApiErrorBody(value: unknown): value is ApiErrorBody {</code></pre>
+                    </div>
+                    <p>Next, the session itself, in a new part of the file just above "talking to the API". It is the HQ's code without the two <code>sessionStorage</code> lines:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">+// ---------------------------------------------------------------- the session (copied, minus the storage)
++
++/** A signed-in volunteer: the API's token, and who it belongs to */
++export type Session = SignInResponse;
++
++// The session lives here, in memory, so every request can read it. Keeping a copy on the phone
++// (secure storage, which is async) is src/auth/session.ts's job (rewritten).
++let current: Session | null = null;
++const listeners = new Set&lt;() =&gt; void&gt;();
++
++/** The current session, or null when nobody is signed in */
++export function readSession(): Session | null {
++  return current;
++}
++
++/** Change (or with null, forget) the session, and tell everyone who listens */
++export function setSession(session: Session | null): void {
++  current = session;
++  for (const listener of listeners) {
++    listener();
++  }
++}
++
++/** Call listener after every sign-in and sign-out. Returns a function that stops listening. */
++export function onSessionChange(listener: () =&gt; void): () =&gt; void {
++  listeners.add(listener);
++  return () =&gt; {
++    listeners.delete(listener);
++  };
++}
++
+ // ---------------------------------------------------------------- talking to the API</code></pre>
+                    </div>
+                    <p>Now every request carries the token when there is one, and a 401 to a request that carried one ends the session here too:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">-/** Send a request to a path under /api. Throws ApiError on an error status, NetworkError without an answer. */
++/**
++ * Send a request to a path under /api, signed in if there is a session.
++ * Throws ApiError on an error status, NetworkError without an answer.
++ */
+ async function request(path: string, init: RequestInit = {}): Promise&lt;Response&gt; {
+   const url = `${apiBaseUrl()}/api${path}`;
++  const headers = new Headers(init.headers);
++  const session = readSession();
++  if (session !== null) {
++    headers.set('Authorization', `Bearer ${session.token}`);
++  }
+   let response: Response;
+   try {
+-    response = await fetch(url, init);
++    response = await fetch(url, { ...init, headers });
+   } catch (error) {
+ // ...
+   if (!response.ok) {
++    if (response.status === 401 &amp;&amp; session !== null) {
++      // The API no longer knows this sign-in (it restarted, or the session ended): forget it here too
++      setSession(null);
++    }
+     const body: unknown = await response.json().catch(() =&gt; null);</code></pre>
+                    </div>
+                    <p>Last, at the end of the file: the HQ's <code>sendJSON</code>, its sign-in and sign-out calls, and <code>getMe</code> for <code>GET /api/auth/me</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/client.ts</div>
+                        <pre data-src="shoreline-crew/src/api/client.ts" data-match="diff"><code class="language-diff-ts">   return getJSON(`/events/${encodeURIComponent(id)}`, isCleanupEventDetail, signal);
+ }
++
++/** Send JSON with POST, PATCH or PUT, and check the JSON that comes back (copied) */
++async function sendJSON&lt;T&gt;(
++  method: 'POST' | 'PATCH' | 'PUT',
++  path: string,
++  body: unknown,
++  isT: (value: unknown) =&gt; value is T,
++): Promise&lt;T&gt; {
++  const response = await request(path, {
++    method,
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify(body),
++  });
++  const data: unknown = await response.json();
++  if (!isT(data)) {
++    throw new Error(`Unexpected data from ${method} /api${path}`);
++  }
++  return data;
++}
++
++/** POST /api/auth/sign-in. A wrong email or password is an ApiError with status 401. */
++export function postSignIn(credentials: SignInRequest): Promise&lt;Session&gt; {
++  return sendJSON('POST', '/auth/sign-in', credentials, isSignInResponse);
++}
++
++/** POST /api/auth/sign-out: the API forgets the token */
++export async function postSignOut(): Promise&lt;void&gt; {
++  await request('/auth/sign-out', { method: 'POST' });
++}
++
++/** GET /api/auth/me: who the API thinks is signed in. An ended sign-in is an ApiError with status 401. */
++export function getMe(signal?: AbortSignal): Promise&lt;User&gt; {
++  return getJSON('/auth/me', isUser, signal);
++}</code></pre>
+                    </div>
+                    <p>Two details worth a second look. <code>new Headers(init.headers)</code> keeps any headers a caller passed (such as <code>sendJSON</code>'s <code>Content-Type</code>) and adds the token to them. And the 401 rule checks <code>session !== null</code>: a wrong password is also a 401, but it comes from a request that carried no token, so there is nothing to forget.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: A copy on the phone, and a hook <span class="step-time">(15 min)</span></h3>
+                    <p>This is the rewritten part. Create the folder <code>src/auth</code> and in it <code>session.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/auth/session.ts</div>
+                        <pre data-src="shoreline-crew/src/auth/session.ts"><code class="language-ts">// Signing out, and the copy of the session kept on the phone (rewritten: the HQ kept its copy in
+// the browser's session storage, which a phone does not have)
+import * as SecureStore from 'expo-secure-store';
+
+import {
+  isSignInResponse,
+  onSessionChange,
+  postSignOut,
+  readSession,
+  setSession,
+} from '@/api/client';
+
+// The name of the saved session in secure storage (letters, numbers, ".", "-" and "_" only)
+const sessionKey = 'shoreline-crew-session';
+
+/**
+ * Start with the session saved on this phone, and keep the saved copy up to date from then on.
+ * Call it once, when the app starts. It never fails: if anything goes wrong, nobody is signed in.
+ */
+export async function loadSession(): Promise&lt;void&gt; {
+  // The phone's secure storage: the iOS Keychain, or values encrypted with the Android Keystore.
+  // The web preview has none, so there the session lives in memory only.
+  if (!(await SecureStore.isAvailableAsync())) {
+    return;
+  }
+  try {
+    const saved = await SecureStore.getItemAsync(sessionKey);
+    const value: unknown = saved === null ? null : JSON.parse(saved);
+    setSession(isSignInResponse(value) ? value : null);
+  } catch (error) {
+    console.warn('Could not read the saved session', error);
+  }
+  // Every change from now on (signing in, signing out, a session the API forgot) is saved too
+  onSessionChange(saveCopy);
+}
+
+function saveCopy() {
+  const session = readSession();
+  const saving =
+    session === null
+      ? SecureStore.deleteItemAsync(sessionKey)
+      : SecureStore.setItemAsync(sessionKey, JSON.stringify(session));
+  saving.catch((error: unknown) =&gt; console.warn('Could not save the session', error));
+}
+
+/** Sign out: tell the API, and forget the session on this phone at once */
+export function signOut(): void {
+  // The request takes the token with it as it starts; then the phone forgets the session
+  postSignOut().catch(() =&gt; {
+    // Nothing to do: the API forgets its sessions when it restarts anyway
+  });
+  setSession(null);
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>loadSession()</code></strong> runs once at startup. It asks whether secure storage exists, reads the saved JSON, and checks it with <code>isSignInResponse</code> before trusting it: data saved by an older version of the app, or damaged, means nobody is signed in rather than a crash. It catches every error, so the app always starts.</li>
+                        <li><strong>One listener keeps the copy in step.</strong> After loading, <code>onSessionChange(saveCopy)</code> writes every change: a sign-in from Step 5, a sign-out, and a session the client forgot after a 401. No code path can forget to update the phone's copy. (In the web preview, <code>loadSession</code> returns before adding it: memory only.)</li>
+                        <li><strong>The arrows point one way.</strong> <code>session.ts</code> imports from the client; the client never imports <code>session.ts</code> (Common Mistakes shows what Metro says otherwise).</li>
+                        <li><strong><code>signOut()</code></strong> is the HQ's: the request takes the token with it as it starts, then the session is forgotten at once, without waiting for the network. If the request fails, there is nothing to do: the API forgets its sessions when it restarts anyway.</li>
+                    </ul>
+                    <p>Then the hook that components use. Create <code>src/hooks/useSession.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useSession.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useSession.ts"><code class="language-ts">import { useSyncExternalStore } from 'react';
+
+import { onSessionChange, readSession, type Session } from '@/api/client';
+
+/** Who is signed in (null: nobody). Components that use it re-render on every sign-in and sign-out. */
+export function useSession(): Session | null {
+  // The third function is for the web preview's server, which draws pages before any sign-in
+  return useSyncExternalStore(onSessionChange, readSession, () =&gt; null);
+}</code></pre>
+                    </div>
+                    <p>It is the HQ's <code>useSyncExternalStore(onSessionChange, readSession)</code>, plus the third function the web preview's server needs (the first Common Mistake shows the error without it). The HQ wrapped it in a context provider; Shoreline Crew does not need one, because any component can call the hook directly and the store lives outside React.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Wait for the session, guard the sign-in route <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>src/app/_layout.tsx</code>, the splash screen now waits for two things, and the layout reads the session:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">-import { useEffect } from 'react';
++import { useEffect, useState } from 'react';
+
++import { loadSession } from '@/auth/session';
++import { useSession } from '@/hooks/useSession';
+ import { useTheme } from '@/hooks/useTheme';
+ import { fontFiles, fonts } from '@/theme/typography';
+
+-// Keep the splash screen up while the fonts load (runs once, when the app starts)
++// Keep the splash screen up while the fonts and the saved session load (runs once, at startup)
+ SplashScreen.preventAutoHideAsync();
+
+ export default function RootLayout() {
+   const [fontsLoaded, fontError] = useFonts(fontFiles);
++  // Reading secure storage is async: until it answers, the app cannot know who is signed in
++  const [sessionLoaded, setSessionLoaded] = useState(false);
++  const session = useSession();
+   // If a font fails to load, carry on with the system font rather than a splash screen forever
+-  const ready = fontsLoaded || fontError !== null;
++  const ready = (fontsLoaded || fontError !== null) &amp;&amp; sessionLoaded;
+   const { scheme, colors } = useTheme();
+
++  useEffect(() =&gt; {
++    loadSession().finally(() =&gt; setSessionLoaded(true));
++  }, []);
++
+   useEffect(() =&gt; {</code></pre>
+                    </div>
+                    <p>Without the wait, the first frames would show "Not signed in" for a moment, and anything that reacts to that (a guard, a redirect) would act on the wrong answer. Everything else in the layout stays: the fonts, the navigation theme, <code>ThemeProvider</code>, the status bar and <code>headerBackTitle</code>. At the end of the stack, add the guarded route:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx">           options={{ presentation: 'modal', title: 'Before you go' }}
+         /&gt;
++        {/* Only for people who are not signed in: signing in takes this screen away */}
++        &lt;Stack.Protected guard={session === null}&gt;
++          &lt;Stack.Screen name="sign-in" options={{ presentation: 'modal', title: 'Sign in' }} /&gt;
++        &lt;/Stack.Protected&gt;
+       &lt;/Stack&gt;</code></pre>
+                    </div>
+                    <p>The sign-in screen is a modal, like Before you go: a short task with a clear end, presented over whatever screen asked for it. Until Step 5 creates its file, the browser console and Metro show the warning you know from Lesson 4.2, <code>[Layout children]: Too many screens defined. Route "sign-in" is extraneous.</code> (measured).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The Sign in modal <span class="step-time">(20 min)</span></h3>
+                    <p>A form needs labeled fields, and Lesson 5.4 adds more forms, so start with a small component. Create <code>src/components/FormField.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/FormField.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/FormField.tsx"><code class="language-tsx">import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { createThemedStyles, useTheme } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+// All of TextInput's props (keyboardType, autoComplete, secureTextEntry, ...) plus a label and an error
+type FormFieldProps = Omit&lt;TextInputProps, 'style'&gt; &amp; {
+  label: string;
+  error?: string;
+};
+
+// A labeled text field, with the reason it needs fixing underneath when there is one
+export function FormField({ label, error, ...input }: FormFieldProps) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  return (
+    &lt;View style={styles.field}&gt;
+      {/* The label is for eyes; accessibilityLabel says the same to a screen reader */}
+      &lt;AppText style={styles.label}&gt;{label}&lt;/AppText&gt;
+      &lt;TextInput
+        accessibilityLabel={label}
+        placeholderTextColor={colors.textMuted}
+        {...input}
+        style={[styles.input, error !== undefined &amp;&amp; styles.invalid]}
+      /&gt;
+      {error !== undefined &amp;&amp; (
+        &lt;AppText variant="error" accessibilityLiveRegion="polite"&gt;
+          {error}
+        &lt;/AppText&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  field: {
+    gap: spacing.xs,
+  },
+  label: {
+    fontWeight: '600',
+  },
+  input: {
+    minHeight: 48, // a finger-sized target
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: 16,
+  },
+  invalid: {
+    borderColor: colors.error,
+    borderWidth: 2,
+  },
+}));</code></pre>
+                    </div>
+                    <p>It takes every <code>TextInput</code> prop, like <code>Button</code> takes every <code>Pressable</code> prop (Lesson 2.4), and adds a visible label, the same words for screen readers, a field at least 48 tall, and an error line that Android's TalkBack announces when it appears (<code>accessibilityLiveRegion</code>; VoiceOver users hear it when they reach it). Now the screen. Create <code>src/app/sign-in.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/sign-in.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/sign-in.tsx"><code class="language-tsx">import { router } from 'expo-router';
+import { useState } from 'react';
+
+import { ApiError, describeError, postSignIn, setSession } from '@/api/client';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { FormField } from '@/components/FormField';
+import { Screen } from '@/components/Screen';
+
+// Why the last try did not work: one message for the form, and one per field the API named
+type Problem = { message: string; fields: Record&lt;string, string[]&gt; };
+
+// The sign-in modal. It exists only while nobody is signed in (Stack.Protected in _layout.tsx).
+export default function SignInScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [sending, setSending] = useState(false);
+  const [problem, setProblem] = useState&lt;Problem | null&gt;(null);
+
+  async function submit() {
+    setSending(true);
+    setProblem(null);
+    try {
+      const session = await postSignIn({ email: email.trim(), password });
+      // Close the modal first, back to the screen that opened it. Then switch to signed in: the
+      // guard takes this screen away at once, and if it were still open, you would land on the
+      // first tab instead.
+      if (router.canGoBack()) {
+        router.back();
+      }
+      setSession(session);
+    } catch (error) {
+      setPassword(''); // never keep a password around after a try that did not work
+      setProblem(
+        // 400: fields to fix; 401: wrong email or password. The API's own words fit both.
+        error instanceof ApiError &amp;&amp; (error.status === 400 || error.status === 401)
+          ? { message: error.message, fields: error.fieldErrors ?? {} }
+          : { message: describeError(error), fields: {} },
+      );
+      setSending(false);
+    }
+  }
+
+  return (
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText&gt;
+        Sign in with your Shoreline Crew account to sign up for cleanups and see your own.
+      &lt;/AppText&gt;
+      {problem !== null &amp;&amp; (
+        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+          {problem.message}
+        &lt;/AppText&gt;
+      )}
+      &lt;FormField
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        error={problem?.fields.email?.join(' ')}
+        keyboardType="email-address" // the keyboard with @ and .
+        autoComplete="email"
+        autoCapitalize="none"
+        autoCorrect={false}
+      /&gt;
+      &lt;FormField
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        error={problem?.fields.password?.join(' ')}
+        secureTextEntry // dots instead of letters
+        autoComplete="current-password" // password managers offer the saved one
+        autoCapitalize="none"
+      /&gt;
+      &lt;Button
+        label={sending ? 'Signing in…' : 'Sign in'}
+        variant="primary"
+        disabled={sending}
+        onPress={submit}
+      /&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The keyboard fits the field.</strong> <code>keyboardType="email-address"</code> shows the keyboard with <kbd>@</kbd> and <kbd>.</kbd> (in the web preview it becomes <code>type="email"</code>: measured); <code>autoCapitalize="none"</code> and <code>autoCorrect={false}</code> stop the phone from "fixing" an address. <code>secureTextEntry</code> shows dots (Lesson 2.4 promised it), and the <code>autoComplete</code> values let password managers offer the saved login. Lesson 5.4 adds the return-key chain from Email to Password.</li>
+                        <li><strong>The API's words.</strong> A 400 comes with <code>fieldErrors</code> per field ("Enter an email address."), a wrong password is a 401 ("Email or password is incorrect."): the screen shows those messages, which describe the problem better than <code>describeError</code>'s 401 text ("Your sign-in has ended"), written for a different situation. Anything else, such as the API not running, goes through <code>describeError</code> as usual.</li>
+                        <li><strong>The password is emptied after every try that did not work</strong>, as in the HQ. The email stays, so a typo in the password costs one field, not two.</li>
+                        <li><strong>Close first, then sign in.</strong> When the API says yes, the screen goes back to whatever opened it, and only then sets the session. The order matters: the moment the session is set, the guard takes the sign-in screen away, and if it were still open, Expo Router would send the volunteer to the first tab (measured; the third Common Mistake). Opened from its address with nothing underneath, <code>canGoBack()</code> is <code>false</code>, and the guard's redirect to the Cleanups tab is exactly right.</li>
+                    </ul>
+                    <figure class="screenshot">
+    <img src="images/lesson_13/13-sign-in-error.png" alt="The Sign in screen in the web preview: a header bar with a back arrow and the title Sign in, a sentence about signing in with a Shoreline Crew account, the message Email or password is incorrect in coral, outlined in red, an Email field with theo.nakamura@example.com, an empty Password field, and a filled Sign in button." width="420" height="814" loading="lazy">
+    <figcaption>A wrong password: the API answers 401, and the screen shows the API's own words. The password field is emptied, the email kept. On a phone this screen slides up as a modal; the web preview shows it as an ordinary screen with a back arrow.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Profile and My cleanups <span class="step-time">(15 min)</span></h3>
+                    <p>Profile gets two faces and the check from When the API Forgets You. Replace <code>src/app/(tabs)/profile.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx"><code class="language-tsx">import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+
+import { ApiError, getMe } from '@/api/client';
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { signOut } from '@/auth/session';
+import { useSession } from '@/hooks/useSession';
+
+// Profile: who you are, signing in and out, and the beach safety guide
+export default function ProfileScreen() {
+  const session = useSession();
+  const token = session?.token;
+  // true when the API said this phone's sign-in has ended (it restarted, or the session expired)
+  const [ended, setEnded] = useState(false);
+
+  // Each time Profile comes into view, ask the API whether it still knows this sign-in.
+  // A 401 makes the client forget the session, and this screen shows the signed-out view.
+  useFocusEffect(
+    useCallback(() =&gt; {
+      if (token === undefined) {
+        return;
+      }
+      const controller = new AbortController();
+      getMe(controller.signal).catch((error: unknown) =&gt; {
+        if (error instanceof ApiError &amp;&amp; error.status === 401) {
+          setEnded(true);
+        }
+        // Anything else (no signal, the API not running): stay signed in and check next time
+      });
+      return () =&gt; controller.abort();
+    }, [token]),
+  );
+
+  function signOutNow() {
+    setEnded(false);
+    signOut();
+  }
+
+  return (
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      {session === null ? (
+        &lt;&gt;
+          &lt;AppText variant="heading" accessibilityRole="header"&gt;
+            Not signed in
+          &lt;/AppText&gt;
+          {ended &amp;&amp; (
+            &lt;AppText variant="error" accessibilityRole="alert"&gt;
+              Your sign-in has ended. Sign in again.
+            &lt;/AppText&gt;
+          )}
+          &lt;AppText&gt;Sign in to sign up for cleanups and to see the ones you signed up for.&lt;/AppText&gt;
+          {/* The sign-in modal; it closes by itself once you are signed in */}
+          &lt;Link href="/sign-in" asChild&gt;
+            &lt;Button label="Sign in" variant="primary" /&gt;
+          &lt;/Link&gt;
+        &lt;/&gt;
+      ) : (
+        &lt;&gt;
+          &lt;AppText variant="heading" accessibilityRole="header"&gt;
+            {session.user.name}
+          &lt;/AppText&gt;
+          &lt;AppText variant="muted"&gt;{session.user.email}&lt;/AppText&gt;
+          &lt;AppText&gt;
+            Signed in as {session.user.role === 'organizer' ? 'an organizer' : 'a volunteer'}.
+          &lt;/AppText&gt;
+          &lt;Button label="Sign out" onPress={signOutNow} /&gt;
+        &lt;/&gt;
+      )}
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Before every cleanup
+      &lt;/AppText&gt;
+      &lt;AppText&gt;What to bring, and how to stay safe on the beach.&lt;/AppText&gt;
+      {/* A modal: it slides up over the tabs, and closes back to this tab */}
+      &lt;Link href="/before-you-go" asChild&gt;
+        &lt;Button label="Before you go" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>useSession()</code></strong> decides which face to draw, and redraws the moment someone signs in or out, or the client forgets the session.</li>
+                        <li><strong><code>useFocusEffect</code></strong> runs its function each time Profile comes into view, and runs the cleanup (abort the request) when it leaves. It takes a function wrapped in <code>useCallback</code>, so the check runs again only when the token changes, not on every render. With no token there is nothing to check.</li>
+                        <li><strong><code>ended</code></strong> remembers that the last check got a 401, so the signed-out face can say why. Signing out on purpose clears it, so a volunteer who signs out is not told their sign-in "ended".</li>
+                        <li><strong>The Sign in button is a <code>Link</code></strong> to <code>/sign-in</code>, like Before you go: the route exists only for guests, and only guests see this button.</li>
+                    </ul>
+                    <p>My cleanups gets its sign-in part: guests see why the tab is empty and a way to sign in; signed-in volunteers see the placeholder that Lesson 5.2 fills with their real sign-ups. Replace <code>src/app/(tabs)/my-cleanups.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/my-cleanups.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/my-cleanups.tsx"><code class="language-tsx">import { Link } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { useSession } from '@/hooks/useSession';
+
+// My cleanups: the cleanups you signed up for. Your sign-ups come from the API once you are signed in.
+export default function MyCleanupsScreen() {
+  const session = useSession();
+
+  if (session === null) {
+    return (
+      &lt;Screen scroll edges={['left', 'right']}&gt;
+        &lt;AppText variant="heading" accessibilityRole="header"&gt;
+          Sign in to see your cleanups
+        &lt;/AppText&gt;
+        &lt;AppText&gt;
+          The cleanups you sign up for are listed here, with your place on the waiting list if one
+          is full.
+        &lt;/AppText&gt;
+        &lt;Link href="/sign-in" asChild&gt;
+          &lt;Button label="Sign in" variant="primary" /&gt;
+        &lt;/Link&gt;
+      &lt;/Screen&gt;
+    );
+  }
+
+  return (
+    // The header bar covers the top and the tab bar the bottom: only the sides are left
+    &lt;Screen scroll edges={['left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        No sign-ups yet
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        When you sign up for a cleanup, it is listed here, with your place on the waiting list if
+        it is full. Signing up is coming to Shoreline Crew soon.
+      &lt;/AppText&gt;
+      {/* "/" is the Cleanups tab: a link to a tab's address switches to that tab */}
+      &lt;Link href="/" asChild&gt;
+        &lt;Button label="Find a cleanup" variant="primary" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <p>Open Profile, press <strong>Sign in</strong>, and sign in as Theo. The modal closes back to Profile, which now shows who you are:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_13/13-signed-in.png" alt="The Profile tab in the web preview, signed in: a header titled Profile, the heading Theo Nakamura, the email theo.nakamura@example.com, the sentence Signed in as a volunteer, an outlined Sign out button, outlined in red, then Before every cleanup and the Before you go button. The tab bar has Profile selected." width="420" height="814" loading="lazy">
+    <figcaption>Signed in: the sign-in modal closed back to Profile, which now reads the session. On a phone the session is also saved in secure storage, so it is still there after the app restarts; the web preview keeps it in memory only. (The tab bar gets the bottom inset a notched iPhone would give it.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check, walk every path, commit <span class="step-time">(10 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing, and <code>expo lint</code> only the two <code>env:</code> lines. Then walk the paths in the web preview:</p>
+                    <ol>
+                        <li>Profile → <strong>Sign in</strong> → a wrong password: "Email or password is incorrect.", the password field empty. Press <strong>Sign in</strong> with both fields empty: a message under each field.</li>
+                        <li>The right password: back on Profile, signed in. <strong>Sign out</strong>: "Not signed in".</li>
+                        <li>My cleanups → <strong>Sign in</strong>: you come back to My cleanups, which now says "No sign-ups yet".</li>
+                        <li>Type <code>http://localhost:8081/sign-in</code> into the address bar and sign in: with nothing underneath, you land on the Cleanups tab.</li>
+                        <li>While signed in, stop shoreline-api with <kbd>Ctrl</kbd>+<kbd>C</kbd> and start it again (<code>node server.ts</code>). Switch to Logbook and back to Profile: "Your sign-in has ended. Sign in again."</li>
+                        <li>Sign in and reload the page: signed out again. That is the web preview keeping the session in memory only; on a phone, it would still be there.</li>
+                    </ol>
+                    <p>Then commit.</p>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>Signing in needs the API, which Expo Go on your phone reaches in Lesson 5.1; the code is ready for it. Once it can, the documentation says what to expect: the Sign in modal slides up like Before you go, the email field brings up the keyboard with <kbd>@</kbd>, the password shows dots, and your phone's password manager may offer to save the login. Close Expo Go completely and open the app again: you should still be signed in, because the session was read back from secure storage while the splash screen was up.</p>
+                    </div>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, list every screen and mark it "everyone", "signed in only" or "guests only". The last two become <code>Stack.Protected</code> groups. Then write down what your app stores in secure storage (only tokens and secrets), what it does when the server answers 401, and where a volunteer, customer or player goes after signing in.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>expo-secure-store</code> is installed with <code>npx expo install</code>, and its config plugin is in <code>app.json</code></li>
+                        <li>☐ The client sends <code>Authorization: Bearer …</code> when there is a session, forgets the session on a 401, and has <code>postSignIn</code>, <code>postSignOut</code> and <code>getMe</code></li>
+                        <li>☐ <code>src/auth/session.ts</code> restores the session from secure storage at startup (memory only in the web preview) and saves every change; <code>useSession()</code> works in the web preview without errors</li>
+                        <li>☐ The splash screen waits for the session, and <code>/sign-in</code> is a modal that exists only for guests</li>
+                        <li>☐ Signing in shows the API's messages, empties the password after a failed try, and closes back to the screen that opened it</li>
+                        <li>☐ Profile shows who you are and signs you out; after an API restart it says your sign-in has ended; My cleanups asks guests to sign in</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo the code changes afterwards; the course's next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Show the password</h3>
+                    <p>Typing a password with gloves on is error-prone. Add a <strong>Show password</strong> switch under the password field that shows the letters while it is on.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>secureTextEntry</code> takes a boolean. Lesson 2.4's <code>SwitchRow</code> already has a label, a value and <code>onValueChange</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>sign-in.tsx</code>, import <code>SwitchRow</code>, add <code>const [shown, setShown] = useState(false);</code>, change the password field's prop to <code>secureTextEntry={!shown}</code>, and put <code>&lt;SwitchRow label="Show password" value={shown} onValueChange={setShown} /&gt;</code> above the button. The course measured it in the web preview: the switch is announced as "Show password", the typed password appears when it is on, and <code>tsc</code> and ESLint stay clean. Because it is your own switch, it works the same on every platform.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Which screens get a guard?</h3>
+                    <p>Without writing code, sort these into "everyone", "signed in only" and "guests only", and say how each would be guarded: a cleanup's screen; Before you go; the check-in screen on the day of a cleanup (Lesson 6.3); the new debris log (Lesson 5.4); the sign-in screen; the Profile tab.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask two questions: does the screen make sense for a guest at all, and is it a whole screen or just a part of one?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Everyone: a cleanup's screen (guests decide whether to join), Before you go, and the Profile tab, which is not guarded but has two faces. Signed in only: check-in and the debris log, both in a <code>Stack.Protected guard={session !== null}</code> group like the sketch in Protected Routes. Guests only: the sign-in screen, as you built it. A tab that appears and disappears confuses people, which is why Profile and My cleanups change what they show instead.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Ask before signing out</h3>
+                    <p>Make <strong>Sign out</strong> ask "Sign out?" first, with <strong>Cancel</strong> and <strong>Sign out</strong> buttons, using React Native's <code>Alert</code>. Then try it in the web preview.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>Alert.alert(title, message, buttons)</code> takes an array of buttons, each with <code>text</code>, an optional <code>style</code> and <code>onPress</code>. In the web preview, look very closely at what happens when you press the button.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In the web preview, nothing happens: react-native-web's <code>Alert.alert</code> is an empty function (its source is three lines), so the volunteer could never sign out there. Ask only where the question can be shown:</p>
+                        <pre data-snippet><code class="language-tsx">import { Alert, Platform } from 'react-native';
+
+import { signOut } from '@/auth/session';
+
+// Ask before signing out. On the web preview, Alert.alert does nothing at all, so sign out at once.
+export function confirmSignOut() {
+  if (Platform.OS === 'web') {
+    signOut();
+    return;
+  }
+  Alert.alert('Sign out?', 'You will need your password to sign in again.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Sign out', style: 'destructive', onPress: signOut },
+  ]);
+}</code></pre>
+                        <p>Put it in <code>src/auth/confirmSignOut.tsx</code> and call <code>confirmSignOut()</code> instead of <code>signOut()</code> in Profile's <code>signOutNow</code>. The course measured the web branch (signed out at once; <code>tsc</code> and ESLint clean). On a phone, the documentation describes the system dialog: on an iPhone the <code>destructive</code> button is red, and Android shows the buttons in its own order.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: What redirectTo does (Stretch)</h3>
+                    <p>In the root layout, give the guard <code>redirectTo="/profile"</code>. In <code>sign-in.tsx</code>, delete the <code>router.back()</code> lines so only <code>setSession(session)</code> is left. Sign in from My cleanups. Where do you land, and why did the lesson not solve the "wrong tab" problem this way?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>When the guard turns <code>false</code> while the sign-in screen is open, Expo Router redirects. <code>redirectTo</code> changes where to.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Measured in the web preview: you land on <strong>Profile</strong>, even though you started on My cleanups. <code>redirectTo</code> is one fixed address for every way into the screen, so it suits a screen that should always lead to the same place afterwards. A sign-in that can be opened from several places should go back where it came from, which only the screen knows: so it closes itself first. Put both files back as Step 7 left them.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Where should Shoreline Crew keep a volunteer's session token on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Is AsyncStorage encrypted? Lesson 5.3 says what it is good for.">
+                                A) In AsyncStorage, so it loads quickly
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="expo-secure-store keeps it in the iOS Keychain or encrypted with the Android Keystore, where other apps cannot read it. It is async, so the app waits for it at startup.">
+                                B) In secure storage, with <code>expo-secure-store</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Who can read an EXPO_PUBLIC_ value once the app is built?">
+                                C) In an <code>EXPO_PUBLIC_</code> variable in <code>.env.local</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The token is the right thing to keep. Is the password?">
+                                D) Nowhere: store the password and sign in again at every start
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Theo is signed in and follows a link to <code>/sign-in</code>. What does the app show?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does the guard on the sign-in route say while someone is signed in?">
+                                A) The sign-in form, ready for another account
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The route exists in the project. What does Expo Router do with a guarded route?">
+                                B) The not-found screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Expo Router does not leave a guarded address blank. Where does it send people?">
+                                C) A blank screen until he signs out
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The guard is false while someone is signed in, so the sign-in route is taken out and Expo Router redirects to the root stack's anchor, the tabs, which open on Cleanups.">
+                                D) The Cleanups tab, because the guarded route redirects to the stack's first screen
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> shoreline-api restarted overnight. In the morning Theo opens the app, which restores his saved token. What happens with the first request that carries it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The API no longer knows the token and answers 401. The client forgets the session, the listener in session.ts deletes the saved copy, and the screens redraw as signed out.">
+                                A) The API answers 401, and the app forgets the session and clears the saved copy
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The API keeps its sessions in memory. What is left after a restart?">
+                                B) It works: the token is saved on the phone, so it is still valid
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at request() in client.ts: what does it do with a 401?">
+                                C) The app crashes with an ApiError
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Why does the root layout keep the splash screen up until <code>loadSession()</code> has finished?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Secure storage works whether a splash screen is showing or not. What would the first frames show?">
+                                A) Secure storage can only be read while the splash screen is showing
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The fonts are a separate reason. What does the session add?">
+                                B) The fonts are stored in secure storage
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Reading secure storage is async. Without the wait, the first frames would say Not signed in, and guards and redirects would act on that wrong answer before the saved session arrived.">
+                                C) Until secure storage answers, the app does not know who is signed in, and screens and guards would act on the wrong answer
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> In the web preview you sign in, reload the page, and Profile says "Not signed in". Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Did the API restart? What did loadSession find in the browser?">
+                                A) The API forgot the session when the page reloaded
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A browser has no keychain: isAvailableAsync() is false, so Shoreline Crew keeps the session in memory only, and a reload starts with nothing. On a phone it is saved.">
+                                B) The web preview has no secure storage, so the session lived in memory only
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The guard decides which screens exist. Does it delete sessions?">
+                                C) <code>Stack.Protected</code> signs you out when a page reloads
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>How safe is a token in secure storage?</summary>
+                    <p>Much safer than anywhere else the app can write: according to the Expo and platform documentation, the Keychain and Keystore encrypt the value, tie it to your app, and on many phones keep the key in dedicated hardware. It is not magic: a phone that is rooted or jailbroken, or someone with the unlocked phone in hand, is a different threat. That is why sign-out deletes the token and why the API can end sessions on its side.</p>
+                </details>
+                <details>
+                    <summary>Where are "forgot password", "create an account" and refresh tokens?</summary>
+                    <p>Not in shoreline-api, so not in this course: volunteers get accounts from the crew, and a session simply lasts until the API forgets it. Real APIs often hand out a short-lived access token with a longer-lived refresh token, and the app quietly asks for a new access token when it gets a 401 before giving up. The shape you built (one place that reads the token, one place that reacts to 401, one saved copy) is where that logic would go.</p>
+                </details>
+                <details>
+                    <summary>Can the app ask for Face ID or a fingerprint?</summary>
+                    <p>Yes: <code>setItemAsync</code> and <code>getItemAsync</code> take a <code>requireAuthentication</code> option, and the config plugin from Step 1 accepts a <code>faceIDPermission</code> text for iOS. The documentation lists conditions (biometrics enrolled, the prompt can be cancelled or fail, and Face ID on iOS needs that permission text in your own build). It suits a banking app more than a volunteer app; Going Further asks you to weigh it.</p>
+                </details>
+                <details>
+                    <summary>Could I hide the My cleanups tab from guests instead?</summary>
+                    <p>You could: the JavaScript tabs have <code>Tabs.Protected</code> too (it is in Expo Router's types). But a tab bar whose tabs come and go is confusing, and a guest who sees "Sign in to see your cleanups" learns what the app offers. Guard whole screens that make no sense for a guest; give tabs a signed-out face.</p>
+                </details>
+                <details>
+                    <summary>What does an organizer see when they sign in on the phone?</summary>
+                    <p>The same app, with "Signed in as an organizer" on Profile. The API accepts organizers, and the phone app is built for volunteers; organizers' planning tools stay in the HQ. If you want a volunteer to try, the API's sample volunteers all use the password <code>shoreline-demo</code> (the <a href="api.html#accounts">API reference</a> lists them).</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Read the <code>expo-secure-store</code> documentation on <code>keychainAccessible</code> and <code>requireAuthentication</code>. Then decide, in writing, what Shoreline Crew should use: should the token be readable while the phone is locked in a pocket (for a reminder that loads data in the background later in the course), and should opening the app ask for Face ID? Compare your answer with what a banking app would choose, and why the two apps differ.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Draw the life of Theo's token as a timeline: typed password, the API's answer, memory, secure storage, every request after that, an API restart, the 401, the deleted copy. Mark each place where the web preview behaves differently from a phone, and each line of code that handles a step.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Tokens go in secure storage (<code>expo-secure-store</code>: Keychain on iOS, Keystore-encrypted on Android), never in AsyncStorage or an <code>EXPO_PUBLIC_</code> variable, and the password is never stored at all</li>
+                        <li>Secure storage is async, so the app restores the session while the splash screen is still up; in the web preview <code>isAvailableAsync()</code> is <code>false</code> and the session lives in memory only</li>
+                        <li>The client keeps the session in memory (copied from the HQ); <code>session.ts</code> listens and saves every change, and the imports point one way</li>
+                        <li><code>Stack.Protected guard={…}</code> decides which screens exist; a guarded address, or a guard that changes while its screen is open, redirects to the anchor (or <code>redirectTo</code>)</li>
+                        <li>A sign-in modal closes itself first, then sets the session; it shows the API's messages and empties the password after a failed try</li>
+                        <li>A 401 to a request that carried a token ends the session everywhere; Profile checks with <code>GET /api/auth/me</code> each time it comes into view</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up a term (token, secure storage, protected route, 401)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read every option of secure storage</td><td><a href="https://docs.expo.dev/versions/latest/sdk/securestore/" target="_blank" rel="noopener">Expo SecureStore documentation</a></td></tr>
+                            <tr><td>Read Expo Router's guide to protected routes and authentication</td><td><a href="https://docs.expo.dev/router/advanced/protected/" target="_blank" rel="noopener">Expo Router: Protected routes</a></td></tr>
+                            <tr><td>See the API's accounts and its sign-in endpoints</td><td><a href="api.html#accounts">API reference</a></td></tr>
+                            <tr><td>Fix an error you met today</td><td><a href="troubleshooting.html">Troubleshooting</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Volunteers can sign in to Shoreline Crew, and stay signed in across restarts on a phone</li>
+                        <li>You moved a web session from <code>sessionStorage</code> to the phone's secure storage, and handled honestly the one platform that has none</li>
+                        <li>You guarded a route so the app cannot show the wrong screen to the wrong person</li>
+                        <li>Your app survives the server forgetting it: it says so, and offers a way back in</li>
+                        <li>You read an SSR error, a require-cycle warning and a TypeScript null error back to their causes</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_14.html">Lesson 4.4: Deep Links</a>, links from outside the app open a screen inside it: <code>shorelinecrew://cleanups/e08</code> straight to Weekend Cove. You will see what happens when a link points at a screen that a guard has taken out (today's redirect, from the outside), what is underneath a screen opened by a link, and how to share a link to a cleanup.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Walk the six paths from Step 7 once more and commit</li>
+                    <li>Look up <code>scheme</code> in your <code>app.json</code>: the app already has one</li>
+                    <li>Think about a link a crew leader might text to volunteers: which screen should it open, and what if the volunteer is not signed in?</li>
+                    <li>Write today's journal entry, with your token timeline</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Sign-in is where many developers first feel that an app has a lot of moving parts: storage, state, navigation and the network all meet in a few lines. If you had to read Step 5's "close first, then sign in" twice, or trace the 401 from the API to the screen with your finger, you were doing exactly what experienced developers do with auth code: slowing down where mistakes are expensive. You do not have to hold it all in your head yet. You have a working version, and you know where each piece lives.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_12.html" class="prev-lesson">← Previous: Tabs, Nesting and Modals</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_14.html" class="next-lesson">Next: Deep Links →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

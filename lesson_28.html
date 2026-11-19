@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Accessible mobile apps: how VoiceOver and TalkBack meet a React Native screen; roles, labels, hints and states; decoration hidden with aria-hidden; announcing changes on an iPhone; the phone&#x27;s text size (allowFontScaling, maxFontSizeMultiplier, fontScale) and large-text layouts; finger-sized touch targets, as a systematic audit and fix of the whole Shoreline Crew app. React Native &amp; Expo: Build and Ship a Mobile App Lesson 8.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Accessible Mobile Apps - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>♿ Lesson 8.1: Accessible Mobile Apps</h1>
+                <p class="lead">Somewhere on a beach this weekend, a volunteer is logging a bag of bottle caps with VoiceOver reading every word aloud. Another has her phone's text at its largest size because she left her reading glasses in the car. A third is wearing work gloves. Every lesson so far added labels, roles and finger-sized buttons as it went; today you check the whole of Shoreline Crew the way a careful team does before a release: screen by screen, with the tools the web preview offers and then with a real screen reader and the largest text in your hands. Then you fix what is left.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how VoiceOver and TalkBack move through a React Native screen, and describe an element with its role, label, state, value and (sometimes) hint</li>
+                        <li>Audit a whole app systematically: automated checks and the accessibility tree in the web preview, then a screen reader and large text on a phone, knowing what each one can and cannot tell you</li>
+                        <li>Hide decoration with <code>aria-hidden</code>, group what belongs together, and make names that start with the words people see</li>
+                        <li>Announce changes on an iPhone, where <code>accessibilityLiveRegion</code> does nothing</li>
+                        <li>Support the phone's text size: keep <code>allowFontScaling</code>, use <code>maxFontSizeMultiplier</code> only where you can justify it, and switch layouts with <code>fontScale</code></li>
+                        <li>Give every control a touch target of at least 44 by 44 points (48 by 48 in Shoreline Crew)</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 160 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_27.html">Lesson 7.3: Motion Polish</a> (and touch targets, roles and labels from <a href="lesson_07.html">Lesson 2.4</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> An accessibility audit of every Shoreline Crew screen, and its fixes: hidden decoration, switch rows that are one target, a Logbook tab whose name matches its words, announcements on iPhone, layouts that change shape for large text, and finger-sized targets everywhere</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> The web preview with Chrome's accessibility tools for the audit; your phone with VoiceOver (iPhone) or TalkBack (Android phone) and the largest text size for the part no browser can check; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-28-start.zip">lesson-28-start.zip</a> · Finished code: <a href="downloads/lesson-28-end.zip">lesson-28-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: An Audit, Not a Feature</a></li>
+                        <li><a href="#screen-readers" class="toc-link">How a Screen Reader Meets Your Screen</a></li>
+                        <li><a href="#audit" class="toc-link">Auditing the Whole App</a></li>
+                        <li><a href="#text-size" class="toc-link">The Phone's Text Size</a></li>
+                        <li><a href="#targets" class="toc-link">Touch Targets and Announcements</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Audit and Fix Shoreline Crew</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: An Audit, Not a Feature</h2>
+                <p>Accessibility is not a module you add at the end, and Shoreline Crew did not treat it as one. Lesson 2.3 hid decorative icons, Lesson 2.4 gave every button a role, a label and 48 points of height, Lesson 4.3 announced form errors, Lesson 7.1 made each tally one element with its final number, and Lesson 7.3 followed Reduce Motion. So today is not "now we make it accessible". It is the step every serious team takes before a release: <strong>check everything, systematically, with the people who will use it in mind</strong>, and fix what slipped through.</p>
+                <p>Last lesson's "Before the Next Lesson" asked you to use one app you know with VoiceOver or TalkBack for five minutes. If you did, you already know the two big lessons of today: a screen reader experiences an app <em>one element at a time, in order, by ear</em>, and small things (an icon read as "image", a word read twice, a button called "button") turn a quick task into a slow one. By the end of this lesson:</p>
+                <ul>
+                    <li><strong>You have audited every screen</strong> of Shoreline Crew in the web preview and on your phone, and you know which findings each tool can and cannot make.</li>
+                    <li><strong>Decoration is silent on all three platforms</strong>, switch rows are one big target and one screen-reader stop, and the Logbook tab's name matches its words.</li>
+                    <li><strong>iPhone users hear changes</strong> (a sent log, a question, an error) the way Android users already did.</li>
+                    <li><strong>The largest text sizes work</strong>: tallies and detail rows change shape instead of squeezing, and long button labels wrap.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> about one in six people lives with a disability, and many more have a temporary or situational one (a broken arm, sun glare, gloves). App stores, public-sector contracts and a growing number of laws expect apps to meet accessibility standards; WCAG 2.2, the web's guidelines, is what most of them point to for mobile apps too. "Can you run an accessibility pass on this?" is a request you will get, and doing it methodically is a skill employers notice.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Feeling clumsy with a screen reader is normal</h3>
+                    <p>The first ten minutes with VoiceOver or TalkBack are disorienting for everyone: the phone stops doing what you expect, and a swipe means something different. That clumsiness is information, not failure. Go slowly, keep the "turn it off" shortcut written down (Step 2), and remember that the people who use screen readers every day are fast and fluent: you are learning a little of a language they speak well.</p>
+                </div>
+            </section>
+
+            <section id="screen-readers" class="lesson-section">
+                <h2>🗣️ How a Screen Reader Meets Your Screen</h2>
+                <p>On the web you met screen readers through the DOM: headings, landmarks, <code>&lt;button&gt;</code> and <code>aria-*</code> attributes. On a phone there is no DOM, but the idea is the same. React Native turns your components into native views, and the phone builds an <strong>accessibility tree</strong> from them: a list of <em>elements</em> a screen reader can stop on. VoiceOver (iPhone) and TalkBack (Android) then let a person move through that list:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>To…</th><th>VoiceOver (iPhone)</th><th>TalkBack (Android phone)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Turn it on or off</td><td>Settings &gt; Accessibility &gt; VoiceOver; set the Accessibility Shortcut to triple-click the side button</td><td>Settings &gt; Accessibility &gt; TalkBack; the shortcut is usually holding both volume keys for a few seconds</td></tr>
+                            <tr><td>Hear what is under your finger</td><td>Touch it (drag to explore)</td><td>Touch it (drag to explore)</td></tr>
+                            <tr><td>Go to the next / previous element</td><td>Swipe right / left with one finger</td><td>Swipe right / left with one finger</td></tr>
+                            <tr><td>Press the element</td><td>Double-tap anywhere</td><td>Double-tap anywhere</td></tr>
+                            <tr><td>Scroll</td><td>Swipe with three fingers</td><td>Swipe with two fingers</td></tr>
+                            <tr><td>Go back</td><td>Two-finger scrub (a quick "Z")</td><td>The system back gesture, or swipe down then left</td></tr>
+                            <tr><td>Read from here on</td><td>Swipe down with two fingers</td><td>From the TalkBack menu: "Read from next item"</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>(These are the gestures Apple's and Google's guides describe; your phone's version may differ slightly, and TalkBack's menus change between versions.) For each element, the screen reader says a short sentence built from a few properties, and React Native has a prop for each:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Part</th><th>Question it answers</th><th>React Native prop</th><th>Shoreline Crew example</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Label</td><td>What is it called?</td><td><code>accessibilityLabel</code> (otherwise: the text inside)</td><td>"Open Weekend Cove Cleanup"</td></tr>
+                            <tr><td>Role</td><td>What kind of thing is it?</td><td><code>accessibilityRole</code>: <code>button</code>, <code>link</code>, <code>header</code>, <code>switch</code>, <code>radio</code>, <code>image</code>, <code>alert</code>…</td><td>"…, link"</td></tr>
+                            <tr><td>State</td><td>What is it like right now?</td><td><code>aria-checked</code>, <code>aria-expanded</code>, <code>aria-selected</code>, <code>aria-disabled</code>, <code>aria-busy</code> (or <code>disabled</code>)</td><td>"Show details for…, expanded"</td></tr>
+                            <tr><td>Value</td><td>How much?</td><td><code>accessibilityValue</code> (or <code>aria-valuenow</code> and friends) for sliders and adjustable controls</td><td>(Lesson 5.4's adjustable stepper exercise)</td></tr>
+                            <tr><td>Hint</td><td>What will happen if I press it?</td><td><code>accessibilityHint</code>: optional, said after a pause, and people can turn hints off</td><td>(Exercise 2 adds one)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Shoreline Crew has written state with the <code>aria-*</code> names since Lesson 2.4: React Native reads them on phones, and react-native-web turns them into the same HTML attributes in the web preview, where <code>accessibilityState</code> was ignored. Here is everything on one control:</p>
+                <pre data-snippet><code class="language-tsx">import { Pressable, Text } from 'react-native';
+
+type RemoveButtonProps = { title: string; sending: boolean; onAsk: () => void };
+
+// Label, role, state and hint on one control: what a screen reader says about it
+export function RemoveButton({ title, sending, onAsk }: RemoveButtonProps) {
+  return (
+    <Pressable
+      accessibilityRole="button" // what kind of thing: "button"
+      accessibilityLabel={`Remove the log for ${title}`} // what it is called (starts with the visible word)
+      accessibilityHint="Asks first. This log is not on the server yet." // what happens (optional)
+      aria-disabled={sending} // its state right now
+      disabled={sending}
+      onPress={onAsk}
+    >
+      <Text>Remove</Text>
+    </Pressable>
+  );
+}</code></pre>
+                <p>VoiceOver would read it roughly as "Remove the log for Tide Pool Morning Cleanup, button", then, after a short pause, the hint. With <code>sending</code> true it adds "dimmed" (VoiceOver) or "disabled" (TalkBack). The exact words and their order belong to each screen reader, which is one reason the course says "roughly": you design the parts, the phone speaks them.</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the radio call</h3>
+                    <p>On a cleanup, the crew lead on the radio never says "the thing over there". Each call is short and in a fixed order: who you are, what you see, what state it is in. "Rocks team: three full bags at the north stairs, ready for pickup." A screen reader makes a radio call for every element: <strong>label, role, state</strong>, and sometimes a hint about what happens next. A good call is short, never repeats itself, and never makes the listener guess. Decoration is radio silence: nothing to report.</p>
+                </div>
+                <h3>Elements: one stop or many</h3>
+                <p>Which views become elements decides how many swipes a screen takes. A <code>Text</code> is an element; a <code>Pressable</code> is one element <em>including the text inside it</em> (its children are read as its label); a plain <code>View</code> is not. Two props change that:</p>
+                <ul>
+                    <li><strong><code>accessible</code></strong> on a <code>View</code> makes the view and everything in it <strong>one element</strong>, read as one sentence. Lesson 7.1's tally does this: "42 pieces" is one stop, not "42" and "pieces" (and not every number on the way up).</li>
+                    <li><strong><code>aria-hidden</code></strong> removes a view and everything in it from the tree: it is never read and never focused. It is for decoration whose meaning is already in words nearby.</li>
+                </ul>
+                <pre data-snippet><code class="language-tsx">import { Text, View } from 'react-native';
+
+type LogSummaryProps = { title: string; date: string; pieces: number };
+
+// Three texts, one stop: "Tide Pool Morning Cleanup, Sat, Nov 14, 2 pieces"
+export function LogSummary({ title, date, pieces }: LogSummaryProps) {
+  return (
+    // One element: read as one sentence, the texts inside are not stops of their own
+    <View accessible accessibilityLabel={`${title}, ${date}, ${pieces} pieces`}>
+      <Text>{title}</Text>
+      <Text>{date}</Text>
+      <Text>{pieces} pieces</Text>
+    </View>
+  );
+}</code></pre>
+                <p>Grouping has a cost, which Lesson 4.1 named when it kept <strong>Open</strong> and <strong>Show details</strong> as two separate buttons instead of making the whole card pressable: React Native's documentation says an <code>accessible</code> view groups <em>everything</em> inside it, so a button inside a grouped card cannot be reached on its own any more. Group text that belongs together; never group controls into it.</p>
+            </section>
+
+            <section id="audit" class="lesson-section">
+                <h2>🔎 Auditing the Whole App</h2>
+                <p>An audit is a checklist run against every screen and every state of a screen (empty, loading, failed, signed out, signed in, a log waiting, a question open). Two kinds of tools, used together:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Tool</th><th>What it can tell you</th><th>What it cannot</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>The web preview + Chrome DevTools: Lighthouse's accessibility audit (built on the axe-core engine) and the Elements panel's <strong>Accessibility</strong> pane (the browser's accessibility tree)</td><td>Missing labels and roles, names that do not match the words on screen, low contrast, decoration that is not hidden, elements read twice, the size of each control in the browser</td><td>What VoiceOver or TalkBack actually say, in which order, and how gestures, announcements, native headers, tab bars and the phone's text size behave. react-native-web is a translation of your props into HTML, not a phone</td></tr>
+                            <tr><td>Your phone: VoiceOver or TalkBack, the largest text size, your thumb (and, optionally, Xcode's Accessibility Inspector on a Mac or Google's free Accessibility Scanner app on Android)</td><td>The real experience: reading order, what each element says, whether announcements arrive, how large text lays out, whether targets are easy to hit</td><td>Nothing systematic by itself: you have to walk every screen and state on purpose, and write down what you find</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A clean web audit is not an accessible app</h4>
+                    <p>Automated checks find only part of the real accessibility problems (published estimates range from about a third to about half), and on React Native they check the <em>web translation</em> of your app. Use them to catch the mechanical mistakes quickly, every time; never use them as proof. The proof is a person using a screen reader and large text on a real phone.</p>
+                </div>
+<div class="mermaid">
+graph TD
+    A["Web audit: axe"] --> B["Fix what it finds"]
+    B --> C["Screen reader on a phone"]
+    C --> D["Largest text size"]
+    D --> E["Fix, then check again"]
+    E --> A
+</div>
+                <p>The course ran that loop over the starting code of this lesson: axe-core (the engine inside Lighthouse) on 20 screens and states in the web preview, every control's size, the browser's accessibility tree, and an <em>emulation</em> of large text (every text's size and line height doubled and tripled in the page, while padding, widths and icons stayed the same, which is what the phone's text size does). Here is what it found, and what today's project does about each:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Finding (measured in the web preview)</th><th>Why it matters on a phone</th><th>Fix (step)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>The swipe strip's word "Remove" is in the accessibility tree; decorative icons and the strip use iPhone- and Android-only props</td><td>On phones those props work; the web preview, where you audit, cannot see that they do, and one prop does both jobs</td><td><code>aria-hidden</code> (Step 3)</td></tr>
+                            <tr><td>Every switch row is read twice ("Reduce motion in this app", then "Reduce motion in this app, switch"), and the switch itself is a 40 by 20 pixel target; tapping the words does nothing</td><td>Two stops per setting, and a target smaller than a fingertip</td><td>The whole row presses the switch; the words are seen, not read (Step 4)</td></tr>
+                            <tr><td>axe <code>label-content-name-mismatch</code> (serious) on the Logbook tab: the visible text is "1Logbook" (the badge's digit, then the word), the name "Logbook, 1 not sent yet"</td><td>Voice control users say what they see; the badge's red with white text is also only about 3.5:1</td><td>The count moves into the tab's words (Step 5)</td></tr>
+                            <tr><td>(Read in React Native's documentation) <code>accessibilityLiveRegion</code>, used in 21 places, is Android only</td><td>iPhone users hear nothing when a log is sent, a question appears or a form error shows up</td><td>One change in <code>AppText</code> (Step 6)</td></tr>
+                            <tr><td>Large text, tripled: the four tallies run into each other ("1 42 1 2.5", "pieces" cut off); detail labels in their 72-point column break "Meet" into "M ee t"; "Show details" runs off the card</td><td>People who need large text get a broken summary and unreadable cards</td><td>Layouts change shape with <code>fontScale</code>; buttons never grow wider than their space (Step 7)</td></tr>
+                            <tr><td>The stepper's − and + buttons are 47 pixels wide; the search box's text field is 35 pixels tall inside its 48-pixel row</td><td>Just under the course's 48; taps on the row miss the field</td><td>A minimum width on <code>Button</code>; the field fills its row (Step 7)</td></tr>
+                            <tr><td>axe <code>document-title</code> (serious) and <code>region</code> (moderate) on every screen</td><td>Not at all: a phone app has no HTML document, no title and no landmarks</td><td>Left as they are, on purpose (<a href="#faq">Common Questions</a>)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Notice what is <em>not</em> on the list: missing labels, unlabeled icon buttons, missing roles, or contrast problems in the app's own colors. Earlier lessons built those in, and the audit confirmed it. That is the payoff of doing accessibility as you go: the audit finds edges, not foundations.</p>
+            </section>
+
+            <section id="text-size" class="lesson-section">
+                <h2>🔠 The Phone's Text Size</h2>
+                <p>On the web, people zoom the page. On a phone, they set a <strong>text size</strong> for every app: iPhone in Settings &gt; Accessibility &gt; Display &amp; Text Size &gt; Larger Text (with "Larger Accessibility Sizes" for the biggest ones), Android in Settings &gt; Display &gt; Font size (names vary by maker). React Native follows that setting by default, and Lesson 2.1 told you not to fight it. The numbers are larger than most people expect (from Apple's and Google's published type scales):</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>Body text (normally 16 to 17)</th><th>Multiplier, roughly</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>iPhone, largest standard size</td><td>about 23</td><td>× 1.35</td></tr>
+                            <tr><td>Android, largest font size</td><td>up to twice the default (newer Android versions grow large text a little less)</td><td>× 2</td></tr>
+                            <tr><td>iPhone, largest accessibility size</td><td>about 53</td><td>× 3.1</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Three tools, in the order you should reach for them:</p>
+                <ol>
+                    <li><strong>Layouts that let text grow</strong> (Lessons 2.1 and 2.2): no fixed heights on anything with text, <code>minHeight</code> instead of <code>height</code>, <code>flex: 1</code> on text in a row, <code>flexWrap</code> on rows of buttons and badges. Most of Shoreline Crew survived the tripled text because of these.</li>
+                    <li><strong>A different layout at large sizes</strong>: <code>useWindowDimensions().fontScale</code> (Lesson 2.5) is the person's multiplier, and a component re-renders when it changes. When things side by side get too narrow, put them on top of each other. That is not a workaround: Apple's own apps switch rows to stacks at accessibility sizes.</li>
+                    <li><strong>A limit, only where it is justified</strong>: <code>maxFontSizeMultiplier</code> on a <code>Text</code> caps how far it grows (1.75 means "at most 1.75 times"). Text that is already big (a 32-point title, a tally number) can grow less, the way Apple's own type scale grows large titles far less than body text. Never put a limit on body text, and never use <code>allowFontScaling={false}</code>, which switches the person's setting off for that text entirely.</li>
+                </ol>
+                <p>Shoreline Crew gets one small hook for the second tool, so every component uses the same threshold:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/src/hooks/useLargeText.ts</div>
+                    <pre data-src="shoreline-crew/src/hooks/useLargeText.ts"><code class="language-ts">import { useWindowDimensions } from 'react-native';
+
+// true when the person has made text at least one and a half times its normal size in the phone's
+// settings: then rows of text side by side get too narrow, and a few layouts change shape.
+// useWindowDimensions re-renders the component when the text size changes.
+export function useLargeText() {
+  const { fontScale } = useWindowDimensions();
+  return fontScale &gt;= 1.5;
+}</code></pre>
+                </div>
+                <p>Why 1.5? Up to the iPhone's largest standard size (about 1.35) the normal layouts hold; from Android's larger steps and the iPhone's accessibility sizes on, side-by-side text gets cramped. It is a judgment, written in one place, which makes it easy to change after you have watched someone use the app.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone: the tab bar decides for itself</h4>
+                    <p>Expo Router's tab bar (React Navigation's code inside it) does not scale tab labels on iPhone. Instead, with a large text size, pressing and holding a tab shows its icon and label magnified in the middle of the screen: Apple's <strong>Large Content Viewer</strong>, which Apple recommends for bars that cannot grow. On Android the labels do scale, and the course's emulation showed "My cleanups" cut short at double size. The icon and the tab's full accessible name are still there, so Shoreline Crew leaves the library's choice as it is. (Read in the library's code; Step 8 checks both on your phone.)</p>
+                </div>
+            </section>
+
+            <section id="targets" class="lesson-section">
+                <h2>👆 Touch Targets and Announcements</h2>
+                <h3>Targets</h3>
+                <p>Apple asks for controls at least <strong>44 by 44 points</strong>; Google's Material guidelines ask for <strong>48 by 48 dp</strong>; WCAG 2.2 sets a minimum of 24 by 24 for the web and 44 by 44 as its stricter level. Shoreline Crew has used 48 since Lesson 2.4, because a thumb in a work glove on a windy beach is the real test. Lesson 2.4's tools still apply: <code>minHeight</code> (and now <code>minWidth</code>), padding, and <code>hitSlop</code> to grow the touchable area beyond what is drawn (on phones only: the web preview ignores <code>hitSlop</code>). Today's audit adds one more: <strong>make the obvious thing the target.</strong> People tap the words of a setting, not only its switch, and they tap anywhere in a search box, not only on the line where text appears.</p>
+                <h3>Announcements</h3>
+                <p>Some changes happen where the person is not looking: "Log sent. Thank you!" replaces a form, a question appears under a card, an error shows up under a field. Shoreline Crew has marked 21 such texts with <code>accessibilityLiveRegion="polite"</code>, from the sign-in form's errors (Lesson 4.3) on. In the web preview that became <code>aria-live</code>, and on Android TalkBack announces the change. On iPhone, React Native's documentation lists the prop as <strong>Android only</strong>: VoiceOver hears nothing until the person happens to move to the text.</p>
+                <p>iPhone's way is to <em>ask</em> VoiceOver to say something: <code>AccessibilityInfo.announceForAccessibility(text)</code>, or <code>announceForAccessibilityWithOptions(text, { queue: true })</code>, which waits until VoiceOver finishes what it is saying instead of cutting it off (iOS only, per React Native's documentation). Because every one of the 21 texts goes through <code>AppText</code>, one change there covers them all: when an <code>AppText</code> marked as a live region appears or changes its words, on iPhone it asks VoiceOver to say them. That is the quiet reward for Lesson 2.1's rule that every text goes through one component.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made in a copy of the project and measured in the web preview or with the tools, except where the card says it comes from documentation.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Writing <code>aria-hidden="true"</code> the web way</h3>
+                    <p>In HTML, ARIA attributes are strings. In React Native, <code>aria-hidden</code> is a boolean, and TypeScript says so:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/Icon.tsx:35:6 - error TS2322: Type '{ name: { ios: "calendar"; android: "calendar_today"; web: "calendar_today"; } | { ios: "mappin.and.ellipse"; android: "location_on"; web: "location_on"; } | { ios: "person.2"; android: "group"; web: "group"; } | ... 7 more ... | { ...; }; size: number; tintColor: string | ... 1 more ... | NativeColorValue; "aria-hi...' is not assignable to type 'ViewProps'.
+  Types of property '"aria-hidden"' are incompatible.
+    Type 'string' is not assignable to type 'boolean | undefined'.
+
+35     &lt;SymbolView
+        ~~~~~~~~~~
+
+
+Found 1 error in src/components/Icon.tsx:35</code></pre>
+                    </div>
+                    <p>Write <code>aria-hidden</code> on its own (it means <code>true</code>) or <code>aria-hidden={false}</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Fixing large text by switching it off</h3>
+                    <p>A tally overflows at the largest size, and <code>allowFontScaling={false}</code> makes the problem disappear on your phone. It also makes the text unreadable for exactly the person who turned the size up. (No error and no warning: the web preview does not even show a difference, because its text size is always 1.) Change the layout first (<code>fontScale</code>, wrapping); cap big text with <code>maxFontSizeMultiplier</code> only when it is already large.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A fixed width for text</h3>
+                    <p>Lesson 2.2's detail rows gave the label a <code>width</code> of 72 so the values line up. Measured with the text tripled: "Meet at" no longer fit even one word per line, and the label broke inside the word: "M", "ee", "t", "at". A fixed width is a fixed height's sideways twin. With large text, let the label take its own line (Step 7).</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Making a row one control the wrong way</h3>
+                    <p>The first try at today's switch row put <code>focusable={false}</code> on the row's <code>Pressable</code> so keyboards would skip it. Measured in the web preview: every row was still a Tab stop with no name, right before its switch (react-native-web's <code>Pressable</code> sets its own <code>tabIndex</code>; read in its code). <code>tabIndex={-1}</code> is the prop it listens to, and on Android, per React Native's documentation, it means the same thing. And the obvious alternative, an <code>accessible</code> row with the switch inside, would group the switch away (the Elements section above): the switch stays the control, and the row only widens the target.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A name that does not start with what people see</h3>
+                    <p>People who use voice control (Voice Control on iPhone, Voice Access on Android) say the words they see: "Tap Logbook". The name has to contain those words, ideally at the start (WCAG's "Label in Name"). axe checks it in the web preview, and it flagged the Logbook tab because its badge put a digit before the word: the text on screen was "1Logbook". The course tried four names; every one failed while the badge was there, and "Logbook, 1 not sent yet" passed as soon as the badge was gone. The fix is not a cleverer name, it is words that match (Step 5).</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Audit and Fix Shoreline Crew</h2>
+                <p>You audit first, in the web preview and on your phone, and write down what you find. Then you fix the findings one by one, and finish by running the same checks again. Keep your findings in a table (screen, state, what you noticed, how bad, fixed in): it is the document a team would review, and it feeds your final project.</p>
+
+                <div class="card">
+                    <h3>Step 1: Audit the web preview <span class="step-time">(15 min)</span></h3>
+                    <p>Start shoreline-api and <code>npx expo start</code>, and open the web preview (<kbd>w</kbd>) in Chrome. Then, for each of these screens, open Chrome's DevTools (<kbd>F12</kbd>, or <kbd>⌥ Option</kbd>+<kbd>⌘ Cmd</kbd>+<kbd>I</kbd> on a Mac):</p>
+                    <ol>
+                        <li><strong>Lighthouse panel</strong>: choose only the Accessibility category and the Mobile device, then <strong>Analyze page load</strong>. Do it on Cleanups, a cleanup, Profile, and the Logbook with a log waiting (sign in as <code>theo.nakamura@example.com</code>, password <code>shoreline-demo</code>, stop shoreline-api, send a small log for today's cleanup, then start the API again later).</li>
+                        <li><strong>Elements panel &gt; Accessibility pane</strong> (in the side panel; turn on "Enable full-page accessibility tree" to see the whole tree): select the "Reduce motion in this app" row on Profile and the Logbook tab, and read their names and roles.</li>
+                    </ol>
+                    <p>You should find the switch rows listed twice in the tree and a name problem on the Logbook tab ("Elements with visible text labels do not have matching accessible names" is how Lighthouse words axe's <code>label-content-name-mismatch</code>), plus a missing document title on every page. Lighthouse runs axe-core, the engine the course used, but not every rule and not every state of every screen, so your list may be shorter than the table in <a href="#audit">Auditing the Whole App</a>. Write down every finding, including the ones you decide not to fix.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Audit with a screen reader on your phone <span class="step-time">(15 min)</span></h3>
+                    <p>Open Shoreline Crew in Expo Go (your computer's address in <code>.env.local</code>, Lesson 5.1). Before you turn the screen reader on, set up the way out: on iPhone, Settings &gt; Accessibility &gt; Accessibility Shortcut &gt; VoiceOver (then triple-click the side button toggles it); on Android, Settings &gt; Accessibility &gt; TalkBack and its shortcut (often both volume keys held for a few seconds). Then, with the screen reader on and using only swipes and double-taps:</p>
+                    <ol>
+                        <li>On Cleanups, swipe through the first card. Count the swipes. Does each element say something useful? Does "Open" say which cleanup?</li>
+                        <li>On Profile, swipe through the three switches. How many stops does each one take?</li>
+                        <li>Sign in, get a log waiting (as in Step 1), and go to the Logbook tab. What does the tab say? Swipe to the card: is the red strip behind it ever read?</li>
+                        <li>On iPhone: send the waiting log with <strong>Send now</strong> while VoiceOver is on, or open the remove question. Do you hear anything about the change?</li>
+                    </ol>
+                    <p>You should hear each switch twice on Profile, and on iPhone, silence when the log is sent. Note anything else that surprises you: that is the part of the audit no tool does for you. Turn the screen reader off before you go back to coding.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Decoration, hidden everywhere <span class="step-time">(10 min)</span></h3>
+                    <p>Lessons 2.3 and 7.2 hid decoration with <code>accessibilityElementsHidden</code> (iPhone) and <code>importantForAccessibility="no-hide-descendants"</code> (Android). Phones honor them; react-native-web ignores them, so the web preview, where you audit, read the swipe strip's "Remove". <code>aria-hidden</code> is one prop for all three: React Native's <code>View</code> turns it into both phone props (read in its code), and react-native-web into the HTML attribute. In <code>src/components/SwipeToRemove.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SwipeToRemove.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SwipeToRemove.tsx" data-match="diff"><code class="language-diff-tsx">       {/* Behind the row. Only a picture of what the swipe does: screen readers skip it */}
+-      &lt;Animated.View
+-        style={[styles.behind, revealed]}
+-        accessibilityElementsHidden
+-        importantForAccessibility="no-hide-descendants"
+-      &gt;
++      &lt;Animated.View style={[styles.behind, revealed]} aria-hidden&gt;
+         &lt;Icon name="remove" color={styles.word.color} /&gt;</code></pre>
+                    </div>
+                    <p>The icon needs one more thought. <code>SymbolView</code> draws a React Native <code>View</code> on Android and the web, so <code>aria-hidden</code> works there. On iPhone it is Expo's own native view, and React Native passes props to it as they are, without the translation <code>View</code> does (read in both libraries' code). So the icon keeps the iPhone prop and swaps the Android one for <code>aria-hidden</code>. In <code>src/components/Icon.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">       tintColor={color ?? colors.icon} // the theme's icon color unless the caller picks one
++      // Decoration, hidden from screen readers: aria-hidden on Android and in the web preview
++      // (SymbolView draws a View there); on iPhone, SymbolView is Expo's own native view, which
++      // React Native hands the iOS prop to as it is
++      aria-hidden
+       accessibilityElementsHidden
+-      importantForAccessibility="no-hide-descendants"
+     /&gt;</code></pre>
+                    </div>
+                    <p>Lesson 7.3's <code>LogSentMark</code> already used <code>aria-hidden</code> on a <code>View</code>, which needs nothing else.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: One row, one target, one stop <span class="step-time">(15 min)</span></h3>
+                    <p>Lesson 2.4's <code>SwitchRow</code> had two problems the audit found: the words and the switch were two stops for a screen reader, and only the small switch answered a finger. Replace <code>src/components/SwitchRow.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SwitchRow.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SwitchRow.tsx"><code class="language-tsx">import { Pressable, StyleSheet, Switch } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { useTheme } from '@/hooks/useTheme';
+import { spacing } from '@/theme/spacing';
+
+type SwitchRowProps = {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) =&gt; void;
+};
+
+// An on/off choice: the words on the left, the phone's own switch on the right. The whole row is
+// the touch target; a screen reader meets one control, the switch, which says the words itself.
+export function SwitchRow({ label, value, onValueChange }: SwitchRowProps) {
+  const { colors } = useTheme();
+  return (
+    &lt;Pressable
+      onPress={() =&gt; onValueChange(!value)}
+      accessible={false} // not a stop of its own for screen readers: the switch is
+      tabIndex={-1} // nor for a keyboard (Android, the web preview): Tab goes to the switch
+      style={styles.row}
+    &gt;
+      {/* Seen, not read: the switch's accessibilityLabel says the same words */}
+      &lt;AppText style={styles.label} aria-hidden&gt;
+        {label}
+      &lt;/AppText&gt;
+      &lt;Switch
+        value={value}
+        onValueChange={onValueChange}
+        accessibilityLabel={label} // a screen reader says the words with the switch
+        // A finger anywhere on the row presses the row (above), so the switch never gets
+        // the same touch twice. Screen readers and keyboards still reach the switch itself.
+        style={styles.switch}
+        // Gray when off, Sea Teal when on. iOS paints the off track with ios_backgroundColor
+        // (Android and the web ignore that prop).
+        trackColor={{ false: colors.trackOff, true: colors.action }}
+        ios_backgroundColor={colors.trackOff}
+        thumbColor={colors.knob} // a white knob on every platform, by day and by night
+      /&gt;
+    &lt;/Pressable&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 48,
+  },
+  label: {
+    flex: 1, // long words wrap instead of pushing the switch off the screen
+  },
+  switch: {
+    pointerEvents: 'none', // touches go through to the row
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The row is a <code>Pressable</code></strong> that flips the value, so a tap on the words, the gap or the switch does the same thing. It is at least 48 points tall, as before.</li>
+                        <li><strong>The switch takes no touches</strong> (<code>pointerEvents: 'none'</code> in its style) so a tap on it reaches the row once, not the switch and the row both. Measured in the web preview: a tap on the words, on the switch, on the gap and Space on the keyboard each flipped the switch exactly once.</li>
+                        <li><strong>The switch is still the control</strong> for screen readers and keyboards: it keeps its role, its state and its <code>accessibilityLabel</code>. The row is <code>accessible={false}</code> and <code>tabIndex={-1}</code>, so it is not a stop of its own, and the words are <code>aria-hidden</code>, so they are not read a second time. Measured: the tree went from "text, switch" to "switch" for each row, and Tab goes straight from switch to switch.</li>
+                    </ul>
+                    <p>Every switch in the app (Cleanups' two filters, Profile's three settings) gets this at once, because they all use <code>SwitchRow</code>.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_28/28-switch-row.png" alt="The Profile tab in the web preview: under Appearance, three rows each with words on the left and a switch on the right: Vibrate when a sign-up or a log goes through (on), Reduce motion in this app (off) and, under Reminders, Remind me the evening before my cleanups (off); the whole Reduce motion in this app row is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>One row, one target: a tap anywhere on the outlined row flips the switch, and a screen reader stops once, on the switch, which carries the words. (The web preview.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: A tab whose name matches its words <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 5.5 put the count of waiting logs in a badge on the Logbook tab and gave the tab the name "Logbook, 1 not sent yet". The name starts with the tab's word, which is what WCAG's Label in Name asks for, but the badge put its digit in front of the word on screen, and the badge's default white on red is only about 3.5:1 for its small digits. Put the count in the tab's words instead. In <code>src/app/(tabs)/_layout.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/_layout.tsx" data-match="diff"><code class="language-diff-tsx">           tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="logbook" color={color} size={size} /&gt;,
+-          // A small count on the tab while logs wait, and the same news for a screen reader
+-          tabBarBadge: unsent &gt; 0 ? unsent : undefined,
+-          tabBarAccessibilityLabel: unsent &gt; 0 ? `Logbook, ${unsent} not sent yet` : 'Logbook',
++          // While logs wait, the count is part of the tab's words, and the name a screen reader
++          // hears starts with exactly those words (with none waiting: the same as the other tabs)
++          tabBarLabel: unsent &gt; 0 ? `Logbook (${unsent})` : 'Logbook',
++          tabBarAccessibilityLabel: unsent &gt; 0 ? `Logbook (${unsent}), not sent yet` : undefined,
+         }}</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>tabBarLabel</code> is the tab's visible words; the screen's header still says "Logbook", because <code>title</code> did not change.</li>
+                        <li>The name begins with exactly what is on screen, "Logbook (1)", so "Tap Logbook" and "Tap Logbook 1" both match, and a screen reader adds "not sent yet". Measured: axe's <code>label-content-name-mismatch</code> is gone, and the course's checks no longer need to ignore it.</li>
+                        <li>With nothing waiting, <code>undefined</code> lets the tab bar name the tab itself, like the other three (on iPhone the library adds "tab, 3 of 4", read in its code).</li>
+                    </ul>
+                    <figure class="screenshot">
+    <img src="images/lesson_28/28-logbook-tab.png" alt="The Logbook tab in the web preview with one log not sent yet: a Tide Pool Morning Cleanup card marked Waiting to be sent with a Remove button, and in the tab bar the tab Logbook (1); the Remove button and the Logbook (1) tab are outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>The count is now part of the tab's words, Logbook (1), and the name a screen reader hears starts with exactly those words. (The web preview.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Announcements on iPhone, and big titles <span class="step-time">(10 min)</span></h3>
+                    <p>One change in <code>src/components/AppText.tsx</code> makes every live text speak on iPhone, and caps how far the already-large titles grow. First the imports:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/AppText.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/AppText.tsx" data-match="diff"><code class="language-diff-tsx">-import { StyleSheet, Text, type TextProps } from 'react-native';
++import { type ReactNode, useEffect } from 'react';
++import { AccessibilityInfo, Platform, StyleSheet, Text, type TextProps } from 'react-native';
+ </code></pre>
+                    </div>
+                    <p>Then a helper and the component:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/AppText.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/AppText.tsx" data-match="diff"><code class="language-diff-tsx"> 
++// The words of a text made of strings and numbers (what a screen reader would say)
++function wordsOf(children: ReactNode): string {
++  if (typeof children === 'string' || typeof children === 'number') {
++    return String(children);
++  }
++  return Array.isArray(children) ? children.map(wordsOf).join('') : '';
++}
++
+ export function AppText({ variant = 'body', style, ...rest }: AppTextProps) {
+   const styles = useStyles();
++  const live = rest.accessibilityLiveRegion !== undefined &amp;&amp; rest.accessibilityLiveRegion !== 'none';
++  const words = live ? wordsOf(rest.children) : '';
++  useEffect(() =&gt; {
++    // iPhone has no live regions (accessibilityLiveRegion is for Android and the web): VoiceOver
++    // says the new words because we ask it to, queued behind whatever it is saying already
++    if (Platform.OS === 'ios' &amp;&amp; words !== '') {
++      AccessibilityInfo.announceForAccessibilityWithOptions(words, { queue: true });
++    }
++  }, [words]);
+   // Later styles win: the base, then the variant, then whatever the screen passes in
+-  return &lt;Text style={[styles.base, styles[variant], style]} {...rest} /&gt;;
++  return (
++    &lt;Text
++      // Titles are big already: they grow with the phone's text size, but at most 1.75 times
++      maxFontSizeMultiplier={variant === 'title' ? 1.75 : undefined}
++      style={[styles.base, styles[variant], style]}
++      {...rest}
++    /&gt;
++  );
+ }</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>wordsOf</code></strong> collects the words of children made of strings and numbers, such as <code>{bringIn.data} {…'log' : 'logs'}</code>, which React passes as an array. That covers all 21 live texts in the app.</li>
+                        <li><strong>The effect runs when the words change</strong>, and when the text first appears, which is when most of Shoreline Crew's live texts matter: "Log sent. Thank you!", the remove question, an error under a field. It only asks VoiceOver on iPhone; Android and the web preview keep using the live region they already had.</li>
+                        <li><strong><code>queue: true</code></strong> lets VoiceOver finish what it is saying first. Without it, three form errors appearing together would cut each other off and only the last would be heard.</li>
+                        <li><strong><code>maxFontSizeMultiplier</code></strong> on the <code>title</code> variant only: 32-point titles (the banner and the tallies' numbers) grow up to 1.75 times, 56 points, while body text keeps growing all the way. It comes before <code>{...rest}</code>, so a screen can still pass its own.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Large text and finger-sized targets <span class="step-time">(20 min)</span></h3>
+                    <p>Create <code>src/hooks/useLargeText.ts</code> exactly as shown in <a href="#text-size">The Phone's Text Size</a>. Then the tallies: two to a row with large text. In <code>src/components/Tally.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Tally.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Tally.tsx" data-match="diff"><code class="language-diff-tsx"> import { AppText } from '@/components/AppText';
++import { useLargeText } from '@/hooks/useLargeText';
+ import { createThemedStyles } from '@/hooks/useTheme';
+ // ...
+   const styles = useStyles();
++  const largeText = useLargeText();
+ 
+ // ...
+     &lt;Animated.View
+-      style={[styles.tally, counting &amp;&amp; styles.counting]}
++      style={[styles.tally, largeText &amp;&amp; styles.half, counting &amp;&amp; styles.counting]}
+       accessible
+ // ...
+   },
++  half: {
++    minWidth: '40%', // with large text, two tallies to a row (the row wraps), not four
++  },
+   counting: {</code></pre>
+                    </div>
+                    <p>…and let their row wrap, in <code>src/app/(tabs)/logbook.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx">     flexDirection: 'row',
++    flexWrap: 'wrap', // with large text, the tallies take two rows (Tally)
+     gap: spacing.xs,</code></pre>
+                    </div>
+                    <p>Each tally keeps <code>flex: 1</code>; with a minimum width of 40%, four no longer fit on one line, so the row wraps to two lines of two. With normal text nothing changes (<code>flexWrap</code> only acts when things do not fit). Next the detail rows, in <code>src/components/Detail.tsx</code>: with large text, the row wraps, the label takes the rest of the icon's line, and the value gets a full line below:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Detail.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Detail.tsx" data-match="diff"><code class="language-diff-tsx"> import { Icon, type IconName } from '@/components/Icon';
++import { useLargeText } from '@/hooks/useLargeText';
+ import { spacing } from '@/theme/spacing';
+ // ...
+ // An icon, a label and its value side by side: the label keeps its width, the value takes the rest.
++// With large text, the value moves under the label and gets the whole width.
+ // Used by the cleanup cards and by the cleanup's own screen.
+ export function Detail({ icon, label, children }: DetailProps) {
++  const largeText = useLargeText();
+   return (
+-    &lt;View style={styles.detail}&gt;
++    &lt;View style={[styles.detail, largeText &amp;&amp; styles.wrap]}&gt;
+       &lt;View style={styles.icon}&gt;
+ // ...
+       &lt;/View&gt;
+-      &lt;AppText variant="muted" style={styles.label}&gt;
++      &lt;AppText variant="muted" style={largeText ? styles.labelLarge : styles.label}&gt;
+         {label}
+       &lt;/AppText&gt;
+-      &lt;AppText style={styles.value}&gt;{children}&lt;/AppText&gt;
++      &lt;AppText style={largeText ? styles.valueLarge : styles.value}&gt;{children}&lt;/AppText&gt;
+     &lt;/View&gt;
+ // ...
+   },
++  wrap: {
++    flexWrap: 'wrap',
++  },
++  labelLarge: {
++    flex: 1, // the rest of the first line, beside the icon
++  },
++  valueLarge: {
++    width: '100%', // a line of its own, under the icon and the label
++  },
+ });</code></pre>
+                    </div>
+                    <p>Then the targets. In <code>src/components/Button.tsx</code>, a button may never be wider than the space it is in (so "Show details" wraps inside the card instead of running off it), and never narrower than 48 (the stepper's − and + were 47):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Button.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Button.tsx" data-match="diff"><code class="language-diff-tsx">     alignSelf: 'flex-start', // as wide as its words, not stretched across a column
++    maxWidth: '100%', // ...but never wider than the space it is in: long words wrap inside
++    minWidth: 48, // a finger-sized target, even for a one-character label
+     justifyContent: 'center',</code></pre>
+                    </div>
+                    <p>And in <code>src/components/SearchField.tsx</code>, the text field fills its row's height, so a tap anywhere on the 48-point row puts the cursor in it:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SearchField.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SearchField.tsx" data-match="diff"><code class="language-diff-tsx">     flex: 1, // the field takes the space the icons leave
++    alignSelf: 'stretch', // and the row's full height: a tap anywhere on the row lands in it
+     paddingVertical: spacing.sm,</code></pre>
+                    </div>
+                    <p>The web preview's text size is always 1, so you cannot see these layouts there without help. The course looked at them by building a copy where <code>useLargeText()</code> always answers <code>true</code> and doubling every text in the page:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_28/28-large-tallies.png" alt="The Logbook tab in the web preview with text twice its normal size: the four tallies sit two to a row, 1 log and 42 pieces above 1 bag and 2.5 kg, outlined in red, under a large Your logbook heading and above a paragraph of large text." width="420" height="814" loading="lazy">
+    <figcaption>Large text, emulated in the web preview (every text twice its size, and the app told the phone's text size is large): the tallies take two rows instead of squeezing four into one.</figcaption>
+</figure>
+                    <figure class="screenshot">
+    <img src="images/lesson_28/28-large-card.png" alt="A cleanup card in the web preview with text twice its normal size: each detail row has its icon and label, such as Meet at, on one line and the value on the full-width line below; the Meet at row is outlined in red, and the Open and Show details buttons follow." width="420" height="814" loading="lazy">
+    <figcaption>With large text, a detail row puts its value under the label, so neither is squeezed into a narrow column (emulated in the web preview, as above).</figcaption>
+</figure>
+                    <p>You will see the real thing on your phone in Step 8. If you want to look in the web preview now, change <code>fontScale &gt;= 1.5</code> to <code>fontScale &gt;= 0</code> for a minute (every text stays normal size, but the layouts switch), and put it back.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 8: Check it again, on the web and on your phone <span class="step-time">(15 min)</span></h3>
+                    <p>Run <code>npx tsc --noEmit</code> (it should print nothing) and <code>npx expo lint</code> (nothing but the <code>env:</code> lines). Run Lighthouse again on the Logbook with a log waiting and on Profile: the name mismatch is gone, and the Accessibility pane shows one switch per row. What remains is the missing document title, which you decided about in Step 1 (<a href="#faq">Common Questions</a>). Then on your phone:</p>
+                    <ol>
+                        <li>With the screen reader on, swipe through Profile: one stop per switch, and a double-tap flips it. Turn it off and tap the <em>words</em> of a setting: the switch flips.</li>
+                        <li>Get a log waiting: the tab should say "Logbook (1)" and the screen reader something like "Logbook (1), not sent yet, tab". The red strip behind the card is never read.</li>
+                        <li>On iPhone with VoiceOver: on the Logbook, press <strong>Remove</strong> on a waiting card: you should hear the question. Press <strong>Keep it</strong>, start the API and press <strong>Send now</strong>: you should hear "Sending…". Send a new log from a cleanup's debris-log screen: you should hear "Log sent. Thank you!".</li>
+                        <li>Turn VoiceOver or TalkBack off. Set the text size to the largest (iPhone: Larger Text with Larger Accessibility Sizes on; Android: the largest font size). Open the Logbook: the tallies should sit two to a row; open the Cleanups list: detail values below their labels, "Show details" wrapping inside its card. On iPhone, press and hold a tab: its label appears magnified.</li>
+                    </ol>
+                    <p>Put the text size back where you like it. Add what you saw to your findings table, including anything that still feels wrong: an audit's honest "not fixed yet" list is as valuable as its fixes.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>You have a findings table from the web preview and from a screen reader on your phone, with a decision for each finding</li>
+                        <li>Decoration (icons, the swipe strip) is hidden with <code>aria-hidden</code>, and the web preview's tree no longer reads it</li>
+                        <li>Every switch row is one target and one screen-reader stop</li>
+                        <li>The Logbook tab shows "Logbook (N)" while logs wait, and its name starts with those words</li>
+                        <li>Live texts are announced on iPhone through <code>AppText</code>; titles grow at most 1.75 times</li>
+                        <li>With large text, tallies take two rows and detail values sit under their labels; buttons wrap and are at least 48 wide</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> run Steps 1, 2 and 8 on the app you are planning for your final project (or on its sketches): list every screen and state, and for each, what a screen reader would say and what happens at the largest text size. Decide your own "large text" threshold and which text, if any, may be capped, and write down why.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 8 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Write the radio calls</h3>
+                    <p>Without running anything, write what a screen reader says (label, role, state) for each element, with today's code. Then check two of them on your phone.</p>
+                    <ol>
+                        <li>The Open button on the Weekend Cove Cleanup card</li>
+                        <li>The Show details button on the same card, after it was pressed</li>
+                        <li>The "Group by date" setting on Cleanups, off</li>
+                        <li>The pieces tally on the Logbook, showing 42</li>
+                        <li>The trash-can icon in the red strip behind a waiting card</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for <code>accessibilityLabel</code>, <code>accessibilityRole</code>, <code>aria-*</code> and <code>accessible</code> in <code>EventCard</code>, <code>SwitchRow</code>, <code>Tally</code> and <code>SwipeToRemove</code>. A <code>Link</code> with <code>asChild</code> gives its child the link role.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Roughly (each screen reader words it its own way): (1) "Open Weekend Cove Cleanup, link". (2) "Hide details for Weekend Cove Cleanup, button, expanded" (the label changed with the state). (3) "Group by date, switch, off" (one stop: the words are hidden, the switch carries them). (4) "42 pieces": one element whose label is the final number, never the steps of the count. (5) Nothing: the strip is <code>aria-hidden</code>, and the icon inside it is decoration too.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A hint where a label is not enough</h3>
+                    <p>"Bring in my sent logs" is a clear label, but a volunteer may wonder whether it sends something or deletes something. Give the Logbook's button a hint that says what will happen, and tell screen readers when it is busy.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>Button</code> passes every <code>Pressable</code> prop on, so <code>accessibilityHint</code> and <code>aria-busy</code> work on it directly. A hint describes the result, starts with a verb, and does not repeat the label or the role.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">import { Button } from '@/components/Button';
+
+type BringInProps = { pending: boolean; onBringIn: () => void };
+
+// Exercise 2: the label says what the button is; the hint says what it will do (said after a pause)
+export function BringInButton({ pending, onBringIn }: BringInProps) {
+  return (
+    <Button
+      label={pending ? 'Bringing in…' : 'Bring in my sent logs'}
+      accessibilityHint="Copies the logs you sent before, from this phone or another, into this logbook."
+      aria-busy={pending}
+      disabled={pending}
+      onPress={onBringIn}
+    />
+  );
+}</code></pre>
+                        <p>VoiceOver reads the hint after a short pause, and people who know the app can turn hints off (iPhone: VoiceOver &gt; Verbosity &gt; Speak Hints), which is why the hint never holds information the label needs. <code>aria-busy</code> tells the screen reader the button is working, as "Bringing in…" tells everyone else.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: The stepper at large text (Stretch)</h3>
+                    <p>At the largest sizes, the debris-log form's stepper rows squeeze the label ("Fishing line and nets") into a narrow column beside three controls, and the number box keeps its fixed 72-point width. Give <code>Stepper</code> a large-text layout: the label on its own line, the −, the number and the + below it, and a number box that can grow.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>It is Step 7's Detail pattern: <code>useLargeText()</code>, <code>flexWrap: 'wrap'</code> on the row when it is true, and a label style with <code>width: '100%'</code>. For the box, <code>minWidth</code> instead of <code>width</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>Stepper</code>: call <code>const largeText = useLargeText();</code>, give the row <code>style={[styles.row, largeText &amp;&amp; styles.wrap]}</code> and the label <code>style={largeText ? styles.labelLarge : styles.label}</code>, with <code>wrap: { flexWrap: 'wrap' }</code> and <code>labelLarge: { width: '100%' }</code>. In <code>input</code>, change <code>width: 72</code> to <code>minWidth: 72</code>. With normal text nothing moves; at large sizes the label wraps onto its own line and the controls sit under it. Check it the way the course did: set the threshold to 0 for a minute, then try the largest text size on your phone.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Before today, VoiceOver on Profile said "Reduce motion in this app", then, on the next swipe, "Reduce motion in this app, switch, off". What was going on, and what fixed it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Was the label wrong, or was something read twice?">
+                                A) The switch had no label; adding <code>accessibilityLabel</code> fixed it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What would grouping do to the switch inside the row?">
+                                B) The row needed <code>accessible</code>, so the row and the switch became one element
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The words were a text element and the switch, with the same words as its label, was a second one. Hiding the words with aria-hidden leaves one stop, the switch, and the row as a Pressable makes the whole row the touch target.">
+                                C) The words and the switch were two elements; the words are now hidden and the row presses the switch
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is VoiceOver doing anything wrong by reading what the app gives it?">
+                                D) Nothing: VoiceOver always reads a switch twice
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Before today, Maya (VoiceOver, iPhone) heard nothing when her waiting log was sent, while Theo (TalkBack, Android) heard it. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="React Native's documentation lists accessibilityLiveRegion as Android only. On iPhone an app asks VoiceOver to speak with AccessibilityInfo.announceForAccessibility, which AppText now does for every live text.">
+                                A) <code>accessibilityLiveRegion</code> is Android only; iPhone needs <code>announceForAccessibility</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Did the queue behave differently on the two phones, or the screen readers?">
+                                B) The queue sends logs later on iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Was the text missing, or was it just not announced?">
+                                C) The text was <code>aria-hidden</code> on iPhone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a polite announcement wait, or is it never made?">
+                                D) VoiceOver ignores polite announcements while the app is in the foreground
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> At the largest text size, the Logbook's four tallies run into each other. What is the best first fix?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Who turned the text size up, and why?">
+                                A) <code>allowFontScaling={false}</code> on the tallies
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What happens to longer words and larger numbers in a fixed box?">
+                                B) A fixed height and width for each tally
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the person at 300 percent read 10-point text well?">
+                                C) A smaller font size for everyone, so they fit at every size
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Change the layout, not the text: with fontScale at 1.5 or more, each tally takes at least 40 percent of the row and the row wraps, so they sit two to a row. A cap like maxFontSizeMultiplier is for text that is already large, and only after the layout works.">
+                                D) A different layout when <code>fontScale</code> is large: two tallies to a row
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Lighthouse reports no accessibility problems on any Shoreline Crew screen in the web preview, apart from the document title. What can your team conclude?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does the web preview run VoiceOver, TalkBack or the phone's text size?">
+                                A) The app is accessible on iPhone and Android, and no phone testing is needed
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Automated checks catch part of the mechanical problems, and on React Native they check the web translation of the props. Reading order, what the screen readers really say, announcements and large text need a person with a phone.">
+                                B) The mechanical problems axe can find are fixed; a screen reader and large text on a phone are still needed
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Were the axe results useful in this lesson, or not?">
+                                C) Nothing at all: the web preview's results are meaningless for a phone app
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> The Logbook tab shows "Logbook (2)". A volunteer who uses voice control says "Tap Logbook". Which accessible name makes that work best?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Label in Name: the accessible name contains the visible words, at the start, so speaking what you see matches. The extra not sent yet helps screen-reader users without getting in the way.">
+                                A) "Logbook (2), not sent yet"
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does this name contain the word the volunteer sees and says?">
+                                B) "Waiting logs: 2"
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does the visible word appear in this name, if at all?">
+                                C) "2 not sent yet"
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is a name that says nothing about the count helpful to a screen-reader user?">
+                                D) "Tab 3 of 4"
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Why does the course leave axe's "document has no title" and "region" findings in place?</summary>
+                    <p>They are about HTML documents: a page title in the browser tab, and landmarks (<code>&lt;main&gt;</code>, <code>&lt;nav&gt;</code>) that help screen-reader users jump around a web page. A phone app has neither; the nearest equivalent, the screen's title read when it opens, comes from the header and tab titles Shoreline Crew already sets. Fixing them would mean web-only code (Expo Router can add a title with its <code>expo-router/head</code> module or a <code>+html.tsx</code> file) for a page nobody ships. If you ever publish the web version as a real website, fix them then. Recording "not fixed, and why" is part of an honest audit.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can screen-reader users pull to refresh and reach the next page of cleanups?</summary>
+                    <p>According to Apple's and Google's guides, yes, through scrolling: VoiceOver's three-finger swipe down at the top of a list triggers the phone's refresh control, and scrolling with three fingers (VoiceOver) or two (TalkBack) moves the list, which lets FlashList reach its end and load more. Both are hidden gestures, though, and not everyone knows them. Shoreline Crew also refreshes when the app comes back to the foreground (Lesson 5.2), and Lesson 3.2's Exercise 2, a visible "Load more cleanups" button, is a good addition if your testers struggle. Try both in Step 2's walk-through.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Should every button get a hint?</summary>
+                    <p>No. A hint is for a result the label cannot make obvious ("asks first", "opens your camera"). Most of Shoreline Crew's labels say it all, and hints on everything make a screen reader slow: people hear them after every element unless they turn hints off. Write the label well first; add a hint when testers ask "what will this do?".</p>
+                </details>
+
+                <details class="card">
+                    <summary>What about the map on a cleanup's screen?</summary>
+                    <p>A map is hard to explore by ear, which is why Lesson 6.3 gave the <code>MapView</code> a label and wrote the meeting point and the beach in words right next to it, with "Open in Maps" for turn-by-turn directions in an app built for that. That is the general rule for pictures, charts and maps: the information must also exist as text.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can tests catch accessibility regressions?</summary>
+                    <p>Some, and cheaply. React Native Testing Library finds elements the way a screen reader does: <code>getByRole('switch', { name: 'Reduce motion in this app' })</code> fails the moment a role or a name breaks. Lesson 8.3 writes tests like that. They complement, not replace, the phone audit.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Run a platform audit tool on your phone: Google's free <strong>Accessibility Scanner</strong> app on Android (it suggests fixes for touch targets, labels and contrast on whatever screen is open), or, on a Mac with an iPhone or the iOS Simulator, Xcode's <strong>Accessibility Inspector</strong> (its audit button checks the current screen). Compare their findings with the web preview's and with yours from Step 2. Then make the waiting log card on the Logbook one element for screen readers, with a custom action for Remove (<code>accessibilityActions</code> and <code>onAccessibilityAction</code>, which Lesson 7.2 described), and decide, with a screen reader in hand, whether it is better than today's separate button.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Describe your ten minutes with a screen reader in Step 2. What was the first moment you felt lost, and what in the app (or in the phone) caused it? Then write the one sentence you would put at the top of an accessibility checklist for your own team, and why that one.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Screen readers move through elements one at a time; each element is a short "radio call": label, role, state (with <code>aria-*</code> props), value, and sometimes a hint</li>
+                        <li><code>accessible</code> groups a view into one element (never around controls); <code>aria-hidden</code> removes decoration on iPhone, Android and the web preview alike, where <code>View</code> translates it</li>
+                        <li>An audit runs every screen and state through automated checks in the web preview and through a screen reader and large text on a phone; neither replaces the other</li>
+                        <li>Names start with the words people see (Label in Name), so voice control works</li>
+                        <li><code>accessibilityLiveRegion</code> is Android only; on iPhone, <code>announceForAccessibilityWithOptions(…, { queue: true })</code> speaks changes</li>
+                        <li>Let text grow: layouts first, a different layout at a large <code>fontScale</code> second, <code>maxFontSizeMultiplier</code> only on text that is already large, <code>allowFontScaling={false}</code> never</li>
+                        <li>Targets of at least 44 points (48 in this app), and the obvious thing is the target: the whole row, the whole field</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up every accessibility prop</td><td><a href="https://reactnative.dev/docs/accessibility">React Native: Accessibility</a></td></tr>
+                            <tr><td>Announce, and read accessibility settings</td><td><a href="https://reactnative.dev/docs/accessibilityinfo">React Native: AccessibilityInfo</a></td></tr>
+                            <tr><td>Learn VoiceOver's gestures</td><td><a href="https://support.apple.com/guide/iphone/learn-voiceover-gestures-iph3e2e2281/ios">Apple: Learn VoiceOver gestures on iPhone</a></td></tr>
+                            <tr><td>Learn TalkBack's gestures</td><td><a href="https://support.google.com/accessibility/android/answer/6151827">Google: TalkBack gestures</a></td></tr>
+                            <tr><td>Read Apple's guidance on accessibility and text size</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/accessibility">Apple Human Interface Guidelines: Accessibility</a></td></tr>
+                            <tr><td>Read the rule behind names that match their words</td><td><a href="https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html">WCAG: Understanding Label in Name</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You audited a whole app, systematically, with the web's tools and with a screen reader and large text on a phone, and kept a findings table a team could review</li>
+                        <li>Shoreline Crew's decoration is silent everywhere, its switch rows are one target and one stop, and its Logbook tab says what it shows</li>
+                        <li>iPhone users now hear every change Android users already heard, from one change in one component</li>
+                        <li>The app holds up at the largest text sizes: layouts change shape instead of breaking</li>
+                        <li>You can explain what automated checks prove and what they do not</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_29.html">Lesson 8.2: Testing the App's Logic</a> you bring the web course's testing habits to the phone: Jest with jest-expo, the HQ's MSW handlers reused, and mocks for native modules. Then Lesson 8.3 tests screens with React Native Testing Library, finding elements by role and name, exactly the names you checked today, so an accessibility regression fails a test before it reaches a volunteer.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Finish Step 8 on your phone, with a screen reader and with the largest text, and commit your work</li>
+                    <li>Keep your findings table: Lesson 8.3's screen tests can lock in several of its fixes</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today you used your own app with your eyes closed, and with text three times its size, and you fixed what got in the way. Most developers never do that once. The fixes were small (a prop, a row, a hook) because the habits from earlier lessons did the heavy lifting, and that is the real lesson: accessibility is mostly care, applied early and checked honestly. Keep the screen-reader shortcut on your phone. Every app you build from now on will be better for one more swipe through it.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_27.html" class="prev-lesson">← Previous: Motion Polish</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_29.html" class="next-lesson">Next: Testing the App's Logic →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Updating and watching an installed Expo app: expo-updates and EAS Update, runtime versions and the fingerprint policy, channels for build profiles, what an over-the-air update may change under store rules, version and build numbers, crash reporting with an error boundary, and a GitHub Actions workflow for types, lint and tests. React Native &amp; Expo: Build and Ship a Mobile App Lesson 9.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Updates and Monitoring - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+        <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📡 Lesson 9.3: Updates and Monitoring</h1>
+                <p class="lead">An app on a volunteer's phone is not finished; it is just out of your hands. Today you get some of it back. Shoreline Crew learns to receive new JavaScript without a trip through a store, you learn which changes may travel that way and which never can, the app gets a calm crash screen and one place to report errors from, and every push to GitHub runs your checks for you.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how <code>expo-updates</code> and EAS Update deliver new JavaScript and assets to an installed build, and when a phone starts using them</li>
+                        <li>Choose a runtime version policy, and measure on your computer whether a change needs a new build or can go out as an update</li>
+                        <li>Connect build profiles to update channels, and publish an update to the right builds with the right environment variables</li>
+                        <li>Say what an over-the-air update may and may not change, under Expo's technical limits and the app stores' rules</li>
+                        <li>Tell the user-facing version from build numbers, and add a crash screen and a reporting seam that a crash-reporting service can plug into</li>
+                        <li>Write a GitHub Actions workflow that runs the type check, lint and tests on every push, including the step a fresh checkout of an Expo project needs</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 160 minutes (about 15 of them waiting for a cloud build; the steps say what to do meanwhile)</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_33.html">Lesson 9.2: Development Builds and EAS Build</a>, with the project linked to your Expo account; an Android phone or the Android emulator for Step 6; a free GitHub account for Step 7 (the one from the web course works)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> <code>expo-updates</code> with the fingerprint runtime policy and an update address from your project id, channels for the preview and production profiles, an Updates line and update button on Profile, a crash screen with one reporting function, a CI workflow, and your first update sent to a new Shoreline Preview (57 tests)</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88), expo-updates 58.0, EAS CLI 27.10 through <code>npx eas-cli@latest</code>, GitHub Actions (<code>actions/checkout@v7</code>, <code>actions/setup-node@v7</code>) (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your terminal, the web preview for the new Profile line and the crash screen, a preview build on an Android phone or emulator for the update, and GitHub's computers for the checks</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-34-start.zip">lesson-34-start.zip</a> · Finished code: <a href="downloads/lesson-34-end.zip">lesson-34-end.zip</a>. Each folder has a README with the commands to run it. Today's code includes <code>shoreline-crew/.github/workflows/ci.yml</code>: names that start with a dot may be hidden in your file manager; VS Code shows them.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: After the App Is Installed</a></li>
+                        <li><a href="#how-updates-work" class="toc-link">How an Update Reaches a Phone</a></li>
+                        <li><a href="#runtime-versions" class="toc-link">Runtime Versions: Which Builds Can Take an Update</a></li>
+                        <li><a href="#channels" class="toc-link">Channels, Profiles and Publishing</a></li>
+                        <li><a href="#rules" class="toc-link">What an Update May Change</a></li>
+                        <li><a href="#versions" class="toc-link">Versions and Build Numbers</a></li>
+                        <li><a href="#crashes" class="toc-link">Crash Reporting</a></li>
+                        <li><a href="#ci" class="toc-link">Checks on Every Push</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew Stays Up to Date</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: After the App Is Installed</h2>
+                <p>At the end of Lesson 9.2 you stopped the API and watched Shoreline Preview fail to reach the address baked into it. On the web, the HQ would have been fixed by a deploy: the next visitor gets the new files. A phone app does not work that way. The code is inside the installed app, and until the phone installs something new, it keeps running what it has.</p>
+                <p>By the end of this lesson:</p>
+                <ul>
+                    <li><strong>Shoreline Crew can take updates.</strong> A new preview build carries <code>expo-updates</code>, so the JavaScript and pictures inside it can be replaced over the air, from a command on your computer.</li>
+                    <li><strong>You know which changes may travel that way.</strong> A runtime version you can measure tells you, before you publish, whether an update fits the builds on people's phones.</li>
+                    <li><strong>Problems become visible.</strong> A screen that crashes shows a calm message instead of closing the app, and every unexpected error goes through one function that a crash-reporting service can listen to.</li>
+                    <li><strong>GitHub checks every push</strong>: the type check, lint and all 57 tests, on a fresh computer each time.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> shipping is the start of an app's life, not the end. Teams are judged by how fast they can fix a bug that volunteers are hitting today, and by whether they hear about it before a one-star review does. "Can we push a fix without a store review?", "Which version is she on?" and "Did the tests pass?" are questions you will hear every week on a mobile team.</p>
+
+                <div class="card card-accent">
+                    <h4>🌱 Releases are a habit, not an event</h4>
+                    <p>Nobody gets releases right by thinking harder before the first one. They get them right by making small releases often, with checks that catch mistakes early and a way back when something slips through. Today you build all three: CI that catches, updates that deliver, and reports that tell you. If your first update does not show up on the phone, that is the most common first experience there is, and Common Mistakes has the reasons.</p>
+                </div>
+            </section>
+
+            <section id="how-updates-work" class="lesson-section">
+                <h2>📡 How an Update Reaches a Phone</h2>
+                <p>Lesson 9.2 split every app into two parts: the <strong>native part</strong>, compiled into the build (React Native itself, Expo's modules, your config plugins, the name, ids and permission sentences), and the <strong>JavaScript part</strong>, your screens and logic, which a release build carries inside as Hermes bytecode, together with assets such as fonts and images. <code>expo-updates</code> is a native module that lets a build replace the second part.</p>
+<div class="mermaid">
+graph TD
+    A["npx eas-cli update"] --> B["Bundle JS and assets"]
+    B --> C["Upload to EAS Update"]
+    C --> D["App starts, asks for news"]
+    D --> E["Downloads in background"]
+    E --> F["Next start runs the update"]
+</div>
+                <ol>
+                    <li><strong>On your computer</strong>, <code>npx eas-cli@latest update</code> runs <code>npx expo export</code> for Android and iOS (read in EAS CLI's source for this lesson): the same Hermes bundle and assets a build would embed, plus a <code>metadata.json</code> that lists them. You can run that export yourself and look (Step 2).</li>
+                    <li><strong>It uploads them</strong> to EAS Update as an update for a <strong>runtime version</strong> (the next section) on a <strong>channel</strong> such as <code>preview</code>.</li>
+                    <li><strong>On the phone</strong>, a build with <code>expo-updates</code> and an update address asks Expo's update service, every time it starts (the default, <code>ON_LOAD</code>), whether there is something newer for its channel and runtime version.</li>
+                    <li><strong>It does not wait for the answer.</strong> The app opens at once with the code it already has (the native setting is a launch wait of 0 milliseconds, which you will see in Step 1), and a new update downloads in the background.</li>
+                    <li><strong>The next start runs the update.</strong> Expo's docs say the update applies "after it is downloaded and the app is restarted". On a phone that means closing the app completely and opening it again, sometimes twice: once to download, once to run.</li>
+                </ol>
+                <p>The code a build was made with stays inside it as the <strong>embedded update</strong>. If a downloaded update fails to start, <code>expo-updates</code> falls back to it, and you can send every phone back to it on purpose ("Channels, Profiles and Publishing"). That safety net is why updates are safer than they sound.</p>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: the plan by radio, the kit by van</h4>
+                    <p>Crews already on the beach cannot get new tools until the supply van comes back: that is a new build through a store. But the day's plan, the map of where to sweep, the list of what to log, can be radioed to them at any time: that is an update. The radio only works with crews whose radio set matches the channel and the model of kit (the runtime version), and a crew hears the new plan when they next check in, not in the middle of a sentence.</p>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Where the code runs</th><th>Where its JavaScript comes from</th><th>Updates?</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Expo Go, development build</td><td>Metro on your computer</td><td>Not by themselves: they always load from Metro (Expo's docs: in debug builds "the default behavior is to always load the latest JavaScript from a development server")</td></tr>
+                            <tr><td>Preview or production build without <code>expo-updates</code> (Lesson 9.2's Shoreline Preview)</td><td>Inside the app</td><td>Never: nothing in it can download code</td></tr>
+                            <tr><td>Preview or production build with <code>expo-updates</code> and an update address</td><td>Inside the app, or the newest matching update</td><td>Yes, on its channel</td></tr>
+                            <tr><td>The web preview</td><td>The web export</td><td>Not used (on the web, you deploy new files instead)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The second row is the uncomfortable one: the Shoreline Preview you installed in Lesson 9.2 cannot be updated. <code>expo-updates</code> is native code, so adding it means one more build. After that build, most fixes can travel by radio.</p>
+            </section>
+
+            <section id="runtime-versions" class="lesson-section">
+                <h2>🧬 Runtime Versions: Which Builds Can Take an Update</h2>
+                <p>An update is JavaScript written for a particular native part. If the JavaScript calls a native module the build does not have (say, a camera library added after the build was made), it crashes. So every build and every update carries a <strong>runtime version</strong>, a label for its native part, and a phone only accepts updates with exactly its own runtime version. You choose how that label is made in <code>app.config.ts</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th><code>runtimeVersion</code></th><th>The label is</th><th>The risk</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>{ policy: 'appVersion' }</code></td><td>The <code>version</code> field, such as <code>1.0.0</code></td><td>You change native code and forget to change <code>version</code>: the update reaches builds it does not fit, and they crash. It is what <code>eas update:configure</code> writes by default (read in EAS CLI's source)</td></tr>
+                            <tr><td><code>{ policy: 'fingerprint' }</code></td><td>A hash of everything native, computed by Expo's fingerprint tool</td><td>Fewer surprises; more builds, because any native change (even a permission sentence) asks for one</td></tr>
+                            <tr><td><code>{ policy: 'nativeVersion' }</code></td><td><code>version</code> plus the build number</td><td>Expo's docs say it does not work with build numbers kept on EAS (<code>appVersionSource: "remote"</code>, which Shoreline Crew uses)</td></tr>
+                            <tr><td>A string, such as <code>'1'</code></td><td>Whatever you write</td><td>All up to you</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Shoreline Crew uses <strong>fingerprint</strong>, because it turns the question "does this change need a build?" from a memory test into a measurement. You can compute the label on your own computer with <code>npx expo-updates runtimeversion:resolve</code>. Measured on this course's project while writing the lesson:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Change</th><th>Runtime version (Android)</th><th>So</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>None (development variant)</td><td><code>29268b22…</code></td><td>The starting point</td></tr>
+                            <tr><td>A comment added to the Logbook screen</td><td><code>29268b22…</code> (same)</td><td>JavaScript: an update</td></tr>
+                            <tr><td><code>version</code> changed from 1.0.0 to 1.1.0</td><td><code>29268b22…</code> (same)</td><td>The user-facing version is not native: an update still fits</td></tr>
+                            <tr><td>The location permission sentence reworded</td><td><code>ec08d9b0…</code> (different)</td><td>Written into the native project: a build</td></tr>
+                            <tr><td><code>APP_VARIANT=preview</code></td><td><code>142af542…</code> (different)</td><td>Each variant is its own app with its own label</td></tr>
+                            <tr><td><code>APP_VARIANT=preview</code> with another <code>EXPO_PUBLIC_API_URL</code></td><td><code>142af542…</code> (same as preview)</td><td>The API address is JavaScript: an update can change it</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The last two rows matter for Shoreline Preview. Its runtime version depends on the variant, so an update for it has to be made with <code>APP_VARIANT=preview</code>, and its API address can change by update, because <code>EXPO_PUBLIC_</code> values are written into the JavaScript (Lesson 5.1). The hashes in your project will be different from these: the fingerprint includes your project id once you paste it, and the exact versions of every package.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the shape of the socket</h4>
+                    <p>A build is a socket; an update is a plug. The runtime version describes the socket's shape. With the fingerprint policy, Expo measures the socket for you every time, so a plug made for yesterday's socket simply does not go in. Nothing breaks: the phone keeps running what it has.</p>
+                </div>
+            </section>
+
+            <section id="channels" class="lesson-section">
+                <h2>📺 Channels, Profiles and Publishing</h2>
+                <p>A <strong>channel</strong> is a name a build is given when it is made, from its build profile in <code>eas.json</code>. Shoreline Crew's preview profile gets <code>"channel": "preview"</code> and production gets <code>"channel": "production"</code>, so an update for testers can never reach the volunteers' store app by accident. Development builds need no channel: they load from Metro. (<code>eas update:configure</code> adds a channel named after every profile, including development; that does no harm, Shoreline Crew just leaves it out.)</p>
+                <p>Publishing an update for the preview builds is one command:</p>
+                <pre class="terminal"><code class="language-bash">npx eas-cli@latest update --channel preview --environment preview --message "Pull to refresh shows the time"</code></pre>
+                <ul>
+                    <li><strong><code>--channel preview</code></strong> sends it to builds made with the preview profile. Behind the scenes EAS keeps updates on a <strong>branch</strong> (by default named like the channel) and points the channel at it, so a team can later point <code>preview</code> at another branch without a new build. Expo's docs on branches and channels have the details; one channel per profile is all Shoreline Crew needs.</li>
+                    <li><strong><code>--environment preview</code></strong> is required for projects on SDK 55 and newer (EAS CLI's help says so). It loads that environment's EAS environment variables (Lesson 9.2) and, with them, makes Expo skip <code>.env</code> files (read in EAS CLI's source).</li>
+                    <li><strong><code>--message</code></strong> describes the update in lists on expo.dev and in <code>npx eas-cli@latest update:list</code>.</li>
+                </ul>
+                <p>One detail from EAS CLI's source shapes Shoreline Crew's setup: <strong><code>eas update</code> does not read the <code>env</code> of a build profile.</strong> The preview profile's <code>APP_VARIANT</code> and <code>EXPO_PUBLIC_API_URL</code> exist only while a build is made. For an update, the same two values must come from the <code>preview</code> environment on EAS, so Step 6 stores them there once. Then the build and every later update agree: same variant, so the same runtime version, and the same API address unless you change it on purpose.</p>
+                <h3>When an update goes wrong</h3>
+                <p>You will publish a bad update one day. EAS CLI 27.10 lists these ways back (from its <code>--help</code>):</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Command</th><th>What it does</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>npx eas-cli@latest update:rollback</code></td><td>Republishes the update before the bad one, or the embedded code if there was none</td></tr>
+                            <tr><td><code>npx eas-cli@latest update:republish</code></td><td>Publishes an earlier update again, as the newest one</td></tr>
+                            <tr><td><code>npx eas-cli@latest update:roll-back-to-embedded</code></td><td>Tells phones to go back to the code inside their build</td></tr>
+                            <tr><td><code>--rollout-percentage 10</code> on <code>update</code></td><td>Sends an update to some of the phones first; the others keep the previous one until you finish the rollout</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Rolling back is itself an update, so it reaches phones the same way: when they next start.</p>
+            </section>
+
+            <section id="rules" class="lesson-section">
+                <h2>⚖️ What an Update May Change</h2>
+                <p>Two different sets of rules decide what you send by update: what is technically possible, and what the app stores allow.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Change</th><th>Technically</th><th>Store rules</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A bug fix, a reworded message, a style, a new picture or font</td><td>Update</td><td>Fine: this is what updates are for</td></tr>
+                            <tr><td>A new screen built from what the app already has</td><td>Update</td><td>Fine while the app stays the same kind of app; a large new feature belongs in a store release</td></tr>
+                            <tr><td>A new package with native code, a permission sentence, the icon, the name, the ids, a new Expo SDK</td><td>Build</td><td>A store release with review</td></tr>
+                            <tr><td>Turning the app into a different app, or adding something the store would have refused</td><td>Possible</td><td>Not allowed</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Expo's own FAQ says your updates "need to follow the App Store and Play Store guidelines", and the stores do allow this kind of update within limits. In short, as the agreements read when this lesson was written: Apple's developer agreement allows downloaded interpreted code (your JavaScript) as long as it does not change the primary purpose of the app or bypass the review and security of the platform, and Google Play's policies forbid an app from downloading executable native code from outside Google Play, with an exception for code that runs in an interpreter or virtual machine, such as JavaScript. The wording and the section numbers change, so read the current Apple Developer Program License Agreement, App Store Review Guidelines and Google Play policy pages before you rely on this, and when a change would surprise the reviewer who approved your app, send it through review instead.</p>
+                <p>The free plan covers this course: Expo's pricing page listed, for the Free plan, updates for up to 1,000 monthly active users (people whose app checked for updates that month), 100 GiB of bandwidth and 20 GiB of storage. Like the build limits in Lesson 9.2, check the page before you plan around those numbers.</p>
+            </section>
+
+            <section id="versions" class="lesson-section">
+                <h2>🔢 Versions and Build Numbers</h2>
+                <p>Lesson 9.1 promised to explain the numbers. Every Android and iPhone app has two:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>The version</th><th>The build number</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Who sees it</td><td>Everyone: the store page, the phone's app settings, Shoreline Crew's Profile</td><td>The stores and developers</td></tr>
+                            <tr><td>Looks like</td><td><code>1.0.0</code>, then <code>1.1.0</code>…</td><td><code>1</code>, <code>2</code>, <code>3</code>… (Android <code>versionCode</code>, iOS <code>buildNumber</code>)</td></tr>
+                            <tr><td>Rule</td><td>You decide, by meaning: new features, fixes</td><td>Must grow with every build you upload to a store</td></tr>
+                            <tr><td>Shoreline Crew keeps it</td><td><code>version</code> in <code>app.config.ts</code></td><td>On EAS: <code>cli.appVersionSource: "remote"</code> in <code>eas.json</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>With <code>appVersionSource: "remote"</code> (Lesson 9.2), EAS stores the build numbers for you: Expo's docs say any build numbers in the app config are ignored, the count starts at 1 on the first build when there is none, and <code>autoIncrement: true</code> on the production profile adds one for every production build. Two people on a team can no longer upload the same number. <code>npx eas-cli@latest build:version:get</code> shows the current numbers, <code>build:version:set</code> sets them (for an app that is already in a store), and <code>build:version:sync</code> copies them into the native folders if you have them.</p>
+                <p>The <code>version</code> stays yours: you change it in <code>app.config.ts</code> when you release something people should notice. An update does not change either number: Profile keeps saying "version 1.0.0", which is why it gets a second line today that says which update is running.</p>
+            </section>
+
+            <section id="crashes" class="lesson-section">
+                <h2>🚨 Crash Reporting</h2>
+                <p>In Expo Go and development builds, an error in a screen gives you a red screen with the stack and the file. A release build has no red screen. A JavaScript error while drawing a screen leaves the user with nothing on screen or a closed app, and you with no idea it happened. Monitoring has two halves:</p>
+                <ul>
+                    <li><strong>What the volunteer sees.</strong> Expo Router lets a layout export an <code>ErrorBoundary</code> component: when a screen inside it throws while drawing, Expo Router shows that component instead, with the error and a <code>retry</code> function. Shoreline Crew's root layout gets one (Step 5), so a broken screen says "Something went wrong" with a Try again button, and names the app's version for the bug report.</li>
+                    <li><strong>What you learn.</strong> A <strong>crash-reporting service</strong> collects errors from every phone, with the stack, the device, the app version and the update id, and groups them so you see "73 volunteers hit this on the check-in screen since this morning's update". Stacks from a release build point into one big bundle, so the service also needs the <strong>source maps</strong> from Lesson 8.4's <code>--source-maps</code> to turn them back into file names and lines (the Android export in Step 2 writes a source map of 11 MB next to the 4.5 MB bundle).</li>
+                </ul>
+                <p>The options, as their pages described them while this lesson was written (check before you choose):</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Option</th><th>What it gives you</th><th>Cost and setup</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Sentry (<code>@sentry/react-native</code>)</td><td>Crash and error reports with stacks, releases, update ids; the service Expo's docs walk through</td><td>Free Developer plan for one person (the pricing page listed 5,000 errors); paid team plans. Setup through Sentry's wizard (<code>npx @sentry/wizard@latest -i reactNative</code>, per Expo's guide), a native module (so a new development build), and a <code>SENTRY_AUTH_TOKEN</code> as a sensitive EAS environment variable for source maps</td></tr>
+                            <tr><td>Other services Expo's docs name (BugSnag, LogRocket, PostHog)</td><td>Error monitoring, session recordings, analytics</td><td>Each has its own plans and SDK</td></tr>
+                            <tr><td>Expo's own: <code>npx eas-cli@latest update:insights</code>, Expo Insights</td><td>Launch, crash and user counts per update; usage trends</td><td>Part of your Expo account; counts, not stack traces</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>This course does not make you sign up for any of them. Instead, Shoreline Crew gets one small function, <code>reportError(error, where)</code>, that every unexpected error goes through. Today it prints a warning in development and does nothing in a build. The day you pick a service, one call to <code>setReporter</code> at startup sends everything there, and no screen changes. That is the same idea as Lesson 5.1's single API address: one seam, many callers.</p>
+                <div class="card card-danger">
+                    <h4>🛑 Crash reports are personal data</h4>
+                    <p>A report can contain what was on the screen, the volunteer's email in a URL, or their location. Send only what helps you fix the bug (the error, the screen, the version), never a token or a password, and say in the app stores' privacy forms that you collect crash data (Lesson 9.4). Most services can scrub fields before they leave the phone: turn that on.</p>
+                </div>
+            </section>
+
+            <section id="ci" class="lesson-section">
+                <h2>🤖 Checks on Every Push</h2>
+                <p>Lesson 10.2 of the React + TypeScript course wrote a GitHub Actions workflow for the HQ: on every push to <code>main</code> and every pull request, GitHub starts a fresh Ubuntu computer, installs the project with <code>npm ci</code> and runs the checks, and a red cross on the commit tells you before anyone else does. Shoreline Crew gets the same shape, with three differences:</p>
+                <ul>
+                    <li><strong>Its own repository.</strong> <code>create-expo-app</code> made <code>shoreline-crew</code> a Git repository of its own in Lesson 1.2, so the workflow lives inside it, at <code>shoreline-crew/.github/workflows/ci.yml</code>, and runs at the top of the project.</li>
+                    <li><strong>No API needed.</strong> The tests run shoreline-api's own handlers through MSW (Lesson 8.2), so nothing has to be started next to them.</li>
+                    <li><strong>One extra step.</strong> A fresh checkout has no <code>expo-env.d.ts</code> and no <code>.expo/types/router.d.ts</code>: both are in <code>.gitignore</code>, and only <code>npx expo start</code> writes them (Lesson 1.2). Without them, <code>npx tsc --noEmit</code> fails with four errors on a computer that has never run Metro (Common Mistakes shows them). <code>npx expo customize tsconfig.json</code> writes both without starting Metro and, when <code>tsconfig.json</code> already exists, leaves it as it is (measured: the file was byte for byte the same afterwards).</li>
+                </ul>
+                <p>The workflow does not build the app or publish updates: those need your Expo account in CI, a token stored as a GitHub secret, and choices about when to spend builds. Expo's docs describe both (EAS Workflows, and an action for GitHub) for when you need them; checks on every push are the part every project needs first. GitHub's free plan includes Actions for public repositories and a monthly allowance of minutes for private ones; check GitHub's billing page for the current numbers.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>The outputs below were printed by the real tools on this course's project. Publishing an update needs an Expo account and could not be run for this lesson: what EAS does with it is described from EAS CLI 27.10's source and Expo's docs.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Updating the build from Lesson 9.2</h3>
+                    <p>You publish an update to <code>preview</code>, open the Shoreline Preview you installed last lesson, and nothing changes, however often you restart it. Nothing is wrong with the update: that build was made before <code>expo-updates</code> was installed, so it has nothing that can ask for one. Updates reach only builds made after Steps 1 to 3, which is why Step 6 makes a new preview build first.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Publishing without the variant's settings</h3>
+                    <p><code>eas update</code> does not read the build profile's <code>env</code>, and with <code>--environment</code> it does not read <code>.env.local</code> either. If the <code>preview</code> environment on EAS has no <code>APP_VARIANT</code>, <code>app.config.ts</code> falls back to the development variant, the fingerprint comes out as the development one (<code>29268b22…</code> instead of <code>142af542…</code> in the measurements above), and the update waits on a runtime version that no preview build has: published, listed on expo.dev, and received by nobody. With the <code>appVersion</code> policy the same mistake is worse: the runtime versions match, the update arrives, and without <code>EXPO_PUBLIC_API_URL</code> every screen says <code>EXPO_PUBLIC_API_URL is not set: copy .env.example to .env.local, then restart Metro.</code> Store both values in the preview environment once (Step 6), and read the runtime version EAS CLI prints when it publishes: it should be the one your build page shows.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Sending a native change as an update</h3>
+                    <p>You reword the location question in <code>app.config.ts</code>, publish an update, and the phones still ask in the old words. They always will: permission sentences, icons, ids and native packages are compiled into the build. With the fingerprint policy, the update gets a new runtime version and simply reaches no one, which is the safe outcome; with <code>appVersion</code> and an unchanged <code>version</code>, an update that imports a missing native module reaches every phone and crashes. Before publishing, run <code>npx expo-updates runtimeversion:resolve --platform android</code> with the variant set: a different hash than your build means a new build, not an update.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Expecting the update the moment you publish it</h3>
+                    <p>The app checks when it starts and runs the new code at the next start. Switching to another app and back is not a start: close Shoreline Preview completely (swipe it away from the recent apps) and open it, then do it once more. Expo's docs suggest up to two restarts for a release build. Step 4's <strong>Check for an update</strong> button shortens this for testers.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ The type check passes on your computer and fails on GitHub</h3>
+                    <p>Your computer has run <code>npx expo start</code>, so it has the generated route types; a fresh checkout does not. Measured on a copy of the project without them:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed, on a fresh checkout)</h4>
+                        <pre><code>src/app/check-in/[id].tsx:51:29 - error TS2322: Type 'string | string[] | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+51   return &lt;CheckInForCleanup id={id} viewer={viewerId(session)} /&gt;;
+                               ~~
+...
+Found 4 errors in 4 files.
+
+Errors  Files
+     1  src/app/check-in/[id].tsx:51
+     1  src/app/cleanups/[id].tsx:42
+     1  src/app/log/[id].tsx:61
+     1  src/components/Tally.tsx:109</code></pre>
+                    </div>
+                    <p>The three route errors are typed routes falling back to plain strings; the <code>Tally.tsx</code> one is React Native's CSS-style transitions, typed by <code>expo-env.d.ts</code>. Nothing is wrong with the code. The fix is the workflow step that generates the types before the type check (Step 7).</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew Stays Up to Date</h2>
+                <p>You add <code>expo-updates</code> and give it an address and a runtime version, connect the release profiles to channels, show on Profile which code is running, add a crash screen with one reporting function, make a new preview build and send it its first update, and set up CI. Steps 1 to 5 and 7 run on your computer; Step 6 needs your Expo account and an Android phone or the emulator (iPhone only, without a paid Apple membership: read Step 6, and do the rest).</p>
+
+                <div class="card">
+                    <h3>Step 1: Install expo-updates <span class="step-time">(10 min)</span></h3>
+                    <p>In <code>shoreline-crew</code>:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install expo-updates</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 SDK 58.0.0 compatible native module using npm
+&gt; npm install
+
+added 4 packages, and audited 1436 packages in 3s
+...</code></pre>
+                    </div>
+                    <p>As with <code>expo-dev-client</code> in Lesson 9.2, there is no "Cannot automatically write to dynamic config" message: <code>expo-updates</code> is one of the plugins Expo applies by itself whenever the package is installed. See what it writes into the native projects with Lesson 9.1's introspect, and look for <code>EXUpdates</code> (iOS; Android has the same values as <code>expo.modules.updates</code> lines):</p>
+                    <pre class="terminal"><code class="language-bash">npx expo config --type introspect</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (excerpt: the iOS settings)</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+...
+        expoPlist: {
+          EXUpdatesEnabled: false,
+          EXUpdatesCheckOnLaunch: 'ALWAYS',
+          EXUpdatesLaunchWaitMs: 0,
+          EXUpdatesEnableBsdiffPatchSupport: true,
+          EXUpdatesRuntimeVersion: 'file:fingerprint'
+        }
+...</code></pre>
+                    </div>
+                    <p><code>EXUpdatesEnabled: false</code>: installed, but switched off, because it has no address to ask. <code>EXUpdatesCheckOnLaunch: 'ALWAYS'</code> and <code>EXUpdatesLaunchWaitMs: 0</code> are the "check at every start, never wait" defaults from "How an Update Reaches a Phone". (<code>EXUpdatesRuntimeVersion</code> shows <code>file:fingerprint</code> only after Step 2; if you look before it, that line is not there yet.)</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: A runtime version and an update address <span class="step-time">(15 min)</span></h3>
+                    <p>EAS Update's address for your project is <code>https://u.expo.dev/</code> followed by your project id (it is what <code>eas update:configure</code> would write; with a dynamic config it can only print it, like <code>eas init</code> in Lesson 9.2). Shoreline Crew builds it from the id you pasted into <code>easProject</code>, so there is one place to change:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.ts</div>
+                        <pre data-src="shoreline-crew/app.config.ts" data-match="diff"><code class="language-diff-ts"> 
++// EAS Update (Lesson 9.3): updates come from your project's address on Expo's update service.
++// Until easProject has an id there is no address, and builds run only the code they were built with.
++const updatesUrl = easProject.projectId ? `https://u.expo.dev/${easProject.projectId}` : undefined;
++
+ export default ({ config }: ConfigContext): ExpoConfig =&gt; ({
+ // ...
+   version: '1.0.0',
++  // An update only reaches builds with the same runtime version. The fingerprint policy computes it
++  // from everything native (packages, plugins, ids, permissions), so it changes when a build must.
++  runtimeVersion: { policy: 'fingerprint' },
++  updates: { url: updatesUrl },
+   orientation: 'portrait',</code></pre>
+                    </div>
+                    <ul>
+                        <li>No id yet (as in the course's download): <code>updates.url</code> is <code>undefined</code>, <code>expo-updates</code> stays off, and every build runs its embedded code. Nothing breaks.</li>
+                        <li>With your id from Lesson 9.2, the address is complete, and the next build asks for updates.</li>
+                        <li><code>runtimeVersion</code> sits at the top level, so Android and iPhone use the same policy (each still gets its own fingerprint).</li>
+                    </ul>
+                    <p>Run <code>npx tsc --noEmit</code> and the introspect from Step 1 again. With an id in <code>easProject</code>, the iOS settings should now read like this (the course's run used a made-up id):</p>
+                    <div class="card card-output">
+                        <h4>Expected output (excerpt; your id differs)</h4>
+                        <pre><code>...
+        expoPlist: {
+          EXUpdatesEnabled: true,
+          EXUpdatesCheckOnLaunch: 'ALWAYS',
+          EXUpdatesLaunchWaitMs: 0,
+          EXUpdatesURL: 'https://u.expo.dev/7c1e9a42-3b5d-4f6e-8a90-1b2c3d4e5f60',
+          EXUpdatesEnableBsdiffPatchSupport: true,
+          EXUpdatesRuntimeVersion: 'file:fingerprint'
+        }
+...</code></pre>
+                    </div>
+                    <p>Now measure the runtime version a development build and a preview build would get:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo-updates runtimeversion:resolve --platform android
+APP_VARIANT=preview npx expo-updates runtimeversion:resolve --platform android</code></pre>
+                    <p>In PowerShell, set the variable first: <code>$env:APP_VARIANT = "preview"</code>, run the command, then <code>Remove-Item Env:APP_VARIANT</code> (Lesson 9.1).</p>
+                    <div class="card card-output">
+                        <h4>Expected output (the start of each line; the line goes on with every source of the fingerprint, and your hashes differ)</h4>
+                        <pre><code>{"runtimeVersion":"29268b22f86138bf4fc840f53d9fee4a7e94525a","fingerprintSources":[{"type":"file","filePath":".gitignore",...
+{"runtimeVersion":"142af542088aaca299daa3c4fdc8d957b9068665","fingerprintSources":[{"type":"file","filePath":".gitignore",...</code></pre>
+                    </div>
+                    <p>Two variants, two runtime versions. The rest of each line lists what went into the hash: <code>app.config.ts</code>'s result, the icon and splash files, every native package's <code>package.json</code>, even the <code>scripts</code> in yours. Change a screen and run it again: the hash stays.</p>
+                    <p>Last, look at what an update would carry. This is the export <code>eas update</code> runs, for Android only, with a different API address for the preview variant:</p>
+                    <pre class="terminal"><code class="language-bash">APP_VARIANT=preview EXPO_PUBLIC_API_URL=http://192.168.1.50:4000 npx expo export --platform android --dump-sourcemap --clear</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (trimmed: the asset list left out; hashes differ)</h4>
+                        <pre><code>Using src/app as the root directory for Expo Router.
+React Compiler enabled
+...
+› android bundles (2):
+_expo/static/js/android/entry-ba6ad7b71d48e9c6ca50c9e62e8a6afc.hbc (4.5MB)
+_expo/static/js/android/entry-ba6ad7b71d48e9c6ca50c9e62e8a6afc.hbc.map (11MB)
+
+› Files (1):
+metadata.json (2KB)
+
+Exported: dist</code></pre>
+                    </div>
+                    <p>One Hermes bundle (with the new address written inside it: searching the file for <code>192.168.1.50</code> finds it), its source map, the 29 assets, and <code>metadata.json</code> listing them. No native code and no app name: those live in the build. <code>dist</code> is in <code>.gitignore</code>; delete it when you are done.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Channels for the release profiles <span class="step-time">(10 min)</span></h3>
+                    <p>Give the preview and production profiles a channel each:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/eas.json</div>
+                        <pre data-src="shoreline-crew/eas.json" data-match="diff"><code class="language-diff-json">     },
+     "preview": {
+       "distribution": "internal",
++      "channel": "preview",
+       "environment": "preview",
+       "env": {
+         "APP_VARIANT": "preview",
+ // ...
+     },
+     "production": {
+       "environment": "production",
++      "channel": "production",
+       "autoIncrement": true,
+       "env": {
+         "APP_VARIANT": "production"</code></pre>
+                    </div>
+                    <p>A channel is set when a build is made, so it changes nothing on phones that are already installed. Lesson 9.2's profile test gets one more check, against the most expensive copy-and-paste mistake in <code>eas.json</code>, two release profiles on the same channel:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/app.config.test.ts</div>
+                        <pre data-src="shoreline-crew/app.config.test.ts" data-match="diff"><code class="language-diff-ts"> });
++
++it('gives each release profile its own update channel (Lesson 9.3)', () =&gt; {
++  // An update sent to "preview" must never reach the volunteers' store app
++  expect(easJson.build.preview.channel).toBe('preview');
++  expect(easJson.build.production.channel).toBe('production');
++});</code></pre>
+                    </div>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false app.config</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false app.config
+
+ PASS  ./app.config.test.ts
+  ✓ builds Shoreline Dev from the development profile (8 ms)
+  ✓ builds Shoreline Preview from the preview profile, with an API address (1 ms)
+  ✓ refuses the production profile until it has an https API address (8 ms)
+  ✓ gives each release profile its own update channel (Lesson 9.3) (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        0.267 s, estimated 1 s
+Ran all test suites matching app.config.</code></pre>
+                    </div>
+                    <p>TypeScript types <code>eas.json</code> from its contents, so <code>easJson.build.preview.channel</code> is a typed string; a profile without a channel would be a type error in the test before it is a failed test.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Show which code is running <span class="step-time">(20 min)</span></h3>
+                    <p>A tester's bug report should say which update they had. <code>expo-updates</code> answers that with a few values (<code>isEnabled</code>, <code>channel</code>, <code>updateId</code>, <code>isEmbeddedLaunch</code>, <code>createdAt</code>). Turn them into one sentence, in a file that is easy to test:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/updateInfo.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/updateInfo.ts"><code class="language-ts">import * as Updates from 'expo-updates';
+import { Platform } from 'react-native';
+
+// What expo-updates knows about the JavaScript this app is running (Lesson 9.3)
+export type RunningCode = {
+  where: 'web' | 'development' | 'build';
+  isEnabled: boolean;
+  channel: string | null;
+  updateId: string | null;
+  isEmbeddedLaunch: boolean;
+  createdAt: Date | null;
+};
+
+export function currentRunningCode(): RunningCode {
+  return {
+    // The web preview has a stand-in expo-updates that reports "enabled": never trust it there
+    where: Platform.OS === 'web' ? 'web' : __DEV__ ? 'development' : 'build',
+    isEnabled: Updates.isEnabled,
+    channel: Updates.channel,
+    updateId: Updates.updateId,
+    isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+    createdAt: Updates.createdAt,
+  };
+}
+
+// Can this app ask Expo for an update? Only a release build (preview, production) with updates on
+export function canCheckForUpdates(code: RunningCode): boolean {
+  return code.where === 'build' &amp;&amp; code.isEnabled;
+}
+
+// One line for Profile, under the version line: a tester's bug report needs it too
+export function runningCodeLine(code: RunningCode): string {
+  if (code.where === 'web') return 'Updates: not used in the web preview.';
+  if (code.where === 'development') return 'Updates: off while developing. The code comes from Metro.';
+  if (!code.isEnabled) return 'Updates: off. This build runs the code it was built with.';
+  const channel = code.channel ? `channel ${code.channel}` : 'no channel';
+  if (code.isEmbeddedLaunch || code.updateId === null) {
+    return `Updates: on (${channel}). Running the code this build came with.`;
+  }
+  const shortId = code.updateId.slice(0, 8);
+  const from = code.createdAt ? `, published ${code.createdAt.toISOString().slice(0, 10)}` : '';
+  return `Updates: on (${channel}). Running update ${shortId}${from}.`;
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The web first.</strong> On the web, <code>expo-updates</code> has a stand-in that reports <code>isEnabled</code> as <code>true</code> and an empty channel (read in the package's web module), so <code>Platform.OS</code> decides before any of its values are trusted.</li>
+                        <li><strong><code>__DEV__</code></strong> is <code>true</code> whenever the code comes from Metro: Expo Go and development builds. There, the update functions refuse to run (Expo's docs: they "cannot be used in Expo Go or development mode").</li>
+                        <li><strong><code>canCheckForUpdates</code></strong> is the one rule the screen needs: only a release build with updates on may ask.</li>
+                    </ul>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/utils/updateInfo.test.ts</div>
+                        <pre data-src="shoreline-crew/src/utils/updateInfo.test.ts"><code class="language-ts">import { canCheckForUpdates, type RunningCode, runningCodeLine } from './updateInfo';
+
+// A preview build that has downloaded and started one update
+const updated: RunningCode = {
+  where: 'build',
+  isEnabled: true,
+  channel: 'preview',
+  updateId: '0f3a9c2e-5b1d-4e8a-9c7f-2d6b8e1a4c90',
+  isEmbeddedLaunch: false,
+  createdAt: new Date('2030-04-02T17:30:00Z'),
+};
+
+it('names the channel and the update a build is running', () =&gt; {
+  expect(runningCodeLine(updated)).toBe(
+    'Updates: on (channel preview). Running update 0f3a9c2e, published 2030-04-02.',
+  );
+  expect(canCheckForUpdates(updated)).toBe(true);
+});
+
+it('says when a build still runs the code it came with', () =&gt; {
+  const embedded = { ...updated, updateId: null, isEmbeddedLaunch: true, createdAt: null };
+  expect(runningCodeLine(embedded)).toBe(
+    'Updates: on (channel preview). Running the code this build came with.',
+  );
+});
+
+it('never offers a check in development, on the web or with updates off', () =&gt; {
+  for (const code of [
+    { ...updated, where: 'development' as const },
+    { ...updated, where: 'web' as const },
+    { ...updated, isEnabled: false },
+  ]) {
+    expect(canCheckForUpdates(code)).toBe(false);
+  }
+  expect(runningCodeLine({ ...updated, isEnabled: false })).toBe(
+    'Updates: off. This build runs the code it was built with.',
+  );
+});</code></pre>
+                    </div>
+                    <p>The tests pass plain objects in: no mock of <code>expo-updates</code> is needed for the wording, which is the reason the sentence lives in its own function. Now the component, which adds the <code>useUpdates()</code> hook (it follows the check and the download as they happen) and two buttons:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/UpdateStatus.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/UpdateStatus.tsx"><code class="language-tsx">import * as Updates from 'expo-updates';
+import { useState } from 'react';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { canCheckForUpdates, currentRunningCode, runningCodeLine } from '@/utils/updateInfo';
+
+// Which code this app runs, and (in preview and production builds) a way to fetch a new version
+// now instead of at the next start (Lesson 9.3)
+export function UpdateStatus() {
+  const code = currentRunningCode();
+  const { isChecking, isDownloading, isUpdatePending, lastCheckForUpdateTimeSinceRestart } =
+    Updates.useUpdates();
+  const [problem, setProblem] = useState&lt;string | null&gt;(null);
+
+  async function checkNow() {
+    setProblem(null);
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) await Updates.fetchUpdateAsync();
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'unknown error');
+    }
+  }
+
+  const busy = isChecking || isDownloading;
+  let state: string | null = null;
+  if (isChecking) state = 'Checking for an update…';
+  else if (isDownloading) state = 'Downloading the update…';
+  else if (isUpdatePending) state = 'A new version is ready. It starts the next time the app opens.';
+  else if (problem) state = `Could not check for an update: ${problem}`;
+  else if (lastCheckForUpdateTimeSinceRestart) state = 'You have the newest version.';
+
+  return (
+    &lt;&gt;
+      &lt;AppText variant="muted"&gt;{runningCodeLine(code)}&lt;/AppText&gt;
+      {canCheckForUpdates(code) &amp;&amp; (
+        &lt;&gt;
+          {state !== null &amp;&amp; (
+            &lt;AppText variant={problem ? 'error' : 'body'} accessibilityLiveRegion="polite"&gt;
+              {state}
+            &lt;/AppText&gt;
+          )}
+          {isUpdatePending ? (
+            // Unsent debris logs are saved on the phone (Lesson 5.5): restarting loses nothing
+            &lt;Button label="Restart now" variant="primary" onPress={() =&gt; Updates.reloadAsync()} /&gt;
+          ) : (
+            &lt;Button label="Check for an update" disabled={busy} onPress={checkNow} /&gt;
+          )}
+        &lt;/&gt;
+      )}
+    &lt;/&gt;
+  );
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Check for an update</strong> asks now instead of at the next start, and downloads what it finds.</li>
+                        <li><strong>Restart now</strong> appears once an update is downloaded (<code>isUpdatePending</code>) and restarts the JavaScript with <code>reloadAsync()</code>. The persisted queue from Lesson 5.5 is why that is safe for unsent debris logs.</li>
+                        <li>The state sentence is a live region (Lesson 8.1), so a screen reader hears "Checking…" and the result.</li>
+                    </ul>
+                    <p>Put it under the version line on Profile:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/profile.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/profile.tsx" data-match="diff"><code class="language-diff-tsx"> import { SwitchRow } from '@/components/SwitchRow';
++import { UpdateStatus } from '@/components/UpdateStatus';
+ import { signOut } from '@/auth/session';
+ // ...
+       &lt;AppText variant="muted"&gt;{appVersionLine()}&lt;/AppText&gt;
++      {/* ...and this one (Lesson 9.3): the built-in code, or which update */}
++      &lt;UpdateStatus /&gt;
+     &lt;/Screen&gt;</code></pre>
+                    </div>
+                    <p>Open the web preview (<kbd>w</kbd> in <code>npx expo start</code>) and scroll Profile to the end:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_34/34-updates-line.png" alt="The bottom of the Profile tab on a phone-sized web preview: the Check the connection button, the muted line Shoreline Dev, version 1.0.0, and under it the muted line Updates: not used in the web preview., outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>Profile's last line now says which code the app runs. The web preview never uses updates; a preview build says its channel and whether it runs its built-in code or an update, and offers a Check for an update button.</figcaption>
+</figure>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>In Expo Go or Shoreline Dev, the line should read "Updates: off while developing. The code comes from Metro." and no button appears. In a preview build made after Step 2 with your project id, it should read "Updates: on (channel preview). Running the code this build came with." with a <strong>Check for an update</strong> button, and after an update, the update's first eight characters and the day it was published. None of this could be checked on the machine this course was written on; the wording comes from the tests above.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: A crash screen and one place for reports <span class="step-time">(20 min)</span></h3>
+                    <p>First the seam every unexpected error goes through:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/monitoring/reportError.ts</div>
+                        <pre data-src="shoreline-crew/src/monitoring/reportError.ts"><code class="language-ts">// Where Shoreline Crew sends the errors it did not expect (Lesson 9.3). Today: the developer's
+// terminal while developing, nothing in a build. A crash-reporting service plugs in with
+// setReporter, once, at startup: no screen has to change.
+export type Reporter = (error: Error, where: string) =&gt; void;
+
+const developerConsole: Reporter = (error, where) =&gt; {
+  if (__DEV__) console.warn(`[${where}] ${error.name}: ${error.message}`);
+};
+
+let reporter: Reporter = developerConsole;
+
+export function setReporter(next: Reporter): void {
+  reporter = next;
+}
+
+// Anything can be thrown in JavaScript, not only Errors: turn it into one before reporting it
+export function reportError(thrown: unknown, where: string): void {
+  const error = thrown instanceof Error ? thrown : new Error(String(thrown));
+  try {
+    reporter(error, where);
+  } catch {
+    // A broken reporter must never crash the app it reports on
+  }
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li>A <strong><code>Reporter</code></strong> is any function that takes an error and where it happened. The default prints in development only (<code>console.warn</code>: a warning in the terminal, not a red screen on top of the crash screen).</li>
+                        <li><strong><code>reportError</code></strong> accepts anything, because JavaScript can throw strings, and it swallows a reporter's own failure: a crash reporter that crashes the app would be worse than none.</li>
+                    </ul>
+                    <p>Then the screen a volunteer sees:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/CrashScreen.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/CrashScreen.tsx"><code class="language-tsx">import type { ErrorBoundaryProps } from 'expo-router';
+import { useEffect } from 'react';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { reportError } from '@/monitoring/reportError';
+import { appVersionLine } from '@/utils/appInfo';
+
+// What a volunteer sees when a screen throws (Lesson 9.3), instead of the app closing:
+// what happened in plain words, a way back, and the app's version for the bug report
+export function CrashScreen({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() =&gt; {
+    reportError(error, 'screen');
+  }, [error]);
+
+  return (
+    &lt;Screen&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        Something went wrong
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        This screen stopped working. Your saved debris logs are safe on this phone. Try again, and if
+        it happens again, tell your organizer what you were doing.
+      &lt;/AppText&gt;
+      &lt;Button label="Try again" variant="primary" onPress={retry} /&gt;
+      &lt;AppText variant="muted"&gt;{appVersionLine()}&lt;/AppText&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <p>And the root layout hands it to Expo Router. A layout's <code>ErrorBoundary</code> export catches errors in every screen below it; the root layout's catches them all:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useFonts } from 'expo-font';
+-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
++import { DarkTheme, DefaultTheme, type ErrorBoundaryProps, Stack, ThemeProvider } from 'expo-router';
+ import * as SplashScreen from 'expo-splash-screen';
+ // ...
+ import { loadSession } from '@/auth/session';
++import { CrashScreen } from '@/components/CrashScreen';
+ import { useAppStateFocus } from '@/hooks/useAppStateFocus';
+ // ...
+ };
++
++// A screen that throws shows CrashScreen instead of closing the app (Lesson 9.3). Expo Router uses
++// the ErrorBoundary a layout exports for every screen inside it: here, the whole app.
++export function ErrorBoundary(props: ErrorBoundaryProps) {
++  return &lt;CrashScreen {...props} /&gt;;
++}
+ </code></pre>
+                    </div>
+                    <p>The boundary replaces the whole app, providers and tabs included, so <code>CrashScreen</code> uses only things that work without them: <code>Screen</code>, <code>AppText</code> and <code>Button</code> read the theme from the settings store, not from a provider (Lessons 2.5 and 5.3). Two tests, one for each file:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/CrashScreen.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/CrashScreen.test.tsx"><code class="language-tsx">import { render, screen, userEvent } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { CrashScreen } from '@/components/CrashScreen';
+import { setReporter } from '@/monitoring/reportError';
+
+// The safe-area sizes a 390 x 844 phone reports (Screen reads them)
+const metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
+it('reports the error once and lets the volunteer try again', async () =&gt; {
+  const reporter = jest.fn();
+  setReporter(reporter);
+  const retry = jest.fn(() =&gt; Promise.resolve());
+  const error = new Error('Cannot read properties of undefined');
+
+  await render(
+    &lt;SafeAreaProvider initialMetrics={metrics}&gt;
+      &lt;CrashScreen error={error} retry={retry} /&gt;
+    &lt;/SafeAreaProvider&gt;,
+  );
+
+  expect(screen.getByRole('header', { name: 'Something went wrong' })).toBeOnTheScreen();
+  expect(reporter).toHaveBeenCalledTimes(1);
+  expect(reporter).toHaveBeenCalledWith(error, 'screen');
+  await userEvent.setup().press(screen.getByRole('button', { name: 'Try again' }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});</code></pre>
+                    </div>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/monitoring/reportError.test.ts</div>
+                        <pre data-src="shoreline-crew/src/monitoring/reportError.test.ts"><code class="language-ts">import { reportError, setReporter } from './reportError';
+
+it('turns anything thrown into an Error and survives a broken reporter', () =&gt; {
+  const reporter = jest.fn();
+  setReporter(reporter);
+  reportError('offline', 'sync');
+  expect(reporter).toHaveBeenCalledWith(new Error('offline'), 'sync');
+
+  setReporter(() =&gt; {
+    throw new Error('reporter is down');
+  });
+  expect(() =&gt; reportError(new Error('boom'), 'screen')).not.toThrow();
+});</code></pre>
+                    </div>
+                    <p>The screen test wraps <code>CrashScreen</code> in a <code>SafeAreaProvider</code> with a phone's measurements, because <code>Screen</code> reads the safe areas (Lesson 2.3) and, in a test, nothing else provides them.</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false updateInfo CrashScreen reportError</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false updateInfo CrashScreen reportError
+
+ PASS  src/components/CrashScreen.test.tsx
+ PASS  src/utils/updateInfo.test.ts
+ PASS  src/monitoring/reportError.test.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        0.739 s, estimated 1 s
+Ran all test suites matching updateInfo|CrashScreen|reportError.</code></pre>
+                    </div>
+                    <p>Now break a screen on purpose. Add one line at the top of the Before you go screen's function:</p>
+                    <pre data-snippet><code class="language-tsx">export default function BeforeYouGoScreen() {
+  throw new Error('Testing the crash screen');</code></pre>
+                    <p>Stop Metro and run the web preview the way a release build runs: <code>npx expo export --platform web</code> makes a production bundle in <code>dist</code>, and <code>npx expo serve</code> serves it and prints the address to open. Open Before you go from Profile:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_34/34-crash-screen.png" alt="A phone-sized web preview showing the crash screen: the heading Something went wrong, the sentence This screen stopped working. Your saved debris logs are safe on this phone, a Try again button outlined in red, and the line Shoreline Dev, version 1.0.0." width="420" height="814" loading="lazy">
+    <figcaption>The Before you go screen made to throw on purpose (Step 5). Instead of closing, the app shows <code>CrashScreen</code> and reports the error. Web preview, which runs a release-style bundle like a preview build.</figcaption>
+</figure>
+                    <p>In development (Expo Go, Shoreline Dev, or the web preview from <code>npx expo start</code>), you should see the red error screen first, with the message and the file, because development shows you every error; behind it is the same crash screen. Delete the line again, and run the whole suite: 20 files and 57 tests.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: One more build, then your first update <span class="step-time">(25 min, mostly waiting)</span></h3>
+                    <p>Commit your work (EAS publishes from a clean Git state: <code>eas update</code> checks it first, read in its source). Then store the preview variant's two settings in the <code>preview</code> environment on EAS, so builds and updates agree (use your own address, the one in <code>eas.json</code>):</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest env:set --name APP_VARIANT --value preview --environment preview --visibility plaintext
+npx eas-cli@latest env:set --name EXPO_PUBLIC_API_URL --value http://192.168.1.42:4000 --environment preview --visibility plaintext</code></pre>
+                    <p>Neither is a secret (Lesson 9.1), so <code>plaintext</code> is right. Builds still take the profile's <code>env</code> first (Lesson 9.2), with the same values. Now the build that can take updates:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest build --profile preview --platform android</code></pre>
+                    <p>While it waits in the queue, do Step 7. When it finishes, install it over the old Shoreline Preview (same id, so it replaces it), start the API with <code>--host</code>, open the app, and check Profile's last line: "Updates: on (channel preview). Running the code this build came with."</p>
+                    <p>Now change something you will recognize, such as the Cleanups screen's tagline, commit, and publish it to the preview builds:</p>
+                    <pre class="terminal"><code class="language-bash">npx eas-cli@latest update --channel preview --environment preview --message "New tagline"</code></pre>
+                    <p>From EAS CLI's source and Expo's docs (this lesson could not publish): it exports the bundles ("Exporting…"), uploads them, and prints the branch, the runtime version, the platforms and a link to the update on expo.dev. Compare the runtime version with the one on your build's page: they must be the same. On the phone, close Shoreline Preview completely and open it twice, or press <strong>Check for an update</strong> and then <strong>Restart now</strong>. The new tagline appears, and Profile names the update. If it does not, Common Mistakes lists the three usual reasons.</p>
+                    <p>Try one undo, too: <code>npx eas-cli@latest update:rollback</code> on the preview branch republishes what was there before (here, the embedded code), and after the next restarts the old tagline is back.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Checks on every push <span class="step-time">(15 min)</span></h3>
+                    <p>Create the folders <code>.github/workflows</code> inside <code>shoreline-crew</code>, and the workflow in them:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.github/workflows/ci.yml</div>
+                        <pre data-src="shoreline-crew/.github/workflows/ci.yml"><code class="language-yaml"># Runs on GitHub's computers for every push to main and every pull request (Lesson 9.3).
+# Same shape as the HQ's workflow in the web course, for the phone app's own repository.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The checks only read the code: no write access to the repository
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Types, lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # expo-env.d.ts and the typed routes are made by `npx expo start`, which never runs here:
+      # this writes them without starting Metro (tsconfig.json itself stays as it is)
+      - run: npx expo customize tsconfig.json
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      - run: npm test -- --watchAll=false</code></pre>
+                    </div>
+                    <ul>
+                        <li>The same triggers, permissions, actions and Node version as the HQ's workflow in the web course.</li>
+                        <li>No <code>working-directory</code>: the repository is the project.</li>
+                        <li><code>npx expo customize tsconfig.json</code> writes the generated types first; then the same three checks you run by hand. <code>npx expo lint</code> fails the run on errors; <code>npm test -- --watchAll=false</code> runs Jest once and stops (GitHub also sets the <code>CI</code> variable, which tells Jest and Expo's tools that nobody is there to press keys).</li>
+                    </ul>
+                    <p>Run the same steps on your computer once, the way GitHub will. The new step prints two lines and leaves <code>tsconfig.json</code> as it was:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo customize tsconfig.json
+npx tsc --noEmit
+npx expo lint
+npm test -- --watchAll=false</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the first command, then the end of the tests)</h4>
+                        <pre><code>Using src/app as the root directory for Expo Router.
+Generating: tsconfig.json
+...
+Test Suites: 20 passed, 20 total
+Tests:       57 passed, 57 total
+Snapshots:   0 total
+Time:        3.36 s
+Ran all test suites.</code></pre>
+                    </div>
+                    <p>Then put the project on GitHub, as in the web course's Lesson 10.2: create an empty repository named <code>shoreline-crew</code> on github.com (no README, so the histories do not clash), and push:</p>
+                    <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Updates, crash screen and CI"
+git remote add origin https://github.com/your-github-username/shoreline-crew.git
+git push -u origin main</code></pre>
+                    <p>If <code>git push</code> says <code>main</code> does not exist, your branch has another name: <code>git branch</code> shows it, and the workflow's <code>branches: [main]</code> must match it. Open the repository's <strong>Actions</strong> tab: the CI run should appear within a minute, and turn green after <code>npm ci</code> and the four checks (on this course's machine, the same steps took under a minute after the install).</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>expo-updates</code> is installed; with your project id, introspect shows <code>EXUpdatesEnabled: true</code> and your <code>https://u.expo.dev/…</code> address</li>
+                        <li><code>runtimeversion:resolve</code> gives different hashes for the development and preview variants, and the same hash after a JavaScript-only change</li>
+                        <li><code>eas.json</code> gives preview and production their own channels, and the profile test checks it (57 tests in all)</li>
+                        <li>Profile's last line says which code runs; the web preview says "Updates: not used in the web preview."</li>
+                        <li>A screen that throws shows "Something went wrong" with Try again, and the error goes through <code>reportError</code></li>
+                        <li>A new Shoreline Preview received an update (or, without an Android device: you can say what Step 6 does and why the old build could not take it)</li>
+                        <li>The CI workflow runs green on GitHub; your own app: write down which of its changes you would ship by update and which need a store release</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes ten to twenty minutes. The next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Build or update?</h3>
+                    <p>Shoreline Preview with <code>expo-updates</code> is on testers' phones. For each change, decide: an update, or a new build? Then check two of them with <code>APP_VARIANT=preview npx expo-updates runtimeversion:resolve --platform android</code> before and after the change (and undo it afterwards).</p>
+                    <ol>
+                        <li>The Logbook's empty message gets friendlier words</li>
+                        <li>The preview API moves to a new address on your Wi-Fi</li>
+                        <li><code>version</code> in <code>app.config.ts</code> goes from 1.0.0 to 1.1.0</li>
+                        <li>The camera's permission sentence in <code>app.config.ts</code> gets clearer</li>
+                        <li><code>npx expo install expo-camera</code>, to scan a code at check-in</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask of each one whether it ends up in the JavaScript bundle or in the native project. The table of measurements in "Runtime Versions" answers three of them already.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>1: update (JavaScript). 2: update: <code>EXPO_PUBLIC_API_URL</code> is written into the JavaScript, and the fingerprint stayed the same with another address (measured). Change the value in the <code>preview</code> environment on EAS (and in <code>eas.json</code>, for the next build), then publish. 3: update as far as the runtime is concerned: the fingerprint did not change (measured); but a new version number is something you show people, so it usually comes with a store release. 4: build: permission sentences go into the native project, and the fingerprint changed when the location sentence did (measured). 5: build: a new native module, which also changes the fingerprint because every native package's <code>package.json</code> is one of its sources.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Bundle in CI too</h3>
+                    <p>The CI workflow proves the code type-checks, lints and passes its tests, but not that Metro can bundle it for a phone (Lesson 6.3 met a library that broke the web bundle and nothing else). Add a step after the tests that makes the Android bundle an update would carry, and run the same command on your computer first.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Step 2 ran the command already. Does CI need the source map or the variant?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The end of <code>steps</code>, in <code>ci.yml</code>:</p>
+                        <pre data-snippet><code class="language-yaml">      - run: npm test -- --watchAll=false
+      # The JavaScript must bundle for a phone too: the same Hermes bundle an update would carry
+      - run: npx expo export --platform android</code></pre>
+                        <p>Checked for this lesson with <code>actionlint</code> (a linter for workflow files), and the command bundled the project in about 15 seconds on this course's machine. No variant is needed (the development default bundles the same code) and no source map. The <code>dist</code> folder it makes disappears with the GitHub computer. An iOS bundle would work the same way on Ubuntu: <code>expo export</code> needs no Mac, only an iOS build does.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A better report (Stretch)</h3>
+                    <p>Before you choose a crash-reporting service, make the development reporter say everything a real report should: the error, where it happened, the app and version, and whether the code was built in or an update. Use <code>setReporter</code> at startup, and do not change <code>reportError</code> or any screen.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Two helpers you wrote already give you the app and version line and the update facts.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In a new file, imported once from <code>src/app/_layout.tsx</code> (for example <code>import '@/monitoring/devReporter';</code> at the top), so it runs before any screen:</p>
+                        <pre data-snippet><code class="language-ts">import { setReporter } from '@/monitoring/reportError';
+import { appVersionLine } from '@/utils/appInfo';
+import { currentRunningCode } from '@/utils/updateInfo';
+
+// Every report names the app, the version and the exact code that was running
+setReporter((error, where) => {
+  const code = currentRunningCode();
+  const running = code.updateId ? `update ${code.updateId.slice(0, 8)}` : 'built-in code';
+  console.warn(`[${where}] ${error.message} | ${appVersionLine()} | ${running}`);
+});</code></pre>
+                        <p>Type-checked and linted against the project for this lesson. A real service's reporter has the same shape: Sentry's <code>captureException</code> with the update id as a tag, as Expo's Sentry guide describes, would replace the <code>console.warn</code>.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> You publish an update to the <code>preview</code> channel. The Shoreline Preview you installed in Lesson 9.2 still shows the old screens after several restarts. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Restarting is how updates arrive. Is there anything in that build that could fetch one?">
+                                A) It needs a few more restarts
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Lesson 9.2 already set that profile up. What did today add that the old build does not have?">
+                                B) The preview profile has no API address
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="expo-updates is native code, and that build was made before it was installed, so nothing in it can ask for updates. A new preview build made after Steps 1 to 3 can, and every later JavaScript change can then travel as an update.">
+                                C) That build was made without expo-updates, so it cannot receive updates at all
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Which of these changes can reach installed preview builds as an update?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Text on a screen is JavaScript, so it travels in the update bundle and the runtime version stays the same. Permission sentences, native packages and the icon are compiled into the build.">
+                                A) A corrected sentence on the Before you go screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does a permission sentence end up: the bundle or the native project?">
+                                B) A clearer location permission sentence in app.config.ts
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a native module come with the JavaScript bundle?">
+                                C) expo-camera, added with npx expo install
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Who shows the icon on the home screen: your JavaScript or the installed app?">
+                                D) A new app icon
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> With the fingerprint policy, you publish to <code>preview</code>, but the <code>preview</code> environment on EAS has no <code>APP_VARIANT</code>. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does eas update read the env section of a build profile?">
+                                A) EAS reads APP_VARIANT from the preview profile in eas.json, so nothing goes wrong
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which runtime version does an update made with the development variant get?">
+                                B) Every preview build downloads it and shows Shoreline Dev on Profile
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is an unknown variant the problem, or a missing one? What does app.config.ts do when APP_VARIANT is not set?">
+                                C) app.config.ts throws and nothing is published
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Without APP_VARIANT, app.config.ts gives the development variant, so the update gets the development fingerprint. No preview build has that runtime version, so none downloads it: published, and received by nobody. Storing APP_VARIANT in the preview environment fixes it.">
+                                D) The update gets the development runtime version, which no preview build has, so no phone takes it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Shoreline Crew's <code>eas.json</code> has <code>appVersionSource: "remote"</code> and <code>autoIncrement</code> on the production profile. Who sets the Android build number (<code>versionCode</code>) of the next production build?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="With remote, are build numbers in the app config used?">
+                                A) You, in app.config.ts, before every build
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="With the remote source EAS keeps the build numbers, ignores any in the app config, and autoIncrement adds one for every production build. The user-facing version stays yours, in app.config.ts.">
+                                B) EAS, which keeps the number and adds one for each production build
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does an update change the installed build's numbers?">
+                                C) EAS Update, each time you publish an update
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> The CI run on GitHub fails at <code>npx tsc --noEmit</code> with errors in the three <code>[id].tsx</code> routes, while the same command passes on your computer. What is the fix?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The generated route types and expo-env.d.ts are gitignored and written by npx expo start, which never runs in CI. npx expo customize tsconfig.json writes them without starting Metro, and leaves an existing tsconfig.json as it is.">
+                                A) Run npx expo customize tsconfig.json in the workflow before the type check
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the same code pass on your computer if the types were wrong?">
+                                B) Cast every id to string in the three routes
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What do expo-env.d.ts and .expo/types contain, and should generated files be committed?">
+                                C) Remove expo-env.d.ts and .expo from .gitignore and commit them
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Can I see an update in my development build?</summary>
+                    <p>A development build loads from Metro, which is what you want while coding. Expo's docs describe opening a published update from a development build (its Extensions tab, once you are signed in) to try an update on your own phone before it reaches a preview channel. Testing on a preview build is closer to what testers get, and Step 6 does that.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Do I have to use EAS Update?</summary>
+                    <p>No. <code>expo-updates</code> speaks an open protocol (the "Expo Updates protocol" in Expo's docs), and <code>updates.url</code> can point to any server that implements it, including one you host. EAS Update is the hosted one, with a free plan, and the one this course uses. Without any update server, the app simply runs its embedded code, which is how Shoreline Crew behaves until you paste a project id.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why did my runtime version change when I only edited package.json scripts?</summary>
+                    <p>Because the <code>scripts</code> of <code>package.json</code> are one of the fingerprint's sources (you can see <code>packageJson:scripts</code> in the list <code>runtimeversion:resolve</code> prints). Scripts can run native tooling, so Expo counts them. Add or rename scripts before a build, not between a build and its updates, or expect one more build.</p>
+                </details>
+
+                <details class="card">
+                    <summary>My shoreline folder is a Git repository from the web course. Is shoreline-crew inside it a problem?</summary>
+                    <p><code>shoreline-crew</code> has had its own repository since Lesson 1.2, so the outer one sees it as a folder with its own history inside and, depending on your Git version, warns about an "embedded" repository when you add everything. Keep the two apart: add a line <code>shoreline-crew/</code> to the outer repository's <code>.gitignore</code>, and push <code>shoreline-crew</code> to its own GitHub repository as in Step 7.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Should every push publish an update?</summary>
+                    <p>Some teams publish to a preview channel from CI after the checks pass, so testers always have the newest code; production updates are then a deliberate step. It needs an Expo access token stored as a GitHub secret, and the same care with environments as Step 6. Start with checks; automate publishing when you publish often enough to make the setup worth it.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Publish a second update to <code>preview</code> with <code>--rollout-percentage 50</code>, then look at <code>npx eas-cli@latest update:list</code> and, after a day of testers using it, <code>npx eas-cli@latest update:insights</code> with the update group's id. What do launches and crashes look like, and how would you decide to finish the rollout or roll it back? If you have a free Sentry account, follow Expo's Sentry guide in a copy of the project, plug it in with <code>setReporter</code>, and make the crash screen from Step 5 send its first real report.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> A volunteer reports on a Saturday morning that the check-in screen "just closes". Write your plan for the next two hours, using today's tools: how you would find out which version and update she has, how you would learn what failed, how you would decide between an update and a new build, how you would get the fix to her phone, and how you would make sure the same bug cannot come back.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><code>expo-updates</code> lets a release build replace its JavaScript and assets: it checks at every start, downloads in the background, and runs the update at the next start; the embedded code is always the fallback</li>
+                        <li>A runtime version labels a build's native part; an update reaches only builds with the same one. The fingerprint policy measures it, so <code>runtimeversion:resolve</code> tells you before publishing whether a change needs a build</li>
+                        <li>Channels come from build profiles; <code>eas update --channel preview --environment preview</code> publishes with the environment's variables, never the profile's <code>env</code> or <code>.env.local</code></li>
+                        <li>Updates may fix and improve JavaScript and assets; native changes need builds, and store rules forbid changing what the app is without review</li>
+                        <li>The version is yours and user-facing; build numbers live on EAS and count up by themselves</li>
+                        <li>A root <code>ErrorBoundary</code> turns a crash into a calm screen; one <code>reportError</code> seam lets any crash-reporting service plug in later; CI runs the checks on a fresh computer, after generating the route types</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Expo's guide to updates</td><td><a href="https://docs.expo.dev/eas-update/getting-started/">Expo: Get started with EAS Update</a></td></tr>
+                            <tr><td>Choose a runtime version policy</td><td><a href="https://docs.expo.dev/eas-update/runtime-versions/">Expo: Runtime versions and updates</a></td></tr>
+                            <tr><td>Look up every <code>expo-updates</code> setting and function</td><td><a href="https://docs.expo.dev/versions/latest/sdk/updates/">Expo: Updates (SDK reference)</a></td></tr>
+                            <tr><td>Understand version and build numbers</td><td><a href="https://docs.expo.dev/build-reference/app-versions/">Expo: App version management</a></td></tr>
+                            <tr><td>Set up crash reporting</td><td><a href="https://docs.expo.dev/guides/using-sentry/">Expo: Using Sentry</a> and <a href="https://docs.expo.dev/monitoring/services/">Expo: Monitoring services</a></td></tr>
+                            <tr><td>Check today's limits and prices</td><td><a href="https://expo.dev/pricing">Expo: Pricing</a></td></tr>
+                            <tr><td>Revisit a question from this lesson</td><td><a href="#faq">Common Questions</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-accent">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew can take updates, with an address that follows your project id and a runtime version you can measure</li>
+                        <li>Preview and production each have their own channel, guarded by a test</li>
+                        <li>Profile tells testers exactly which code they run, and lets them fetch an update now</li>
+                        <li>A crash shows a calm screen, and every unexpected error has one place to go</li>
+                        <li>You sent your first update to a phone (or know exactly how), and GitHub checks every push</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Everything is in place except the last door: the stores. In <a href="lesson_35.html">Lesson 9.4: The App Stores</a>, you look at what Google Play and the App Store ask for, what they really cost, the privacy details you must declare (crash reports included), how review works, and a release checklist for the day Shoreline Crew, or your own app, goes public.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code>, commit, and push: the CI run should be green</li>
+                    <li>Look at the Google Play Console and App Store Connect sign-up pages, and note what each asks for before you can publish (you do not need to pay anything)</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's work is invisible when it goes well: no crash screen shown, no update needed, no red cross on a commit. That is the point. You built the habits that let a small team look after an app for years, and you measured instead of guessing at every step. If the update did not arrive on the first try, you also met the most common release puzzle there is, and now you know where to look. Your app is almost ready for the world.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_33.html" class="prev-lesson">← Previous: Development Builds and EAS Build</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_35.html" class="next-lesson">Next: The App Stores →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

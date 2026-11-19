@@ -1,0 +1,116 @@
+{
+  "title": "Tests a volunteer would recognize: components, a list's faces, screens under the router",
+  "lesson": "8.3",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter",
+      "dir": "starter",
+      "cmd": "npm test",
+      "exit": "nonzero",
+      "expect": [
+        "TODO 1a",
+        "TODO 2a",
+        "TODO 3a",
+        "Tests:       7 failed, 7 total"
+      ]
+    },
+    {
+      "name": "starter-types",
+      "dir": "starter",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "expect": [
+        "> tsc --noEmit"
+      ],
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution",
+      "dir": "solution",
+      "cmd": "npm test",
+      "exit": 0,
+      "expect": [
+        "Tests:       7 passed, 7 total"
+      ]
+    },
+    {
+      "name": "solution-verbose",
+      "dir": "solution",
+      "cmd": "npm test -- --verbose",
+      "exit": 0,
+      "expect": [
+        "opens the next cleanup's own screen from its link",
+        "Tests:       7 passed, 7 total"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-lint",
+      "dir": "solution",
+      "cmd": "npm run lint",
+      "exit": 0,
+      "absent": [
+        "problem"
+      ]
+    },
+    {
+      "name": "bug-bagcounter",
+      "dir": "solution",
+      "files": {
+        "src/BagCounter.tsx": "\nimport { Pressable, StyleSheet, Text, View } from 'react-native';\n\ntype BagCounterProps = {\n  count: number;\n  onChange: (count: number) => void;\n  max?: number;\n};\n\n// How many bags a volunteer filled: minus, the count, plus. Each button is named for a screen\n// reader, the count is a live text (Android says the new number), and the icon is decoration.\nexport function BagCounter({ count, onChange, max = 20 }: BagCounterProps) {\n  return (\n    <View style={styles.row}>\n      <Text style={styles.icon}>\n        ♻\n      </Text>\n      <Text style={styles.label}>Bags filled</Text>\n      <Pressable\n        accessibilityRole=\"button\"\n        accessibilityLabel=\"One bag fewer\"\n        onPress={() => onChange(count - 1)}\n        style={styles.button}\n      >\n        <Text style={styles.sign}>−</Text>\n      </Pressable>\n      <Text accessibilityLiveRegion=\"polite\" style={styles.count}>\n        {count === 1 ? '1 bag' : `${count} bags`}\n      </Text>\n      <Pressable\n        accessibilityRole=\"button\"\n        accessibilityLabel=\"One more bag\"\n        disabled={count === max}\n        onPress={() => onChange(count + 1)}\n        style={styles.button}\n      >\n        <Text style={styles.sign}>+</Text>\n      </Pressable>\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },\n  icon: { fontSize: 20 },\n  label: { flex: 1, fontSize: 16 },\n  button: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },\n  sign: { fontSize: 24 },\n  count: { minWidth: 64, textAlign: 'center', fontSize: 16 },\n});\n"
+      },
+      "cmd": "npm test -- src/BagCounter.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "Tests:       2 failed, 1 passed, 3 total"
+      ]
+    },
+    {
+      "name": "bug-beachlist",
+      "dir": "solution",
+      "files": {
+        "src/BeachList.tsx": "\nimport { useEffect, useState } from 'react';\nimport { Pressable, StyleSheet, Text, View } from 'react-native';\n\nimport type { Site } from './types';\n\ntype Face = { kind: 'loading' } | { kind: 'failed'; status: number } | { kind: 'loaded'; sites: Site[] };\n\n// The beaches from GET /api/sites, with the three faces every list has: loading, failed, loaded\nexport function BeachList({ apiUrl }: { apiUrl: string }) {\n  const [face, setFace] = useState<Face>({ kind: 'loading' });\n  const [attempt, setAttempt] = useState(0); // Try again asks for one more attempt\n\n  useEffect(() => {\n    let current = true; // an answer that arrives after the list is gone is ignored\n    fetch(`${apiUrl}/api/sites`).then(async (response) => {\n      if (!current) return;\n      if (!response.ok) {\n        setFace({ kind: 'failed', status: response.status });\n        return;\n      }\n      const sites = (await response.json()) as Site[];\n      if (current) setFace({ kind: 'loaded', sites });\n    });\n    return () => {\n      current = false;\n    };\n  }, [apiUrl, attempt]);\n\n  function tryAgain() {\n    setFace({ kind: 'loading' });\n    setAttempt((n) => n + 1);\n  }\n\n  if (face.kind === 'loading') {\n    return <Text>Loading beaches…</Text>;\n  }\n  if (face.kind === 'failed') {\n    return (\n      <View style={styles.box}>\n        <Text>Could not load the beaches ({face.status}).</Text>\n        <Pressable accessibilityRole=\"button\" onPress={() => setFace({ kind: 'loading' })} style={styles.button}>\n          <Text>Try again</Text>\n        </Pressable>\n      </View>\n    );\n  }\n  return (\n    <View style={styles.box}>\n      <Text accessibilityRole=\"header\" style={styles.heading}>\n        {face.sites.length} beaches\n      </Text>\n      {face.sites.map((site) => (\n        <Text key={site.id}>\n          {site.name}, {site.town}\n        </Text>\n      ))}\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  box: { gap: 8 },\n  heading: { fontSize: 20, fontWeight: '600' },\n  button: { minHeight: 48, justifyContent: 'center' },\n});\n"
+      },
+      "cmd": "npm test -- src/BeachList.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "Tests:       1 failed, 1 passed, 2 total"
+      ]
+    },
+    {
+      "name": "bug-nextscreen",
+      "dir": "solution",
+      "files": {
+        "src/screens/NextCleanupScreen.tsx": "\nimport { Link } from 'expo-router';\nimport { Pressable, StyleSheet, Text, View } from 'react-native';\n\nimport next from '../../fixtures/next.json';\n\n// The first screen: the next cleanup, and a link to its own screen\nexport default function NextCleanupScreen() {\n  const cleanup = next[0];\n  return (\n    <View style={styles.screen}>\n      <Text accessibilityRole=\"header\" style={styles.title}>\n        Next cleanup\n      </Text>\n      <Text>{cleanup.title}</Text>\n      <Link href={{ pathname: '/cleanup/[id]', params: { id: cleanup.id } }} asChild>\n        <Pressable accessibilityLabel={`Open ${cleanup.title}`} style={styles.button}>\n          <Text>Open</Text>\n        </Pressable>\n      </Link>\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  screen: { flex: 1, gap: 12, padding: 24 },\n  title: { fontSize: 24, fontWeight: '600' },\n  button: { minHeight: 48, justifyContent: 'center' },\n});\n"
+      },
+      "cmd": "npm test -- src/screens.test.tsx",
+      "exit": "nonzero",
+      "expect": [
+        "Tests:       1 failed, 1 passed, 2 total"
+      ]
+    },
+    {
+      "name": "mistake-wrong-import",
+      "dir": "solution",
+      "files": {
+        "src/screens.test.tsx": "\n// Task 3 (reference): two screens under Expo Router's testing library\nimport { Stack } from 'expo-router';\nimport { renderRouter, screen, userEvent } from 'expo-router/testing-library';\n\nimport CleanupScreen from './screens/CleanupScreen';\nimport NextCleanupScreen from './screens/NextCleanupScreen';\n\n// The two screens as an app: '/' and '/cleanups/[id]'\nconst routes = {\n  _layout: () => <Stack />,\n  index: NextCleanupScreen,\n  'cleanups/[id]': CleanupScreen,\n};\n\nit(\"opens the next cleanup's own screen from its link\", async () => {\n  const user = userEvent.setup();\n  await renderRouter(routes);\n  await user.press(screen.getByRole('link', { name: 'Open Tide Pool Morning Cleanup' }));\n  expect(await screen.findByText('Meet at: Gravel pull-out on Highway 1')).toBeOnTheScreen();\n  expect(screen).toHavePathname('/cleanups/e17');\n});\n\nit('says so for a cleanup that does not exist', async () => {\n  await renderRouter(routes, { initialUrl: '/cleanups/e99' });\n  expect(screen.getByRole('alert')).toHaveTextContent('No such cleanup: e99');\n});\n"
+      },
+      "cmd": "npm run typecheck",
+      "exit": "nonzero",
+      "expect": [
+        "error TS1362"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Answer Key: Session 13</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../../kit.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="lbl">Instructor copy —</span>
+  <button type="button" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="hint">answers &amp; solutions · not for students</span>
+</div>
+
+<div class="sheet">
+
+  <header class="mast">
+    <div class="kit-eyebrow">Instructor Kit · Answer Key</div>
+    <h1>Session 13: Storage and Mobile Forms</h1>
+    <p class="sub">Answers and reasoning for every Session 13 item: the warm-up, both self-checks, the predict-then-check items, Checkpoint 2's model answer, the lab reference outputs, the lesson pages' own quizzes and the exit ticket.</p>
+    <div class="meta-row">
+      <span class="chip">Session <b>13</b></span>
+      <span class="chip"><b>12</b> self-check items</span>
+      <span class="chip">Checkpoint <b>2</b></span>
+      <span class="chip">Confidential</span>
+    </div>
+  </header>
+
+  <div class="sec"><h2>Warm-up: Session 12 Retrieval</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>The address and <code class="inline">--host</code>.</b> <code class="inline">.env.local</code> gets the computer's network address (Metro's <code class="inline">exp://</code> line, no <code class="inline">/api</code>), then <code class="inline">npx expo start --clear</code>; the API runs with <code class="inline">node server.ts --host</code> (Lesson 5.1).</li>
+  <li><b>It pauses.</b> With the onlineManager told by NetInfo, a query that needs to fetch offline sends no request, keeps its cached data and continues by itself online (Lesson 5.2).</li>
+  <li><b>The session survived</b> (SecureStore, Lesson 4.3); <b>the cleanups loaded again</b>, because the TanStack Query cache lives in memory. Lesson 5.3 starts here.</li>
+</ol>
+
+  <div class="sec"><h2>5.3 · Storing Data on the Device: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="1"><div class="qn">Q1</div><div class="qt">Shoreline Crew wants to remember that a volunteer has already seen the "Before you go" briefing, so it is not shown again. Where should that live?</div><div class="opts"><div class="opt">A) SecureStore: everything on the phone should be encrypted</div><div class="opt correct">B) AsyncStorage: a small flag, not secret, one key</div><div class="opt">C) SQLite: a table with one row</div><div class="opt">D) Only the query cache</div></div><div class="why"><b>Why:</b> A small, non-secret setting is AsyncStorage's job (Lesson 5.3's table and Exercise 1 (b)). SecureStore is for secrets and warns about size; SQLite is for many records you search, sort or total; the query cache is gone after a force-quit.<br><b>A</b> is wrong: SecureStore is for tokens and keys; a "seen it" flag is not secret.<br><b>C</b> is wrong: A database for one flag is the sticky note in a ledger: it works, it is the wrong tool.<br><b>D</b> is wrong: Memory does not survive a force-quit, so the briefing would come back every launch.</div></div>
+  <div class="q" data-sc="2"><div class="qn">Q2</div><div class="qt">The logbook's own <code class="inline">INSERT OR REPLACE</code> runs twice with Theo's one sent log ("Bring in my sent logs" pressed twice). The kit then ran the totals query. What does it print?</div><pre class="code">INSERT OR REPLACE INTO sent_logs (...) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)   -- the same log, twice
+SELECT COUNT(*) AS logs, ... FROM sent_logs WHERE volunteer_id = ?</pre><div class="opts"><div class="opt">A) <code class="inline">{ logs: 2, pieces: 84, bags: 2, weightKg: 5 }</code></div><div class="opt">B) An error: the row already exists</div><div class="opt correct">C) <code class="inline">{ logs: 1, pieces: 42, bags: 1, weightKg: 2.5 }</code></div><div class="opt">D) <code class="inline">{ logs: 0, pieces: 0, bags: 0, weightKg: 0 }</code></div></div><div class="why"><b>Why:</b> The primary key is <code class="inline">(volunteer_id, client_id)</code>, the same pair shoreline-api uses to recognize a log it already has, so the second insert REPLACES the row instead of adding one. The kit ran the stage's SQL on SQLite (built into Node 24) with Theo's real log from the API: the numbers are the lesson's "1 log in all: 42 pieces, 1 bag, 2.5 kg."<br><b>A</b> is wrong: That is what a table without a primary key (or a JSON array) would give.<br><b>B</b> is wrong: A plain INSERT would fail on the key; OR REPLACE is there so it does not.<br><b>D</b> is wrong: Replacing keeps the row: nothing is deleted.</div></div>
+  <div class="q" data-sc="3"><div class="qn">Q3</div><div class="qt">A note is put straight into the SQL text. What does SQLite answer?</div><pre class="code">db.exec(<span class="s">`INSERT INTO sent_logs (note) VALUES ('Theo's bag split by the stairs')`</span>);</pre><div class="opts"><div class="opt correct">A) <code class="inline">Error: near "s": syntax error</code></div><div class="opt">B) It saves the note without the apostrophe</div><div class="opt">C) It saves the note as written</div><div class="opt">D) <code class="inline">SQLITE_CONSTRAINT: NOT NULL</code></div></div><div class="why"><b>Why:</b> The apostrophe in <code class="inline">Theo's</code> ends the SQL string early, and SQLite cannot read the rest. The kit ran it on SQLite in Node; the lesson measured the same <code class="inline">near "s": syntax error</code> inside expo-sqlite's own wording in the web preview. The fix is a <code class="inline">?</code> placeholder: <code class="inline">runAsync('... VALUES (?)', note)</code>. The unfriendly version of the same mistake is SQL injection.<br><b>B</b> is wrong: SQLite never edits your text: it either reads it as SQL or fails.<br><b>C</b> is wrong: Only a <code class="inline">?</code> value is stored as written.<br><b>D</b> is wrong: SQLite never gets that far: the statement does not parse.</div></div>
+  <div class="q" data-sc="4"><div class="qn">Q4</div><div class="qt">A query reads only the phone's database. Offline, its screen says "Opening your logbook…" until the connection returns. What fixes it?</div><div class="opts"><div class="opt">A) <code class="inline">retry: false</code></div><div class="opt">B) <code class="inline">staleTime: 0</code></div><div class="opt">C) A useEffect instead of useQuery</div><div class="opt correct">D) <code class="inline">networkMode: 'always'</code> on that query</div></div><div class="why"><b>Why:</b> Since Lesson 5.2 the cache knows when the phone is offline, and the default network mode pauses any query that would fetch. A queryFn that reads only the phone never needs the network. Checkpoint 2's Task 3b is this mistake on new code; the lesson measured the stuck screen.<br><b>A</b> is wrong: Nothing failed: the query never ran.<br><b>B</b> is wrong: That makes it refetch more often, still paused offline.<br><b>C</b> is wrong: It would work, but throws away the cache's loading, error and invalidation for nothing.</div></div>
+  <div class="q" data-sc="5"><div class="qn">Q5</div><div class="qt">Version 2 of an app adds a column to its table by changing <code class="inline">CREATE TABLE IF NOT EXISTS</code>. What happens on a phone that already has version 1's database?</div><div class="opts"><div class="opt">A) The table is rebuilt with the new column</div><div class="opt correct">B) The table exists, so the statement is skipped, and the first query that names the new column fails</div><div class="opt">C) SQLite adds the column by itself</div><div class="opt">D) The app deletes the old file and starts over</div></div><div class="why"><b>Why:</b> IF NOT EXISTS answers "is there a table?", not "which version is it?". Lab 5.3 Task 3 shows the failure on a real version 1 file. A version number (<code class="inline">PRAGMA user_version</code>) and one step per version, in a transaction, bring old files up to date; never delete a user's data and never edit a shipped step.<br><b>A</b> is wrong: Nothing rebuilds a table that exists.<br><b>C</b> is wrong: SQLite only does what the SQL says.<br><b>D</b> is wrong: Deleting a user's database is the thing the expo-sqlite documentation says never to do.</div></div>
+  <div class="q" data-sc="6" data-kind="short"><div class="qn">Q6</div><div class="qt">Why is the signed-in part of the Logbook screen its own component, MyLogbook, instead of more code at the top of the screen?</div><div class="opts"><div class="opt correct">A mutation's result lives as long as the component that called useMutation, and a tab screen never unmounts; signing out unmounts MyLogbook, so the next person on the phone starts fresh</div></div><div class="why"><b>Why:</b> Lesson 5.3 measured the draft: Theo brought in his logs, signed out, Amara signed in, and her empty logbook still said "Done: the server has 1 log of yours…". The query key's viewer keeps the DATA apart; only unmounting resets the mutation's state.</div></div>
+
+  <div class="sec"><h2>5.3 · Storing Data on the Device: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P1</div><div class="qt">Predict, then check.</div><pre class="code">INSERT OR REPLACE INTO sent_logs (...) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)</pre><div class="opts"><div class="opt correct"><pre class="out">{ logs: 1, pieces: 42, bags: 1, weightKg: 2.5 }</pre></div></div><div class="why"><b>Why:</b> One log: INSERT OR REPLACE with the primary key <code class="inline">(volunteer_id, client_id)</code> replaces the row the second time. The kit ran the stage's own SQL on SQLite (Node 24) with Theo's real log from the course API; the numbers are the lesson's "1 log in all: 42 pieces, 1 bag, 2.5 kg."</div></div>
+<div class="q"><div class="qn">P2</div><div class="qt">Predict, then check.</div><pre class="code">INSERT INTO sent_logs (note) VALUES ('Theo's bag split by the stairs')</pre><div class="opts"><div class="opt correct"><pre class="out">Error: near "s": syntax error</pre></div></div><div class="why"><b>Why:</b> The apostrophe ends the SQL string early. expo-sqlite reports the same SQLite words inside its own text (the lesson measured <code class="inline">Error: Error code 1: near "s": syntax error</code>). Use <code class="inline">?</code> values.</div></div>
+<p>The kit's whole SQL run (the logbook's CREATE TABLE, INSERT OR REPLACE, entries and totals queries copied from the stage's <code class="inline">src/storage/logbook.ts</code>, Theo's log fetched from the course API):</p>
+<pre class="out">{ logs: 1, pieces: 42, bags: 1, weightKg: 2.5 }
+[ 'Sunset Stairs Cleanup: Lots of wrappers by the stairs.' ]
+Error: near "s": syntax error</pre>
+  <div class="sec"><h2>5.4 · Mobile Forms: self-check</h2><span class="rule"></span></div>
+  <div class="q" data-sc="7"><div class="qn">Q7</div><div class="qt">A field is written the web way, <code class="inline">&lt;TextInput {...register('leader')} /&gt;</code>. Which tool tells you it does not work?</div><div class="opts"><div class="opt">A) <code class="inline">npx tsc --noEmit</code></div><div class="opt">B) <code class="inline">npx expo lint</code></div><div class="opt">C) Metro, when it bundles</div><div class="opt correct">D) Only running it: a test or the web preview shows nothing is sent</div></div><div class="why"><b>Why:</b> The props register returns happen to fit a TextInput's types, so tsc and expo lint are quiet (Lesson 5.4 measured it; Lab 5.4's starter type-checks its three register fields without a word). Running it shows the form never gets the text: the lab's Task 1 test fails, the lesson's web preview sent no request. Use useController or Controller.<br><b>A</b> is wrong: It type-checks: that is why the mistake is quiet.<br><b>B</b> is wrong: No lint rule knows register is DOM-bound.<br><b>C</b> is wrong: Metro does not check types or behavior.</div></div>
+  <div class="q" data-sc="8"><div class="qn">Q8</div><div class="qt">After <code class="inline">onPress={handleSubmit(submit)}</code> and <code class="inline">onSubmitEditing={handleSubmit(submit)}</code>, tsc starts like this. What is the fix?</div><pre class="code">src/app/sign-in.tsx:77:9 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, a...
+  Types of parameters 'e' and 'e' are incompatible.
+...
+Found 2 errors in the same file, starting at: src/app/sign-in.tsx:77</pre><div class="opts"><div class="opt correct">A) <code class="inline">const send = handleSubmit(submit)</code>, then <code class="inline">onPress={() =&gt; send()}</code> and <code class="inline">onSubmitEditing={() =&gt; send()}</code></div><div class="opt">B) <code class="inline">onPress={handleSubmit(submit) as never}</code></div><div class="opt">C) Wrap the fields in a <code class="inline">&lt;form&gt;</code></div><div class="opt">D) Use <code class="inline">register</code> instead of <code class="inline">useController</code></div></div><div class="why"><b>Why:</b> handleSubmit returns a function typed for a web form event; React Native's press and keyboard events are other types. Made once and called with no arguments, it type-checks. The kit made the lesson's mistake in a copy of the finished app: two TS2322 errors, the lesson's card line for line.<br><b>B</b> is wrong: A cast hides the error and keeps passing the wrong event.<br><b>C</b> is wrong: There is no <code class="inline">&lt;form&gt;</code> on a phone.<br><b>D</b> is wrong: register is the other web-only habit.</div></div>
+  <div class="q" data-sc="9"><div class="qn">Q9</div><div class="qt">A ControlledField reads <code class="inline">ref={field.ref}</code>, <code class="inline">value={field.value}</code> and so on. <code class="inline">npx expo lint</code> ends like this. What is the fix?</div><pre class="code">~/shoreline/shoreline-crew/src/components/ControlledField.tsx
+  29:12  error  Error: Cannot access refs during render
+
+&gt; 29 |       ref={field.ref}
+...
+✖ 4 problems (4 errors, 0 warnings)</pre><div class="opts"><div class="opt">A) Turn the rule off for the file</div><div class="opt">B) Call useController inside a useEffect</div><div class="opt correct">C) Take field apart where you get it: <code class="inline">const { field: { ref, value, onChange, onBlur } } = useController(...)</code></div><div class="opt">D) Use a useRef per field</div></div><div class="why"><b>Why:</b> The React Compiler's lint rules (on in the Expo template) treat an object holding a ref as a ref, so every <code class="inline">field.x</code> read looks like reading a ref during render. Destructured names are plain values. The kit's run on a copy of the finished app reports the lesson's four errors (its lines are two lower than the lesson's draft: the kit's copy keeps the file's comments).<br><b>A</b> is wrong: Hiding a rule on a real component is a habit to avoid; here the fix is free.<br><b>B</b> is wrong: Hooks cannot be called inside effects.<br><b>D</b> is wrong: React Hook Form already keeps every field's ref; setFocus uses them.</div></div>
+  <div class="q" data-sc="10"><div class="qn">Q10</div><div class="qt">The stage's <code class="inline">debrisLogSchema</code> checks a log whose weight was typed <code class="inline">2,5</code> on a phone set to German. What does the successful check give back for the weight?</div><pre class="code">debrisLogSchema.safeParse({ counts, bags: '1', weightKg: '2,5', note: ' By the stairs ' })</pre><div class="opts"><div class="opt">A) The message "Weight must be a number of kilograms from 0 to 5000."</div><div class="opt correct">B) <code class="inline">"weightKg":2.5</code> (and the note trimmed)</div><div class="opt">C) <code class="inline">"weightKg":"2,5"</code></div><div class="opt">D) <code class="inline">"weightKg":25</code></div></div><div class="why"><b>Why:</b> The rule trims, turns a comma into a point, checks the digits and converts to a number. The kit ran the stage's schema with Node: <code class="inline">{"bags":1,"weightKg":2.5,"note":"By the stai...</code>. A schema that accepts only <code class="inline">2.5</code> rejects what the phone's own decimal key typed.<br><b>A</b> is wrong: That is what a point-only rule would say: the volunteer could not fix it from that keyboard.<br><b>C</b> is wrong: z.output is a number: the transform runs on success.<br><b>D</b> is wrong: The comma becomes a decimal point, not nothing.</div></div>
+  <div class="q" data-sc="11"><div class="qn">Q11</div><div class="qt">Theo's log reached shoreline-api, the answer was lost, and the phone sends the SAME body again (same clientId). The kit sent it twice. What did the API answer the second time?</div><pre class="code">POST /api/events/e17/logs   (as Theo, clientId kit-demo-0001-a7f3)
+HTTP/1.1 201 Created</pre><div class="opts"><div class="opt">A) <code class="inline">HTTP/1.1 201 Created</code>: a second log</div><div class="opt">B) <code class="inline">HTTP/1.1 409 Conflict</code></div><div class="opt correct">C) <code class="inline">HTTP/1.1 200 OK</code> with the log it already has</div><div class="opt">D) <code class="inline">HTTP/1.1 400 Bad Request</code></div></div><div class="why"><b>Why:</b> The API recognizes a log by volunteer and clientId: a resend answers 200 with the saved log (the kit then asked for e17's logs: one). That is why the form makes the id ONCE, when it opens (<code class="inline">useState(() =&gt; randomUUID())</code>), and why Lesson 5.5 can retry safely.<br><b>A</b> is wrong: Only a NEW clientId makes a second log: the Common Mistake of an id made on every press.<br><b>B</b> is wrong: 409 is for a cleanup that has not happened yet ("This cleanup has not happened yet.").<br><b>D</b> is wrong: The body is the same valid log.</div></div>
+  <div class="q" data-sc="12" data-kind="short"><div class="qn">Q12</div><div class="qt">The debris log's note is its last field. Why does its return key not send the log, and what sends it instead?</div><div class="opts"><div class="opt correct">The note is multiline, so its return key types a new line (submitBehavior newline); the Send the log button sends</div></div><div class="why"><b>Why:</b> A multiline field is the exception to the Next, Next, Go chain (Lesson 5.4, The Return Key). The same goes for the iPhone's number and decimal pads, which have no return key at all according to React Native's documentation: a visible button is required, not optional.</div></div>
+
+  <div class="sec"><h2>5.4 · Mobile Forms: predict, then check</h2><span class="rule"></span></div>
+<div class="q"><div class="qn">P3</div><div class="qt">Predict, then check.</div><pre class="code">POST /api/events/e17/logs   (the same body twice, as Theo)</pre><div class="opts"><div class="opt correct"><pre class="out">first POST   HTTP/1.1 201 Created
+same body    HTTP/1.1 200 OK
+
+GET /api/events/e17/logs
+[
+  {
+    "clientId": "kit-demo-0001-a7f3",
+    "bags": 1,
+    "weightKg": 2.5
+  }
+]</pre></div></div><div class="why"><b>Why:</b> 201 the first time, 200 with the saved log the second: e17 has ONE log with that clientId. Only a new clientId makes a second log, which is why the form makes its id once. (A log for a cleanup still ahead, e08, gets <code class="inline">HTTP/1.1 409 Conflict</code> and "This cleanup has not happened yet.".)</div></div>
+<div class="q"><div class="qn">P4</div><div class="qt">Predict, then check.</div><pre class="code">debrisLogSchema.safeParse({ counts: { ..., glass: 'lots' }, bags: '1', weightKg: '', note: '' })</pre><div class="opts"><div class="opt correct"><pre class="out">counts.glass: Count must be a whole number from 0 to 100000.
+weightKg: Weight must be a number of kilograms from 0 to 5000.</pre></div></div><div class="why"><b>Why:</b> Two messages, both in the API's own words: Glass is not a whole number, and an empty weight is not a number of kilograms. The kit ran the stage's schema with Node; no request is sent until both are fixed.</div></div>
+<p>The two Common Mistakes behind Self-check Q8 and Q9, as the kit's runs printed them in a copy of the finished app (the lesson's cards show the same messages, trimmed):</p>
+<pre class="out">src/app/sign-in.tsx:77:9 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, any, any&gt; | undefined) =&gt; Promise&lt;void | undefined&gt;' is not assignable to type '(e: Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; ... 11 more ...; type: string | undefined; }&gt;) =&gt; unknown'.
+  Types of parameters 'e' and 'e' are incompatible.
+    Type 'Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; dispatchConfig: Readonly&lt;...&gt;; ... 10 more ...; type: string | undefined; }&gt;' is not assignable to type 'BaseSyntheticEvent&lt;object, any, any&gt;'.
+      Types of property 'bubbles' are incompatible.
+        Type 'boolean | undefined' is not assignable to type 'boolean'.
+          Type 'undefined' is not assignable to type 'boolean'.
+
+77         onSubmitEditing={handleSubmit(submit)}
+           ~~~~~~~~~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/Components/TextInput/TextInput.flow.d.ts:610:3
+    610   onSubmitEditing?: ((e: TextInputSubmitEditingEvent) =&gt; unknown) | undefined;
+          ~~~~~~~~~~~~~~~
+    The expected type comes from property 'onSubmitEditing' which is declared here on type 'IntrinsicAttributes &amp; Omit&lt;Omit&lt;TextInputProps, "style"&gt; &amp; { label: string; error?: string | undefined; ref?: Ref&lt;_TextInputInstance&gt; | undefined; }, "error" | ... 3 more ... | "onChangeText"&gt; &amp; { ...; }'
+
+src/app/sign-in.tsx:83:9 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, any, any&gt; | undefined) =&gt; Promise&lt;void | undefined&gt;' is not assignable to type '(event: Readonly&lt;Omit&lt;Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; ... 11 more ...; type: string | undefined; }&gt;, "touchHistory"&gt;
+ &amp; { ...; }&gt;) =&gt; unknown'.
+  Types of parameters 'e' and 'event' are incompatible.
+    Type 'Readonly&lt;Omit&lt;Readonly&lt;{ bubbles: boolean | undefined; cancelable: boolean | undefined; currentTarget: number | ReactNativeElement; defaultPrevented: boolean | undefined; ... 11 more ...; type: string | undefined; }&gt;, "touchHistory"&gt; &amp; { ...; }&gt;' is not assignable to type 'BaseSyntheticEvent&lt;object, any, any&gt;'.
+      Types of property 'bubbles' are incompatible.
+        Type 'boolean | undefined' is not assignable to type 'boolean'.
+          Type 'undefined' is not assignable to type 'boolean'.
+
+83         onPress={handleSubmit(submit)}
+           ~~~~~~~
+
+  node_modules/react-native/types_generated/Libraries/Components/Pressable/Pressable.d.ts:91:3
+    91   onPress?: ((event: GestureResponderEvent) =&gt; unknown) | undefined;
+         ~~~~~~~
+    The expected type comes from property 'onPress' which is declared here on type 'IntrinsicAttributes &amp; Omit&lt;PressableProps, "children" | "style"&gt; &amp; { label: string; variant?: ButtonVariant | undefined; }'
+
+
+Found 2 errors in the same file, starting at: src/app/sign-in.tsx:77</pre><pre class="out">env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx
+  29:12  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx:29:12
+  27 |     &lt;FormField
+  28 |       {...props}
+&gt; 29 |       ref={field.ref}
+     |            ^^^^^^^^^ Cannot access ref value during render
+  30 |       value={field.value}
+  31 |       onChangeText={field.onChange}
+  32 |       onBlur={field.onBlur}                               react-hooks/refs
+  30:14  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx:30:14
+  28 |       {...props}
+  29 |       ref={field.ref}
+&gt; 30 |       value={field.value}
+     |              ^^^^^^^^^^^ Cannot access ref value during render
+  31 |       onChangeText={field.onChange}
+  32 |       onBlur={field.onBlur}
+  33 |       error={fieldState.error?.message}  react-hooks/refs
+  31:21  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx:31:21
+  29 |       ref={field.ref}
+  30 |       value={field.value}
+&gt; 31 |       onChangeText={field.onChange}
+     |                     ^^^^^^^^^^^^^^ Cannot access ref value during render
+  32 |       onBlur={field.onBlur}
+  33 |       error={fieldState.error?.message}
+  34 |     /&gt;  react-hooks/refs
+  32:15  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+~/shoreline/shoreline-crew/src/components/ControlledField.tsx:32:15
+  30 |       value={field.value}
+  31 |       onChangeText={field.onChange}
+&gt; 32 |       onBlur={field.onBlur}
+     |               ^^^^^^^^^^^^ Cannot access ref value during render
+  33 |       error={fieldState.error?.message}
+  34 |     /&gt;
+  35 |   );                           react-hooks/refs
+
+✖ 4 problems (4 errors, 0 warnings)</pre>
+  <div class="sec"><h2>Checkpoint 2: Model Answer</h2><span class="rule"></span></div>
+<p>Score with the guide's rubric (five rows, 0 to 2 each). The model answer passes every check:</p>
+<pre class="out"> PASS  src/checkpoint.test.tsx
+  ✓ Task 1: a link to /sites/driftwood-cove opens that site
+  ✓ Task 1: pressing a site in the list opens its screen
+  ✓ Task 2: the site, after a moment of loading
+  ✓ Task 2: an id the API does not have shows the API's sentence and Try again
+  ✓ Task 2: Try again asks again
+  ✓ Task 3: favorites open with no connection
+  ✓ Task 3: a saved list this version cannot read means no favorites
+Tests:       7 passed, 7 total</pre><p>and <code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines. As shipped, the starter fails six of seven tests while its type check is silent (every planted mistake is one tsc cannot see):</p>
+<pre class="out">● Task 1: a link to /sites/driftwood-cove opens that site
+  Unable to find an element with role: header, name: Driftwood Cove
+● Task 1: pressing a site in the list opens its screen
+  expect(received).toHavePathname(expected)
+● Task 2: an id the API does not have shows the API's sentence and Try again
+  Unable to find an element with text: No site with that id.
+● Task 2: Try again asks again
+  Unable to find an element with role: button, name: Try again
+● Task 3: favorites open with no connection
+  Unable to find an element with text: ★ North Jetty
+● Task 3: a saved list this version cannot read means no favorites
+  Unable to find an element with text: No favorites yet.</pre><div class="codefile">labs/module-13/checkpoint-2/solution/src/app/sites/[id].tsx</div><pre class="code"><span class="k">import</span> { useLocalSearchParams } <span class="k">from</span> <span class="s">'expo-router'</span>;
+
+<span class="k">import</span> { SiteDetails } <span class="k">from</span> <span class="s">'../../SiteDetails'</span>;
+
+<span class="c">// The screen for one site: the file is app/sites/[id].tsx, so /sites/driftwood-cove opens it with id</span>
+<span class="c">// 'driftwood-cove' (the same screen a deep link opens)</span>
+<span class="k">export</span> <span class="k">default</span> <span class="k">function</span> SiteRoute() {
+  <span class="k">const</span> { id } = useLocalSearchParams&lt;{ id: <span class="k">string</span> }&gt;();
+  <span class="k">return</span> &lt;SiteDetails id={id} /&gt;;
+}</pre><div class="codefile">labs/module-13/checkpoint-2/solution/src/app/index.tsx</div><pre class="code"><span class="k">import</span> { useQuery } <span class="k">from</span> <span class="s">'@tanstack/react-query'</span>;
+<span class="k">import</span> { Link } <span class="k">from</span> <span class="s">'expo-router'</span>;
+<span class="k">import</span> { StyleSheet, Text, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">import</span> { FavoriteList } <span class="k">from</span> <span class="s">'../FavoriteList'</span>;
+<span class="k">import</span> { sitesQuery } <span class="k">from</span> <span class="s">'../queries'</span>;
+
+<span class="c">// The first screen, at /: the volunteer's favorites, then every site, each a link to its own screen</span>
+<span class="k">export</span> <span class="k">default</span> <span class="k">function</span> HomeScreen() {
+  <span class="k">const</span> sites = useQuery(sitesQuery());
+  <span class="k">return</span> (
+    &lt;View style={styles.page}&gt;
+      &lt;Text accessibilityRole=<span class="s">"header"</span> style={styles.heading}&gt;
+        Your favorites
+      &lt;/Text&gt;
+      &lt;FavoriteList /&gt;
+      &lt;Text accessibilityRole=<span class="s">"header"</span> style={styles.heading}&gt;
+        Every site
+      &lt;/Text&gt;
+      {sites.data === <span class="k">undefined</span> &amp;&amp; &lt;Text&gt;Loading the sites…&lt;/Text&gt;}
+      {sites.data?.map((site) =&gt; (
+        &lt;Link key={site.id} href={{ pathname: <span class="s">'/sites/[id]'</span>, params: { id: site.id } }} style={styles.link}&gt;
+          {site.name}
+        &lt;/Link&gt;
+      ))}
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  page: { gap: <span class="s">8</span>, padding: <span class="s">16</span> },
+  heading: { fontSize: <span class="s">20</span>, fontWeight: <span class="s">'bold'</span>, color: <span class="s">'#2a1257'</span> },
+  link: { minHeight: <span class="s">48</span>, paddingVertical: <span class="s">12</span>, fontSize: <span class="s">16</span>, color: <span class="s">'#6534c4'</span> },
+});</pre><div class="codefile">labs/module-13/checkpoint-2/solution/src/SiteDetails.tsx</div><pre class="code"><span class="k">import</span> { useQuery } <span class="k">from</span> <span class="s">'@tanstack/react-query'</span>;
+<span class="k">import</span> { Pressable, StyleSheet, Text, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">import</span> { describeError } <span class="k">from</span> <span class="s">'./api'</span>;
+<span class="k">import</span> { siteQuery } <span class="k">from</span> <span class="s">'./queries'</span>;
+
+<span class="c">// Task 2: one site, with every state a screen that reads the network has</span>
+<span class="k">export</span> <span class="k">function</span> SiteDetails({ id }: { id: <span class="k">string</span> }) {
+  <span class="k">const</span> site = useQuery(siteQuery(id));
+
+  <span class="k">if</span> (site.data === <span class="k">undefined</span>) {
+    <span class="k">if</span> (site.isError) {
+      <span class="k">return</span> (
+        &lt;View style={styles.details}&gt;
+          &lt;Text accessibilityRole=<span class="s">"alert"</span>&gt;{describeError(site.error)}&lt;/Text&gt;
+          &lt;Pressable accessibilityRole=<span class="s">"button"</span> onPress={() =&gt; site.refetch()} style={styles.button}&gt;
+            &lt;Text style={styles.buttonText}&gt;Try again&lt;/Text&gt;
+          &lt;/Pressable&gt;
+        &lt;/View&gt;
+      );
+    }
+    <span class="k">return</span> &lt;Text&gt;Loading the site…&lt;/Text&gt;;
+  }
+  <span class="k">return</span> (
+    &lt;View style={styles.details}&gt;
+      &lt;Text accessibilityRole=<span class="s">"header"</span> style={styles.name}&gt;
+        {site.data.name}
+      &lt;/Text&gt;
+      &lt;Text&gt;{site.data.town}&lt;/Text&gt;
+      &lt;Text&gt;{site.data.description}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  details: { gap: <span class="s">8</span>, padding: <span class="s">16</span> },
+  name: { fontSize: <span class="s">22</span>, fontWeight: <span class="s">'bold'</span>, color: <span class="s">'#2a1257'</span> },
+  button: { alignSelf: <span class="s">'flex-start'</span>, minHeight: <span class="s">48</span>, justifyContent: <span class="s">'center'</span>, paddingHorizontal: <span class="s">16</span>, borderRadius: <span class="s">8</span>, backgroundColor: <span class="s">'#6534c4'</span> },
+  buttonText: { color: <span class="s">'#ffffff'</span>, fontWeight: <span class="s">'bold'</span> },
+});</pre><div class="codefile">labs/module-13/checkpoint-2/solution/src/favorites.ts</div><pre class="code"><span class="c">// Task 3: the volunteer's favorite beaches, kept on the phone with AsyncStorage (one key, a JSON list)</span>
+<span class="k">import</span> AsyncStorage <span class="k">from</span> <span class="s">'@react-native-async-storage/async-storage'</span>;
+
+<span class="k">import</span> <span class="k">type</span> { SiteSummary } <span class="k">from</span> <span class="s">'./api'</span>;
+
+<span class="k">export</span> <span class="k">type</span> Favorite = Pick&lt;SiteSummary, <span class="s">'id'</span> | <span class="s">'name'</span>&gt;;
+
+<span class="k">export</span> <span class="k">const</span> favoritesKey = <span class="s">'crew-favorites'</span>;
+
+<span class="k">function</span> isFavorite(value: <span class="k">unknown</span>): value <span class="k">is</span> Favorite {
+  <span class="k">return</span> (
+    <span class="k">typeof</span> value === <span class="s">'object'</span> &amp;&amp;
+    value !== <span class="k">null</span> &amp;&amp;
+    <span class="s">'id'</span> <span class="k">in</span> value &amp;&amp;
+    <span class="k">typeof</span> value.id === <span class="s">'string'</span> &amp;&amp;
+    <span class="s">'name'</span> <span class="k">in</span> value &amp;&amp;
+    <span class="k">typeof</span> value.name === <span class="s">'string'</span>
+  );
+}
+
+<span class="c">/** The saved favorites, checked: anything this version cannot read means no favorites. It never rejects. */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> readFavorites(): Promise&lt;Favorite[]&gt; {
+  <span class="k">try</span> {
+    <span class="k">const</span> saved = <span class="k">await</span> AsyncStorage.getItem(favoritesKey);
+    <span class="k">const</span> value: <span class="k">unknown</span> = saved === <span class="k">null</span> ? [] : JSON.parse(saved);
+    <span class="k">return</span> Array.isArray(value) ? value.filter(isFavorite) : [];
+  } <span class="k">catch</span> (error) {
+    console.warn(<span class="s">'Could not read the saved favorites'</span>, error);
+    <span class="k">return</span> [];
+  }
+}</pre><div class="codefile">labs/module-13/checkpoint-2/solution/src/queries.ts</div><pre class="code"><span class="k">import</span> { queryOptions } <span class="k">from</span> <span class="s">'@tanstack/react-query'</span>;
+
+<span class="k">import</span> { getSite, getSites } <span class="k">from</span> <span class="s">'./api'</span>;
+<span class="k">import</span> { readFavorites } <span class="k">from</span> <span class="s">'./favorites'</span>;
+
+<span class="c">/** Every site, for the list (given) */</span>
+<span class="k">export</span> <span class="k">function</span> sitesQuery() {
+  <span class="k">return</span> queryOptions({
+    queryKey: [<span class="s">'sites'</span>],
+    queryFn: ({ signal }) =&gt; getSites(signal),
+  });
+}
+
+<span class="c">/** One site: its own key, so each site is cached on its own (given) */</span>
+<span class="k">export</span> <span class="k">function</span> siteQuery(id: <span class="k">string</span>) {
+  <span class="k">return</span> queryOptions({
+    queryKey: [<span class="s">'site'</span>, id],
+    queryFn: ({ signal }) =&gt; getSite(id, signal),
+  });
+}
+
+<span class="c">/** The favorites saved on this phone: read from storage, not the network */</span>
+<span class="k">export</span> <span class="k">function</span> favoritesQuery() {
+  <span class="k">return</span> queryOptions({
+    queryKey: [<span class="s">'favorites'</span>],
+    queryFn: readFavorites,
+    <span class="c">// The answer is on the phone: no reason to wait for a connection ('online' would pause it)</span>
+    networkMode: <span class="s">'always'</span>,
+    <span class="c">// Only this app changes it (and would invalidate it): never stale by itself</span>
+    staleTime: Infinity,
+  });
+}</pre><ul class="tick">
+  <li><b>The workbook line (model):</b> "<code class="inline">npm run typecheck</code> caught none of them: <code class="inline">siteId</code> instead of <code class="inline">id</code> is a valid name to ask for, <code class="inline">/site/...</code> is just a string, a screen without an error face and a query that waits are both valid code. Only running them showed it."</li>
+  <li><b>Common partial answers:</b> <code class="inline">href={</code>/sites/${site.id}<code class="inline">}</code> (works, row 1: 1 point: the typed form makes a misspelled route a tsc error); an error face without Try again, or Try again that remounts instead of calling <code class="inline">refetch()</code> (row 2: 1); <code class="inline">JSON.parse</code> in a try but <code class="inline">as Favorite[]</code> on the result (row 3: 1); <code class="inline">retry: false</code> or <code class="inline">enabled: true</code> instead of networkMode (row 4: 0).</li>
+</ul>
+
+  <div class="sec"><h2>Lab Reference Solutions</h2><span class="rule"></span></div>
+<p>Every output below is real: the labs run exactly as <code class="inline">labs/check_labs.py</code> runs them (Node 24, in a terminal like a learner's, in a fresh copy of the lab folder with the shared lab install). Test durations are left out; everything else is as printed. No lab needs the API or a network.</p>
+<div class="blk lab"><div class="h">Lab 5.3 (guided): labs/module-13/l5_3-storing-data-on-the-device/starter → solution</div>
+<p>As shipped, <code class="inline">npm test</code> in <code class="inline">starter/</code> (each failure's first line). <code class="inline">npm run typecheck</code> passes: nothing in the starter is a type error.</p>
+<pre class="out">● Task 1: a unit this version does not know falls back to kg
+  expect(received).toEqual(expected) // deep equality
+● Task 1: text that is not JSON gives the defaults, with a warning
+  SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+● Task 2: a note with an apostrophe is saved as written
+  near "s": syntax error
+● Task 2: one site's notes, the newest first
+  expect(received).toEqual(expected) // deep equality
+● Task 3: a new phone gets version 2 of notes.db
+  expect(received).toEqual(expected) // deep equality
+● Task 3: a phone with version 1 keeps its notes and gets the tide column
+  table site_notes has no column named tide</pre><p>The solution: <code class="inline">npm test</code> (<code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<pre class="out"> PASS  src/lab.test.ts
+  ✓ Task 1: nothing saved yet gives the defaults
+  ✓ Task 1: a change is saved and comes back
+  ✓ Task 1: a unit this version does not know falls back to kg
+  ✓ Task 1: text that is not JSON gives the defaults, with a warning
+  ✓ Task 2: a note with an apostrophe is saved as written
+  ✓ Task 2: one site's notes, the newest first
+  ✓ Task 3: a new phone gets version 2 of notes.db
+  ✓ Task 3: a phone with version 1 keeps its notes and gets the tide column
+Tests:       8 passed, 8 total</pre><p>What each task shows: (1) saved data checked like API data (the stage's <code class="inline">fromSaved</code> pattern), <code class="inline">JSON.parse</code> inside the try so a bad save gives the defaults and a warning, never a rejection. (2) <code class="inline">?</code> values in <code class="inline">runAsync</code> and <code class="inline">getAllAsync</code>, <code class="inline">ORDER BY written_at DESC</code>, columns renamed with <code class="inline">AS</code> to match the type. (3) <code class="inline">PRAGMA user_version</code>, a version 1 step that is never changed and a version 2 step <code class="inline">ALTER TABLE ... ADD COLUMN tide TEXT NOT NULL DEFAULT 'unknown'</code>, both in <code class="inline">withTransactionAsync</code>; the test opens a real version 1 file first. Common sticking points: <code class="inline">'?'</code> in quotes; a new column NOT NULL without a DEFAULT (SQLite refuses it on a table with rows); changing the version 1 CREATE TABLE instead of adding a step.</p>
+<div class="codefile">labs/module-13/l5_3-storing-data-on-the-device/solution/src/state/prefs.ts</div><pre class="code"><span class="c">// Task 1: the crew leader's preferences, kept on the phone with AsyncStorage: one key, one small JSON object.</span>
+<span class="k">import</span> AsyncStorage <span class="k">from</span> <span class="s">'@react-native-async-storage/async-storage'</span>;
+
+<span class="k">export</span> <span class="k">type</span> WeightUnit = <span class="s">'kg'</span> | <span class="s">'lb'</span>;
+
+<span class="k">export</span> <span class="k">type</span> Prefs = {
+  unit: WeightUnit;
+  tipsSeen: <span class="k">boolean</span>;
+};
+
+<span class="k">export</span> <span class="k">const</span> prefsKey = <span class="s">'crew-lab-prefs'</span>;
+<span class="k">export</span> <span class="k">const</span> defaultPrefs: Prefs = { unit: <span class="s">'kg'</span>, tipsSeen: <span class="k">false</span> };
+
+<span class="k">const</span> units: WeightUnit[] = [<span class="s">'kg'</span>, <span class="s">'lb'</span>];
+
+<span class="c">// What was saved is checked like API data: anything this version does not know becomes the default</span>
+<span class="k">function</span> fromSaved(saved: <span class="k">string</span> | <span class="k">null</span>): Prefs {
+  <span class="k">const</span> value: <span class="k">unknown</span> = saved === <span class="k">null</span> ? <span class="k">null</span> : JSON.parse(saved);
+  <span class="k">if</span> (<span class="k">typeof</span> value !== <span class="s">'object'</span> || value === <span class="k">null</span>) {
+    <span class="k">return</span> defaultPrefs;
+  }
+  <span class="k">const</span> unit = <span class="s">'unit'</span> <span class="k">in</span> value ? units.find((known) =&gt; known === value.unit) : <span class="k">undefined</span>;
+  <span class="k">const</span> tipsSeen = <span class="s">'tipsSeen'</span> <span class="k">in</span> value &amp;&amp; <span class="k">typeof</span> value.tipsSeen === <span class="s">'boolean'</span> ? value.tipsSeen : <span class="k">undefined</span>;
+  <span class="k">return</span> { unit: unit ?? defaultPrefs.unit, tipsSeen: tipsSeen ?? defaultPrefs.tipsSeen };
+}
+
+<span class="c">/** The saved preferences, checked. It never rejects: a broken save gives the defaults and a warning. */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> loadPrefs(): Promise&lt;Prefs&gt; {
+  <span class="k">try</span> {
+    <span class="k">return</span> fromSaved(<span class="k">await</span> AsyncStorage.getItem(prefsKey));
+  } <span class="k">catch</span> (error) {
+    console.warn(<span class="s">'Could not read the saved preferences'</span>, error);
+    <span class="k">return</span> defaultPrefs;
+  }
+}
+
+<span class="c">/** Change some preferences: merged with what is saved, saved again, and returned */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> changePrefs(changes: Partial&lt;Prefs&gt;): Promise&lt;Prefs&gt; {
+  <span class="k">const</span> next = { ...(<span class="k">await</span> loadPrefs()), ...changes };
+  <span class="k">await</span> AsyncStorage.setItem(prefsKey, JSON.stringify(next));
+  <span class="k">return</span> next;
+}</pre><div class="codefile">labs/module-13/l5_3-storing-data-on-the-device/solution/src/storage/notes.ts</div><pre class="code"><span class="c">// Tasks 2 and 3: the crew leader's notes about each beach, in a SQLite database on the phone. SQLite, not</span>
+<span class="c">// AsyncStorage: many records with the same fields, read one site at a time, newest first.</span>
+<span class="k">import</span> * <span class="k">as</span> SQLite <span class="k">from</span> <span class="s">'expo-sqlite'</span>;
+
+<span class="k">export</span> <span class="k">type</span> Tide = <span class="s">'low'</span> | <span class="s">'high'</span> | <span class="s">'unknown'</span>;
+
+<span class="k">export</span> <span class="k">type</span> SiteNote = {
+  siteId: <span class="k">string</span>;
+  text: <span class="k">string</span>;
+  tide: Tide;
+  writtenAt: <span class="k">number</span>; <span class="c">// milliseconds, as Date.now() gives them</span>
+};
+
+<span class="c">// The version of the tables below. Version 2 added the tide column.</span>
+<span class="k">const</span> schemaVersion = <span class="s">2</span>;
+
+<span class="k">let</span> opening: Promise&lt;SQLite.SQLiteDatabase&gt; | <span class="k">null</span> = <span class="k">null</span>;
+
+<span class="c">// One connection for the whole app, opened and brought up to date the first time it is needed</span>
+<span class="k">function</span> database(): Promise&lt;SQLite.SQLiteDatabase&gt; {
+  opening ??= openNotes().catch((error: <span class="k">unknown</span>) =&gt; {
+    opening = <span class="k">null</span>; <span class="c">// try again next time instead of keeping the failure</span>
+    <span class="k">throw</span> error;
+  });
+  <span class="k">return</span> opening;
+}
+
+<span class="k">async</span> <span class="k">function</span> openNotes() {
+  <span class="k">const</span> db = <span class="k">await</span> SQLite.openDatabaseAsync(<span class="s">'notes.db'</span>);
+  <span class="k">await</span> migrate(db);
+  <span class="k">return</span> db;
+}
+
+<span class="c">/** Close the connection; the next call opens the file again (the tests use it: a new phone for every test) */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> closeNotes(): Promise&lt;<span class="k">void</span>&gt; {
+  <span class="k">const</span> db = <span class="k">await</span> opening;
+  opening = <span class="k">null</span>;
+  <span class="k">await</span> db?.closeAsync();
+}
+
+<span class="c">// SQLite keeps a number in every database file, user_version (0 in a new one). Each step brings an older file</span>
+<span class="c">// one version further; all of them and the new number succeed or fail together.</span>
+<span class="k">async</span> <span class="k">function</span> migrate(db: SQLite.SQLiteDatabase) {
+  <span class="k">const</span> row = <span class="k">await</span> db.getFirstAsync&lt;{ user_version: <span class="k">number</span> }&gt;(<span class="s">'PRAGMA user_version'</span>);
+  <span class="k">const</span> version = row?.user_version ?? <span class="s">0</span>;
+  <span class="k">if</span> (version &gt;= schemaVersion) {
+    <span class="k">return</span>;
+  }
+  <span class="k">await</span> db.withTransactionAsync(<span class="k">async</span> () =&gt; {
+    <span class="k">if</span> (version &lt; <span class="s">1</span>) {
+      <span class="k">await</span> db.execAsync(<span class="s">`
+        CREATE TABLE site_notes (
+          site_id TEXT NOT NULL,
+          text TEXT NOT NULL,
+          written_at INTEGER NOT NULL
+        );
+      `</span>);
+    }
+    <span class="k">if</span> (version &lt; <span class="s">2</span>) {
+      <span class="c">// The tide when the note was written. Notes from version 1 get 'unknown' (NOT NULL needs a default).</span>
+      <span class="k">await</span> db.execAsync(<span class="s">"ALTER TABLE site_notes ADD COLUMN tide TEXT NOT NULL DEFAULT 'unknown'"</span>);
+    }
+    <span class="c">// A PRAGMA takes no ? values; schemaVersion is our own number, never user input</span>
+    <span class="k">await</span> db.execAsync(<span class="s">`PRAGMA user_version = ${schemaVersion}`</span>);
+  });
+}
+
+<span class="c">/** Save one note. Every ? is filled in by SQLite with the value in the same place: never build SQL from data. */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> addNote(note: SiteNote): Promise&lt;<span class="k">void</span>&gt; {
+  <span class="k">const</span> db = <span class="k">await</span> database();
+  <span class="k">await</span> db.runAsync(
+    <span class="s">'INSERT INTO site_notes (site_id, text, tide, written_at) VALUES (?, ?, ?, ?)'</span>,
+    note.siteId,
+    note.text,
+    note.tide,
+    note.writtenAt,
+  );
+}
+
+<span class="c">/** One site's notes, the newest first */</span>
+<span class="k">export</span> <span class="k">async</span> <span class="k">function</span> notesFor(siteId: <span class="k">string</span>): Promise&lt;SiteNote[]&gt; {
+  <span class="k">const</span> db = <span class="k">await</span> database();
+  <span class="k">return</span> db.getAllAsync&lt;SiteNote&gt;(
+    <span class="s">`SELECT site_id AS siteId, text, tide, written_at AS writtenAt
+       FROM site_notes
+      WHERE site_id = ?
+      ORDER BY written_at DESC`</span>,
+    siteId,
+  );
+}</pre></div>
+<div class="blk lab"><div class="h">Lab 5.4 (guided): labs/module-13/l5_4-mobile-forms/starter → solution</div>
+<p>As shipped: <code class="inline">npm test</code> (each failure's first line), then <code class="inline">npm run lint</code> and <code class="inline">npm run typecheck</code> (trimmed):</p>
+<pre class="out">● Task 1: what you type is what the form sends
+  expect(jest.fn()).toHaveBeenCalledTimes(expected)
+● Task 1: an empty report shows each field's message and focuses the first
+  Unable to find an element with text: Enter the crew leader's name.
+● Task 2: a comma works as the decimal point
+  expect(received).toBe(expected) // Object.is equality
+● Task 3: the return key says Next, Next, Go
+  expect(instance).toHaveProp("enterKeyHint", "next")
+● Task 3: Next moves the focus to the next field
+  expect(received).toBe(expected) // Object.is equality
+● Task 3: Go on the last field sends the report
+  expect(jest.fn()).toHaveBeenCalledTimes(expected)</pre><pre class="out">  32:14  error  Error: Cannot access refs during render
+  34:16  error  Error: Cannot access refs during render
+  35:23  error  Error: Cannot access refs during render
+  36:17  error  Error: Cannot access refs during render
+  39 |       {fieldState.error?.message !== undefined &amp;&amp; &lt;Text style={styles.error}&gt;{fieldState.error.message}&lt;/Text&gt;}  react-hooks/refs
+✖ 4 problems (4 errors, 0 warnings)
+
+src/ShiftReportForm.tsx:29:45 - error TS2322: Type '(e?: BaseSyntheticEvent&lt;object, an...
+...
+Found 1 error in src/ShiftReportForm.tsx:29</pre><p>The solution: <code class="inline">npm test</code> (<code class="inline">npm run typecheck</code> and <code class="inline">npm run lint</code> print nothing after their two <code class="inline">&gt;</code> lines):</p>
+<pre class="out"> PASS  src/lab.test.tsx
+  ✓ Task 1: what you type is what the form sends
+  ✓ Task 1: an empty report shows each field's message and focuses the first
+  ✓ Task 2: a comma works as the decimal point
+  ✓ Task 2: an empty count is a message, not a silent 0
+  ✓ Task 3: the return key says Next, Next, Go
+  ✓ Task 3: Next moves the focus to the next field
+  ✓ Task 3: Go on the last field sends the report
+Tests:       7 passed, 7 total</pre><p>What each task shows: (1) <code class="inline">register</code> is quiet in every checker and sends nothing; useController read as <code class="inline">field.x</code> is the linter's <code class="inline">react-hooks/refs</code>; destructured, it is fine. (2) the comma becomes a point BEFORE the digits check (<code class="inline">.transform(...).pipe(...)</code>, the stage's weight rule). (3) <code class="inline">enterKeyHint</code>, <code class="inline">submitBehavior="submit"</code>, <code class="inline">setFocus</code>, and <code class="inline">const send = handleSubmit(onSend)</code> called as <code class="inline">() =&gt; send()</code> from Hours's Go key and the button (the TS2322 goes away). Common sticking points: <code class="inline">replace</code> after the regex; <code class="inline">onSubmitEditing={send}</code> (passes the event again: still TS2322); dropping the visible button once Go works.</p>
+<div class="codefile">labs/module-13/l5_4-mobile-forms/solution/src/ControlledInput.tsx</div><pre class="code"><span class="k">import</span> <span class="k">type</span> { ComponentProps } <span class="k">from</span> <span class="s">'react'</span>;
+<span class="k">import</span> { <span class="k">type</span> Control, <span class="k">type</span> FieldPath, <span class="k">type</span> FieldValues, useController } <span class="k">from</span> <span class="s">'react-hook-form'</span>;
+<span class="k">import</span> { StyleSheet, Text, TextInput, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="c">// TextInput's props, minus the ones React Hook Form provides. T is what the fields hold; Out is what the form</span>
+<span class="c">// gives back after the schema's checks (numbers instead of text).</span>
+<span class="k">type</span> ControlledInputProps&lt;T <span class="k">extends</span> FieldValues, Out&gt; = Omit&lt;
+  ComponentProps&lt;<span class="k">typeof</span> TextInput&gt;,
+  <span class="s">'value'</span> | <span class="s">'onChangeText'</span> | <span class="s">'onBlur'</span> | <span class="s">'ref'</span>
+&gt; &amp; {
+  control: Control&lt;T, <span class="k">unknown</span>, Out&gt;;
+  name: FieldPath&lt;T&gt;;
+  label: <span class="k">string</span>;
+};
+
+<span class="c">// A labeled text field that belongs to a React Hook Form form. A phone has no HTML input for register() to</span>
+<span class="c">// find, so useController hands over the value, the change and blur handlers, the field's message and a ref:</span>
+<span class="c">// with it, setFocus('volunteers') and "focus the first field with a problem" work.</span>
+<span class="k">export</span> <span class="k">function</span> ControlledInput&lt;T <span class="k">extends</span> FieldValues, Out = T&gt;({
+  control,
+  name,
+  label,
+  ...input
+}: ControlledInputProps&lt;T, Out&gt;) {
+  <span class="c">// Taken apart at once: the lint rules treat an object with a ref inside as a ref</span>
+  <span class="k">const</span> {
+    field: { ref, value, onChange, onBlur },
+    fieldState: { error },
+  } = useController({ control, name });
+  <span class="k">return</span> (
+    &lt;View style={styles.field}&gt;
+      &lt;Text style={styles.label}&gt;{label}&lt;/Text&gt;
+      &lt;TextInput
+        {...input}
+        ref={ref}
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={onChange}
+        onBlur={onBlur}
+        style={styles.input}
+      /&gt;
+      {error?.message !== <span class="k">undefined</span> &amp;&amp; &lt;Text style={styles.error}&gt;{error.message}&lt;/Text&gt;}
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  field: { gap: <span class="s">4</span> },
+  label: { fontWeight: <span class="s">'600'</span>, color: <span class="s">'#2a1257'</span> },
+  input: { minHeight: <span class="s">48</span>, paddingHorizontal: <span class="s">12</span>, borderWidth: <span class="s">1</span>, borderRadius: <span class="s">8</span>, borderColor: <span class="s">'#6b5a8e'</span>, fontSize: <span class="s">16</span> },
+  error: { color: <span class="s">'#b3261e'</span> },
+});</pre><div class="codefile">labs/module-13/l5_4-mobile-forms/solution/src/schema.ts</div><pre class="code"><span class="c">// The shift report a crew leader sends at the end of a cleanup: the form's type AND its checks (Zod 4)</span>
+<span class="k">import</span> { z } <span class="k">from</span> <span class="s">'zod'</span>;
+
+<span class="c">// A count typed into a box: digits only, so an empty box is a message, not a silent 0 (the HQ's wholeNumber)</span>
+<span class="k">function</span> wholeNumber(min: <span class="k">number</span>, max: <span class="k">number</span>, message: <span class="k">string</span>) {
+  <span class="k">return</span> z
+    .string()
+    .trim()
+    .regex(/^\d+$/, message)
+    .transform(Number)
+    .refine((count) =&gt; count &gt;= min &amp;&amp; count &lt;= max, message);
+}
+
+<span class="k">const</span> hoursRule = <span class="s">'Hours must be a number from 0 to 12.'</span>;
+
+<span class="k">export</span> <span class="k">const</span> shiftReportSchema = z.object({
+  leader: z.string().trim().min(<span class="s">1</span>, <span class="s">"Enter the crew leader's name."</span>),
+  volunteers: wholeNumber(<span class="s">1</span>, <span class="s">200</span>, <span class="s">'Volunteers must be a whole number from 1 to 200.'</span>),
+  hours: z
+    .string()
+    .trim()
+    <span class="c">// Many phones set to other languages offer a comma as the decimal key: 2,5 means 2.5</span>
+    .transform((typed) =&gt; typed.replace(<span class="s">','</span>, <span class="s">'.'</span>))
+    .pipe(z.string().regex(/^\d+(\.\d+)?$/, hoursRule))
+    .transform(Number)
+    .refine((hours) =&gt; hours &lt;= <span class="s">12</span>, hoursRule),
+});
+
+<span class="c">/** What the fields hold: text, as typed */</span>
+<span class="k">export</span> <span class="k">type</span> ShiftReportValues = z.input&lt;<span class="k">typeof</span> shiftReportSchema&gt;;
+
+<span class="c">/** What a successful check gives back: numbers, ready to send */</span>
+<span class="k">export</span> <span class="k">type</span> ShiftReport = z.output&lt;<span class="k">typeof</span> shiftReportSchema&gt;;</pre><div class="codefile">labs/module-13/l5_4-mobile-forms/solution/src/ShiftReportForm.tsx</div><pre class="code"><span class="k">import</span> { zodResolver } <span class="k">from</span> <span class="s">'@hookform/resolvers/zod'</span>;
+<span class="k">import</span> { useForm } <span class="k">from</span> <span class="s">'react-hook-form'</span>;
+<span class="k">import</span> { Pressable, StyleSheet, Text, View } <span class="k">from</span> <span class="s">'react-native'</span>;
+
+<span class="k">import</span> { ControlledInput } <span class="k">from</span> <span class="s">'./ControlledInput'</span>;
+<span class="k">import</span> { <span class="k">type</span> ShiftReport, shiftReportSchema, <span class="k">type</span> ShiftReportValues } <span class="k">from</span> <span class="s">'./schema'</span>;
+
+<span class="k">const</span> emptyReport: ShiftReportValues = { leader: <span class="s">''</span>, volunteers: <span class="s">''</span>, hours: <span class="s">''</span> };
+
+<span class="k">type</span> ShiftReportFormProps = {
+  onSend: (report: ShiftReport) =&gt; <span class="k">void</span>;
+};
+
+<span class="c">// The crew leader's shift report: who led, how many volunteers came, how many hours the crew worked.</span>
+<span class="k">export</span> <span class="k">function</span> ShiftReportForm({ onSend }: ShiftReportFormProps) {
+  <span class="k">const</span> { control, handleSubmit, setFocus } = useForm({
+    resolver: zodResolver(shiftReportSchema),
+    defaultValues: emptyReport,
+    mode: <span class="s">'onTouched'</span>,
+  });
+
+  <span class="c">// Check, then send. Called with no arguments: handleSubmit expects a web form event, and a phone's press and</span>
+  <span class="c">// return key send different events</span>
+  <span class="k">const</span> send = handleSubmit(onSend);
+
+  <span class="k">return</span> (
+    &lt;View style={styles.form}&gt;
+      &lt;ControlledInput
+        control={control}
+        name=<span class="s">"leader"</span>
+        label=<span class="s">"Crew leader"</span>
+        autoCapitalize=<span class="s">"words"</span>
+        autoComplete=<span class="s">"name"</span>
+        enterKeyHint=<span class="s">"next"</span> <span class="c">// the return key says Next...</span>
+        submitBehavior=<span class="s">"submit"</span> <span class="c">// ...keeps the keyboard up...</span>
+        onSubmitEditing={() =&gt; setFocus(<span class="s">'volunteers'</span>)} <span class="c">// ...and moves on</span>
+      /&gt;
+      &lt;ControlledInput
+        control={control}
+        name=<span class="s">"volunteers"</span>
+        label=<span class="s">"Volunteers"</span>
+        inputMode=<span class="s">"numeric"</span> <span class="c">// the number pad (on iPhone it has no return key: the button below sends)</span>
+        enterKeyHint=<span class="s">"next"</span>
+        submitBehavior=<span class="s">"submit"</span>
+        onSubmitEditing={() =&gt; setFocus(<span class="s">'hours'</span>)}
+      /&gt;
+      &lt;ControlledInput
+        control={control}
+        name=<span class="s">"hours"</span>
+        label=<span class="s">"Hours"</span>
+        inputMode=<span class="s">"decimal"</span> <span class="c">// digits and a decimal point, or a comma</span>
+        placeholder=<span class="s">"For example 2.5"</span>
+        enterKeyHint=<span class="s">"go"</span> <span class="c">// the last field: the return key sends</span>
+        onSubmitEditing={() =&gt; send()}
+      /&gt;
+      &lt;Pressable accessibilityRole=<span class="s">"button"</span> onPress={() =&gt; send()} style={styles.button}&gt;
+        &lt;Text style={styles.buttonText}&gt;Send report&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+<span class="k">const</span> styles = StyleSheet.create({
+  form: { gap: <span class="s">16</span>, padding: <span class="s">16</span> },
+  button: { minHeight: <span class="s">48</span>, justifyContent: <span class="s">'center'</span>, alignItems: <span class="s">'center'</span>, borderRadius: <span class="s">8</span>, backgroundColor: <span class="s">'#6534c4'</span> },
+  buttonText: { color: <span class="s">'#ffffff'</span>, fontWeight: <span class="s">'bold'</span> },
+});</pre></div>
+
+  <div class="sec"><h2>The Lesson Pages' Own Quick Quizzes</h2><span class="rule"></span></div>
+<div class="blk"><div class="h">Lesson 5.3 · Storing Data on the Device</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="5.3">
+  <li><b>C</b> SecureStore: Tokens are secrets. SecureStore keeps them in the iOS Keychain or encrypted with the Android Keystore; AsyncStorage and SQLite files are not encrypted.</li>
+  <li><b>A</b> So the first screen is drawn in the chosen theme, with no light flash: Reading AsyncStorage is async. If the app drew first, a volunteer who chose Dark would see a light screen until the setting arrived. Waiting behind the splash screen means the first screen is already in the right colors.</li>
+  <li><b>D</b> His logs and totals, read from the database on the phone: The logbook query reads SQLite on the phone with networkMode always, so TanStack Query does not pause it offline. The rows saved earlier are there; only bringing in new logs waits for a connection.</li>
+  <li><b>B</b> See user_version 1 and run only the step that adds the column, then set version 2: PRAGMA user_version says the file is at version 1, so migrate runs only the new step, an ALTER TABLE that adds the column, and sets version 2 in the same transaction. The rows stay.</li>
+  <li><b>C</b> db.runAsync('INSERT INTO notes (note) VALUES (?)', note): The question mark is a placeholder: SQLite receives the note as a value, never as SQL, so apostrophes and anything else in it are stored as written.</li>
+</ol>
+</div>
+<div class="blk"><div class="h">Lesson 5.4 · Mobile Forms</div>
+<ol class="steps" style="overflow-wrap:anywhere" data-lesson-quiz="5.4">
+  <li><b>B</b> It type-checks, but the form never gets what the volunteer types: register is built around HTML inputs: it reads the value from the change event's target and the element itself. A TextInput reports its text differently, so the form never gets it. useController or Controller hands the field value, onChange, onBlur and a ref instead.</li>
+  <li><b>D</b> The iOS decimal pad has no return key at all: According to React Native's documentation, the iOS decimal pad and number pad have no return key, so there is nothing to press. Volunteers tap the next field or drag the form to close the keyboard, which is one reason the counts use steppers.</li>
+  <li><b>A</b> Pass the header's height as keyboardVerticalOffset: KeyboardAvoidingView measures the keyboard from the top of the window, but the screen starts under the header. keyboardVerticalOffset with the header height (useHeaderHeight) makes the padding come out right.</li>
+  <li><b>C</b> Answers 200 with the log it already has, because the clientId is the same: The form made the clientId once, so both requests carry the same one. shoreline-api finds the log it already saved for that volunteer and clientId and answers 200 with it: a resend, never a duplicate.</li>
+  <li><b>B</b> "Sign in to log what you collected", with a Sign in button; after signing in she stays on the log screen: log/[id] is not guarded: it has a guest face. Amara signs in on top of it; the sign-in closes and the screen underneath now knows who she is (and, since she has no spot at that cleanup, it says so in the API's words).</li>
+</ol>
+</div>
+
+  <div class="sec"><h2>Exit Ticket</h2><span class="rule"></span></div>
+<ol class="steps">
+  <li><b>Three places:</b> the theme choice in AsyncStorage (small, not secret, read once at startup), the session token in SecureStore (a secret: the Keychain or the Android Keystore), the logbook in SQLite (many records the screen sorts and totals; a copy of what the server has).</li>
+  <li><b>networkMode 'always':</b> the logbook's queryFn reads only the phone. With the default mode, TanStack Query pauses it offline ("Opening your logbook…" for ever, measured in the lesson); the logbook must open with no signal.</li>
+  <li><b>const send:</b> <code class="inline">handleSubmit(fn)</code> returns a function typed for a web form event; React Native's press and return-key events are other types, so tsc rejects passing it straight in (TS2322). Made once and called with no arguments, it type-checks and both the button and the Go key use it.</li>
+</ol>
+
+  <div class="sec"><h2>Common Wrong Answers and What They Reveal</h2><span class="rule"></span></div>
+<ul class="tick">
+  <li><b>Q1 A.</b> "Everything on the phone should be encrypted": SecureStore is for secrets and is small. Back to the van: clipboard, lockbox, ledger.</li>
+  <li><b>Q2 A.</b> Pictures the logbook as a list that only grows: the primary key is the API's own idempotency. Show P1's run.</li>
+  <li><b>Q4 A or B.</b> Thinks the query failed. It never ran: paused. Show the lesson's networkMode card.</li>
+  <li><b>Q5 A.</b> Believes IF NOT EXISTS rebuilds tables. Lab 5.3 Task 3's failing test shows the old file.</li>
+  <li><b>Q7 A or B.</b> Trusts the checkers with behavior: register is the session's quietest mistake.</li>
+  <li><b>Q11 A.</b> Has not met idempotency: one clientId, one log, however often it is sent.</li>
+</ul>
+
+  <div class="foot">
+    <div class="who">
+      <span class="bio">© 2026 Ray de la Paz · React Native & Expo: Build and Ship a Mobile App</span>
+    </div>
+    <div class="ver">Instructor Kit · Session 13 · Answer Key · v1.0</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Pictures, icons, fonts and safe areas in an Expo app: expo-image for local and remote pictures (and why a picture from a server needs a size), aspectRatio and contentFit, icons with expo-symbols (SF Symbols on iPhone, Material Symbols on Android and the web), the Outfit font loaded while the splash screen waits, react-native-safe-area-context for the notch, the status bar and the home indicator, and Shoreline Crew's own app icon and splash screen. React Native &amp; Expo: Build and Ship a Mobile App Lesson 2.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Images, Icons, Fonts and Safe Areas - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🖼️ Lesson 2.3: Images, Icons, Fonts and Safe Areas</h1>
+                <p class="lead">Shoreline Crew's cards are well organized now, but they still look like a draft: plain text in the phone's default font, no pictures of the beaches, and nothing to stop the screen from sliding under the clock and the camera. In this lesson the app starts to look like an app. You show each beach with expo-image, add icons that look native on both iPhone and Android, load the crew's heading font before the first screen appears, keep every screen clear of the notch and the home indicator, and give Shoreline Crew its own icon and splash screen.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Show local and remote pictures with expo-image, give a picture from a server a size with <code>aspectRatio</code>, choose a <code>contentFit</code>, and describe it for screen readers</li>
+                        <li>Use expo-symbols for icons that are SF Symbols on an iPhone and Material Symbols on Android and the web, with type-checked names</li>
+                        <li>Load a custom font with <code>useFonts</code> while the splash screen waits, and pick font weights by family name</li>
+                        <li>Explain safe areas and insets, and keep content clear of the status bar, the notch and the home indicator with react-native-safe-area-context</li>
+                        <li>Replace the template's app icon, adaptive icon layers, splash screen and favicon, and say which ones you can see in Expo Go and which only in a build</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 145 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_05.html">Lesson 2.2: Flexbox the Native Way</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> site pictures on every card, an <code>Icon</code> component and icons in the detail rows, Outfit headings loaded behind the splash screen, a <code>Screen</code> that respects safe areas, and Shoreline Crew's own app icon, splash screen and favicon</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), expo-image 58, expo-symbols 58, expo-font 58, @expo-google-fonts/outfit 0.4, react-native-safe-area-context 5.11 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone shows the fonts, icons and safe areas, and the pictures from Lesson 5.1 on</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-06-start.zip">lesson-06-start.zip</a> · Finished code: <a href="downloads/lesson-06-end.zip">lesson-06-end.zip</a>. Each folder has a README with the commands to run it. You need the finished code in Step 6 either way: it holds Shoreline Crew's icon and splash images.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: From Draft to App</a></li>
+                        <li><a href="#images" class="toc-link">Pictures with expo-image</a></li>
+                        <li><a href="#icons" class="toc-link">Icons with expo-symbols</a></li>
+                        <li><a href="#fonts" class="toc-link">A Custom Font, Loaded Before the First Screen</a></li>
+                        <li><a href="#safe-areas" class="toc-link">Safe Areas: Notches, Status Bars and Home Indicators</a></li>
+                        <li><a href="#app-icon" class="toc-link">The App Icon and the Splash Screen</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Shoreline Crew Gets Its Look</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: From Draft to App</h2>
+                <p>On the web, the four topics of this lesson are almost free. You write <code>&lt;img src alt&gt;</code> and the browser works out the size. You drop an SVG icon into the page. You add a font with one <code>@font-face</code> rule and the browser swaps it in when it arrives. And the browser window never has a camera cutting into it.</p>
+                <p>A phone app has to do each of these on purpose. Pictures from a server have no size until they arrive, so you decide their size up front. Icons should match the platform, so an iPhone shows Apple's symbols and an Android phone shows Google's. A custom font has to be loaded before the first screen draws, or the text jumps from one font to another in front of the volunteer. And the screen is a rounded rectangle with a camera in it, a clock and battery at the top, and a gesture bar at the bottom, all drawn on top of your app.</p>
+                <ul>
+                    <li><strong>Why it matters for your work:</strong> these are the details reviewers and clients notice first. An app with blurry or jumping pictures, mismatched icons and a title hidden behind the clock looks unfinished, however good its code is.</li>
+                    <li><strong>Why it matters for the volunteers:</strong> a picture of the beach tells a newcomer where they are going faster than a name does, and a title they can actually read, not half-covered by the camera, is the least they should expect.</li>
+                </ul>
+                <div class="card card-success">
+                    <h4>✅ Four small skills, not one big one</h4>
+                    <p>This lesson covers four topics, and each one is small on its own: a few props, one hook, one component. If one of them does not click right away, keep going and come back to it; the project brings them together one step at a time, and the web preview shows you each change as you save.</p>
+                </div>
+            </section>
+
+            <section id="images" class="lesson-section">
+                <h2>🖼️ Pictures with expo-image</h2>
+                <p>React Native has a built-in <code>Image</code> component, and you will see it in many tutorials. Expo's template also ships <strong>expo-image</strong>, a faster replacement with caching, smooth transitions and the same API on Android, iOS and the web. Shoreline Crew uses expo-image for every picture. The props you will use most:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Prop</th><th>What it does</th><th>Web equivalent</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>source</code></td><td>A URL string, <code>{ uri }</code>, or a <code>require()</code>d file that ships inside the app</td><td><code>src</code></td></tr>
+                            <tr><td><code>style</code></td><td>The size and shape: <code>width</code>, <code>height</code>, <code>aspectRatio</code>, <code>borderRadius</code></td><td>CSS on the <code>&lt;img&gt;</code></td></tr>
+                            <tr><td><code>contentFit</code></td><td>How the picture fills its box: <code>'cover'</code> (default: fill it, crop the rest), <code>'contain'</code> (show it all), <code>'fill'</code>, <code>'none'</code>, <code>'scale-down'</code></td><td><code>object-fit</code></td></tr>
+                            <tr><td><code>transition</code></td><td>Fade the picture in over this many milliseconds when it arrives</td><td>a CSS transition</td></tr>
+                            <tr><td><code>accessibilityLabel</code></td><td>What a screen reader says; on the web it becomes the <code>alt</code> attribute</td><td><code>alt</code></td></tr>
+                            <tr><td><code>cachePolicy</code></td><td>Where downloaded pictures are kept: <code>'disk'</code> by default, so a picture seen once shows again without the network</td><td>the browser cache</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>The rule: a picture from a server needs a size</h3>
+                <p>A browser downloads a picture and then makes room for it. A phone lays the screen out before the picture arrives, and expo-image never sizes itself from the file. The course measured both components in the web preview, each placed in a 358-wide column with no size in their styles:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Picture</th><th>expo-image</th><th>React Native <code>Image</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>From the API, no size</td><td>358 wide, <strong>0 tall</strong>: invisible</td><td>358 wide, <strong>0 tall</strong>: invisible</td></tr>
+                            <tr><td>A <code>require()</code>d file, no size</td><td><strong>0 by 0</strong>: invisible</td><td>400 by 400, the file's own size</td></tr>
+                            <tr><td>From the API, <code>aspectRatio: 1200 / 675</code></td><td>358 by 201</td><td>(same idea)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>No error, no warning: just nothing on the screen. So every expo-image gets a size. You have two ways to give it one:</p>
+                <ul>
+                    <li><strong>Fixed:</strong> <code>width: 96, height: 96</code> for a logo or a thumbnail.</li>
+                    <li><strong>Flexible:</strong> let the parent decide the width (a column stretches its children, as Lesson 2.2 showed) and set <code>aspectRatio</code>, the width divided by the height. The height follows. Shoreline Crew's site pictures are 1200 by 675, which is 16:9, and the API sends those numbers with each site, so the card can use <code>site.image.width / site.image.height</code> instead of guessing.</li>
+                </ul>
+                <p>Both kinds of source in one example (this is not a file in the project):</p>
+                <pre data-snippet><code class="language-tsx">import { Image } from 'expo-image';
+import { StyleSheet } from 'react-native';
+
+// A picture that ships inside the app: require() it, so the bundler packs the file
+export function Logo() {
+  return (
+    &lt;Image
+      source={require('@/assets/images/splash-icon.png')}
+      accessibilityLabel="Shoreline Crew"
+      style={styles.logo}
+    /&gt;
+  );
+}
+
+// A picture from a server: a URL string (or { uri }), and a size you choose
+export function SitePicture({ url, alt }: { url: string; alt: string }) {
+  return (
+    &lt;Image source={url} accessibilityLabel={alt} style={styles.picture} contentFit="cover" /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  logo: { width: 96, height: 96 },
+  // As wide as the parent allows, and as tall as 16:9 makes it
+  picture: { width: '100%', aspectRatio: 16 / 9 },
+});</code></pre>
+                <ul>
+                    <li><code>require('@/assets/images/splash-icon.png')</code> is how you refer to a file inside the project. Metro, the bundler from Lesson 1.2, sees the <code>require</code> and packs the file into the app; the path must be a plain string, never built at runtime. The <code>@/assets/…</code> alias comes from the template's <code>tsconfig.json</code>.</li>
+                    <li>A URL is downloaded when the picture is first shown, then cached on the device.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the noticeboard at the meeting point</h4>
+                    <p>Picture the crew's noticeboard at the beach. The morning's photo is still on its way from town. If nobody pins up a frame for it, everything else on the board gets arranged without it, and when the photo arrives there is no space: it ends up nowhere. If you pin up an empty frame of the right shape first, the board is laid out around it, and the photo slides in when it comes. <code>aspectRatio</code> is that empty frame. The Seafoam background you give the picture is the color of the frame while it waits.</p>
+                </div>
+                <h3>Where Shoreline Crew's pictures come from</h3>
+                <p>The shoreline-api serves one illustration for each of its six beaches, and each site carries its picture's details: <code>image.url</code>, <code>image.alt</code> (a description written for screen readers), <code>image.width</code> and <code>image.height</code>. The URL is absolute and <strong>built from the address you asked</strong>: request the sites from <code>http://localhost:4000</code> and the URLs start with <code>http://localhost:4000/images/sites/</code>; request them from your computer's network address (Lesson 5.1) and the URLs use that address. That is why the phone can show the same pictures later without any change to your code.</p>
+                <p>One detail cost the course a failed accessibility check: expo-image's documentation lists <code>alt</code> as another name for <code>accessibilityLabel</code>, but in the web preview the picture rendered with <strong>no <code>alt</code> attribute at all</strong> when only <code>alt</code> was set (expo-image 58 passes <code>alt</code> on to the native components but not to the web's loaded <code>&lt;img&gt;</code>). With <code>accessibilityLabel</code>, the web preview's <code>&lt;img&gt;</code> got the right <code>alt</code>. Use <code>accessibilityLabel</code>, which works everywhere.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>Until Lesson 5.1, Expo Go on your phone cannot reach the API (it shows "Could not reach the server"), so it has no pictures to show yet; the web preview does. Once the phone has data, the pictures should fade in over 0.2 seconds the first time and appear at once after that, because they come from the phone's cache. Screen readers (VoiceOver on an iPhone, TalkBack on Android) should read each picture's description; Lesson 8.1 tries that properly.</p>
+                </div>
+            </section>
+
+            <section id="icons" class="lesson-section">
+                <h2>🔣 Icons with expo-symbols</h2>
+                <p>On the web you might use an icon font or inline SVGs. On a phone, the platforms each have their own icon set that people already know: Apple's <strong>SF Symbols</strong> on iPhones, Google's <strong>Material Symbols</strong> on Android. The SDK 58 template ships <strong>expo-symbols</strong>, whose <code>SymbolView</code> draws an SF Symbol on iOS and a Material Symbol on Android and the web. The catch: the two sets use different names, so you give one name per platform:</p>
+                <pre data-snippet><code class="language-tsx">import { SymbolView } from 'expo-symbols';
+
+export function CalendarIcon() {
+  return &lt;SymbolView name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }} size={20} /&gt;;
+}</code></pre>
+                <p>You can also write <code>name="calendar"</code>, a plain SF Symbol name, and TypeScript accepts it. The course measured what that does in the web preview: the icon's box is not drawn at all, because a plain name only works on iOS. expo-symbols' source says the same thing for Android: with no name for the platform, it draws the <code>fallback</code> prop, and without one, nothing. So always give the object with all three names.</p>
+                <p>Both name sets are type-checked. A misspelled SF Symbol or Material Symbol is a <code>tsc</code> error with a "Did you mean" suggestion (see <a href="#mistakes">Common Mistakes</a>), which is a big help when the Material set has over four thousand names. To find names, browse Apple's SF Symbols app (Mac) or the SF Symbols list in the Expo docs, and Google's Material Symbols site (use the name with underscores, like <code>calendar_today</code>).</p>
+                <p>Shoreline Crew keeps its icons in one small component, <code>Icon</code>, with a table that names each icon by its <em>job</em> (<code>date</code>, <code>place</code>, <code>meet</code>), exactly like the color roles from Lesson 2.1. The screens never see an SF Symbol name; if the crew wants a different calendar icon, one line changes.</p>
+                <ul>
+                    <li><strong>Color and size:</strong> <code>tintColor</code> and <code>size</code> (default 24). The icon is a square <code>size</code> by <code>size</code> box.</li>
+                    <li><strong>Accessibility:</strong> an icon next to a word ("When", "Where") is <em>decoration</em>: a screen reader saying "calendar, When" adds nothing. Shoreline Crew's <code>Icon</code> hides itself from screen readers. An icon that stands <em>alone</em>, such as a button with only an icon, needs an <code>accessibilityLabel</code> on the button instead (Lesson 2.4).</li>
+                    <li><strong>Loading:</strong> on Android and the web, expo-symbols draws Material Symbols with a font that it loads itself the first time an icon appears.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>🧩 Version note: expo-symbols, not @expo/vector-icons</h4>
+                    <p>Most React Native tutorials, and older Expo templates, use <code>@expo/vector-icons</code> (<code>&lt;Ionicons name="calendar" /&gt;</code>): one icon font that looks the same on every platform. It still works (<code>npx expo install @expo/vector-icons</code>), but it is no longer in the template. This course follows the SDK 58 template: expo-symbols, so each platform gets its own native-looking icons.</p>
+                </div>
+            </section>
+
+            <section id="fonts" class="lesson-section">
+                <h2>🔤 A Custom Font, Loaded Before the First Screen</h2>
+                <p>Every phone has its own system font (San Francisco on iPhones, Roboto on most Android phones), and Shoreline Crew keeps it for body text: it is designed for small screens, and it follows the volunteer's text-size settings. Headings get the crew's brand font, <strong>Outfit</strong>, the same as the HQ web app.</p>
+                <p>On the web, the HQ loaded Outfit with a stylesheet and the browser swapped it in when it arrived. A phone app has no stylesheet, so the font files ship <em>inside</em> the app and are registered with the phone when the app starts. The Expo way, in three parts:</p>
+                <ol>
+                    <li><strong>The files:</strong> <code>@expo-google-fonts/outfit</code> contains Outfit's nine weights as <code>.ttf</code> files, one folder each. Import only the weights you use, from their own paths (<code>@expo-google-fonts/outfit/600SemiBold</code>), so the other seven never enter the bundle.</li>
+                    <li><strong>The loading:</strong> <code>useFonts</code> from expo-font (already in the template) takes a map of names to files, registers them, and returns <code>[loaded, error]</code>. The keys of the map become the <code>fontFamily</code> names you use in styles.</li>
+                    <li><strong>The waiting:</strong> until the fonts are registered, headings would draw in the system font and then jump to Outfit. So the app keeps the <strong>splash screen</strong> (the picture shown while an app starts) up a little longer: <code>SplashScreen.preventAutoHideAsync()</code> when the app starts, <code>SplashScreen.hideAsync()</code> once the fonts are ready.</li>
+                </ol>
+<div class="mermaid">
+graph TD
+    A["App starts"] --> B["Splash screen stays up"]
+    B --> C["useFonts registers Outfit"]
+    C --> D["Loaded, or failed"]
+    D --> E["hideAsync()"]
+    E --> F["First screen, in Outfit"]
+</div>
+                <p>If loading fails, Shoreline Crew carries on with the system font. A volunteer with a slightly plainer heading is fine; a volunteer stuck on a splash screen is not.</p>
+                <h3>One family per weight</h3>
+                <p>In CSS, one <code>font-family: Outfit</code> covers every weight and <code>font-weight: 600</code> picks one. With a font loaded this way, each weight is <strong>its own family</strong>: <code>'Outfit_600SemiBold'</code>, <code>'Outfit_700Bold'</code>. You choose the weight by the family name and leave <code>fontWeight</code> out:</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet, Text } from 'react-native';
+
+// With a custom font, pick the weight by its family name...
+export function Right() {
+  return &lt;Text style={styles.right}&gt;Upcoming cleanups&lt;/Text&gt;;
+}
+
+// ...not with fontWeight: there is no bold "Outfit_600SemiBold" for the phone to find
+export function Risky() {
+  return &lt;Text style={styles.risky}&gt;Upcoming cleanups&lt;/Text&gt;;
+}
+
+const styles = StyleSheet.create({
+  right: { fontFamily: 'Outfit_700Bold', fontSize: 20 },
+  risky: { fontFamily: 'Outfit_600SemiBold', fontWeight: 'bold', fontSize: 20 },
+});</code></pre>
+                <p>In the web preview, the risky version can still look fine, because a browser fakes a bold version of a font that has none. React Native's documentation for <code>fontFamily</code> does not promise that on phones: depending on the platform, you may get a fake bold, the plain semibold, or the system font. Do not depend on it; pick the weight by name.</p>
+                <h3>A wrong name fails silently</h3>
+                <p>A misspelled <code>fontFamily</code> is not an error anywhere. In the web preview, <code>'Outfit_700bold'</code> (lowercase b) quietly drew the browser's default font, with nothing in the console, and React Native's iOS code (<code>RCTFont.mm</code>) only logs an information message, "Unrecognized font family", and uses the system font. So Shoreline Crew keeps the family names in one typed file, <code>src/theme/typography.ts</code>, where a typo becomes a <code>tsc</code> error, and <code>AppText</code> is the only component that uses them.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>In Expo Go, the headings ("Shoreline Crew", "Upcoming cleanups", the cleanup titles) should appear in Outfit straight away, with no jump from another font. When you change the font map and save, Fast Refresh may not reload the fonts; press <kbd>r</kbd> in Metro's terminal to reload the app. There is a second way to add fonts, the expo-font <em>config plugin</em>, which builds the files into the app so nothing loads at startup; it works in development builds, not in Expo Go, so the course uses <code>useFonts</code> until Module 9.</p>
+                </div>
+            </section>
+
+            <section id="safe-areas" class="lesson-section">
+                <h2>📐 Safe Areas: Notches, Status Bars and Home Indicators</h2>
+                <p>A browser draws your page inside a rectangle that the browser itself keeps clear of everything else. A phone app is drawn on the whole screen, and the system draws on top of it: the <strong>status bar</strong> (clock, signal, battery) at the top, a <strong>camera cutout</strong> (a notch, a hole or Apple's Dynamic Island) inside the status bar, rounded corners, and at the bottom a <strong>home indicator</strong> (iPhone) or a gesture or button bar (Android). The part of the screen that none of these cover is the <strong>safe area</strong>. The distances from each edge of the screen to the safe area are the <strong>insets</strong>.</p>
+                <figure class="diagram">
+                    <svg viewBox="0 0 360 420" role="img" aria-labelledby="safe-title safe-desc">
+                        <title id="safe-title">The safe area of a phone screen</title>
+                        <desc id="safe-desc">A phone screen with rounded corners. At the top, a band holds the status bar with the clock and a camera cutout in the middle; its height is the top inset. At the bottom, a thinner band holds the home indicator; its height is the bottom inset. Between them is the safe area, where the content should stay. The app's background color still fills the whole screen, including behind the status bar and the home indicator.</desc>
+                        <rect class="d-box" x="124" y="10" width="220" height="400" rx="34"/>
+                        <rect class="d-accent" x="136" y="64" width="196" height="296" rx="4"/>
+                        <text class="d-text" x="234" y="40" font-size="15" text-anchor="middle">9:41  (status bar)</text>
+                        <rect class="d-line" x="204" y="48" width="60" height="8" rx="4"/>
+                        <text class="d-text" x="234" y="198" font-size="17" text-anchor="middle">safe area</text>
+                        <text class="d-text" x="234" y="222" font-size="15" text-anchor="middle">your content</text>
+                        <rect class="d-line" x="184" y="388" width="100" height="5" rx="3"/>
+                        <text class="d-text" x="234" y="380" font-size="15" text-anchor="middle">home indicator</text>
+                        <line class="d-line" x1="114" y1="12" x2="114" y2="62" stroke-width="2"/>
+                        <text class="d-muted" x="108" y="42" font-size="15" text-anchor="end">insets.top</text>
+                        <line class="d-line" x1="114" y1="362" x2="114" y2="408" stroke-width="2"/>
+                        <text class="d-muted" x="108" y="390" font-size="15" text-anchor="end">insets.bottom</text>
+                    </svg>
+                    <figcaption>The safe area (highlighted) and the two insets you deal with most. The background should still fill the whole screen; only the content stays inside.</figcaption>
+                </figure>
+                <p>The numbers depend on the phone and on how it is held: an iPhone with a notch or a Dynamic Island has roughly 44 to 62 points at the top and 34 at the bottom in portrait, an older iPhone with a home button about 20 at the top and 0 at the bottom, and Android phones vary by maker and by whether gesture navigation is on. In landscape, the sides get insets too. Never hard-code them: ask the phone.</p>
+                <h3>react-native-safe-area-context</h3>
+                <p>The template includes <strong>react-native-safe-area-context</strong>, and Expo Router already wraps your app in its <code>SafeAreaProvider</code>, so you can ask for the insets anywhere. It gives you two tools:</p>
+                <ul>
+                    <li><strong><code>useSafeAreaInsets()</code></strong> returns <code>{ top, right, bottom, left }</code> in density-independent pixels. You add them to your own padding. Shoreline Crew's <code>Screen</code> uses this, because it needs to treat the top and the bottom differently.</li>
+                    <li><strong><code>&lt;SafeAreaView edges={[…]}&gt;</code></strong> is a <code>View</code> that adds the insets as padding on the edges you list. Handy for a simple screen:</li>
+                </ul>
+                <pre data-snippet><code class="language-tsx">import type { ReactNode } from 'react';
+import { StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// The component way: a View with the insets as padding, on the edges you list
+export function SafeFrame({ children }: { children: ReactNode }) {
+  return (
+    &lt;SafeAreaView edges={['top', 'bottom']} style={styles.frame}&gt;
+      {children}
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  frame: { flex: 1, backgroundColor: '#fbf6ec' },
+});</code></pre>
+                <p>Import <code>SafeAreaView</code> from <code>react-native-safe-area-context</code>, never from <code>react-native</code>: React Native's own version only ever worked on iOS, and in React Native 0.88 it prints a deprecation warning the first time you use it (see <a href="#mistakes">Common Mistakes</a>).</p>
+                <h3>Who covers which edge</h3>
+                <p>Not every screen should add every inset. The navigator's header bar already sits below the status bar and pads itself, and a tab bar (Lesson 4.2) pads itself above the home indicator. If your screen added the same inset again, you would get an empty band. So the rule is: <strong>a screen keeps clear of the edges that nothing else covers</strong>. The Cleanups screen hides the header bar in this lesson (its banner already names the app), so it touches all four edges. That is why Shoreline Crew's <code>Screen</code> gets an <code>edges</code> prop: all four by default, fewer for a screen under a header or above a tab bar.</p>
+                <h3>Scrolling screens: the top and the bottom are different</h3>
+                <ul>
+                    <li><strong>Top:</strong> the inset goes on the scroll view's frame (<code>style</code>), so the scrolling content stops below the status bar instead of sliding under the clock.</li>
+                    <li><strong>Bottom:</strong> the inset goes <em>inside</em> the scrolling content (<code>contentContainerStyle</code>). The cards may pass behind the home indicator while you scroll, which looks natural, but when you reach the end, the last card stops above it.</li>
+                    <li><strong>A bar pinned to the bottom</strong> (Lesson 2.2's <code>WithBottomBar</code> pattern, such as a "Sign up" button under a detail screen) does not scroll, so the bar itself adds <code>insets.bottom</code> to its <code>paddingBottom</code>: its background reaches the bottom of the glass and its button stays above the home indicator.</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the tide line</h4>
+                    <p>The safe area is the dry sand. The crew's tarp (your background color) can stretch down into the wet sand and nobody minds, but the clipboards and the bags (your content) stay above the tide line, or they get soaked. Each phone has its own tide line, and it moves when you turn the phone sideways. <code>useSafeAreaInsets()</code> is checking the tide chart before you set things down.</p>
+                </div>
+                <p>The status bar is part of this too. Its clock and icons are drawn in either a dark or a light color, and on a light Sand page they must be dark. The template's <code>expo-status-bar</code> sets that: <code>&lt;StatusBar style="dark" /&gt;</code>. Shoreline Crew is light-only until Lesson 2.5, so it says "dark" explicitly; with the default, a phone in dark mode would draw light icons on Sand.</p>
+                <p>The web preview cannot show any of this: a desktop browser has no notch, so its insets are all 0. The course drew the Cleanups screen inside a phone frame with the insets <em>simulated</em> (a test page that hands <code>Screen</code> the numbers of a phone with a notch), first as a phone with no safe-area handling would draw it, then with Shoreline Crew's <code>Screen</code>:</p>
+                <figure class="screenshot">
+    <img src="images/lesson_06/06-insets-off.png" alt="The Cleanups screen drawn inside the phone frame with no safe-area insets: the frame&#x27;s status bar, with the time 9:41 and the camera cutout, sits on top of the dark blue banner, and the banner&#x27;s top edge is hidden behind it." width="420" height="814" loading="lazy">
+    <figcaption>Without safe-area insets (simulated): the content starts at the very top of the glass, so the status bar and the camera cutout cover the banner.</figcaption>
+</figure>
+                <figure class="screenshot">
+    <img src="images/lesson_06/06-insets-on.png" alt="The same screen with the insets of a notched phone applied: a strip of the Sand page color under the status bar, then the banner starting just below it, fully visible." width="420" height="814" loading="lazy">
+    <figcaption>With <code>Screen</code>'s insets (simulated as 47 at the top and 34 at the bottom): the frame starts below the status bar. On a real phone the numbers come from the device; the web preview's insets are 0.</figcaption>
+</figure>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>This is where Expo Go shines. Open the app after Step 2 of the project: the banner should start just below the clock and the camera, with the Sand page color behind the status bar, and the clock in dark text. Scroll to the end: the last card should stop above the home indicator or gesture bar. Turn the phone sideways if your phone allows it: on a phone with a notch, the side with the camera gets an inset too. Android apps built with recent Expo SDKs draw "edge to edge", behind the status bar and the navigation bar, so the insets matter there as much as on an iPhone.</p>
+                </div>
+            </section>
+
+            <section id="app-icon" class="lesson-section">
+                <h2>🏝️ The App Icon and the Splash Screen</h2>
+                <p>The template still has Expo's placeholder icon and a blue splash screen. A volunteer should see Shoreline Crew's sunrise over two waves instead. These are not React components: they are files and settings in <code>app.json</code> that the build tools turn into the native icon and splash screen.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>File (<code>assets/images/</code>)</th><th>Size</th><th>Used for</th><th><code>app.json</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>icon.png</code></td><td>1024 x 1024, no transparency</td><td>iPhone home screen (iOS rounds the corners itself) and the default for everything else</td><td><code>icon</code></td></tr>
+                            <tr><td><code>android-icon-foreground.png</code></td><td>512 x 512, transparent</td><td>Android's adaptive icon: the logo, inside the central safe zone</td><td><code>android.adaptiveIcon.foregroundImage</code></td></tr>
+                            <tr><td><code>android-icon-background.png</code></td><td>512 x 512</td><td>The layer behind it (Deep Tide); Android cuts both into a circle, a squircle or a square, depending on the phone</td><td><code>android.adaptiveIcon.backgroundImage</code> + <code>backgroundColor</code></td></tr>
+                            <tr><td><code>android-icon-monochrome.png</code></td><td>432 x 432, white on transparent</td><td>Themed icons on Android 13 and later, tinted to match the wallpaper</td><td><code>android.adaptiveIcon.monochromeImage</code></td></tr>
+                            <tr><td><code>splash-icon.png</code></td><td>400 x 400, transparent</td><td>The logo in the middle of the splash screen</td><td>the <code>expo-splash-screen</code> plugin's <code>image</code>, <code>imageWidth</code>, <code>backgroundColor</code></td></tr>
+                            <tr><td><code>favicon.png</code></td><td>48 x 48</td><td>The browser tab of the web version</td><td><code>web.favicon</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The course made Shoreline Crew's six files from the crew's logo with the same names and sizes as the template's, so they drop straight in. Two more settings change: <code>name</code>, the name shown under the icon, becomes "Shoreline Crew" (the <code>slug</code>, the project's id on Expo's servers, stays <code>shoreline-crew</code>), and the template's iOS-only icon setting is removed. That setting points to <code>assets/expo.icon</code>, a layered icon made with Apple's Icon Composer for the newest iOS look; without it, iOS uses <code>icon.png</code>. Lesson 9.1 comes back to icons for the stores.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Where you can see them</h4>
+                    <p>The icon, the adaptive icon and the native splash screen are built into the app. <strong>Expo Go is its own app with its own icon</strong>, so you will not see Shoreline Crew's icon on your home screen until you make a development build in Module 9, and Expo's documentation recommends a development build for testing the splash screen too. What you can check today: <code>npx expo-doctor</code> validates <code>app.json</code>, the web preview's browser tab shows the new favicon (in the course's web export, <code>favicon.ico</code> was built from it), and the files are ready for the day you build.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ A picture with no size</h4>
+                    <p>No error, no warning, and nothing on the screen: an expo-image without a <code>width</code> and <code>height</code>, or a width from its parent plus an <code>aspectRatio</code>, is 0 tall (measured above). If a picture is missing, check its size before you check its URL.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A plain SF Symbol name</h4>
+                    <p><code>date: 'calendar',</code> in the icons table type-checks without a single error, because <code>name</code> also accepts a plain SF Symbol. It works on an iPhone, and on Android and in the web preview the icon is simply not there. Give all three names.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A misspelled icon name</h4>
+                    <p>This one is caught. With <code>android: 'calender_today'</code> in <code>Icon.tsx</code>, TypeScript lists a few of the 4,000+ Material names and then suggests the right one:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (shortened)</h4>
+                        <pre><code>src/components/Icon.tsx:9:28 - error TS2820: Type '"calender_today"' is not assignable to type '"function" | "draft" | "email" | "phone" | "title" | "description" | "upcoming" | "terrain" | "accessible" | "image" | "height" | "error" | "message" | "join" | "shift" | "sort" | ... 4039 more ... | undefined'. Did you mean '"calendar_today"'?
+
+9   date: { ios: 'calendar', android: 'calender_today', web: 'calendar_today' },
+                             ~~~~~~~
+...
+
+Found 2 errors in the same file, starting at: src/components/Icon.tsx:9</code></pre>
+                    </div>
+                    <p>Read the end of the first line: <code>Did you mean '"calendar_today"'?</code>. The second error is the same mistake seen from where <code>Icon</code> uses the table; fix the first and both go.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A misspelled font family</h4>
+                    <p>Silent on every platform (the system font appears instead), which is why <code>typography.ts</code> types the names. With <code>title: 'Outfit_700bold'</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/theme/typography.ts:10:3 - error TS2820: Type '"Outfit_700bold"' is not assignable to type '"Outfit_600SemiBold" | "Outfit_700Bold"'. Did you mean '"Outfit_700Bold"'?
+
+10   title: 'Outfit_700bold',
+     ~~~~~
+
+
+Found 1 error in src/theme/typography.ts:10</code></pre>
+                    </div>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>fontWeight</code> with a custom font</h4>
+                    <p><code>fontFamily: 'Outfit_600SemiBold', fontWeight: 'bold'</code> looks fine in the web preview (the browser fakes it) and may not on a phone. Pick the weight by family name, and add a weight to <code>fontFiles</code> when you need one.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ <code>SafeAreaView</code> from <code>react-native</code></h4>
+                    <p>Old tutorials import it from <code>react-native</code>. In React Native 0.88 that version is deprecated, and React Native's source shows the warning it prints the first time you use it: "SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead." It also never handled Android. Import it from <code>react-native-safe-area-context</code>, or use the hook.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Adding the same inset twice</h4>
+                    <p>A screen under a header bar that also adds <code>insets.top</code> shows an empty band the height of the status bar under the header. Leave out the edges a header or a tab bar already covers (<code>edges={['bottom', 'left', 'right']}</code> under a header).</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Expecting Expo Go to show your icon</h4>
+                    <p>You changed <code>app.json</code>, reloaded, and the icon on your phone is still Expo Go's. Nothing is wrong: the icon belongs to the app that is installed, and that is Expo Go. Your own icon arrives with your own build (Module 9).</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Shoreline Crew Gets Its Look</h2>
+                <p>You load Outfit behind the splash screen, teach <code>Screen</code> about safe areas, build an <code>Icon</code> component, put each beach's picture on its card, add icons and a "Where" row to the details, and replace the template's icon and splash screen. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview). Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Install Outfit and load it before the first screen <span class="step-time">(15 min)</span></h3>
+                    <ol>
+                        <li>Stop Metro (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and install the font package with Expo's installer, the way Lesson 1.2 said to add packages:
+                            <pre class="terminal"><code class="language-bash">npx expo install @expo-google-fonts/outfit</code></pre>
+                            <div class="card card-output">
+                                <h4>Expected output</h4>
+                                <pre><code>› Installing 1 other package using npm
+&gt; npm install --save @expo-google-fonts/outfit
+
+added 1 package, and audited 794 packages in 2s
+
+164 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                            </div>
+                            <p>"1 other package" means Expo has no SDK-specific version for this package, so it lets npm pick the latest. The vulnerability lines are the same moderate warnings you have seen since Lesson 1.2; do not run <code>npm audit fix --force</code>. Start Metro again (<code>npx expo start</code>).</p>
+                        </li>
+                        <li>Create <code>src/theme/typography.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/typography.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/typography.ts"><code class="language-ts">import { Outfit_600SemiBold } from '@expo-google-fonts/outfit/600SemiBold';
+import { Outfit_700Bold } from '@expo-google-fonts/outfit/700Bold';
+
+// The font files the app loads before its first screen. Each key becomes a fontFamily name.
+export const fontFiles = { Outfit_600SemiBold, Outfit_700Bold };
+
+// Headings use Outfit; everything else stays in the phone's own font.
+// A custom font has one family per weight: the weight is in the name, not in fontWeight.
+export const fonts = {
+  title: 'Outfit_700Bold',
+  heading: 'Outfit_600SemiBold',
+} as const satisfies Record&lt;string, keyof typeof fontFiles&gt;;</code></pre>
+                            </div>
+                            <ul>
+                                <li>Each weight comes from its own path, so only these two <code>.ttf</code> files go into the app. The imported value is not the font itself but a reference to the file that Metro packs, the same thing <code>require()</code> gives you for a picture.</li>
+                                <li><code>fontFiles</code> uses the short-hand <code>{ Outfit_600SemiBold, Outfit_700Bold }</code>, so each key is the import's name, and that name becomes the <code>fontFamily</code>.</li>
+                                <li><code>as const satisfies Record&lt;string, keyof typeof fontFiles&gt;</code> keeps the exact names (<code>as const</code>, from Lesson 2.1) and checks that every value is one of <code>fontFiles</code>' keys. A typo is a <code>tsc</code> error instead of a silently wrong font.</li>
+                            </ul>
+                        </li>
+                        <li>Replace <code>src/app/_layout.tsx</code>. Besides the fonts, it sets the status bar and hides the header bar on the Cleanups screen (Step 2 explains both):
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/_layout.tsx"><code class="language-tsx">import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+
+import { fontFiles } from '@/theme/typography';
+
+// Keep the splash screen up while the fonts load (runs once, when the app starts)
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(fontFiles);
+  // If a font fails to load, carry on with the system font rather than a splash screen forever
+  const ready = fontsLoaded || fontError !== null;
+
+  useEffect(() =&gt; {
+    if (ready) {
+      SplashScreen.hideAsync();
+    }
+  }, [ready]);
+
+  if (!ready) {
+    return null; // the splash screen is still showing
+  }
+
+  return (
+    &lt;&gt;
+      {/* Dark clock and battery icons on the light Sand page (Lesson 2.5 follows the theme) */}
+      &lt;StatusBar style="dark" /&gt;
+      &lt;Stack&gt;
+        {/* The Cleanups screen draws its own banner, so it needs no header bar */}
+        &lt;Stack.Screen name="index" options={{ headerShown: false }} /&gt;
+      &lt;/Stack&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>SplashScreen.preventAutoHideAsync()</code> is called at the top level of the file, outside the component, so it runs once when the app starts, before anything draws. Calling it inside the component would be too late on some renders.</li>
+                                <li><code>useFonts(fontFiles)</code> returns <code>[loaded, error]</code>; <code>ready</code> is true in either case. Until then the layout returns <code>null</code>, which is fine because the splash screen covers everything.</li>
+                                <li>The effect hides the splash screen once, when <code>ready</code> turns true.</li>
+                                <li>The layout now returns a fragment (<code>&lt;&gt;…&lt;/&gt;</code>) with the <code>StatusBar</code> and the <code>Stack</code>. <code>&lt;Stack.Screen name="index" options={{ headerShown: false }} /&gt;</code> configures the route <code>index</code> from its parent; Lesson 4.1 shows the other options.</li>
+                            </ul>
+                        </li>
+                        <li>Use the fonts in <code>src/components/AppText.tsx</code>. The <code>title</code> and <code>heading</code> variants get a <code>fontFamily</code> and lose their <code>fontWeight</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/AppText.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/AppText.tsx" data-match="diff"><code class="language-diff-tsx"> import { colors } from '@/theme/colors';
++import { fonts } from '@/theme/typography';
+ // ...
+   title: {
++    fontFamily: fonts.title,
+     fontSize: 32,
+     lineHeight: 40,
+-    fontWeight: 'bold',
+   },
+   heading: {
++    fontFamily: fonts.heading,
+     color: colors.heading,
+     fontSize: 20,
+     lineHeight: 28,
+-    fontWeight: '600',
+   },</code></pre>
+                            </div>
+                        </li>
+                        <li>Save and look at the web preview: "Shoreline Crew", "Upcoming cleanups" and every cleanup title are now in Outfit, rounder and more geometric than the system font. The Badge labels and body text keep the system font. The header bar with "index" is gone too.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Safe areas in <code>Screen</code> <span class="step-time">(15 min)</span></h3>
+                    <p>Now that the Cleanups screen has no header bar, its banner would start under the status bar on a phone. Replace <code>src/components/Screen.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Screen.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Screen.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { type Edge, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+
+type ScreenProps = {
+  children: ReactNode;
+  // true: the content scrolls when it is taller than the screen
+  scroll?: boolean;
+  // The edges of the phone this screen touches. Leave out an edge that a header or a tab bar covers.
+  edges?: readonly Edge[];
+};
+
+const allEdges: readonly Edge[] = ['top', 'right', 'bottom', 'left'];
+
+// Every screen starts here: the page color from edge to edge, the same padding and gaps,
+// and content kept clear of the status bar, the notch and the home indicator.
+export function Screen({ children, scroll = false, edges = allEdges }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+  // How much of each edge the phone covers (0 where it covers nothing, or the edge is left out)
+  const clear = (edge: Edge) =&gt; (edges.includes(edge) ? insets[edge] : 0);
+
+  // The frame stays out from under the status bar and the notch (and the sides in landscape)...
+  const frame = { paddingTop: clear('top'), paddingRight: clear('right'), paddingLeft: clear('left') };
+  // ...and the content ends above the home indicator, so the last card can scroll clear of it
+  const end = { paddingBottom: spacing.md + clear('bottom') };
+
+  if (scroll) {
+    return (
+      &lt;ScrollView style={[styles.screen, frame]} contentContainerStyle={[styles.content, end]}&gt;
+        {children}
+      &lt;/ScrollView&gt;
+    );
+  }
+  return (
+    &lt;View style={[styles.screen, frame]}&gt;
+      &lt;View style={[styles.fill, styles.content, end]}&gt;{children}&lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1, // fill the space the navigator gives the screen, not just the content's height
+    backgroundColor: colors.page,
+  },
+  fill: {
+    flex: 1,
+  },
+  content: {
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>edges</code> is typed with the library's own <code>Edge</code> type (<code>'top' | 'right' | 'bottom' | 'left'</code>), so <code>edges={['bottom']}</code> is checked. It defaults to all four, kept in a constant outside the component so it is not a new array on every render.</li>
+                        <li><code>clear(edge)</code> answers "how much does the phone cover on this edge, if this screen touches it?": the inset, or 0.</li>
+                        <li><code>frame</code> pads the top and the sides of the screen itself. The background (<code>styles.screen</code>) still fills the whole screen, so the Sand color shows behind the status bar.</li>
+                        <li><code>end</code> adds the bottom inset to the content's own bottom padding. In the scrolling version it is part of <code>contentContainerStyle</code>, so cards scroll behind the home indicator and the last one stops above it.</li>
+                        <li>The non-scrolling version needs two <code>View</code>s for the same reason: the outer one is the frame, the inner one holds the padded content. Putting <code>paddingTop</code> and <code>padding</code> on one view would not add them up: the more specific <code>paddingTop</code> simply wins.</li>
+                    </ul>
+                    <p>The Cleanups screen already uses <code>&lt;Screen scroll&gt;</code> with no <code>edges</code>, so it gets all four. Save: the web preview looks the same, because its insets are 0. On your phone in Expo Go, the banner now starts below the clock and the camera (see <a href="#safe-areas">the simulated pictures</a>).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: An <code>Icon</code> component <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Add two color roles to <code>src/theme/colors.ts</code>: one for icons, one for the space a picture takes while it loads:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/colors.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/colors.ts" data-match="diff"><code class="language-diff-ts">   onBannerAccent: brand.seafoam,
++  icon: brand.seaTeal,
++  picture: brand.seafoam, // behind a picture while it loads
+ } as const;</code></pre>
+                            </div>
+                            <p>Sea Teal on white is about 5.6:1, comfortably above the 3:1 that WCAG asks of meaningful graphics.</p>
+                        </li>
+                        <li>Create <code>src/components/Icon.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/Icon.tsx"><code class="language-tsx">import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import type { ColorValue } from 'react-native';
+
+import { colors } from '@/theme/colors';
+
+// Every icon the app uses, named by its job: an SF Symbol for iOS, a Material Symbol for
+// Android and the web. A plain SF Symbol name alone draws nothing on Android or the web.
+const icons = {
+  date: { ios: 'calendar', android: 'calendar_today', web: 'calendar_today' },
+  place: { ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' },
+  meet: { ios: 'person.2', android: 'group', web: 'group' },
+} satisfies Record&lt;string, SymbolViewProps['name']&gt;;
+
+export type IconName = keyof typeof icons;
+
+type IconProps = {
+  name: IconName;
+  size?: number;
+  color?: ColorValue;
+};
+
+// A decorative icon: the words beside it say what it means, so screen readers skip it
+export function Icon({ name, size = 20, color = colors.icon }: IconProps) {
+  return (
+    &lt;SymbolView
+      name={icons[name]}
+      size={size}
+      tintColor={color}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    /&gt;
+  );
+}</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>satisfies Record&lt;string, SymbolViewProps['name']&gt;</code> checks every entry against expo-symbols' own type for <code>name</code> (both name sets), while keeping the table's exact keys. <code>SymbolViewProps['name']</code> is an indexed access type: "the type of the <code>name</code> prop".</li>
+                                <li><code>IconName</code> is <code>'date' | 'place' | 'meet'</code>, taken from the table, so adding an icon is one new line and every caller is checked.</li>
+                                <li><code>accessibilityElementsHidden</code> (iOS) and <code>importantForAccessibility="no-hide-descendants"</code> (Android) hide the icon from screen readers; on the web, expo-symbols already marks its glyph <code>aria-hidden</code>.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Beach pictures on the cards <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li>Add a radius for pictures to <code>src/theme/spacing.ts</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/theme/spacing.ts</div>
+                                <pre data-src="shoreline-crew/src/theme/spacing.ts" data-match="diff"><code class="language-diff-ts"> export const radius = {
+   card: 12,
++  picture: 8,
+ } as const;</code></pre>
+                            </div>
+                        </li>
+                        <li>The cards need each cleanup's site, and a cleanup only has a <code>siteId</code>. The Cleanups screen loads the six sites alongside the cleanups with <code>getSites()</code>, which you copied from the HQ in Lesson 1.3. In <code>src/app/index.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/app/index.tsx</div>
+                                <pre data-src="shoreline-crew/src/app/index.tsx" data-match="diff"><code class="language-diff-tsx">-import { describeError, getEvents } from '@/api/client';
+-import type { CleanupEvent } from '@/api/types';
++import { describeError, getEvents, getSites } from '@/api/client';
++import type { CleanupEvent, Site } from '@/api/types';
+ // ...
+-  | { status: 'loaded'; events: CleanupEvent[] };
++  | { status: 'loaded'; events: CleanupEvent[]; sites: Site[] };
+ // ...
+     const controller = new AbortController();
+-    getEvents('when=upcoming', controller.signal)
+-      .then((page) =&gt; setLoad({ status: 'loaded', events: page.items }))
++    // Both requests at once: the cards need the cleanups and the beaches they happen at
++    Promise.all([getEvents('when=upcoming', controller.signal), getSites(controller.signal)])
++      .then(([page, sites]) =&gt; setLoad({ status: 'loaded', events: page.items, sites }))
+       .catch((error: unknown) =&gt; {
+ // ...
+       {load.status === 'loaded' &amp;&amp;
+-        load.events.map((event) =&gt; &lt;EventCard key={event.id} event={event} /&gt;)}
++        load.events.map((event) =&gt; (
++          &lt;EventCard
++            key={event.id}
++            event={event}
++            site={load.sites.find((site) =&gt; site.id === event.siteId)}
++          /&gt;
++        ))}</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>Promise.all</code> sends both requests at once and waits for both, as in the web course; if either fails, the screen shows the error, and the same <code>AbortController</code> cancels both.</li>
+                                <li><code>find</code> returns <code>Site | undefined</code>: TypeScript knows a cleanup's site might be missing from the list.</li>
+                            </ul>
+                        </li>
+                        <li>TypeScript now complains, because <code>EventCard</code> does not take a <code>site</code> yet. Give it one, the HQ's way, and show the picture at the top of the card. In <code>src/components/EventCard.tsx</code>:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                                <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx">+import { Image } from 'expo-image';
+ import type { ReactNode } from 'react';
+ import { StyleSheet, Text, View } from 'react-native';
+
+-import type { CleanupEvent } from '@/api/types';
++import type { CleanupEvent, Site } from '@/api/types';
+ // ...
+ type EventCardProps = {
+   event: CleanupEvent;
++  // undefined when the cleanup's site is not in the list
++  site: Site | undefined;
+ };
+
+ // One cleanup in a list: the phone's version of the HQ's EventCard
+-export function EventCard({ event }: EventCardProps) {
++export function EventCard({ event, site }: EventCardProps) {
+ // ...
+     &lt;View style={styles.card}&gt;
++      {site &amp;&amp; (
++        // A picture from the API has no size until it loads: the card's width and the
++        // picture's own proportions give it one now
++        &lt;Image
++          source={site.image.url}
++          accessible
++          accessibilityLabel={site.image.alt}
++          style={[styles.picture, { aspectRatio: site.image.width / site.image.height }]}
++          contentFit="cover"
++          transition={200}
++        /&gt;
++      )}
+       &lt;AppText variant="heading" accessibilityRole="header"&gt;
+ // ...
+     backgroundColor: colors.surface,
+   },
++  picture: {
++    borderRadius: radius.picture,
++    backgroundColor: colors.picture,
++  },
+   badges: {</code></pre>
+                            </div>
+                            <ul>
+                                <li><code>site: Site | undefined</code>, not <code>site?: Site</code>: the prop is <em>required</em>, but its value may be <code>undefined</code>. Every caller has to think about the site, and forgetting the prop is an error (you will see it in Exercise 3).</li>
+                                <li>The picture has no <code>width</code>: the card is a column, so it stretches across the card. Its height comes from the <code>aspectRatio</code>, computed from the API's numbers. The style array mixes a fixed style with a computed one, as in Lesson 2.1.</li>
+                                <li><code>accessible</code> makes the picture one element a screen reader can stop on, and <code>accessibilityLabel</code> is what it reads (and the web preview's <code>alt</code>).</li>
+                                <li>The Seafoam <code>backgroundColor</code> fills the frame until the picture arrives; <code>transition={200}</code> fades it in.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Icons and a "Where" row in the details <span class="step-time">(10 min)</span></h3>
+                    <p>The card still never says which beach. Add a "Where" row, and an icon at the start of each detail row. In <code>src/components/EventCard.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx"> import { Badge } from '@/components/Badge';
++import { Icon, type IconName } from '@/components/Icon';
+ // ...
+-      &lt;Detail label="When"&gt;
++      &lt;Detail icon="date" label="When"&gt;
+         {formatDate(event.date)}, {event.startTime} to {event.endTime}
+       &lt;/Detail&gt;
+-      &lt;Detail label="Meet at"&gt;{event.meetingPoint}&lt;/Detail&gt;
++      &lt;Detail icon="place" label="Where"&gt;
++        {site ? `${site.name}, ${site.town}` : 'Site to be confirmed'}
++      &lt;/Detail&gt;
++      &lt;Detail icon="meet" label="Meet at"&gt;
++        {event.meetingPoint}
++      &lt;/Detail&gt;
+ // ...
+ type DetailProps = {
++  icon: IconName;
+   label: string;
+   children: ReactNode;
+ };
+
+-// A label and its value side by side: the label keeps its width, the value takes the rest
+-function Detail({ label, children }: DetailProps) {
++// An icon, a label and its value side by side: the label keeps its width, the value takes the rest
++function Detail({ icon, label, children }: DetailProps) {
+   return (
+     &lt;View style={styles.detail}&gt;
++      &lt;View style={styles.detailIcon}&gt;
++        &lt;Icon name={icon} /&gt;
++      &lt;/View&gt;
+       &lt;AppText variant="muted" style={styles.detailLabel}&gt;
+ // ...
++  detailIcon: {
++    height: 24, // one line of text: the icon centers on the first line of the value
++    justifyContent: 'center',
++  },
+   detailLabel: {</code></pre>
+                    </div>
+                    <ul>
+                        <li>"Site to be confirmed" is the HQ's wording for a cleanup whose site is missing from the list.</li>
+                        <li>The icon sits in a box exactly as tall as one line of text (24, the body <code>lineHeight</code>) and is centered in it, so it lines up with the <em>first</em> line of a value that wraps onto two. Centering it in the whole row would put it between the lines. This is Lesson 2.2's flexbox at small scale.</li>
+                    </ul>
+                    <figure class="screenshot">
+    <img src="images/lesson_06/06-cleanups-pictures.png" alt="A phone-shaped frame showing the web preview of Shoreline Crew&#x27;s Cleanups screen. The banner and the headings are now in the rounder Outfit font. The first card starts with an illustration of a creek running across a beach into the sea, outlined in red, and its When, Where and Meet at rows, each outlined too, each start with a small teal icon: a calendar, a map pin and two people." width="420" height="814" loading="lazy">
+    <figcaption>The finished Cleanups screen in the web preview: each card shows its beach from the API, sized by <code>aspectRatio</code>, and the detail rows start with icons from expo-symbols. On a phone the icons are SF Symbols (iPhone) or Material Symbols (Android); the web preview draws the Material ones.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Shoreline Crew's icon, splash screen and name <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Unzip <a href="downloads/lesson-06-end.zip">lesson-06-end.zip</a> anywhere outside your project, open its <code>shoreline-crew/assets/images/</code> folder, and copy its six PNG files (<code>icon.png</code>, the three <code>android-icon-…</code> files, <code>splash-icon.png</code>, <code>favicon.png</code>) into your <code>shoreline-crew/assets/images/</code>, replacing the template's files of the same names.</li>
+                        <li>Delete the template's layered iOS icon, which your <code>app.json</code> will no longer use. On macOS or Linux:
+                            <pre class="terminal"><code class="language-bash">rm -r assets/expo.icon</code></pre>
+                            <p>In PowerShell on Windows:</p>
+                            <pre class="terminal"><code class="language-bash">Remove-Item -Recurse assets/expo.icon</code></pre>
+                        </li>
+                        <li>Edit <code>app.json</code>: the name, no <code>ios</code> section, the adaptive icon's background color (Deep Tide), and the splash screen's color (Sand) and logo width:
+                            <div class="code-file">
+                                <div class="code-filename">shoreline-crew/app.json</div>
+                                <pre data-src="shoreline-crew/app.json"><code class="language-json">{
+  "expo": {
+    "name": "Shoreline Crew",
+    "slug": "shoreline-crew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "shorelinecrew",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b3954",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "server",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#fbf6ec",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}</code></pre>
+                            </div>
+                        </li>
+                        <li>Check the configuration (it asks to install itself the first time; answer <kbd>y</kbd>):
+                            <pre class="terminal"><code class="language-bash">npx expo-doctor</code></pre>
+                            <div class="card card-output">
+                                <h4>Expected output (the last line)</h4>
+                                <pre><code>20/20 checks passed. No issues detected!</code></pre>
+                            </div>
+                        </li>
+                        <li>Restart Metro (<code>npx expo start</code>) so it reads the new <code>app.json</code>, and open the web preview: the browser tab shows the sunrise favicon (refresh the page if it still shows the old one).</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: Check and commit <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>Run the two checks: <code>npx tsc --noEmit</code> prints nothing, and <code>npx expo lint</code> prints only Expo's two <code>env:</code> lines:
+                            <pre class="terminal"><code class="language-bash">npx expo lint
+npx tsc --noEmit</code></pre>
+                        </li>
+                        <li>Commit (the deleted <code>assets/expo.icon</code> folder is part of it):
+                            <pre class="terminal"><code class="language-bash">git add -A
+git commit -m "Pictures, icons, Outfit, safe areas, app icon and splash"</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project: which pictures will it show, and do they ship inside the app or come from a server (and does that server send their sizes)? List five icons it needs by <em>job</em>, then look up an SF Symbol and a Material Symbol for each. Will it have a brand font, or is the system font the better choice?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>@expo-google-fonts/outfit</code> is installed, <code>typography.ts</code> types the family names, and the headings show in Outfit with no header bar above the banner</li>
+                        <li>☐ The splash screen waits for the fonts in <code>_layout.tsx</code>, and the status bar is set to dark</li>
+                        <li>☐ <code>Screen</code> adds the safe-area insets for its <code>edges</code>: the top on the frame, the bottom inside the content</li>
+                        <li>☐ Every card shows its beach's picture (sized with <code>aspectRatio</code>, described with <code>accessibilityLabel</code>) and When, Where and Meet at rows with icons</li>
+                        <li>☐ <code>assets/images/</code> has Shoreline Crew's icon files, <code>app.json</code> has the new name, colors and no <code>ios</code> section, and <code>npx expo-doctor</code> passes</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing, <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: A step-free badge</h3>
+                    <p>Each site has <code>accessible: true</code> when there is a step-free route to the meeting point. Add an icon called <code>accessible</code> to the icons table and show it, with the word "Step-free", in the "Where" row of cards whose site is accessible.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The SF Symbol is <code>figure.roll</code>, the Material Symbol <code>accessible</code>. Where would the extra words go so they wrap with the rest of the value?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>accessible: { ios: 'figure.roll', android: 'accessible', web: 'accessible' },</code> to <code>icons</code> in <code>Icon.tsx</code> (<code>tsc</code> checks both names; the course checked these). In the "Where" row, after the site's name, add <code>{site?.accessible &amp;&amp; ' · Step-free'}</code>. For the icon, the simplest place is a second <code>Detail</code> row only for accessible sites: <code>{site?.accessible &amp;&amp; &lt;Detail icon="accessible" label="Access"&gt;Step-free route&lt;/Detail&gt;}</code>. Keep the words: the icon is hidden from screen readers, so the words are what everyone gets.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: The logo in the banner</h3>
+                    <p>Put the crew's round logo (<code>assets/images/splash-icon.png</code>) at the left of the banner, 56 by 56, with the title and tagline to its right.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A local picture is a <code>require()</code> with a plain string. The banner becomes a row; which part needs <code>flex: 1</code> so the title can wrap?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>index.tsx</code>, import <code>Image</code> from <code>expo-image</code>, make the banner style a row (<code>flexDirection: 'row'</code>, <code>alignItems: 'center'</code>, <code>gap: spacing.md</code>), and put <code>&lt;Image source={require('@/assets/images/splash-icon.png')} style={{ width: 56, height: 56 }} accessibilityLabel="" /&gt;</code> first, then wrap the title and tagline in <code>&lt;View style={{ flex: 1, gap: spacing.xs }}&gt;</code>. The logo repeats the app's name right next to it, so it is decoration; an empty label keeps it quiet (without <code>accessible</code>, a screen reader does not stop on it). Without a size, the logo would be 0 by 0: expo-image does not use the file's own size.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Read the error, then make it go away</h3>
+                    <p>In <code>index.tsx</code>, delete the <code>site={…}</code> line from the <code>EventCard</code> and run <code>npx tsc --noEmit</code>. What does TypeScript say, and why would <code>site?: Site</code> have let this mistake through?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for the word "missing", and for the second location TypeScript points to.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The course got exactly this:</p>
+                        <div class="card card-output">
+                            <h4>Expected output</h4>
+                            <pre><code>src/app/index.tsx:61:12 - error TS2741: Property 'site' is missing in type '{ key: string; event: CleanupEvent; }' but required in type 'EventCardProps'.
+
+61           &lt;EventCard
+              ~~~~~~~~~
+
+  src/components/EventCard.tsx:18:3
+    18   site: Site | undefined;
+         ~~~~
+    'site' is declared here.
+
+
+Found 1 error in src/app/index.tsx:61</code></pre>
+                        </div>
+                        <p>The first location is the mistake, the second (<code>'site' is declared here.</code>) is the rule it breaks. With <code>site?: Site</code>, leaving the prop out is allowed, so every card would quietly say "Site to be confirmed" and show no picture. Put the line back.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Thumbnails instead of banners (Stretch)</h3>
+                    <p>Some volunteers prefer a denser list. Try a layout where the picture is a 96 by 96 square on the left of the card and the title, badges and details are to its right.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A 16:9 picture in a square box: which <code>contentFit</code> fills the square, and which shows the whole picture with empty bands? Lesson 2.2's date-tile exercise has the row layout.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Make the card a row (<code>flexDirection: 'row'</code>, <code>gap: spacing.md</code>, <code>alignItems: 'flex-start'</code>), give the picture <code>{ width: 96, height: 96 }</code> instead of the <code>aspectRatio</code>, and put everything else in <code>&lt;View style={{ flex: 1, gap: spacing.sm }}&gt;</code>. With <code>contentFit="cover"</code> (the default) the square is filled and the picture's sides are cropped; with <code>"contain"</code> you see the whole beach between two bands of the Seafoam background (the course measured <code>"contain"</code> in a square box in the web preview: the box keeps its size, only the picture inside it changes). Which do you prefer at arm's length on a beach? Undo it or keep it as a variant: Lesson 2.5 picks layouts by screen width.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A teammate adds <code>&lt;Image source={site.image.url} /&gt;</code> (expo-image) to a card with no style. What do volunteers see?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does expo-image ever take its size from the file? Think about what the course measured.">
+                                A) The picture at its own size, 1200 by 675, running off the screen
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Nothing is wrong with the code from TypeScript's point of view. What size does the picture get?">
+                                B) A red error screen saying the image has no size
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A placeholder only appears where there is a box for it. How tall is the box?">
+                                C) A gray placeholder box while the picture loads, then the picture
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A picture from a server has no size when the screen is laid out, and expo-image never sizes itself from the file, so the image stretches across the card but is 0 tall. Give it a width and height, or let the parent set the width and add aspectRatio.">
+                                D) Nothing: the picture is as wide as the card but 0 tall
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> The icons table has <code>date: 'calendar'</code>, a plain SF Symbol name. <code>tsc</code> passes. What happens?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="tsc passed, so nothing is caught at build time. Which platforms understand SF Symbol names?">
+                                A) The app fails to build for Android
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="A plain SF Symbol name only works on iOS. On Android and the web, expo-symbols finds no name for the platform and draws the fallback, which is nothing. Give the object with ios, android and web names.">
+                                B) The iPhone shows a calendar; Android and the web preview show no icon at all
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="expo-symbols does not translate names between the two sets. What does it draw without a name for the platform?">
+                                C) Every platform shows a calendar, because expo-symbols translates the name
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Why does Shoreline Crew's <code>_layout.tsx</code> call <code>SplashScreen.preventAutoHideAsync()</code>?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Until useFonts has registered Outfit, headings would draw in the system font and then jump. Keeping the splash screen up until the fonts are loaded (or have failed) means the first screen appears in its final font.">
+                                A) So the first screen appears only once Outfit is ready, instead of jumping from the system font
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The splash screen is shown either way. What would the volunteer see if it disappeared before the fonts were loaded?">
+                                B) Without it, the splash screen would never appear
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The app's icon and the splash screen are both set in app.json and built into the app. What is the JavaScript call about?">
+                                C) It installs the splash image from app.json on the phone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Fonts are loaded by useFonts. What does the splash screen do while that happens?">
+                                D) It downloads Outfit from Google Fonts
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> In Lesson 4.1, a cleanup's detail screen will have a header bar with a back button. Which <code>edges</code> should its <code>Screen</code> use?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The header bar already pads itself below the status bar. What would adding the top inset again do?">
+                                A) All four, the default, to be safe
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Nothing else covers the bottom of this screen. Where would the last line end up?">
+                                B) Only <code>['top']</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The header bar covers the top edge and pads itself below the status bar, so the screen adds only the edges nothing else covers. Adding the top inset again would leave an empty band under the header.">
+                                C) <code>['bottom', 'left', 'right']</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> You copied the new icon files and edited <code>app.json</code>. On your phone, the home screen still shows Expo Go's icon. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Metro serves JavaScript and assets to Expo Go. Is the home screen icon part of what Metro serves?">
+                                A) Metro needs <code>npx expo start --clear</code> to send the new icon
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The app installed on the phone is Expo Go, so the home screen shows Expo Go's icon. Your own icon and native splash screen are built into your own app: a development build in Module 9.">
+                                B) The installed app is Expo Go; your icon only appears in your own build
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="iPhones and Android phones both show app icons from PNG files. Which app is actually installed?">
+                                C) Phones need SVG icons, not PNG
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Should I still use React Native's own <code>Image</code>?</summary>
+                    <p>It works and you will meet it in older code. expo-image takes the same ideas (a <code>source</code>, a size) and adds disk caching by default, transitions, placeholders, <code>contentFit</code> instead of <code>resizeMode</code>, and more image formats. In an Expo app, use expo-image. The one convenience you lose is the automatic size of a <code>require()</code>d file, which is easy to replace with a <code>width</code> and <code>height</code>.</p>
+                </details>
+                <details>
+                    <summary>Can I use SVG files?</summary>
+                    <p>expo-image can display an SVG file as a picture, like any other image. Drawing SVG as components (shapes you can change from code) needs another library, react-native-svg, which this course does not use. For icons, a symbol set is usually the better choice: it matches the platform and needs no files.</p>
+                </details>
+                <details>
+                    <summary>What happens to the pictures when the volunteer is offline?</summary>
+                    <p>A picture that has been shown once is in expo-image's disk cache (<code>cachePolicy</code> defaults to <code>'disk'</code>) and shows again without the network. A picture never seen before cannot load, and the card keeps its Seafoam frame: the layout does not jump, because the frame's size never depended on the picture. Module 5 handles the data itself when offline.</p>
+                </details>
+                <details>
+                    <summary>Why does the web preview show no difference with safe areas?</summary>
+                    <p>A desktop browser window has no notch, status bar or home indicator, so react-native-safe-area-context reports 0 for every inset there. Your code still runs; it adds nothing. Check safe areas on a phone in Expo Go, and on more than one phone if you can: an iPhone with a Dynamic Island, an older one, and an Android phone all have different insets.</p>
+                </details>
+                <details>
+                    <summary>Why did the header bar disappear, and will screens have titles again?</summary>
+                    <p>The Cleanups screen's banner already says "Shoreline Crew", so its header bar ("index") was hidden with <code>headerShown: false</code>. Other screens will have header bars with real titles, starting with the cleanup detail screen in Lesson 4.1; those screens leave the top edge out of <code>Screen</code>'s <code>edges</code>.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Pictures from a slow network look better with a preview. expo-image's <code>placeholder</code> prop accepts a <em>blurhash</em>, a short string that describes a blurry version of a picture. The shoreline-api does not send one, so try it with a local picture: pass <code>placeholder={require('@/assets/images/splash-icon.png')}</code> and <code>placeholderContentFit="contain"</code> to a site picture, start shoreline-api with <code>node server.ts --latency=2000</code> (two seconds per request), and watch the logo show in the frame until the beach fades in. Then read the "placeholder" part of the expo-image documentation and think about what an API would need to send to make real blurhash previews possible.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Three things in this lesson fail silently (a picture with no size, a plain SF Symbol name, a misspelled font family). For each, write how you would notice it, and what Shoreline Crew does so that you do not have to notice it. Then look at the top and bottom of your favorite app on your phone: where does its content stop?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><strong>Every expo-image needs a size</strong>: a <code>width</code> and <code>height</code>, or a width from its parent plus <code>aspectRatio</code>; without one it is invisible, with no error</li>
+                        <li>Local pictures are <code>require()</code>d with a plain string path; remote ones are a URL, cached on disk; describe them with <code>accessibilityLabel</code>, which becomes the web's <code>alt</code></li>
+                        <li>expo-symbols draws SF Symbols on iOS and Material Symbols on Android and the web: give it all three names, kept in one typed table, and hide decorative icons from screen readers</li>
+                        <li>A custom font is loaded with <code>useFonts</code> while the splash screen waits; each weight is its own family, picked by name, never with <code>fontWeight</code></li>
+                        <li>The safe area is the part of the screen nothing covers; <code>useSafeAreaInsets()</code> gives the insets, and a screen adds only the edges no header or tab bar covers: top on the frame, bottom inside the scrolling content</li>
+                        <li>The app icon, adaptive icon, splash screen and name live in <code>app.json</code> and <code>assets/images/</code>; you see them in your own build, not in Expo Go</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Translate an <code>&lt;img&gt;</code>, a web font or an icon habit</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>Look up a term (inset, safe area, adaptive icon)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read every expo-image prop</td><td><a href="https://docs.expo.dev/versions/latest/sdk/image/" target="_blank" rel="noopener">Expo: Image</a></td></tr>
+                            <tr><td>Read about icons and fonts in Expo</td><td><a href="https://docs.expo.dev/develop/user-interface/icons/" target="_blank" rel="noopener">Expo: Icons</a> and <a href="https://docs.expo.dev/develop/user-interface/fonts/" target="_blank" rel="noopener">Expo: Fonts</a></td></tr>
+                            <tr><td>Read about safe areas, the splash screen and the app icon</td><td><a href="https://docs.expo.dev/develop/user-interface/safe-areas/" target="_blank" rel="noopener">Expo: Safe areas</a> and <a href="https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/" target="_blank" rel="noopener">Expo: Splash screen and app icon</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You put each beach's picture on its card, sized from the API's own numbers</li>
+                        <li>You built a typed <code>Icon</code> component that looks native on iPhone and Android</li>
+                        <li>You loaded the crew's heading font before the first screen, with a safe fallback</li>
+                        <li>You made every Shoreline Crew screen respect the notch, the status bar and the home indicator</li>
+                        <li>You gave the app its own name, icon, splash screen and favicon</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_07.html"><strong>Lesson 2.4: Touch and Input</strong></a> the app starts listening to fingers. You build a <code>Button</code> with <code>Pressable</code> and visible press feedback, add a search box to the Cleanups screen with <code>TextInput</code>, handle the on-screen keyboard, and add a switch to show only cleanups with spots left.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Make sure the web preview shows the pictures, the icons and the Outfit headings, and that your work is committed</li>
+                    <li>Open Expo Go and check the top and bottom of the Cleanups screen on your phone</li>
+                    <li>Notice how buttons in your favorite apps react when you press them: do they darken, shrink, ripple?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today was a lesson of details, and details are where apps earn trust. You also met three mistakes that fail without a word, and instead of just remembering them, you made two of them impossible with types and the third with a habit. That is how experienced mobile developers work: not by never making mistakes, but by building their app so the common ones get caught early. Shoreline Crew now looks like something a volunteer would happily open on the beach.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_05.html" class="prev-lesson">← Previous: Flexbox the Native Way</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_07.html" class="next-lesson">Next: Touch and Input →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

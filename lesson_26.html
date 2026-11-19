@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gestures on a phone with React Native Gesture Handler 3: touches read on the UI thread, a drag that follows the finger with Reanimated shared values and springs back, swipes that share the screen with scrolling, combined gestures, recycled list rows, and a non-gesture way for every gesture, applied to swiping a waiting debris log out of the queue. React Native &amp; Expo: Build and Ship a Mobile App Lesson 7.2.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Gestures - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>👆 Lesson 7.2: Gestures</h1>
+                <p class="lead">Theo logged the same three bags twice at Tide Pool Cove: once on the beach with no signal, and once again on the bus because he thought the first one was lost. Both logs wait in his queue. In most phone apps he would know what to do without thinking: put a thumb on the extra one and push it aside. Today Shoreline Crew learns that move, with the same care as every other way of losing data in this course: the swipe asks before anything is removed, it never gets in the way of scrolling, and nobody needs to swipe at all to do the same thing.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain why React Native apps read gestures with React Native Gesture Handler, on the UI thread, and set it up with <code>GestureHandlerRootView</code></li>
+                        <li>Build a drag with <code>usePanGesture</code> and <code>GestureDetector</code> that moves a view through Reanimated shared values and springs it into place when the finger lets go</li>
+                        <li>Make a sideways swipe share the screen with vertical scrolling (<code>activeOffsetX</code>, <code>failOffsetY</code>) and combine gestures on one view</li>
+                        <li>Give every gesture a way that needs no gesture, and keep swipe rows correct in a recycled FlashList</li>
+                        <li>Decide what a swipe may do to data that has not reached the server yet</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 150 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_25.html">Lesson 7.1: Animation with Reanimated 4</a> (and the queue from <a href="lesson_19.html">Lesson 5.5</a>, FlashList recycling from <a href="lesson_10.html">Lesson 3.2</a>)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> Swipe to remove for the debris logs waiting in the queue: the card follows the finger, springs back, and asks before removing; a Remove button that does the same without a swipe</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), react-native-gesture-handler 3.3, react-native-reanimated 4.7, Expo Router 58 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone to feel the swipe; the web preview (a mouse drag works there too) for building and checking; shoreline-api in a second terminal</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-26-start.zip">lesson-26-start.zip</a> · Finished code: <a href="downloads/lesson-26-end.zip">lesson-26-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: A Thumb, Not a Menu</a></li>
+                        <li><a href="#touches" class="toc-link">Touches on the UI Thread</a></li>
+                        <li><a href="#drag" class="toc-link">A First Drag</a></li>
+                        <li><a href="#sharing" class="toc-link">Sharing the Finger</a></li>
+                        <li><a href="#another-way" class="toc-link">Every Gesture Needs Another Way</a></li>
+                        <li><a href="#lists" class="toc-link">Swipe Rows in Long Lists</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Swipe a Log Away</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: A Thumb, Not a Menu</h2>
+                <p>Last lesson's "Before the Next Lesson" asked you to notice gestures in the apps you use. You probably found the same handful everywhere: swipe a message or an email sideways to archive or delete it, drag a list item to reorder it, pull a sheet down to close it, pinch a photo. You may also have noticed how each app <em>tells</em> you a gesture exists: a strip of color peeking out as you start to move, a small handle on a sheet, or nothing at all, which is why so many people never find them.</p>
+                <p>In the web course, a gesture was mostly a click, and a drag meant the HTML drag-and-drop events or pointer events. On a phone, touch is the main input, and the finger is held to a higher standard: whatever it moves has to follow it exactly, with no lag, even while the app is busy. That is a job for the UI thread you met in Lesson 7.1, and for the library every new Expo app already includes for it: <strong>React Native Gesture Handler</strong>. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>A waiting log can be swiped.</strong> On the Logbook, each card under <strong>Not sent yet</strong> follows a finger to the left, with a red <strong>Remove</strong> strip showing through behind it.</li>
+                    <li><strong>The swipe asks; it does not delete.</strong> Let go far enough and the card springs back into place and asks "Remove this log from your phone?"; let go too early and it simply springs back.</li>
+                    <li><strong>Nobody has to swipe.</strong> Every card has a <strong>Remove</strong> button that leads to the same question, and a log the queue may be sending right now cannot be removed either way.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> swipe actions are among the first things a product manager asks for ("like in Mail"), and among the first things that go wrong: rows that steal the list's scroll, rows that delete what you meant to keep, rows that open on the wrong item after scrolling, and features that people using a screen reader or a switch simply cannot reach. Getting all four right is what separates a demo from an app people trust with their data.</p>
+                <div class="card card-accent">
+                    <h3>🌱 Your fingers are the test</h3>
+                    <p>Gestures are about feel, and feel is learned by trying. You will drag the card in the web preview with a mouse, then on your phone with your thumb, and change the numbers that decide "far enough" until it feels right to you. If a swipe feels sticky or jumpy and you cannot say why yet, that is normal: this lesson gives you the words (activation, offsets, velocity) to say why.</p>
+                </div>
+            </section>
+
+            <section id="touches" class="lesson-section">
+                <h2>🧵 Touches on the UI Thread</h2>
+                <p>React Native's built-in touch handling (the "responder system" behind <code>Pressable</code> and <code>ScrollView</code>) decides who gets a touch in JavaScript. For a press that is fine: the button can answer a few milliseconds late. For a drag it is not: if the JavaScript thread is busy when the finger moves, the card stops following, then jumps to catch up. Gesture Handler moves gesture recognition to the UI thread, using each platform's own gesture system (the same one native iPhone and Android apps use), and it works hand in hand with Reanimated:</p>
+                <ul>
+                    <li>The gesture's callbacks are <strong>worklets</strong>. The same Babel plugin that turned your <code>useAnimatedStyle</code> functions into worklets in Lesson 7.1 recognizes Gesture Handler's hooks and does the same for their callbacks (read in <code>react-native-worklets/plugin</code>: <code>usePanGesture</code>, <code>useTapGesture</code> and the others are on its list).</li>
+                    <li>So a callback can write a <strong>shared value</strong> every time the finger moves, and an animated style moves the view, all on the UI thread, with no React render on the way.</li>
+                    <li>To tell React something (a swipe happened), the callback uses <code>scheduleOnRN</code>, exactly as in Lesson 7.1.</li>
+                </ul>
+                <p>One setup step comes first: gestures are only recognized inside a <code>GestureHandlerRootView</code>. Gesture Handler's documentation asks for it as close to the root of the app as possible, around everything else, and in an Expo Router app that is the root <code>_layout.tsx</code>. You will add it in Step 1. The package itself is already in your project: <code>create-expo-app</code> installed it, Expo Router depends on it, and it is part of Expo Go, so no development build is needed.</p>
+                <div class="card card-info">
+                    <h3>💡 Mental model: the deckhand on the line</h3>
+                    <p>When the crew hauls a heavy net onto the boat, one deckhand keeps a hand on the line the whole time and feels every tug and slack, while the skipper only hears "net's in" at the end. Gesture Handler is the deckhand: it feels the finger every frame on the UI thread and moves the card with it through shared values. React is the skipper: it hears once, through <code>scheduleOnRN</code>, that the swipe went far enough, and decides what that means for the data. The deckhand never decides what to keep; the skipper never holds the line.</p>
+                </div>
+                <div class="card card-info">
+                    <h4>🧩 Version note: Gesture Handler 3 and its hooks</h4>
+                    <p>SDK 58 pins <code>react-native-gesture-handler</code> 3.3 (npm already has a newer 3.x; <code>npx expo install</code> keeps the one Expo tested). Version 3 replaced the builder API that most tutorials still show, <code>Gesture.Pan().onUpdate(…).onEnd(…)</code>, with Hooks that take one object: <code>usePanGesture({ onUpdate, onDeactivate, … })</code>. The builder still exists, but its type definitions mark it deprecated: "<code>Gesture.Pan()</code> is deprecated and will be removed in the future. Please use <code>usePanGesture</code> instead." Callback names changed with it: <code>onStart</code> became <code>onActivate</code> and <code>onEnd</code> became <code>onDeactivate</code>, and <code>onChange</code> folded into <code>onUpdate</code>. Even older code wraps views in <code>&lt;PanGestureHandler&gt;</code> components (Gesture Handler 1): that is two versions back.</p>
+                </div>
+            </section>
+
+            <section id="drag" class="lesson-section">
+                <h2>✋ A First Drag</h2>
+                <p>Here is the smallest useful gesture: a round marker you can drag anywhere on the screen, which springs back home when you let go.</p>
+                <pre data-snippet><code class="language-tsx">import { StyleSheet } from 'react-native';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+
+// A marker the finger can drag anywhere. Let go, and a spring brings it home.
+export function DragHome() {
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+
+  const pan = usePanGesture({
+    // On the UI thread, every time the finger moves: how far it is from where it started
+    onUpdate: (event) =&gt; {
+      x.set(event.translationX);
+      y.set(event.translationY);
+    },
+    // The finger lifted (or the system took the touch away): spring back from wherever it is
+    onDeactivate: () =&gt; {
+      x.set(withSpring(0));
+      y.set(withSpring(0));
+    },
+  });
+
+  const moved = useAnimatedStyle(() =&gt; ({
+    transform: [{ translateX: x.get() }, { translateY: y.get() }],
+  }));
+
+  return (
+    &lt;GestureDetector gesture={pan}&gt;
+      &lt;Animated.View style={[styles.marker, moved]} /&gt;
+    &lt;/GestureDetector&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  marker: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1f6f8b' },
+});</code></pre>
+                <ul>
+                    <li><code>usePanGesture({ … })</code> creates a <strong>pan</strong> gesture: a finger that goes down and moves. Like any Hook, it is called on every render and keeps one gesture for the component's life.</li>
+                    <li><code>&lt;GestureDetector gesture={pan}&gt;</code> attaches it to the view inside. The child must be a real view (here an <code>Animated.View</code>, because it moves).</li>
+                    <li><code>event.translationX</code> and <code>translationY</code> are how far the finger has moved since the gesture started. Writing them into shared values moves the marker through the animated style: React never renders while you drag.</li>
+                    <li>When the finger lifts, <code>onDeactivate</code> hands each shared value a spring back to 0, starting from wherever it was. That is the "drag something into place, and let springs finish the move" that Lesson 7.1 promised: the finger drives, the spring finishes.</li>
+                </ul>
+                <p>The course measured it in the web preview: with the mouse dragged 120 points right and 80 down, the marker sat at about 102 and 68 (the gesture only starts once the pointer has moved a little, and that first bit is not counted on the web), and after letting go it was at 66, 29, 11, 4 and 1.4 points from home at 80 ms intervals, then home. A pan gesture goes through these callbacks, all worklets on the UI thread:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Callback</th><th>When</th><th>Typical use</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>onBegin</code></td><td>A finger touched the view; the gesture may still turn out to be something else</td><td>A pressed look</td></tr>
+                            <tr><td><code>onActivate</code></td><td>The gesture is recognized: the finger moved far enough in the right direction</td><td>Remember where a drag started (Exercise 3)</td></tr>
+                            <tr><td><code>onUpdate</code></td><td>Every move while active; the event has <code>translationX/Y</code>, <code>changeX/Y</code> (since the last update), <code>velocityX/Y</code> (points per second), <code>x</code>/<code>y</code></td><td>Follow the finger</td></tr>
+                            <tr><td><code>onDeactivate</code></td><td>An active gesture ended: the finger lifted, or the system took the touch away (<code>event.canceled</code> tells which)</td><td>Decide: far enough? Spring into place</td></tr>
+                            <tr><td><code>onFinalize</code></td><td>Always last, whether the gesture ever activated or not</td><td>Undo whatever <code>onBegin</code> did</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Besides pan, Gesture Handler 3 has <code>useTapGesture</code> (with <code>numberOfTaps</code> for double taps), <code>useLongPressGesture</code>, <code>useFlingGesture</code> (a quick swipe in one direction, no following), <code>usePinchGesture</code> and <code>useRotationGesture</code> (two fingers), <code>useHoverGesture</code> (a mouse or a pen, not a finger), plus <code>useNativeGesture</code> and <code>useManualGesture</code> for advanced cases. They all take one config object and go into a <code>GestureDetector</code> the same way.</p>
+            </section>
+
+            <section id="sharing" class="lesson-section">
+                <h2>🤝 Sharing the Finger</h2>
+                <p>The marker above has the screen to itself. A card in the Logbook does not: it sits inside a scrolling screen, and a finger that lands on it might mean "scroll down" or "swipe this card away". The two gestures compete for the same touch, and the first few points of movement decide. Pan gestures have settings for exactly that:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Setting</th><th>Meaning</th><th>SwipeToRemove</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>activeOffsetX: [-12, 12]</code></td><td>Become active only once the finger has moved 12 points left or right</td><td>A sideways move is a swipe</td></tr>
+                            <tr><td><code>failOffsetY: [-10, 10]</code></td><td>Give up if the finger moves 10 points up or down first</td><td>A vertical move is a scroll: the list gets it</td></tr>
+                            <tr><td><code>minDistance</code>, <code>activeOffsetY</code>, <code>failOffsetX</code></td><td>The same ideas for other directions</td><td>(not needed)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+<div class="mermaid">
+graph TD
+    A["Finger down on a card"] --> B{"Which way first?"}
+    B -->|"10 pt up or down"| C["Swipe fails: scroll"]
+    B -->|"12 pt sideways"| D["Swipe active"]
+    D --> E["Card follows the finger"]
+    E --> F{"Far or fast enough?"}
+    F -->|"yes"| G["Spring back + ask"]
+    F -->|"no"| H["Spring back"]
+</div>
+                <p>Read it from the top: whichever threshold the finger crosses first wins the touch. Measured in the web preview with a mouse: a drag that went 60 points sideways and 160 points down left the card exactly where it was (<code>translateX(0px)</code> the whole time), while a drag straight to the left moved it point for point. Without the two settings, the same mostly-vertical drag pulled the card up to 54 points sideways (<a href="#mistakes">Common Mistakes</a>).</p>
+                <h3>Two gestures on one view</h3>
+                <p>Sometimes one view needs two gestures of its own: a photo that opens on a tap and zooms on a double tap, a map you can pinch and rotate at the same time. Gesture Handler 3 combines gestures with three Hooks, and the result goes into one <code>GestureDetector</code>:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Hook</th><th>Rule</th><th>Example</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>useExclusiveGestures(a, b)</code></td><td>Only one wins, in order of priority: <code>b</code> waits until <code>a</code> has failed</td><td>Double tap before single tap</td></tr>
+                            <tr><td><code>useCompetingGestures(a, b)</code></td><td>Only one wins: the first to become active cancels the others</td><td>A long press or a drag, whichever happens first</td></tr>
+                            <tr><td><code>useSimultaneousGestures(a, b)</code></td><td>All of them can be active together</td><td>Pinch and rotate a photo at once</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
+import { GestureDetector, useExclusiveGestures, useTapGesture } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+
+// One card, two gestures: a double tap and a single tap
+export function TapOrDoubleTap() {
+  const [heard, setHeard] = useState('Tap or double tap');
+
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    onActivate: () =&gt; {
+      scheduleOnRN(setHeard, 'Double tap'); // the callbacks are worklets: setters go through scheduleOnRN
+    },
+  });
+  const singleTap = useTapGesture({
+    onActivate: () =&gt; {
+      scheduleOnRN(setHeard, 'Single tap');
+    },
+  });
+  // In order of priority: the single tap waits until the double tap has failed (no second tap)
+  const taps = useExclusiveGestures(doubleTap, singleTap);
+
+  return (
+    &lt;GestureDetector gesture={taps}&gt;
+      &lt;Animated.View style={styles.card}&gt;
+        &lt;Text&gt;{heard}&lt;/Text&gt;
+      &lt;/Animated.View&gt;
+    &lt;/GestureDetector&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { padding: 24, borderRadius: 12, backgroundColor: '#bfe3df' },
+});</code></pre>
+                <p>Measured in the web preview: one click showed nothing at 100 ms and "Single tap" a moment later (the single tap waits to see whether a second tap is coming: the price of having both), and a double click showed "Double tap" only. For gestures that live on <em>different</em> views, the config object takes <code>simultaneousWith</code>, <code>requireToFail</code> and <code>block</code>, each naming other gestures. Shoreline Crew does not need them today; the offsets above are how its swipe and the scrolling screen get along.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ The web preview and touch scrolling</h4>
+                    <p>Measured in Chromium with a simulated finger: a vertical finger drag that starts <em>on</em> a swipe row does not scroll the page in the web preview, because Gesture Handler sets the CSS <code>touch-action: none</code> on the row's element, which tells the browser to keep its hands off every touch there. The same drag next to the card scrolled the page by about 155 pixels, and a mouse wheel over the row scrolls normally. On a phone, the swipe's <code>failOffsetY</code> hands a vertical drag to the scroll view (Gesture Handler's documentation; check it in Step 6). Judge scrolling on a phone, not in a desktop browser's touch simulation.</p>
+                </div>
+            </section>
+
+            <section id="another-way" class="lesson-section">
+                <h2>♿ Every Gesture Needs Another Way</h2>
+                <p>A swipe is invisible until someone tries it, and some people cannot do it at all: a screen reader turns a one-finger swipe into "next item", switch control and voice control have no path to drag along, a tremor or a thumb in a work glove makes a precise horizontal drag hard, and in the web preview there may be only a keyboard. The Web Content Accessibility Guidelines say it plainly (success criterion 2.5.1, Pointer Gestures): anything done with a path-based gesture such as a swipe must also be possible with a single tap or click, unless the path itself is the point (drawing a signature). So in Shoreline Crew the rule is: <strong>a gesture is a shortcut, never the only door.</strong></p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Way</th><th>Who it reaches</th><th>Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A visible button</td><td>Everyone: a finger that taps, a mouse, a keyboard (Tab, then Enter), a screen reader, switch and voice control</td><td><strong>Remove</strong> on every waiting card, labeled "Remove the log for Tide Pool Morning Cleanup" for screen readers</td></tr>
+                            <tr><td><code>accessibilityActions</code> + <code>onAccessibilityAction</code></td><td>Screen reader users only (VoiceOver's rotor "Actions", TalkBack's actions menu), on an element marked <code>accessible</code></td><td>Not used: the card is not one accessible element (its buttons must stay reachable), and a button already covers screen readers</td></tr>
+                            <tr><td>The gesture</td><td>People who know it is there and can do it</td><td>Swipe left on the card</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Accessibility actions are the right tool when a row is a single accessible element with nothing else inside, like an email in a list where the whole row opens the message: VoiceOver then offers "Delete" in its actions without a visible button. Lesson 8.1's bonus challenge tries them with a screen reader in hand. A visible button also solves the other problem of swipes: people who never discover them. The red strip that shows through as the card moves is the second hint.</p>
+                <p><strong>And motion?</strong> Following the finger is not animation, it is direct manipulation: the card moves because you move it, so it moves for everyone, Reduce Motion or not. What happens <em>after</em> you let go is animation, and it already follows Lesson 7.1's rules: <code>withSpring</code> defaults to <code>ReduceMotion.System</code>. Measured with reduced motion on in Chromium: the card followed the pointer to 180 points as usual, and was back at 0 at the very next sample after release, with no spring.</p>
+            </section>
+
+            <section id="lists" class="lesson-section">
+                <h2>📜 Swipe Rows in Long Lists</h2>
+                <p>The Logbook's queue is a short list (a few waiting logs at most) drawn with <code>map</code> inside a scrolling <code>Screen</code>, so every card is its own component with its own key. In a long list you would use FlashList (Lesson 3.2), and FlashList <strong>recycles</strong>: when a row scrolls off screen, its component is not destroyed but reused for a row coming on screen, with new props. Anything the row keeps in its own state comes along to the new item. Lesson 3.2 met this with <code>useRecyclingState</code>; swipe rows meet it twice:</p>
+                <ul>
+                    <li><strong>The row's position.</strong> <code>SwipeToRemove</code> always springs back to 0, so a recycled row starts in place. A row that stays open (a "swipe to reveal buttons" design) must close itself when its item changes, or the next item appears half open.</li>
+                    <li><strong>What the row is asking.</strong> Keep "which item is being asked about" in the list's parent, keyed by id, not in the row:</li>
+                </ul>
+                <pre data-snippet><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
+
+import { SwipeToRemove } from '@/components/SwipeToRemove';
+
+type Item = { id: string; title: string };
+
+// Swipe rows in a recycled list: the "asking" state lives in the list, keyed by id, not in the row
+export function SwipeList({ items }: { items: Item[] }) {
+  const [asking, setAsking] = useState&lt;string | null&gt;(null);
+  return (
+    &lt;FlashList
+      data={items}
+      keyExtractor={(item) =&gt; item.id}
+      extraData={asking} // the rows depend on it: tell FlashList to draw them again when it changes
+      renderItem={({ item }) =&gt; (
+        &lt;SwipeToRemove onSwipe={() =&gt; setAsking(item.id)}&gt;
+          &lt;Text style={styles.row}&gt;
+            {item.title}
+            {asking === item.id &amp;&amp; ': remove it?'}
+          &lt;/Text&gt;
+        &lt;/SwipeToRemove&gt;
+      )}
+    /&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { padding: 16, backgroundColor: '#ffffff' },
+});</code></pre>
+                <p><code>extraData={asking}</code> tells FlashList that its rows depend on something besides <code>data</code>, so it draws them again when <code>asking</code> changes. Measured in the web preview with 300 rows: after swiping Item 2 and scrolling far down, no row on screen said "remove it?" (Item 2 was off screen, still marked in the parent). The same list with <code>useState</code> inside each row showed "Item 95: remove it?" after the same scroll: a row that was never swiped (<a href="#mistakes">Common Mistakes</a>).</p>
+                <p>In the Logbook, <code>asking</code> lives in <code>MyLogbook</code> for the same reason, even though <code>map</code> with keys would not mix rows up: it is one rule that works in both kinds of list, and it means only one card can ask at a time.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made on purpose in a copy of the finished project. Where the web preview cannot show the result, the card says so and quotes the library's own code.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ No <code>GestureHandlerRootView</code></h3>
+                    <p>Measured: with the root view taken out of <code>_layout.tsx</code>, the web preview did not mind at all. The card still followed the mouse and asked. <code>tsc</code> and <code>expo lint</code> were silent too. On a phone it is different: Gesture Handler's code checks for the root view in development builds of the app (Expo Go runs your app that way) on every platform except the web, and stops with a red screen:</p>
+                    <div class="card card-output">
+                        <h4>Expected output (on a phone, from the library's code)</h4>
+                        <pre><code>GestureDetector must be used as a descendant of GestureHandlerRootView. Otherwise the gestures will not be recognized. See https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation for more details.</code></pre>
+                    </div>
+                    <p>One root view around the whole app, in the root layout, is all it takes: every Shoreline Crew screen, the tabs and the modal routes included, is drawn inside it. Gesture Handler's documentation names one exception you may meet later: content inside React Native's own <code>&lt;Modal&gt;</code> component needs a root view of its own.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Callback names from an older tutorial</h3>
+                    <p>Copying <code>onEnd</code> (or <code>onStart</code>) from a Gesture Handler 2 example into <code>usePanGesture</code> does not silently do nothing: the config object is typed, so <code>npx tsc --noEmit</code> names the property it does not know. Measured with <code>onDeactivate</code> renamed to <code>onEnd</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/SwipeToRemove.tsx:42:5 - error TS2353: Object literal may only specify known properties, and 'onEnd' does not exist in type 'PanGestureConfig'.
+
+42     onEnd: (event) =&gt; {
+       ~~~~~
+
+src/components/SwipeToRemove.tsx:42:13 - error TS7006: Parameter 'event' implicitly has an 'any' type.
+
+42     onEnd: (event) =&gt; {
+               ~~~~~
+
+
+Found 2 errors in the same file, starting at: src/components/SwipeToRemove.tsx:42</code></pre>
+                    </div>
+                    <p>The second error follows from the first: for a property it does not know, TypeScript cannot tell what <code>event</code> is. Fix the first, and both go. The names are now <code>onActivate</code> and <code>onDeactivate</code> (the table in <a href="#drag">A First Drag</a>). If a tutorial writes <code>Gesture.Pan().onUpdate(…)</code>, translate it to the Hook: the settings and callbacks become properties of one object.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A swipe with no direction rules</h3>
+                    <p>Leave out <code>activeOffsetX</code> and <code>failOffsetY</code>, and the pan becomes active on any movement. Measured with a mouse drag of 60 points sideways and 160 down (someone scrolling, a little crooked): the card slid 9, 24, 39, then 54 points to the left before springing back. On a phone it is worse: the swipe has won the touch, so the list does not scroll at all while the card wobbles sideways. With the two settings, the same drag left the card at <code>translateX(0px)</code> the whole time.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Swipe state inside a recycled row</h3>
+                    <p>In a FlashList, a row that keeps "I am asking" in its own <code>useState</code> passes it on when FlashList reuses the row for another item:</p>
+                    <pre data-snippet><code class="language-tsx">import { FlashList } from '@shopify/flash-list';
+import { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
+
+import { SwipeToRemove } from '@/components/SwipeToRemove';
+
+type Item = { id: string; title: string };
+
+// DON'T: the row keeps "asking" in its own state. FlashList reuses the row for another item.
+function Row({ item }: { item: Item }) {
+  const [asking, setAsking] = useState(false);
+  return (
+    &lt;SwipeToRemove onSwipe={() =&gt; setAsking(true)}&gt;
+      &lt;Text style={styles.row}&gt;
+        {item.title}
+        {asking &amp;&amp; ': remove it?'}
+      &lt;/Text&gt;
+    &lt;/SwipeToRemove&gt;
+  );
+}
+
+export function SwipeListRowState({ items }: { items: Item[] }) {
+  return &lt;FlashList data={items} keyExtractor={(item) =&gt; item.id} renderItem={({ item }) =&gt; &lt;Row item={item} /&gt;} /&gt;;
+}
+
+const styles = StyleSheet.create({
+  row: { padding: 16, backgroundColor: '#ffffff' },
+});</code></pre>
+                    <p>Measured with 300 rows in the web preview: Item 2 was swiped and asked, the list was scrolled far down, and "Item 95: remove it?" appeared on a row nobody had touched. Pressing "Yes" there would have removed the wrong log. Keep the state in the parent, keyed by id, as <a href="#lists">Swipe Rows in Long Lists</a> shows (or use FlashList's <code>useRecyclingState</code> with the item's id, Lesson 3.2).</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A swipe as the only way</h3>
+                    <p>Nothing in <code>tsc</code> or <code>expo lint</code> looks for this one: a feature that only a swipe reaches works perfectly for the person who built it. For a screen reader user, a keyboard user in the web preview, or anyone who never guesses the gesture, it does not exist. Every gesture in this course gets a button (or, for a single accessible element, an accessibility action) that does the same thing.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Swipe a Log Away</h2>
+                <p>First the data rule. Until today, only a log the server <em>refused</em> could be removed (Lesson 5.5): a waiting log could only wait. Theo's double log shows why that is not enough: a log saved by mistake would be sent, sooner or later, and counted. So a <strong>waiting</strong> log may now be removed too, with two conditions, because it has not reached the server and nothing can bring it back:</p>
+                <ul>
+                    <li><strong>The app asks first</strong>, every time, whether the request came from a swipe or a button.</li>
+                    <li><strong>Not while the queue is sending.</strong> The sender may be uploading that very log; removing it halfway would leave the server with a log the phone no longer shows. While "Sending…" is on screen, the cards do not move and their Remove buttons are disabled.</li>
+                </ul>
+                <p>Refused logs follow the same rules, so every card in <strong>Not sent yet</strong> behaves the same way.</p>
+
+                <div class="card">
+                    <h3>Step 1: The root view <span class="step-time">(10 min)</span></h3>
+                    <p>Gesture Handler is already installed. Check it in the <code>shoreline-crew</code> folder:</p>
+                    <pre class="terminal"><code class="language-bash">npm ls react-native-gesture-handler</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>shoreline-crew@1.0.0 ~/shoreline/shoreline-crew
+├─┬ expo-router@58.0.31
+│ ├─┬ react-native-drawer-layout@4.2.12
+│ │ └── react-native-gesture-handler@3.3.0 deduped
+│ └── react-native-gesture-handler@3.3.0 deduped
+└── react-native-gesture-handler@3.3.0</code></pre>
+                    </div>
+                    <p>Your own dependency is the last line; Expo Router uses the same copy (<code>deduped</code>). Now wrap the whole app in <code>src/app/_layout.tsx</code>. The root view goes outside everything else, and everything that was there moves in by two spaces (your editor's Format Document does it):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useEffect, useState } from 'react';
++import { StyleSheet } from 'react-native';
++import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+ // ...
+   return (
+-    // The one cache, for every screen (as in the HQ)
+-    &lt;QueryClientProvider client={queryClient}&gt;
++    // Gestures (swipes, drags) work only inside this view: it wraps the whole app, once
++    &lt;GestureHandlerRootView style={styles.root}&gt;
++      {/* The one cache, for every screen (as in the HQ) */}
++      &lt;QueryClientProvider client={queryClient}&gt;
+ // ...
+-    &lt;/QueryClientProvider&gt;
++      &lt;/QueryClientProvider&gt;
++    &lt;/GestureHandlerRootView&gt;
+   );
+ }
++
++const styles = StyleSheet.create({
++  root: { flex: 1 },
++});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>flex: 1</code> matters: the root view is a real <code>View</code>, and without it the app inside would have no height (in the web preview, a blank page).</li>
+                        <li>The comment that opened the JSX moves inside the root view, so it is now a JSX comment (<code>{/* … */}</code>), like the others in the file.</li>
+                        <li>The splash screen, fonts, session and queue loading above the <code>return</code> stay exactly as they are.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The SwipeToRemove component <span class="step-time">(25 min)</span></h3>
+                    <p>The strip behind the card shows a trash icon. Add it to the icon table (Lesson 2.3) in <code>src/components/Icon.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Icon.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Icon.tsx" data-match="diff"><code class="language-diff-tsx">   clear: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
++  remove: { ios: 'trash', android: 'delete', web: 'delete' },
+   // The tab bar</code></pre>
+                    </div>
+                    <p>Then create <code>src/components/SwipeToRemove.tsx</code>. It knows nothing about logs: it moves whatever you put inside it, and calls <code>onSwipe</code> when a swipe goes far enough.</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SwipeToRemove.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SwipeToRemove.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+
+import { AppText } from '@/components/AppText';
+import { Icon } from '@/components/Icon';
+import { createThemedStyles } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+
+type SwipeToRemoveProps = {
+  children: ReactNode;
+  /** Called on the JavaScript thread when the row is swiped far enough to the left */
+  onSwipe: () =&gt; void;
+  /** false: the row does not move (removing is not allowed right now) */
+  enabled?: boolean;
+};
+
+const reach = 120; // how far to the left (in points) the finger must pull the row...
+const flick = -800; // ...or how fast (points per second, leftwards) a short flick must be
+
+// A row the finger can pull to the left. Let go far enough and it asks to be removed (onSwipe);
+// either way it springs back into place. A shortcut: the row must have a Remove button too.
+export function SwipeToRemove({ children, onSwipe, enabled = true }: SwipeToRemoveProps) {
+  const offset = useSharedValue(0); // how far the row has moved, in points
+  const styles = useStyles();
+
+  const pan = usePanGesture({
+    enabled,
+    activeOffsetX: [-12, 12], // 12 points sideways first: this is a swipe...
+    failOffsetY: [-10, 10], // ...10 points up or down first: a scroll, so the swipe lets go
+    // These run on the UI thread, many times a second, while the finger moves
+    onUpdate: (event) =&gt; {
+      offset.set(Math.min(0, event.translationX)); // follow the finger, leftwards only
+    },
+    onDeactivate: (event) =&gt; {
+      if (offset.get() &lt; -reach || event.velocityX &lt; flick) {
+        scheduleOnRN(onSwipe); // React decides what a swipe means
+      }
+      offset.set(withSpring(0)); // back into place, from wherever the finger let go
+    },
+  });
+
+  const moved = useAnimatedStyle(() =&gt; ({ transform: [{ translateX: offset.get() }] }));
+  // The word behind the row shows more as the row moves: fully there at the reach
+  const revealed = useAnimatedStyle(() =&gt; ({
+    opacity: interpolate(offset.get(), [-reach, 0], [1, 0], 'clamp'),
+  }));
+
+  return (
+    &lt;View&gt;
+      {/* Behind the row. Only a picture of what the swipe does: screen readers skip it */}
+      &lt;Animated.View
+        style={[styles.behind, revealed]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      &gt;
+        &lt;Icon name="remove" color={styles.word.color} /&gt;
+        &lt;AppText style={styles.word}&gt;Remove&lt;/AppText&gt;
+      &lt;/Animated.View&gt;
+      &lt;GestureDetector gesture={pan}&gt;
+        &lt;Animated.View style={moved}&gt;{children}&lt;/Animated.View&gt;
+      &lt;/GestureDetector&gt;
+    &lt;/View&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ badges }) =&gt; StyleSheet.create({
+  behind: {
+    ...StyleSheet.absoluteFill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: badges.danger.background,
+  },
+  word: {
+    color: badges.danger.text,
+    fontWeight: '600',
+  },
+}));</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>One shared value</strong>, <code>offset</code>: how far the row has moved. <code>onUpdate</code> writes the finger's <code>translationX</code> into it, clamped with <code>Math.min(0, …)</code> so the row only goes left; the animated style <code>moved</code> turns it into a <code>translateX</code>.</li>
+                        <li><strong>Far enough, or fast enough.</strong> <code>onDeactivate</code> checks the distance (120 points, about a third of a phone's width) or the speed: a quick flick to the left at more than 800 points per second counts even if it was short. Measured with a simulated finger: a 72-point flick released at about 840 points per second asked; a slower 70-point move (about 600 points per second) did not.</li>
+                        <li><strong>React decides.</strong> The callback does not remove anything: <code>scheduleOnRN(onSwipe)</code> tells the JavaScript thread, and the screen decides what a swipe means. Either way, <code>withSpring(0)</code> brings the row back into place.</li>
+                        <li><strong>The strip behind</strong> is an absolutely positioned view under the row (<code>StyleSheet.absoluteFill</code>, Lesson 2.2), in the danger badge's colors. Its opacity follows the offset with Reanimated's <code>interpolate</code>: invisible at 0, fully there at the reach, so it tells the finger "keep going" as it moves. It is hidden from screen readers: it is a picture of the gesture, not a control.</li>
+                        <li><strong><code>enabled</code></strong> switches the gesture off. A disabled pan does not activate, so the row does not move at all.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The Logbook asks first <span class="step-time">(20 min)</span></h3>
+                    <p>In <code>src/app/(tabs)/logbook.tsx</code>, import the component and keep, in <code>MyLogbook</code>, which log is being asked about:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { Link } from 'expo-router';
++import { useState } from 'react';
+ import { StyleSheet, View } from 'react-native';
+ // ...
+ import { ShareLogbook } from '@/components/ShareLogbook';
++import { SwipeToRemove } from '@/components/SwipeToRemove';
+ import { Tally } from '@/components/Tally';
+ // ...
+   const removeLog = useLogQueue((state) =&gt; state.remove);
++  // The log the volunteer asked to remove (a swipe or the Remove button): its card asks first
++  const [asking, setAsking] = useState&lt;string | null&gt;(null);
+   const styles = useStyles();</code></pre>
+                    </div>
+                    <p>Then replace <code>waitingEntry</code>. The card's contents are the same as before; what changes is around them (the swipe) and at the bottom (Remove, or the question):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="excerpt"><code class="language-tsx">  function waitingEntry(item: QueuedLog) {
+    const { event, log } = item;
+    const pieces = log.items.reduce((sum, { count }) =&gt; sum + count, 0);
+    return (
+      // Swipe left to ask; never while the queue is sending (it may be sending this very log)
+      &lt;SwipeToRemove
+        key={log.clientId}
+        enabled={!sending}
+        onSwipe={() =&gt; setAsking(log.clientId)}
+      &gt;
+        &lt;View style={styles.card}&gt;
+          &lt;AppText variant="heading"&gt;{event.title}&lt;/AppText&gt;
+          &lt;AppText variant="muted"&gt;{formatDate(event.date)}&lt;/AppText&gt;
+          &lt;AppText&gt;{amounts({ pieces, bags: log.bags, weightKg: log.weightKg })}&lt;/AppText&gt;
+          &lt;PhotoStrip photos={item.photos} /&gt;
+          {item.status === 'waiting' ? (
+            &lt;AppText variant="muted"&gt;
+              Waiting to be sent{item.attempts &gt; 0 &amp;&amp; ` (tries so far: ${item.attempts})`}
+            &lt;/AppText&gt;
+          ) : (
+            &lt;AppText variant="error"&gt;Not sent: {item.problem}&lt;/AppText&gt;
+          )}
+          {asking === log.clientId ? (
+            // The log is not on the server: once removed, it is gone. So the card asks first.
+            &lt;&gt;
+              &lt;AppText accessibilityLiveRegion="polite"&gt;
+                Remove this log from your phone? It is not on the server, so it cannot be brought
+                back.
+              &lt;/AppText&gt;
+              &lt;View style={styles.choices}&gt;
+                &lt;Button
+                  label="Yes, remove it"
+                  variant="primary"
+                  disabled={sending}
+                  onPress={() =&gt; {
+                    setAsking(null);
+                    removeLog(log.clientId);
+                    item.photos.forEach((photo) =&gt; forgetPhoto(photo.uri)); // its photos go too
+                  }}
+                /&gt;
+                &lt;Button label="Keep it" onPress={() =&gt; setAsking(null)} /&gt;
+              &lt;/View&gt;
+            &lt;/&gt;
+          ) : (
+            // The way to remove a log without a swipe: for every finger, mouse, keyboard and
+            // screen reader
+            &lt;Button
+              label="Remove"
+              accessibilityLabel={`Remove the log for ${event.title}`}
+              disabled={sending}
+              onPress={() =&gt; setAsking(log.clientId)}
+            /&gt;
+          )}
+        &lt;/View&gt;
+      &lt;/SwipeToRemove&gt;
+    );
+  }</code></pre>
+                    </div>
+                    <p>And a style for the two answers, side by side (wrapping onto two lines if the text is large):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx">   },
++  choices: {
++    flexDirection: 'row',
++    flexWrap: 'wrap',
++    gap: spacing.sm,
++  },
+   card: {</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The key moves to <code>SwipeToRemove</code></strong>: it is now the outermost element <code>map</code> returns.</li>
+                        <li><strong>Two doors, one room.</strong> The swipe (<code>onSwipe</code>) and the Remove button (<code>onPress</code>) both call <code>setAsking(log.clientId)</code>. Everything after that is ordinary React: the card shows the question, <strong>Yes, remove it</strong> removes the log and its photos (as Lesson 6.2's Remove did), <strong>Keep it</strong> goes back.</li>
+                        <li><strong>Remove is now on waiting cards too</strong>, not only refused ones, and it no longer removes at once: it asks. The question is a polite live region: on an Android phone, TalkBack reads it when it appears (<code>accessibilityLiveRegion</code> is Android's; on the web it becomes <code>aria-live</code>). On an iPhone, VoiceOver does not use live regions; Lesson 8.1 looks at announcing changes there.</li>
+                        <li><strong><code>sending</code> locks both doors.</strong> <code>enabled={!sending}</code> stops the swipe, and <code>disabled={sending}</code> greys out Remove and Yes. Measured with the server never answering (the queue stuck on "Sending…"): a 180-point mouse drag left the card at <code>translateX(0px)</code>, and the Remove button was <code>aria-disabled</code>.</li>
+                        <li><strong>One question at a time.</strong> <code>asking</code> holds one id: asking about a second card closes the first question.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Swipe it, then tune it <span class="step-time">(15 min)</span></h3>
+                    <p>To have a log waiting, it must not reach the server. Start shoreline-api and <code>npx expo start</code>, open the web preview (<kbd>w</kbd>) and sign in as <code>theo.nakamura@example.com</code> (password <code>shoreline-demo</code>). Open today's <strong>Tide Pool Morning Cleanup</strong>, <strong>Log what you collected</strong>, and fill in a small log. Before you send it, stop shoreline-api with <kbd>Ctrl</kbd>+<kbd>C</kbd> in its terminal (the same keys on a Mac). Now <strong>Send the log</strong>: it is "Saved on this phone". Open the Logbook:</p>
+                    <ol>
+                        <li>Press the mouse on the card's title, drag to the left and hold: the card follows, and the red <strong>Remove</strong> strip fades in behind it.</li>
+                        <li>Let go after a short drag: the card springs back, nothing else happens.</li>
+                        <li>Drag well past a third of the card and let go: the card springs back and asks. Press <strong>Keep it</strong>.</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_26/26-swipe-midway.png" alt="The Logbook tab in the web preview, signed in as Theo: under Not sent yet, the Tide Pool Morning Cleanup card is pulled to the left, and behind it, on the right, a red strip with a trash icon and the word Remove shows through. The card&#x27;s own Remove button is still on it." width="420" height="814" loading="lazy">
+    <figcaption>Halfway through a swipe: the card follows the finger, and the strip behind it says what letting go will do. (The web preview, driven by a simulated finger.)</figcaption>
+</figure>
+                    <figure class="screenshot">
+    <img src="images/lesson_26/26-remove-ask.png" alt="The same card back in place after the swipe, now asking: Remove this log from your phone? It is not on the server, so it cannot be brought back. Below the question, the buttons Yes, remove it and Keep it; the card is outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>Let go far enough, and the card springs back into place and asks first: this log has not reached the server, so removing it cannot be undone. (The web preview.)</figcaption>
+</figure>
+                    <p>Now tune it in <code>SwipeToRemove.tsx</code>, one change at a time, and put each line back afterwards:</p>
+                    <ol>
+                        <li><code>reach = 40</code>: almost any drag now asks. Too easy to trigger by accident? Then <code>reach = 250</code>: on a narrow phone, a thumb barely gets there.</li>
+                        <li>In <code>onDeactivate</code>, <code>withSpring(0, { dampingRatio: 0.4 })</code>: the card bounces past its place. Fun once, tiring by the tenth log; Reanimated 4's default spring settles without overshooting (Lesson 7.1).</li>
+                        <li>Remove <code>Math.min(0, …)</code>: the card now follows to the right too, where nothing waits for it. Moving only in a direction that does something is part of telling the user what the gesture is for.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Without a swipe, and without motion <span class="step-time">(10 min)</span></h3>
+                    <p>Still in the web preview, with the log waiting:</p>
+                    <ol>
+                        <li>Put the mouse away. Press <kbd>Tab</kbd> until the card's <strong>Remove</strong> button is focused, press <kbd>Enter</kbd>: the same question. <kbd>Tab</kbd> to <strong>Yes, remove it</strong> and press <kbd>Enter</kbd>: the card and the "Not sent yet" heading disappear, and the Logbook tab loses its badge.</li>
+                        <li>Turn on Chrome's reduced-motion emulation (Lesson 7.1, Step 6: DevTools, <strong>⋮ &gt; More tools &gt; Rendering</strong>), reload and sign in again, send another log with the API stopped, and swipe: the card follows the mouse as before, and is back in place the instant you let go, with no spring. Turn the emulation off.</li>
+                        <li>Start shoreline-api again and press <strong>Send now</strong>. While "Sending…" shows, try to drag the card: it does not move. (It is quick; a slow connection makes it easier to see.)</li>
+                    </ol>
+                    <figure class="screenshot">
+    <img src="images/lesson_26/26-remove-ask-dark.png" alt="The Logbook tab in the web preview, dark theme: the Tide Pool Morning Cleanup card asks Remove this log from your phone? after its Remove button was pressed; the buttons Yes, remove it and Keep it are outlined in red." width="420" height="814" loading="lazy">
+    <figcaption>No swipe needed: the card's Remove button leads to the same question, for a mouse, a keyboard, a screen reader or a finger that does not swipe. (The web preview, dark theme.)</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Check it, then feel it on your phone <span class="step-time">(10 min)</span></h3>
+                    <p>Run <code>npx tsc --noEmit</code> and <code>npx expo lint</code>: both should print nothing but the <code>env:</code> lines. Then in Expo Go (with your computer's address in <code>.env.local</code>, Lesson 5.1), get a log waiting the same way (stop the API just before sending), and on the Logbook:</p>
+                    <ol>
+                        <li>Swipe the card left with your thumb: it should stick to your thumb with no lag, show the red strip, and ask when you let go far enough. A quick short flick should ask too.</li>
+                        <li>With several logs waiting (or a long logbook below), start a drag on a card going <em>up</em>: the screen should scroll, and the card should not move sideways.</li>
+                        <li>Turn on VoiceOver (iPhone) or TalkBack (Android phone) and move through the card: the red strip is never read, and <strong>Remove</strong> should be read as "Remove the log for Tide Pool Morning Cleanup" and a button. A double tap brings the question (TalkBack should read it out; with VoiceOver, swipe right to reach it).</li>
+                    </ol>
+                    <p>If the swipe feels too easy or too hard on your phone, change <code>reach</code> and note which value you chose and why: that is a design decision worth a line in your commit message.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>The root layout wraps the app in <code>GestureHandlerRootView</code> with <code>flex: 1</code></li>
+                        <li><code>src/components/SwipeToRemove.tsx</code> follows the finger to the left with <code>usePanGesture</code> and a shared value, gives up on vertical moves, and springs back into place</li>
+                        <li>A swipe far or fast enough asks "Remove this log from your phone?"; a short one does nothing</li>
+                        <li>Every card in Not sent yet has a Remove button that leads to the same question; nothing is removed without <strong>Yes, remove it</strong></li>
+                        <li>While the queue is sending, the cards do not move and Remove is disabled</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass</li>
+                    </ul>
+                    <p><strong>Your own app:</strong> list the gestures your final project's app should have (swipe, drag, pull, pinch). For each, write the button or other non-gesture way that does the same thing, and what it does to data that has not been saved anywhere else yet.</p>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 6 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: What does the card do?</h3>
+                    <p>Theo has one log waiting. Without running anything, say what happens in each case:</p>
+                    <ol>
+                        <li>He drags the card 60 points to the left, slowly, and lets go.</li>
+                        <li>He flicks it 70 points to the left in a fraction of a second.</li>
+                        <li>He puts his thumb on the card and pulls straight up.</li>
+                        <li>The Logbook shows "Sending…" and he swipes the card far to the left.</li>
+                        <li>He has Reduce Motion on, swipes far, and lets go.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Go through <code>SwipeToRemove</code> in order: does the pan become active at all (<code>enabled</code>, the two offsets)? If it does, what does <code>onDeactivate</code> check, and what does <code>withSpring</code> do with Reduce Motion on?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) The card follows, then springs back; nothing is asked: 60 is short of the 120-point reach, and a slow move is far below 800 points per second. (2) It asks: the distance is short, but the speed at release is above 800 points per second (measured: about 840 for a quick 72-point flick). (3) The screen scrolls (on a phone) and the card does not move: 10 points of vertical movement come before 12 sideways, so the swipe fails. (4) Nothing moves: <code>enabled</code> is false while sending, and Remove is disabled too. (5) The card follows his thumb as usual (that is not animation), asks, and is back in place at once, with no spring.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: A tick at the reach</h3>
+                    <p>Mail apps give a small tap when a swipe has gone far enough that letting go will act. Add one to <code>SwipeToRemove</code>: a light haptic (<code>Haptics.selectionAsync()</code> from Lesson 6.5's expo-haptics) once, at the moment the row crosses the reach going left, and only if the volunteer's vibration switch is on.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Lesson 7.1's <code>useAnimatedReaction</code> watches something on the UI thread and reacts when it changes: watch <code>offset.get() &lt; -reach</code>. Haptics are not a worklet, so they go through <code>scheduleOnRN</code>. Lesson 6.5's <code>readSettings().hapticsOn</code> tells you the switch.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Add <code>useAnimatedReaction</code> to the Reanimated import, <code>import * as Haptics from 'expo-haptics';</code> and <code>import { readSettings } from '@/state/settings';</code>, then a function next to the constants and a reaction before <code>moved</code>:</p>
+                        <pre data-snippet><code class="language-tsx">// A light tick: "let go now and it happens". Follows the vibration switch from Lesson 6.5.
+function tick() {
+  if (readSettings().hapticsOn) {
+    Haptics.selectionAsync().catch(() =&gt; {});
+  }
+}
+
+// (inside SwipeToRemove) On the UI thread: did the row just cross the reach, going left? Then tick, once.
+useAnimatedReaction(
+  () =&gt; offset.get() &lt; -reach,
+  (past, before) =&gt; {
+    if (past &amp;&amp; before === false) {
+      scheduleOnRN(tick);
+    }
+  },
+);</code></pre>
+                        <p>The reaction fires only when the answer changes, so the tick comes once per crossing, not once per frame. <code>before === false</code> (not just <code>!before</code>) skips the very first run, when <code>before</code> is <code>null</code>. Crossing back and forth ticks each time you cross going left, which is what tells the thumb where the line is.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A drag that stays (Stretch)</h3>
+                    <p>Change <code>DragHome</code> from <a href="#drag">A First Drag</a> so the marker stays where the finger leaves it, and the next drag starts from there instead of jumping back to the corner. Try it in a scratch screen.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>translationX</code> always starts at 0 for a new drag. Save where the marker was when the drag began (<code>onActivate</code>) in two more shared values, and add the translation to them.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">import { StyleSheet } from 'react-native';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+
+// A marker that stays where the finger leaves it: each drag starts from where the last one ended
+export function DragStay() {
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+
+  const pan = usePanGesture({
+    onActivate: () =&gt; {
+      startX.set(x.get()); // where the marker was when this drag began
+      startY.set(y.get());
+    },
+    onUpdate: (event) =&gt; {
+      x.set(startX.get() + event.translationX);
+      y.set(startY.get() + event.translationY);
+    },
+  });
+
+  const moved = useAnimatedStyle(() =&gt; ({
+    transform: [{ translateX: x.get() }, { translateY: y.get() }],
+  }));
+
+  return (
+    &lt;GestureDetector gesture={pan}&gt;
+      &lt;Animated.View style={[styles.marker, moved]} /&gt;
+    &lt;/GestureDetector&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  marker: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1f6f8b' },
+});</code></pre>
+                        <p>No spring at the end: the marker stays. To snap it to the nearest corner instead, set <code>x</code> and <code>y</code> to a spring towards that corner in <code>onDeactivate</code>: the same "finger drives, spring finishes" idea as today's project.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> Why does Shoreline Crew read the swipe with Gesture Handler instead of watching touches in React state?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Did Lesson 2.4's Pressable need Gesture Handler?">
+                                A) React Native cannot detect touches at all without Gesture Handler
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which package does the root view come from, and does it have anything to do with storage?">
+                                B) Because only Gesture Handler can remove items from the queue
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Gesture Handler need a development build in Expo Go?">
+                                C) Because Expo Go blocks the responder system
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Gesture Handler recognizes the gesture on the UI thread and its callbacks are worklets, so the card can follow the finger through a shared value every frame, however busy the JavaScript thread is. React only hears about the result, through scheduleOnRN.">
+                                D) So the card follows the finger on the UI thread, even while the JavaScript thread is busy
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A teammate's swipe row works in the web preview, but on a phone the app stops with a red screen as soon as the Logbook opens. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would tsc have said something about a missing property?">
+                                A) <code>activeOffsetX</code> is missing from the config
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Gesture Handler checks for the root view in development on every platform except the web, so the web preview works while a phone stops with GestureDetector must be used as a descendant of GestureHandlerRootView. One root view around the app in the root layout fixes it.">
+                                B) There is no <code>GestureHandlerRootView</code> around the app
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is Reduce Motion a reason for a crash, or for a missing animation?">
+                                C) The phone has Reduce Motion on
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What did the extraData mistake look like: a crash or the wrong row?">
+                                D) FlashList's <code>extraData</code> was left out
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Volunteers complain that the Logbook will not scroll when their thumb starts on a waiting card; the card wobbles sideways instead. What fixes it on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Would a stiffer spring change who gets the touch?">
+                                A) A stiffer spring in <code>onDeactivate</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which side of the touch would that change?">
+                                B) A bigger <code>reach</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="activeOffsetX makes the pan wait for 12 points of sideways movement, and failOffsetY makes it give up after 10 points up or down, so a vertical drag goes to the scroll view and a sideways one to the swipe.">
+                                C) <code>activeOffsetX: [-12, 12]</code> and <code>failOffsetY: [-10, 10]</code> on the pan gesture
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Maya uses VoiceOver. How does she remove a waiting log in today's app?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Every card has a Remove button, labeled with the cleanup's name for screen readers; it leads to the same question as the swipe, which is announced as a live region. The swipe is a shortcut, never the only way.">
+                                A) She moves to the card's Remove button, double taps it, then answers Yes, remove it
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What does a one-finger swipe do while VoiceOver is on?">
+                                B) She swipes left on the card with one finger, as everyone else does
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is the red strip something a screen reader can reach?">
+                                C) She double taps the red Remove strip behind the card
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the table in Every Gesture Needs Another Way.">
+                                D) She cannot: removing logs is a gesture-only feature
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> In a FlashList of 300 swipe rows, each row keeps <code>const [asking, setAsking] = useState(false)</code>. Item 2 is swiped, then the list is scrolled far down. What can happen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does FlashList destroy rows that leave the screen?">
+                                A) Nothing: each row's state belongs to its item forever
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="FlashList reuses Item 2's row for an item coming on screen, and the row's own state comes with it: the course measured Item 95 asking to be removed. Keep the asking id in the parent, keyed by id, or use useRecyclingState.">
+                                B) A different item, one nobody swiped, shows the question
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is this a type error or a runtime surprise?">
+                                C) tsc reports that the state cannot be used in a list
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="What happens to the row offset after every swipe in SwipeToRemove?">
+                                D) Every row below stays pulled to the left
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Gesture Handler ships a ready-made swipeable row. Why build one?</summary>
+                    <p>It does: <code>react-native-gesture-handler/ReanimatedSwipeable</code> is a component with buttons revealed under the row on either side, friction and thresholds as props, and methods to open and close it. It is a good choice for a "swipe to reveal actions" design. Building <code>SwipeToRemove</code> yourself taught you what it does inside (a pan, a shared value, a spring, a threshold), which is what you need to tune one, debug one, or build the drags no component covers. If you use the ready-made row, the rules of today still apply: a non-gesture way, no destructive action without asking, and its open or closed state reset when FlashList recycles the row.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why does the card ask instead of disappearing, like an email?</summary>
+                    <p>A deleted email usually goes to a trash folder or offers an Undo, because the server still has it. A waiting log exists only on this phone: once removed, it is gone. An Undo would be another option (remove at once, keep the log for a few seconds with an "Undo" button, delete the photos when the time is up), but it needs timers, a place to keep the removed log, and care when the screen closes in between. A question is simpler and just as safe. For data the server has, swipe-and-undo is often the friendlier design.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Does the swipe work with a mouse in the web preview?</summary>
+                    <p>Yes. Measured in Chromium: a mouse drag and a simulated finger both moved the card, sprang it back and asked, with the same numbers. The web preview cannot show how it <em>feels</em> (and, as the warning in <a href="#sharing">Sharing the Finger</a> says, touch scrolling that starts on a row behaves differently there), so judge the feel on your phone.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Can a swipe and a long press live on the same card?</summary>
+                    <p>Yes: make both gestures and combine them with <code>useCompetingGestures(pan, longPress)</code>: whichever activates first wins and cancels the other, so a finger that moves sideways swipes and a finger that stays still long enough presses. Keep the same rule as today: whatever the long press does needs a visible way too (a menu button), because a long press is as invisible as a swipe.</p>
+                </details>
+
+                <details class="card">
+                    <summary>My Android bundle grew again. Is that Gesture Handler?</summary>
+                    <p>Yes, a little. Like Reanimated in Lesson 7.1, Gesture Handler was installed from the start, and today your own code imports it for the first time. Measured with <code>npx expo export</code>: the Android bundle went from about 5.6 MB to 5.9 MB and the iOS bundle from about 5.4 MB to 5.7 MB; the web bundle stayed about 1.1 MB. The native part was already in Expo Go.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Make the queue's order something a volunteer can change: a drag handle on each waiting card that lifts the card on a long press (<code>activateAfterLongPress</code> on the pan) and lets it be dragged up or down to change which log is sent first. You will need the card heights (<code>onLayout</code>), a shared value for the dragged card's position, a reaction that works out the new index, and a new queue action to move a log. Then the part that matters most: the non-gesture way. "Move up" and "Move down" buttons (or accessibility actions with those names on a handle that is a single accessible element) must do the same. Libraries such as react-native-reorderable-list exist for this; build it once yourself before choosing one.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Pick one app on your phone that relies on a swipe or a drag. Turn on VoiceOver or TalkBack (or just put your thumb away and use only taps) and try to do the same thing. Could you? How did the app tell you the other way existed? Write down what you would change, and what Shoreline Crew does the same way or better.</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Gesture Handler recognizes gestures on the UI thread; its callbacks are worklets that write shared values, so a view follows the finger without React, and <code>scheduleOnRN</code> tells React the result</li>
+                        <li>One <code>GestureHandlerRootView</code> (with <code>flex: 1</code>) wraps the whole app in the root layout; without it, a phone stops with a red screen while the web preview carries on</li>
+                        <li>Gesture Handler 3 uses Hooks (<code>usePanGesture</code>, <code>useTapGesture</code>, …) with one config object and <code>GestureDetector</code>; callbacks are <code>onBegin</code>, <code>onActivate</code>, <code>onUpdate</code>, <code>onDeactivate</code>, <code>onFinalize</code></li>
+                        <li>The finger drives and a spring finishes: follow <code>translationX</code> while active, decide by distance or velocity on release, then <code>withSpring</code> into place</li>
+                        <li>Direction rules (<code>activeOffsetX</code>, <code>failOffsetY</code>) let a sideways swipe and a vertical scroll share a finger; <code>useExclusiveGestures</code>, <code>useCompetingGestures</code> and <code>useSimultaneousGestures</code> combine gestures on one view</li>
+                        <li>A gesture is a shortcut, never the only door: a visible button (or an accessibility action) does the same; data that is only on the phone is never removed without asking, and never while it may be sending</li>
+                        <li>In a recycled list, swipe state lives in the parent keyed by id, and rows come back to their resting place</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read Gesture Handler's guides and every gesture</td><td><a href="https://docs.swmansion.com/react-native-gesture-handler/docs/">React Native Gesture Handler documentation</a></td></tr>
+                            <tr><td>See how Expo sets Gesture Handler up</td><td><a href="https://docs.expo.dev/versions/latest/sdk/gesture-handler/">Expo: Gesture Handler</a></td></tr>
+                            <tr><td>Read the rule behind "another way"</td><td><a href="https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html">WCAG: Understanding Pointer Gestures</a></td></tr>
+                            <tr><td>Read Apple's guidance on gestures</td><td><a href="https://developer.apple.com/design/human-interface-guidelines/gestures">Apple Human Interface Guidelines: Gestures</a></td></tr>
+                            <tr><td>Read Android's guidance on gestures</td><td><a href="https://m3.material.io/foundations/interaction/gestures">Material Design: Gestures</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>A waiting or refused debris log can be swiped away, and the card asks before anything is lost</li>
+                        <li>You built a reusable swipe row from a pan gesture, a shared value and a spring</li>
+                        <li>The swipe shares the screen with scrolling, steps aside while the queue sends, and needs no motion to work</li>
+                        <li>Everyone can remove a log, with or without a swipe</li>
+                        <li>You know how gestures combine, and how swipe rows stay correct in a recycled list</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Today the card sprang back and the question appeared in its place, all at once; when you removed a log, it simply vanished. In <a href="lesson_27.html">Lesson 7.3: Motion Polish</a>, things that appear and leave get layout animations (a removed card that folds away, the cards below sliding up), a small illustrated animation marks a log that reached the server, and the app learns to follow the Reduce Motion setting while it is running, not only when it starts.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 6 on your phone (the swipe, the scroll, a screen reader on the card) and commit your work</li>
+                    <li>Watch what happens on screen when you delete something in the apps you use: does the item fold away, slide out, fade? Do the items below jump or glide into place?</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>A swipe looks like one small feature, and today it turned out to hold threads, worklets, competing gestures, a data rule, accessibility and list recycling. That is what mobile work is like: the thing that takes a second to use takes care to build. If the gesture vocabulary (activate, fail, offsets, velocity) still feels loose, it will tighten the first time a swipe in your own app fights a scroll and you know exactly which number to change. You are building apps that people can trust with what they did on the beach, whatever way they hold their phone.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_25.html" class="prev-lesson">← Previous: Animation with Reanimated 4</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_27.html" class="next-lesson">Next: Motion Polish →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

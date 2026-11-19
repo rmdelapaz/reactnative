@@ -1,0 +1,92 @@
+{
+  "title": "Build profiles, checked before you spend a build",
+  "lesson": "9.2",
+  "tasks": 3,
+  "runs": [
+    {
+      "name": "starter",
+      "dir": "starter",
+      "cmd": "npm test",
+      "exit": "nonzero",
+      "expect": [
+        "TODO 1",
+        "TODO 2",
+        "TODO 3",
+        "ℹ pass 0",
+        "ℹ fail 9"
+      ]
+    },
+    {
+      "name": "starter-check",
+      "dir": "starter",
+      "cmd": "node check-eas.ts",
+      "exit": "nonzero",
+      "expect": [
+        "TODO 2"
+      ]
+    },
+    {
+      "name": "shipped-types",
+      "dir": "starter",
+      "cmd": "npm run check",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution",
+      "dir": "solution",
+      "cmd": "npm test",
+      "exit": 0,
+      "expect": [
+        "ℹ pass 9",
+        "ℹ fail 0"
+      ]
+    },
+    {
+      "name": "solution-types",
+      "dir": "solution",
+      "cmd": "npm run check",
+      "exit": 0,
+      "absent": [
+        "error TS"
+      ]
+    },
+    {
+      "name": "solution-check",
+      "dir": "solution",
+      "cmd": "node check-eas.ts",
+      "exit": 0,
+      "expect": [
+        "eas.json: 4 build profiles (development, development-simulator, preview, production)",
+        "No problems: every profile builds the app it should"
+      ]
+    },
+    {
+      "name": "broken-eas-check",
+      "dir": "solution",
+      "files": {
+        "eas.json": "{\n  \"cli\": {\n    \"version\": \">= 27.10.0\",\n    \"appVersionSource\": \"remote\"\n  },\n  \"build\": {\n    \"development\": {\n      \"developmentClient\": true,\n      \"distribution\": \"internal\",\n      \"environment\": \"development\",\n      \"env\": {\n        \"APP_VARIANT\": \"development\"\n      }\n    },\n    \"development-simulator\": {\n      \"extends\": \"development\",\n      \"ios\": {\n        \"simulator\": true\n      }\n    },\n    \"preview\": {\n      \"distribution\": \"internal\",\n      \"environment\": \"preview\",\n      \"env\": {\n        \"APP_VARIANT\": \"prevue\"\n      }\n    },\n    \"production\": {\n      \"environment\": \"production\",\n      \"autoIncrement\": true,\n      \"env\": {\n        \"APP_VARIANT\": \"production\"\n      }\n    }\n  },\n  \"submit\": {\n    \"production\": {}\n  }\n}\n"
+      },
+      "cmd": "node check-eas.ts",
+      "exit": "nonzero",
+      "expect": [
+        "PROBLEM preview: APP_VARIANT must be development, preview or production, not \"prevue\".",
+        "2 problems: fix eas.json before you spend a build"
+      ]
+    },
+    {
+      "name": "forgotten-case-types",
+      "dir": "solution",
+      "files": {
+        "rebuild.ts": "// Task 3: does a change need a new development build, or is Metro enough?\nexport type Change =\n  | { kind: 'code'; file: string } // a .ts or .tsx file Metro bundles\n  | { kind: 'package'; name: string; native: boolean } // npx expo install <name>\n  | { kind: 'config'; field: 'name' | 'icon' | 'ios.bundleIdentifier' | 'android.package' | 'plugins' } // app config\n  | { kind: 'env'; name: string; build: 'development' | 'preview' } // a variable, for an installed build\n  | { kind: 'sdk'; from: number; to: number }; // a new Expo SDK\n\nexport type Verdict = 'metro' | 'new build';\n\n// JavaScript (and the EXPO_PUBLIC_ values Metro inlines for a development build) travels from Metro: 'metro'.\n// Anything compiled into the app or written into the native projects by prebuild: 'new build'.\nexport function needsNewBuild(change: Change): Verdict {\n  switch (change.kind) {\n    case 'code':\n      return 'metro';\n    case 'package':\n      return change.native ? 'new build' : 'metro';\n    case 'config':\n      return 'new build'; // name, icon, ids and plugin options are written into the native projects\n    case 'env':\n      // a development build reads EXPO_PUBLIC_ values from Metro (restart it with --clear); a preview build has\n      // them baked in, and other variables are read by config plugins at build time\n      return change.build === 'development' && change.name.startsWith('EXPO_PUBLIC_') ? 'metro' : 'new build';\n    default: {\n      const unknown: never = change;\n      throw new Error(`Unknown change: ${JSON.stringify(unknown)}`);\n    }\n  }\n}\n"
+      },
+      "cmd": "npm run check",
+      "exit": "nonzero",
+      "expect": [
+        "error TS2322"
+      ]
+    }
+  ]
+}

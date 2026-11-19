@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Testing what a volunteer touches in a React Native app: React Native Testing Library 14 (async render, userEvent, queries by role and name), Expo Router screens with renderRouter, TanStack Query and the HQ&#x27;s MSW handlers, hooks, accessibility promises from Lesson 8.1, and an end-to-end flow with Maestro. React Native &amp; Expo: Build and Ship a Mobile App Lesson 8.3.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Testing Screens and Flows - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>👆 Lesson 8.3: Testing Screens and Flows</h1>
+                <p class="lead">A volunteer never calls <code>sendWaitingLogs()</code>. They tap a switch, type an email with cold fingers, wait for a list on one bar of signal, and read a tab that says one log has not gone out yet. Last lesson proved the decisions underneath; today you test what the volunteer actually touches: screens rendered in the same pretend phone, found by the names a screen reader would speak, pressed and typed into like a person would. Then you write the one test that runs the real app on a real device, end to end.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Write component tests with React Native Testing Library 14 and explain what changes from the web course's Testing Library: async <code>render</code>, <code>userEvent.press</code>, built-in matchers, no DOM</li>
+                        <li>Find controls by role and name, the way a screen reader meets them, and explain why hidden elements are skipped</li>
+                        <li>Render Expo Router screens with <code>renderRouter</code>, together with TanStack Query and the HQ's mock API, and handle the fake clock it switches on</li>
+                        <li>Test hooks with <code>renderHook</code> and play the phone in a test: text size, platform, screen reader announcements</li>
+                        <li>Describe an end-to-end test with Maestro, write a flow for Shoreline Crew, and say where such a flow can run</li>
+                        <li>Decide what is worth a test, and read a coverage report without chasing its number</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 155 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_29.html">Lesson 8.2: Testing the App's Logic</a>, and Lessons 9.1 to 9.3 of the React + TypeScript course (Testing Library, user-event, end-to-end tests), or equivalent</li>
+                    <li><span class="meta-label">🛠️ You will build</span> 17 new tests for Shoreline Crew's switch rows, live texts, large-text hook, sign-in screen, Cleanups list and tab bar (45 in all), a render helper for Expo Router screens, and a Maestro flow that signs a volunteer in on a device</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Jest 30.5 with jest-expo 58, React Native Testing Library 14.1, Expo Router 58's testing library, Maestro (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Your computer's terminal for the Jest tests (no phone, no server); the Maestro flow needs an Android emulator or phone, or an iOS Simulator on a Mac</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-30-start.zip">lesson-30-start.zip</a> · Finished code: <a href="downloads/lesson-30-end.zip">lesson-30-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Tests That Tap</a></li>
+                        <li><a href="#rntl" class="toc-link">From Testing Library to React Native Testing Library</a></li>
+                        <li><a href="#pretend-phone" class="toc-link">Playing the Phone in a Test</a></li>
+                        <li><a href="#router" class="toc-link">Screens Under Expo Router</a></li>
+                        <li><a href="#maestro" class="toc-link">End to End with Maestro</a></li>
+                        <li><a href="#what-to-test" class="toc-link">What Is Worth a Test</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Tests a Volunteer Would Recognize</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Tests That Tap</h2>
+                <p>Lesson 8.2 left Shoreline Crew with 28 tests for its logic and a test setup that makes Node feel like a phone: Expo's preset, Node's <code>fetch</code> put back, the HQ's mock API answering, stand-ins for the native modules. Everything today runs on that setup. What is new is the subject: not functions, but what appears on the screen, and what happens when someone touches it.</p>
+                <p>You know this kind of test from Lessons 9.1 and 9.2 of the web course: render a component, find things the way a person does, act with user-event, wait for the result. React Native has its own version of the library, <strong>React Native Testing Library</strong> (RNTL), written in the same spirit and close enough in its names that most of your habits carry over. The differences are the interesting part, and each one says something about phones. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>Component tests</strong> keep the promises Lesson 8.1 made: a switch row flips exactly once, live texts are announced on an iPhone, the large-text layouts switch on at the right size.</li>
+                    <li><strong>Screen tests</strong> render real Shoreline Crew screens under Expo Router: the sign-in modal, the Cleanups list with TanStack Query and the mock API, and the tab bar with its "not sent yet" count.</li>
+                    <li><strong>An end-to-end flow</strong> for Maestro walks the real app on a device: open it, sign in, see your name, sign out.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> screen tests are where mobile teams catch the bugs users report: the button that stopped working after a refactor, the error message that never appears, the screen that hangs on "Loading…". And because Lesson 8.1 gave every control a name, your tests can find them by those names, which makes every test a small accessibility check too. Teams that test this way notice when a label disappears, because a test breaks.</p>
+                <div class="card card-accent">
+                    <h3>🌱 You already know most of this</h3>
+                    <p>If a lot of today's code looks familiar, that is the point: the web course's testing habits are worth keeping, and you are learning a dialect, not a new language. When something does not work the way it did on the web, the terminal will say so, usually with the whole tree of the screen printed underneath. Read the tree. It is the test's eyes, and once you can read it, every "Unable to find an element" becomes a puzzle with the answer on the page.</p>
+                </div>
+            </section>
+
+            <section id="rntl" class="lesson-section">
+                <h2>🔁 From Testing Library to React Native Testing Library</h2>
+                <p>RNTL was installed in Lesson 8.2 (<code>@testing-library/react-native</code> 14.1). npm also added <strong>Test Renderer</strong> (<code>test-renderer</code> 1.3, matching React 19.3), the piece that renders components into memory instead of onto a screen; RNTL lists it as a peer dependency, and npm installs those for you. Here is what changes from the HQ's tests:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>In the HQ (Testing Library + user-event)</th><th>In Shoreline Crew (RNTL 14)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>render(&lt;Header /&gt;)</code> returns at once</td><td><code>await render(&lt;SwitchRow … /&gt;)</code>: <code>render</code>, <code>renderHook</code>, <code>fireEvent</code>, <code>act</code> and <code>rerender</code> all return Promises in version 14, following React 19's async rendering</td></tr>
+                            <tr><td><code>@testing-library/user-event</code>: <code>user.click()</code>, <code>user.keyboard('{Tab}')</code></td><td><code>userEvent</code> from RNTL itself: <code>user.press()</code>, <code>user.longPress()</code>, <code>user.type()</code>, <code>user.clear()</code>, <code>user.scrollTo()</code>. No mouse and no Tab key: a phone has fingers</td></tr>
+                            <tr><td><code>toBeInTheDocument()</code> from jest-dom</td><td>Built-in matchers, loaded by any import from RNTL: <code>toBeOnTheScreen()</code>, <code>toBeChecked()</code>, <code>toHaveTextContent()</code>, <code>toHaveDisplayValue()</code>, <code>toBeDisabled()</code>, <code>toBeExpanded()</code></td></tr>
+                            <tr><td><code>getByRole('button', { name })</code> reads the DOM's roles and ARIA</td><td>The same query reads <code>accessibilityRole</code> or <code>role</code>, and the name from <code>accessibilityLabel</code>, <code>aria-label</code> or the text inside: what Lesson 8.1 set up</td></tr>
+                            <tr><td><code>getByLabelText('Email')</code> follows a <code>&lt;label&gt;</code></td><td>Matches <code>accessibilityLabel</code> / <code>aria-label</code> (or <code>aria-labelledby</code>): Shoreline Crew's fields set it</td></tr>
+                            <tr><td>Hidden elements can be found unless you ask for accessible ones</td><td>Elements hidden from screen readers are skipped by default: <code>aria-hidden</code>, <code>accessibilityElementsHidden</code>, <code>importantForAccessibility="no-hide-descendants"</code>, <code>display: 'none'</code>, and the screens underneath a modal</td></tr>
+                            <tr><td><code>fireEvent.click(el)</code></td><td><code>await fireEvent.press(el)</code>, or any event by name: <code>await fireEvent(el, 'valueChange', true)</code></td></tr>
+                            <tr><td>A DOM: <code>container.querySelector()</code>, <code>screen.debug()</code> prints HTML</td><td>No DOM: the tree is React Native's host elements (<code>View</code>, <code>Text</code>, <code>TextInput</code>, <code>RCTSwitch</code>), and <code>screen.debug()</code> prints them</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Two rows deserve a closer look, because they decide how you write every test today.</p>
+                <h3>Queries see what a screen reader sees</h3>
+                <p>In Lesson 8.1, <code>SwitchRow</code> became one control: the words on the left are <code>aria-hidden</code>, and the switch carries them as its <code>accessibilityLabel</code>. RNTL respects that. <code>getByRole('switch', { name: 'Group by date' })</code> finds the switch, while <code>getByText('Group by date')</code> finds nothing, because a screen reader would never land on those words. That is a feature: if a test can find a control by its role and name, so can VoiceOver and TalkBack. When you really need a hidden element (to tap the words, as a finger can), you say so: <code>{ includeHiddenElements: true }</code>.</p>
+                <h3>Presses follow the touch system</h3>
+                <p><code>user.press()</code> does not just call <code>onPress</code>. It walks the touch events the way React Native does (press in, press out, then press), and it respects <code>pointerEvents</code>: an element that does not take touches passes them to its parent. In <code>SwitchRow</code>, the switch has <code>pointerEvents: 'none'</code>, so a press on it reaches the row's <code>Pressable</code>, exactly as a finger does on a phone. A screen reader is different: VoiceOver or TalkBack flip the native switch directly, which reports a <code>valueChange</code> event. One test can try both paths, which is how Lesson 8.1's promise "the row flips exactly once" gets checked.</p>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: the radio call, heard by the test</h4>
+                    <p>Lesson 8.1 described what a screen reader says as a radio call: label, role, state ("Group by date, switch, off"). An RNTL query is a crew member listening to that radio. <code>getByRole('switch', { name: 'Group by date' })</code> means "I heard a switch called Group by date", and <code>toBeChecked()</code> means "and it said on". If the call is garbled (no role, no name, the words twice), the test cannot find the control either. Write tests that listen to the radio, not tests that peek at the wiring (<code>testID</code>, style values, component names), and your tests and your accessibility improve together.</p>
+                </div>
+            </section>
+
+            <section id="pretend-phone" class="lesson-section">
+                <h2>📱 Playing the Phone in a Test</h2>
+                <p>Component tests run in the same pretend phone as Lesson 8.2's logic tests. Three things about it matter for screens, and each was found by reading the setup files in <code>node_modules</code>, not by guessing:</p>
+                <ul>
+                    <li><strong>The window.</strong> React Native's Jest preset says the window is 750 by 1334 points, with text at <strong>twice</strong> its normal size (<code>fontScale: 2</code>). So under Jest, out of the box, <code>useLargeText()</code> is <code>true</code> and <code>useColumns()</code> gives two columns: a tablet with large text, not a phone. Shoreline Crew's setup file sets a phone-sized window (390 by 844, <code>fontScale</code> 1) before every test, and tests that care about text size change it.</li>
+                    <li><strong>The platform.</strong> As in Lesson 8.2, jest-expo runs as an iPhone: <code>Platform.OS</code> is <code>'ios'</code>. A test can switch it for itself with <code>jest.replaceProperty(Platform, 'OS', 'android')</code>, and put it back with <code>jest.restoreAllMocks()</code>.</li>
+                    <li><strong>The accessibility services.</strong> React Native's Jest setup already replaces <code>AccessibilityInfo</code> with stand-ins that do nothing and remember their calls. <code>jest.mocked(AccessibilityInfo.announceForAccessibilityWithOptions)</code> lets a test ask "what did the app ask VoiceOver to say?"</li>
+                </ul>
+                <p>The phone also sends the app news: the window turned, the person made the text bigger. On a device, React Native's native side reports those changes through <code>Dimensions.set()</code>, and every <code>useWindowDimensions()</code> re-renders. In a test, you call it yourself, inside <code>act()</code> so React finishes the re-render before you look:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/src/hooks/useLargeText.test.ts</div>
+                    <pre data-src="shoreline-crew/src/hooks/useLargeText.test.ts" data-match="excerpt"><code class="language-ts">// What the phone tells the app when the person changes the text size in Settings
+function changeTextSize(fontScale: number) {
+  const window = { ...Dimensions.get('window'), fontScale };
+  Dimensions.set({ window, screen: window });
+}
+  ...
+  await act(() =&gt; changeTextSize(2)); // the largest size on many Android phones
+  expect(result.current).toBe(true);</code></pre>
+                </div>
+                <p>Hooks are tested with <code>renderHook()</code>, as in the HQ (now awaited): it renders a tiny component that calls the hook and keeps its latest return value in <code>result.current</code>. Step 3 uses it for <code>useLargeText()</code>.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ A pretend phone answers what you tell it</h4>
+                    <p>A test that sets <code>fontScale</code> to 2 proves that Shoreline Crew switches layouts at 2. It does not prove that an Android phone at its largest text size reports 2 (newer Android versions scale text non-linearly), or that the layout looks good there. Lesson 8.1's checks on a phone, and an end-to-end flow on a device, cover that side.</p>
+                </div>
+            </section>
+
+            <section id="router" class="lesson-section">
+                <h2>🗺️ Screens Under Expo Router</h2>
+                <p>A Shoreline Crew screen is not a component you can render on its own. The Cleanups list has <code>Link</code>s on its cards, the sign-in modal calls <code>router.back()</code>, the form reads the header's height, and the tab bar is a navigator. In the HQ, Lesson 9.2 wrapped pages in a memory router. Expo Router ships the equivalent: <strong><code>expo-router/testing-library</code></strong>, which works with SDK 58 (checked for this lesson with expo-router 58.0.31 and RNTL 14.1). It gives you three things:</p>
+                <ul>
+                    <li><strong><code>renderRouter(routes, { initialUrl })</code></strong> renders a whole app made of the routes you give it, written like file names in <code>src/app</code>: <code>{ _layout: () =&gt; &lt;Stack /&gt;, index: CleanupsScreen, 'sign-in': SignInScreen }</code>. Real screens from your app sit next to small stand-in screens, so a test renders only what it is about.</li>
+                    <li><strong><code>testRouter</code></strong>: <code>push</code>, <code>back</code>, <code>replace</code> and friends, each wrapped in <code>act()</code> and followed by a check of the new address.</li>
+                    <li><strong>Router matchers</strong>: <code>expect(screen).toHavePathname('/')</code>, <code>toHaveSegments()</code>, <code>toHaveSearchParams()</code>.</li>
+                </ul>
+                <p>The diagram shows what one screen test puts together. Only the edges are pretend: the routes you list, and the mock API.</p>
+<div class="mermaid">
+graph TD
+    T["A screen test"] --> R["renderRouter: routes"]
+    R --> S["A real screen"]
+    S --> Q["TanStack Query"]
+    Q --> F["fetch: Node's"]
+    F --> M["MSW: the HQ's handlers"]
+    S --> U["Seen by the queries"]
+    U --> T
+</div>
+                <h3>Three things to know before the first screen test</h3>
+                <ul>
+                    <li><strong>Where the tests live.</strong> Never in <code>src/app/</code> (Expo Router would treat a test file as a route, according to Expo's documentation). Shoreline Crew keeps screen tests in <code>src/test/screens/</code>, next to the helpers they use.</li>
+                    <li><strong>The cache.</strong> Screens read data through TanStack Query, so a screen test needs a <code>QueryClientProvider</code>. The helper you write in Step 4 uses the app's own <code>queryClient</code>, because <code>mutations.ts</code> refreshes data through that exact object; each test file clears it after every test, so nothing cached leaks into the next test.</li>
+                    <li><strong>The clock.</strong> <code>renderRouter</code> switches Jest to <strong>fake timers</strong> (read in its source: it makes navigation finish at once). A fake clock is welcome for the app's own timers (the 1 and 2 second pauses before Query tries again run instantly), but Jest's fake timers also freeze <code>process.nextTick</code> and <code>queueMicrotask</code>, the tiny "right after this" steps Node's <code>fetch</code> and MSW use to finish a request. With those frozen, a screen waits on "Loading cleanups…" forever. One line in the Jest settings tells every fake clock to leave those two alone: <code>"fakeTimers": { "doNotFake": ["nextTick", "queueMicrotask"] }</code> (Step 1).</li>
+                </ul>
+                <div class="card card-info">
+                    <h4>💡 Mental model: a rehearsal stage with real props</h4>
+                    <p>A theater rehearses on a bare stage: tape on the floor where the walls will be, a chair standing in for the throne. But the actor's script and the props in their hands are the real ones. A screen test is that rehearsal. The route list is the tape on the floor (a plain <code>&lt;Stack /&gt;</code>, a stand-in Profile screen), while the screen under test, its form, its cache and the API's rulebook are real. If the play works on the bare stage, the parts you rehearsed are right; the full dress rehearsal on the real stage is the end-to-end flow.</p>
+                </div>
+            </section>
+
+            <section id="maestro" class="lesson-section">
+                <h2>🎬 End to End with Maestro</h2>
+                <p>Everything so far ran in Node. An <strong>end-to-end test</strong> runs the real app, built for a real phone or emulator, and drives it from outside like a person would: taps, typing, waiting, looking. In the HQ, Lesson 9.3 of the web course did this with Playwright in a real browser. For phone apps, a popular choice with Expo is <strong>Maestro</strong>, an open-source tool from mobile.dev: you write each test as a short YAML file called a <strong>flow</strong>, and Maestro runs its steps on a device through the phone's own automation and accessibility layer.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Playwright in the HQ</th><th>Maestro in Shoreline Crew</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A test file in TypeScript</td><td>A flow in YAML (<code>.maestro/sign-in.yaml</code>)</td></tr>
+                            <tr><td><code>page.goto('/')</code></td><td><code>launchApp</code> for a built app; <code>openLink</code> to the project's <code>exp://</code> address in Expo Go</td></tr>
+                            <tr><td><code>getByRole('button', { name: 'Sign in' }).click()</code></td><td><code>tapOn: Sign in</code>: matches what is written on screen or the accessibility label</td></tr>
+                            <tr><td><code>fill('theo…')</code></td><td><code>tapOn: Email</code>, then <code>inputText: theo…</code></td></tr>
+                            <tr><td><code>expect(…).toBeVisible()</code>, auto-waiting</td><td><code>assertVisible: Theo Nakamura</code>; Maestro waits for the screen to settle on its own; <code>extendedWaitUntil</code> waits longer</td></tr>
+                            <tr><td><code>npx playwright test</code></td><td><code>maestro test .maestro/sign-in.yaml</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>According to Maestro's documentation, <code>tapOn: Sign in</code> matches the visible text or the accessibility label (Android's <code>contentDescription</code>, iOS's <code>accessibilityLabel</code>) exactly, and is a regular expression, so <code>.*</code> makes a partial match. That is why the flow in Step 7 taps <code>Profile.*</code>: on an iPhone, the tab's accessibility name is "Profile, tab, 4 of 4" (Step 6 shows it). That is also why the names from Lesson 8.1 pay off a second time: Maestro finds controls through the same accessibility information a screen reader uses.</p>
+                <h3>Where a flow can run (and where it cannot)</h3>
+                <p>Maestro is a command-line program (it needs Java 17 or newer). Its documentation installs it with one <code>curl</code> command on macOS, Linux and WSL (or Homebrew on a Mac), and from a zip file on Windows; there is also a desktop app, <strong>Maestro Studio</strong>, for building and inspecting flows. It needs a device to drive. According to Maestro's documentation, at the time of writing:</p>
+                <ul>
+                    <li><strong>Android:</strong> an emulator or an Android phone connected over USB with developer options on. Works from macOS, Linux and Windows.</li>
+                    <li><strong>iOS:</strong> the iOS Simulator, which needs a Mac with Xcode. Its setup guides cover simulators; check its current documentation before planning tests on real iPhones.</li>
+                    <li><strong>In the cloud:</strong> Maestro Cloud (a paid service from Maestro's makers) runs flows on their devices, and EAS Workflows can run Maestro flows against an EAS build on Expo's servers (Module 9 introduces EAS; check Expo's current plans and prices). Neither is needed for this course.</li>
+                </ul>
+                <p>And the app it drives: Expo Go works for trying a flow locally (Maestro's React Native page says to open your project's <code>exp://</code> address with <code>openLink</code>, since the app runs inside Expo Go), but teams run end-to-end tests against a <strong>development or preview build</strong> of the app, which has its own app id and does not depend on Metro running on your computer. Module 9 builds those.</p>
+                <div class="card card-info">
+                    <h4>📱 On your phone</h4>
+                    <p>This course's checks cannot run Maestro (there is no emulator or simulator on the machine the course was built on), so the flow in Step 7 is written from Maestro's documentation and checked only as YAML. If you have an Android emulator, an Android phone or a Mac, run it: it should open Expo Go, load Shoreline Crew, sign Theo in on the Profile tab, show his name, save a screenshot called <code>signed-in.png</code> and sign him out again. If a step cannot find its element, Maestro Studio's Inspect Screen shows the screen as Maestro sees it, with the text and labels it can match.</p>
+                </div>
+            </section>
+
+            <section id="what-to-test" class="lesson-section">
+                <h2>🎯 What Is Worth a Test</h2>
+                <p>Shoreline Crew now has three kinds of tests, and each has its own job:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Kind</th><th>Speed and cost</th><th>Shoreline Crew today</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Logic (Lesson 8.2)</td><td>Milliseconds; no screen</td><td>The queue, the sender, schemas, reminders, the CSV file</td></tr>
+                            <tr><td>Components and screens (today)</td><td>Tens of milliseconds; a pretend phone</td><td>Switch rows, live texts, large text, sign-in, the Cleanups list, the tab bar</td></tr>
+                            <tr><td>End to end (today)</td><td>Seconds to minutes; a device and a build</td><td>One flow: sign in and out</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Most tests should be the fast kinds. Write a screen test when a screen makes a decision a volunteer depends on: what to show while loading, after an error, for a guest; what a press does; which name a control has. Keep end-to-end flows for the few paths that must work on a real device every release (sign in, sign up for a cleanup, send a log), because they are slow and they break when the device is slow.</p>
+                <p>Do not write tests for:</p>
+                <ul>
+                    <li><strong>Styles and pixels.</strong> A test that checks <code>backgroundColor: '#1f6f8b'</code> breaks on every redesign and says nothing about whether the screen looks right. Look at the screen instead (and Lesson 8.1's contrast checks).</li>
+                    <li><strong>Whole-tree snapshots.</strong> <code>toMatchSnapshot()</code> on a screen records hundreds of lines nobody reads; when it fails after a harmless change, people update it without looking. A small, named expectation says what matters.</li>
+                    <li><strong>Libraries.</strong> That FlashList recycles, that Query caches, that Expo Router navigates: their authors test that.</li>
+                    <li><strong>Implementation details.</strong> State variable names, how many times a component rendered, private functions. Test what a person sees and does.</li>
+                </ul>
+                <p><strong>Coverage</strong> (<code>npm test -- --watchAll=false --coverage</code>) lists, per file, how many lines and branches the tests ran. Use it to find code no test ever touches, then decide whether that code matters. A high number is not a goal: a test can run every line of a screen without checking anything a volunteer cares about.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each of these was made on purpose in a copy of the finished project, and the output is what the terminal printed. When a screen test fails, RNTL prints the screen's whole tree under the message; the excerpts below keep the lines that tell the story.</p>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Forgetting <code>await</code> before <code>render</code></h3>
+                    <p>Habit from the web course: <code>render(…)</code> without <code>await</code>. In RNTL 14 the render has not happened yet when the next line asks <code>screen</code> for something:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/components/SwitchRow.test.tsx
+  ✕ is one switch, named by its words, as a screen reader meets it (68 ms)
+  ✓ flips exactly once for a tap on the switch or on the words (285 ms)
+  ✓ flips once when a screen reader turns the switch itself (4 ms)
+
+  ● is one switch, named by its words, as a screen reader meets it
+
+    `render` function has not been called
+
+      22 | it('is one switch, named by its words, as a screen reader meets it', async () =&gt; {
+      23 |   render(&lt;GroupByDate onChange={jest.fn()} /&gt;);
+    &gt; 24 |   expect(screen.getByRole('switch', { name: 'Group by date' })).not.toBeChecked();
+         |                 ^
+      25 |   // The words on the left are hidden from screen readers, so the queries skip them too
+      26 |   expect(screen.queryByText('Group by date')).toBeNull();
+      27 | });
+
+      at Object.notImplemented (node_modules/@testing-library/react-native/src/screen.ts:8:9)
+      at Object.getByRole (src/components/SwitchRow.test.tsx:24:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+...
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 2 passed, 3 total</code></pre>
+                    </div>
+                    <p>The message says <code>render</code> was never called, and the arrow points at <code>screen</code>, but the cause is the line above it: the render started, and the test did not wait for it. Every <code>render</code>, <code>rerender</code>, <code>renderHook</code>, <code>fireEvent</code> and <code>act</code> gets an <code>await</code>, and the test function is <code>async</code>. (The <code>user.*</code> actions were async already.)</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Looking for words a screen reader cannot see</h3>
+                    <p>Pressing a switch row's words with a plain <code>getByText</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/components/SwitchRow.test.tsx
+  ✓ is one switch, named by its words, as a screen reader meets it (1930 ms)
+  ✕ flips exactly once for a tap on the switch or on the words (139 ms)
+  ✓ flips once when a screen reader turns the switch itself (2 ms)
+
+  ● flips exactly once for a tap on the switch or on the words
+
+    Unable to find an element with text: Group by date
+
+    &lt;View
+      accessible={false}
+    &gt;
+      &lt;Text
+        aria-hidden={true}
+      &gt;
+        Group by date
+      &lt;/Text&gt;
+      &lt;RCTSwitch
+        accessibilityLabel="Group by date"
+        accessibilityRole="switch"
+        value={true}
+      /&gt;
+    &lt;/View&gt;
+
+      37 |   expect(toggle).toBeChecked();
+      38 |
+    &gt; 39 |   await user.press(screen.getByText('Group by date'));
+         |                           ^
+      40 |   expect(onChange.mock.calls).toEqual([[true], [false]]);
+      41 |   expect(toggle).not.toBeChecked();
+      42 | });
+
+      at Object.getByText (src/components/SwitchRow.test.tsx:39:27)
+...
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 2 passed, 3 total</code></pre>
+                    </div>
+                    <p>The printed tree shows the words, with <code>aria-hidden={true}</code> on their <code>Text</code>. That attribute is the clue: RNTL skips what screen readers skip. Ask for the control by role and name, or, when a finger really can press the hidden words, add <code>{ includeHiddenElements: true }</code>. The same happens with the screen underneath a modal: it is hidden until the modal closes.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ Importing <code>userEvent</code> from Expo Router's testing library</h3>
+                    <p><code>expo-router/testing-library</code> passes RNTL's exports through, so the tests run either way. TypeScript disagrees, because the module's type file only re-exports RNTL's <em>types</em> for most names:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/test/screens/sign-in.test.tsx:21:10 - error TS1362: 'userEvent' cannot be used as a value because it was exported using 'export type'.
+
+21   return userEvent.setup();
+            ~~~~~~~~~
+
+  node_modules/expo-router/build/testing-library/index.d.ts:10:1
+    10 export type * from '@testing-library/react-native';
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    'userEvent' was exported here.
+
+
+Found 1 error in src/test/screens/sign-in.test.tsx:21</code></pre>
+                    </div>
+                    <p>Jest does not check types, so this mistake shows up only in <code>npx tsc --noEmit</code> (and in your editor). Import <code>screen</code>, <code>userEvent</code>, <code>act</code> and friends from <code>@testing-library/react-native</code>, and only <code>renderRouter</code>, <code>testRouter</code> and the router matchers from Expo Router.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ A fake clock that freezes every request</h3>
+                    <p>Without the <code>fakeTimers</code> setting from Step 1, <code>renderRouter</code>'s fake clock also freezes the steps Node's <code>fetch</code> uses to finish. The screen never gets its data:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code> FAIL  src/test/screens/cleanups.test.tsx (11.915 s)
+  ✕ loads every upcoming cleanup, five at a time (246 ms)
+  ○ skipped narrows the cards with the search field and the switch
+  ○ skipped says what went wrong when the list cannot load, and tries again
+
+  ● loads every upcoming cleanup, five at a time
+
+    Unable to find an element with text: 8 cleanups
+...
+                            Loading cleanups…
+...
+      26 |   await showCleanups();
+      27 |   expect(screen.getByText('Loading cleanups…')).toBeOnTheScreen();
+    &gt; 28 |   expect(await screen.findByText('8 cleanups')).toBeOnTheScreen();
+         |                       ^
+      29 |   expect(openLinks()).toHaveLength(8);
+      30 |   // Short cards do not fill the window, so the list asked for the second page by itself
+...
+Tests:       1 failed, 2 skipped, 3 total</code></pre>
+                    </div>
+                    <p>The tree shows "Loading cleanups…": the mock API never got to answer. The test fails quickly, because <code>findByText</code> waits one second of <em>fake</em> time and the fake clock races through it. The shape to remember: a screen test stuck on its loading face, while Lesson 8.2's sender tests (no fake clock) still pass. Suspect the clock, not the API.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h3>⚠️ FlashList left untransformed</h3>
+                    <p>Without <code>@shopify/flash-list</code> in <code>transformIgnorePatterns</code>, the Cleanups test file does not even start:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>  console.warn
+    DrawerLayoutAndroid is deprecated and will be removed in a future release. Use 'react-native-drawer-layout' instead. See https://reactnavigation.org/docs/drawer-layout/
+
+    &gt; 1 | import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
+        | ^
+      2 | import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+      3 | import { useState } from 'react';
+      4 | import { Platform, StyleSheet, View } from 'react-native';
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as DrawerLayoutAndroid] (node_modules/react-native/index.js:47:5)
+          at Reflect.get (&lt;anonymous&gt;)
+...
+
+ FAIL  src/test/screens/cleanups.test.tsx
+  ● Test suite failed to run
+
+    Invariant Violation: TurboModuleRegistry.getEnforcing(...): 'DevMenu' could not be found. Verify that a module by this name is registered in the native binary.
+
+    &gt; 1 | import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
+        | ^
+      2 | import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+      3 | import { useState } from 'react';
+      4 | import { Platform, StyleSheet, View } from 'react-native';
+
+      at invariant (node_modules/invariant/invariant.js:40:15)
+      at Object.getEnforcing (node_modules/react-native/Libraries/TurboModule/TurboModuleRegistry.js:41:12)
+      at Object.getEnforcing (node_modules/react-native/src/private/devsupport/devmenu/specs/NativeDevMenu.js:22:36)
+      at Object.require (node_modules/react-native/src/private/devsupport/devmenu/DevMenu.js:11:1)
+      at Object.require (node_modules/react-native/index.js:265:12)
+          at Reflect.get (&lt;anonymous&gt;)
+...
+Test Suites: 1 failed, 1 total
+Tests:       0 total</code></pre>
+                    </div>
+                    <p>A "TurboModule could not be found" error under Jest looks like a missing native module, but the stack shows <code>Reflect.get</code> walking through <code>react-native/index.js</code>: something loaded every export of React Native at once (here, Node loading FlashList's untransformed <code>import</code> code), and one of them needs a phone. The warnings about deprecated components above it are the same walk. Let Babel transform the package, as Step 1 does.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Tests a Volunteer Would Recognize</h2>
+                <p>You start with two settings the screens need, then write tests from the smallest piece (one switch row) to whole screens under Expo Router, and finish with a Maestro flow. Keep <code>npm test</code> running in a second terminal, as in Lesson 8.2: every save reruns the suite. Neither shoreline-api nor Metro needs to run until Step 7.</p>
+
+                <div class="card">
+                    <h3>Step 1: Two settings for screens <span class="step-time">(10 min)</span></h3>
+                    <p>Screens bring two things Lesson 8.2's logic never loaded: FlashList, and the fake clock of Expo Router's testing library. Add two keys to the <code>"jest"</code> section of <code>package.json</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/package.json</div>
+                        <pre data-src="shoreline-crew/package.json" data-match="diff"><code class="language-diff-json">       "./jest.setup.ts"
+-    ]
++    ],
++    "transformIgnorePatterns": [
++      "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@shopify/flash-list))",
++      "/node_modules/react-native-reanimated/plugin/",
++      "/node_modules/@react-native/babel-preset/"
++    ],
++    "fakeTimers": {
++      "doNotFake": [
++        "nextTick",
++        "queueMicrotask"
++      ]
++    }
+   }</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>transformIgnorePatterns</code> is jest-expo's own list of packages that Babel must transform, copied from <code>node_modules/jest-expo/jest-preset.js</code>, with <code>@shopify/flash-list</code> added at the end. FlashList ships modern <code>import</code>/<code>export</code> code; untransformed, it breaks the test run in a confusing way (Common Mistakes shows it). Setting the key replaces jest-expo's list, which is why the whole list is there, not just FlashList.</li>
+                        <li><code>fakeTimers.doNotFake</code> keeps <code>process.nextTick</code> and <code>queueMicrotask</code> real whenever a test (or <code>renderRouter</code>) switches on Jest's fake clock, so requests can finish (see "Screens Under Expo Router").</li>
+                    </ul>
+                    <p>Then two additions to <code>jest.setup.ts</code>: FlashList's own stand-in for its measurements (its authors ship it, like AsyncStorage's), and the phone-sized window from "Playing the Phone in a Test":</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/jest.setup.ts</div>
+                        <pre data-src="shoreline-crew/jest.setup.ts" data-match="diff"><code class="language-diff-ts"> // Runs before every test file (package.json "jest" &gt; "setupFilesAfterEnv")
++import { Dimensions } from 'react-native';
+ 
+ // ...
+ );
++// FlashList measures the list and its items on the phone; in Jest nothing has a size
++require('@shopify/flash-list/jestSetup'); // eslint-disable-line @typescript-eslint/no-require-imports
++
++// 4. A phone-sized window at the normal text size, before every test. React Native's own Jest
++// setup pretends a 750 x 1334 window with text at twice its size: a tablet with large text
++const phone = { width: 390, height: 844, scale: 3, fontScale: 1 };
++beforeEach(() =&gt; Dimensions.set({ window: phone, screen: phone }));</code></pre>
+                    </div>
+                    <p>The FlashList line is a <code>require()</code> because its file only calls <code>jest.mock()</code>; the comment tells ESLint that this one is on purpose, as in <code>src/test/server.ts</code>. Save, and the 28 tests from Lesson 8.2 should still pass in your watching terminal.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: A first component test: the switch row <span class="step-time">(15 min)</span></h3>
+                    <p>Lesson 8.1 rewrote <code>SwitchRow</code> so the whole row is the touch target and a screen reader meets one control. It promised three things: one switch named by its words, a tap anywhere flips it once, and a screen reader's double-tap flips it once. Create <code>src/components/SwitchRow.test.tsx</code> next to the component:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/SwitchRow.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/SwitchRow.test.tsx"><code class="language-tsx">import { fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import { useState } from 'react';
+
+import { SwitchRow } from '@/components/SwitchRow';
+
+// A screen's part: SwitchRow shows the value it is given, so the test keeps it in state, as
+// the Cleanups screen does. onChange records every change the row reports.
+function GroupByDate({ onChange }: { onChange: (value: boolean) =&gt; void }) {
+  const [on, setOn] = useState(false);
+  return (
+    &lt;SwitchRow
+      label="Group by date"
+      value={on}
+      onValueChange={(value) =&gt; {
+        setOn(value);
+        onChange(value);
+      }}
+    /&gt;
+  );
+}
+
+it('is one switch, named by its words, as a screen reader meets it', async () =&gt; {
+  await render(&lt;GroupByDate onChange={jest.fn()} /&gt;);
+  expect(screen.getByRole('switch', { name: 'Group by date' })).not.toBeChecked();
+  // The words on the left are hidden from screen readers, so the queries skip them too
+  expect(screen.queryByText('Group by date')).toBeNull();
+});
+
+it('flips exactly once for a tap on the switch or on the words', async () =&gt; {
+  const onChange = jest.fn();
+  const user = userEvent.setup();
+  await render(&lt;GroupByDate onChange={onChange} /&gt;);
+  const toggle = screen.getByRole('switch', { name: 'Group by date' });
+
+  await user.press(toggle); // a finger on the switch itself
+  expect(onChange.mock.calls).toEqual([[true]]);
+  expect(toggle).toBeChecked();
+
+  await user.press(screen.getByText('Group by date', { includeHiddenElements: true }));
+  expect(onChange.mock.calls).toEqual([[true], [false]]);
+  expect(toggle).not.toBeChecked();
+});
+
+it('flips once when a screen reader turns the switch itself', async () =&gt; {
+  const onChange = jest.fn();
+  await render(&lt;GroupByDate onChange={onChange} /&gt;);
+  // A double-tap with VoiceOver or TalkBack flips the phone's own switch, which reports it
+  await fireEvent(screen.getByRole('switch', { name: 'Group by date' }), 'valueChange', true);
+  expect(onChange.mock.calls).toEqual([[true]]);
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>GroupByDate</code> is a tiny screen part made only for the test: <code>SwitchRow</code> shows whatever <code>value</code> it is given, so a test that presses it twice needs someone to keep the state, as the Cleanups screen does.</li>
+                        <li>Every <code>render</code> and every user action is <code>await</code>ed, and each test is <code>async</code>.</li>
+                        <li><code>toEqual([[true], [false]])</code> on <code>mock.calls</code> says "exactly two changes, on then off": a double toggle would show four entries.</li>
+                        <li>The words are found with <code>includeHiddenElements: true</code>, and only for pressing them: a finger can tap them even though a screen reader skips them.</li>
+                    </ul>
+                    <p>Run just this file to see the three tests by name:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false src/components/SwitchRow.test.tsx</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/components/SwitchRow.test.tsx
+
+ PASS  src/components/SwitchRow.test.tsx
+  ✓ is one switch, named by its words, as a screen reader meets it (76 ms)
+  ✓ flips exactly once for a tap on the switch or on the words (278 ms)
+  ✓ flips once when a screen reader turns the switch itself (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        0.663 s, estimated 3 s
+Ran all test suites matching src/components/SwitchRow.test.tsx.</code></pre>
+                    </div>
+                    <p>Try breaking the design to see the test notice: in <code>SwitchRow.tsx</code>, delete the line <code>style={styles.switch}</code> from the <code>Switch</code> and save. Now the switch takes the touch itself, so the press no longer reaches the row, and the second test fails with <code>Received: Array []</code> on its first <code>expect</code>. (On a phone, the native switch would flip itself; in Jest there is no native switch to do that, so nothing changes.) The test pins down Lesson 8.1's decision that the row, not the switch, takes the finger. Put the line back.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Playing the phone: announcements and text size <span class="step-time">(15 min)</span></h3>
+                    <p>Two more of Lesson 8.1's promises. <code>AppText</code> asks VoiceOver to read a live text out loud on an iPhone, because iOS has no live regions; on Android, <code>accessibilityLiveRegion</code> does the job and the app must not announce it twice. Create <code>src/components/AppText.test.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/AppText.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/AppText.test.tsx"><code class="language-tsx">import { render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+
+// React Native's Jest setup already replaced AccessibilityInfo with stand-ins that only record
+// their calls: jest.mocked() reads VoiceOver's "say this now" with its mock types
+const announce = jest.mocked(AccessibilityInfo.announceForAccessibilityWithOptions);
+afterEach(() =&gt; {
+  announce.mockClear(); // forget what the last test said
+  jest.restoreAllMocks(); // and undo jest.replaceProperty
+});
+
+it('asks VoiceOver to say a live text when it appears and when its words change', async () =&gt; {
+  const { rerender } = await render(&lt;AppText accessibilityLiveRegion="polite"&gt;Sending…&lt;/AppText&gt;);
+  expect(announce).toHaveBeenCalledWith('Sending…', { queue: true });
+
+  await rerender(&lt;AppText accessibilityLiveRegion="polite"&gt;Log sent. Thank you!&lt;/AppText&gt;);
+  expect(announce).toHaveBeenLastCalledWith('Log sent. Thank you!', { queue: true });
+  expect(announce).toHaveBeenCalledTimes(2);
+});
+
+it('keeps quiet about text that is not live', async () =&gt; {
+  await render(&lt;AppText&gt;Upcoming cleanups&lt;/AppText&gt;);
+  expect(screen.getByText('Upcoming cleanups')).toBeOnTheScreen();
+  expect(announce).not.toHaveBeenCalled();
+});
+
+it('leaves it to the live region on Android', async () =&gt; {
+  jest.replaceProperty(Platform, 'OS', 'android');
+  await render(&lt;AppText accessibilityLiveRegion="polite"&gt;Sending…&lt;/AppText&gt;);
+  expect(announce).not.toHaveBeenCalled();
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li>No <code>jest.mock()</code>: React Native's Jest setup already made <code>AccessibilityInfo</code> a stand-in. <code>jest.mocked()</code> only gives it mock types; <code>mockClear()</code> forgets the calls between tests (the stand-in is shared by the whole file).</li>
+                        <li><code>rerender</code> (awaited) gives the same <code>AppText</code> new words, the way "Sending…" becomes "Log sent. Thank you!" in the Logbook.</li>
+                        <li><code>jest.replaceProperty(Platform, 'OS', 'android')</code> plays an Android phone for one test; <code>jest.restoreAllMocks()</code> in <code>afterEach</code> puts <code>'ios'</code> back before the next test.</li>
+                    </ul>
+                    <p>Then the hook that switches layouts at large text sizes, with <code>renderHook</code> and the phone's text-size news played through <code>Dimensions.set()</code>. Create <code>src/hooks/useLargeText.test.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useLargeText.test.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useLargeText.test.ts"><code class="language-ts">import { act, renderHook } from '@testing-library/react-native';
+import { Dimensions } from 'react-native';
+
+import { useLargeText } from '@/hooks/useLargeText';
+
+// What the phone tells the app when the person changes the text size in Settings
+function changeTextSize(fontScale: number) {
+  const window = { ...Dimensions.get('window'), fontScale };
+  Dimensions.set({ window, screen: window });
+}
+
+it('is false at the normal text size', async () =&gt; {
+  const { result } = await renderHook(() =&gt; useLargeText());
+  expect(result.current).toBe(false);
+});
+
+it('follows the text size while the app is open, from one and a half times', async () =&gt; {
+  const { result } = await renderHook(() =&gt; useLargeText());
+  await act(() =&gt; changeTextSize(1.35)); // the largest standard size on an iPhone
+  expect(result.current).toBe(false);
+  await act(() =&gt; changeTextSize(2)); // the largest size on many Android phones
+  expect(result.current).toBe(true);
+});</code></pre>
+                    </div>
+                    <p>The first test passes only because of Step 1's phone-sized window: without it, React Native's pretend window has text at twice its size. The numbers in the comments are the ones Lesson 8.1 measured. 1.35 stays below the threshold on purpose: the largest standard iPhone size should keep the normal layouts.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Screens under the router: sign in <span class="step-time">(20 min)</span></h3>
+                    <p>First, a helper, the phone app's version of the HQ's <code>renderWithProviders</code>. Create <code>src/test/render.tsx</code> (<code>.tsx</code>: it has JSX):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/render.tsx</div>
+                        <pre data-src="shoreline-crew/src/test/render.tsx"><code class="language-tsx">// Render some of the app's screens in a test, the way Expo Router shows them (the HQ's
+// renderWithProviders, for a phone app)
+import { QueryClientProvider } from '@tanstack/react-query';
+import { type MockContextConfig, renderRouter } from 'expo-router/testing-library';
+import type { ReactNode } from 'react';
+
+import { queryClient } from '@/api/queries';
+
+// The providers the screens need from the root layout. The app's own queryClient, with its
+// settings: mutations.ts refreshes data through it. Each test file clears it after each test.
+function Providers({ children }: { children: ReactNode }) {
+  return &lt;QueryClientProvider client={queryClient}&gt;{children}&lt;/QueryClientProvider&gt;;
+}
+
+/**
+ * Show `routes` (file names as in src/app, each with its screen) at `initialUrl`. The result has
+ * RNTL's queries plus the router's: getPathname(), and toHavePathname() for expect(screen).
+ */
+export function renderScreens(routes: MockContextConfig, initialUrl = '/') {
+  return renderRouter(routes, { initialUrl, wrapper: Providers });
+}</code></pre>
+                    </div>
+                    <p><code>MockContextConfig</code> is Expo Router's type for the route list (it also accepts a folder path, which renders a real <code>app</code> folder; Shoreline Crew's root layout loads fonts, the saved session and the queue, so its tests list routes instead). <code>wrapper</code> is RNTL's render option: the providers go around Expo Router's root, as they do in <code>_layout.tsx</code>.</p>
+                    <p>Now the sign-in modal. In the app it opens over the Profile tab, and after a successful sign-in it closes back to it. The test builds the smallest app that can show that: a stack, a stand-in Profile screen at <code>/</code>, and the real sign-in screen. Create the folder <code>src/test/screens/</code> and in it <code>sign-in.test.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/screens/sign-in.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/test/screens/sign-in.test.tsx"><code class="language-tsx">import { screen, userEvent } from '@testing-library/react-native';
+import { Stack } from 'expo-router';
+import { testRouter } from 'expo-router/testing-library';
+
+import { readSession, setSession } from '@/api/client';
+import SignInScreen from '@/app/sign-in';
+import { AppText } from '@/components/AppText';
+import { renderScreens } from '@/test/render';
+import { startMockApi } from '@/test/server';
+
+startMockApi();
+beforeEach(() =&gt; setSession(null));
+
+// The sign-in modal, opened from a screen underneath it (the Profile tab, in the app)
+async function openSignIn() {
+  await renderScreens({
+    _layout: () =&gt; &lt;Stack /&gt;,
+    index: () =&gt; &lt;AppText&gt;Profile&lt;/AppText&gt;,
+    'sign-in': SignInScreen,
+  });
+  await testRouter.push('/sign-in');
+  return userEvent.setup();
+}
+
+it('says what to fix when Sign in is pressed with nothing typed', async () =&gt; {
+  const user = await openSignIn();
+  await user.press(screen.getByRole('button', { name: 'Sign in' }));
+  expect(await screen.findByText('Enter an email address.')).toBeOnTheScreen();
+  expect(screen.getByText('Enter your password.')).toBeOnTheScreen();
+  expect(readSession()).toBeNull();
+});
+
+it("shows the API's answer to a wrong password, and empties the password", async () =&gt; {
+  const user = await openSignIn();
+  await user.type(screen.getByLabelText('Email'), 'theo.nakamura@example.com');
+  await user.type(screen.getByLabelText('Password'), 'low-tide');
+  await user.press(screen.getByRole('button', { name: 'Sign in' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Email or password is incorrect.');
+  expect(screen.getByLabelText('Password')).toHaveDisplayValue('');
+});
+
+it('signs in, then closes, back on the screen that opened it', async () =&gt; {
+  const user = await openSignIn();
+  await user.type(screen.getByLabelText('Email'), 'theo.nakamura@example.com');
+  await user.type(screen.getByLabelText('Password'), 'shoreline-demo');
+  await user.press(screen.getByRole('button', { name: 'Sign in' }));
+  expect(await screen.findByText('Profile')).toBeOnTheScreen();
+  expect(screen).toHavePathname('/');
+  expect(readSession()?.user.name).toBe('Theo Nakamura');
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>screen</code> and <code>userEvent</code> come from RNTL; <code>testRouter</code> from Expo Router's testing library. (Its module repeats RNTL's exports, but TypeScript sees <code>userEvent</code> there as a type only: Common Mistakes shows the error.)</li>
+                        <li><code>user.type()</code> types one letter at a time and focuses and leaves the field like a finger would, so React Hook Form's <code>onTouched</code> mode (Lesson 5.4) behaves as on a phone.</li>
+                        <li><code>findByText</code> and <code>findByRole</code> wait for the API's answer, from the same mock API as Lesson 8.2, with the API's own words: "Email or password is incorrect."</li>
+                        <li>In the third test, "Profile" is on the screen all along, but hidden from screen readers behind the modal, so <code>findByText('Profile')</code> waits until the modal has closed. <code>toHavePathname('/')</code> confirms where the router is.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The Cleanups list: the cache and the mock API <span class="step-time">(20 min)</span></h3>
+                    <p>The Cleanups tab is Shoreline Crew's busiest screen: an infinite query for the cleanups, a query for the beaches, FlashList, a search field, two switches, and three faces (loading, failed, loaded). Create <code>src/test/screens/cleanups.test.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/screens/cleanups.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/test/screens/cleanups.test.tsx"><code class="language-tsx">import { screen, userEvent } from '@testing-library/react-native';
+import { Stack } from 'expo-router';
+import { http, HttpResponse } from 'msw';
+
+import { setSession } from '@/api/client';
+import { queryClient } from '@/api/queries';
+import CleanupsScreen from '@/app/(tabs)/index';
+import { renderScreens } from '@/test/render';
+import { API_URL, recordRequests, server, startMockApi } from '@/test/server';
+
+startMockApi();
+beforeEach(() =&gt; setSession(null)); // a guest: the list is the same for everyone
+afterEach(() =&gt; queryClient.clear()); // nothing cached carries over to the next test
+
+function showCleanups() {
+  return renderScreens({ _layout: () =&gt; &lt;Stack /&gt;, index: CleanupsScreen });
+}
+
+// The Open button on each card is a link named after its cleanup
+function openLinks() {
+  return screen.queryAllByRole('link', { name: /^Open / });
+}
+
+it('loads every upcoming cleanup, five at a time', async () =&gt; {
+  const requests = recordRequests();
+  await showCleanups();
+  expect(screen.getByText('Loading cleanups…')).toBeOnTheScreen();
+  expect(await screen.findByText('8 cleanups')).toBeOnTheScreen();
+  expect(openLinks()).toHaveLength(8);
+  // Short cards do not fill the window, so the list asked for the second page by itself
+  expect(requests.filter((request) =&gt; request === 'GET /api/events')).toHaveLength(2);
+});
+
+it('narrows the cards with the search field and the switch', async () =&gt; {
+  const user = userEvent.setup();
+  await showCleanups();
+  await screen.findByText('8 cleanups');
+
+  await user.type(screen.getByLabelText('Search cleanups'), 'otter');
+  expect(openLinks().map((link) =&gt; link.props.accessibilityLabel)).toEqual([
+    'Open Tide Pool Morning Cleanup',
+    'Open Creek Mouth Willows',
+  ]);
+
+  await user.clear(screen.getByLabelText('Search cleanups'));
+  await user.press(screen.getByRole('switch', { name: 'Only cleanups with spots left' }));
+  expect(screen.getByText('7 of 8 cleanups')).toBeOnTheScreen();
+  expect(screen.queryByRole('link', { name: 'Open Weekend Cove Cleanup' })).toBeNull(); // full
+});
+
+it('says what went wrong when the list cannot load, and tries again', async () =&gt; {
+  server.use(http.get(`${API_URL}/api/events`, () =&gt; new HttpResponse(null, { status: 503 })));
+  const user = userEvent.setup();
+  await showCleanups();
+  // The app tries three times, 1 and 2 seconds apart, before it gives up: Jest's fake clock
+  // runs those seconds at once, but they count against findBy's 1-second limit
+  const tryAgain = await screen.findByRole('button', { name: 'Try again' }, { timeout: 5000 });
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'The server had a problem (503). Try again in a moment.',
+  );
+
+  server.resetHandlers(); // the server is back
+  await user.press(tryAgain);
+  expect(await screen.findByText('8 cleanups')).toBeOnTheScreen();
+});</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Page by page.</strong> FlashList's stand-in makes every card 100 points tall, so eight cards' worth of list never fills the 844-point window, and the list asks for the second page by itself (Lesson 3.2's <code>onEndReached</code>). That is what a phone with a tall screen does too. <code>recordRequests()</code> from Lesson 8.2 counts the two pages.</li>
+                        <li><strong>Names, not positions.</strong> The cards are found by their Open links, named "Open Weekend Cove Cleanup" (Lesson 4.1). The sample data's dates move with today, but its titles do not.</li>
+                        <li><strong>The real retry rule.</strong> The third test makes the API answer 503 to every list request. The app's <code>queryClient</code> tries three times, waiting 1 and then 2 seconds, before it shows the error. Under <code>renderRouter</code>'s fake clock those seconds pass at once, but <code>findBy</code> counts fake time too, and its default limit is 1 second, hence <code>{ timeout: 5000 }</code>. <code>server.resetHandlers()</code> then brings the normal API back for Try again.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The tab bar's names <span class="step-time">(10 min)</span></h3>
+                    <p>Lesson 8.1 moved the waiting count into the Logbook tab's words, "Logbook (1)", with a name that starts with those words: "Logbook (1), not sent yet". This test renders the real tab layout with four stand-in screens. Create <code>src/test/screens/tabs.test.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/test/screens/tabs.test.tsx</div>
+                        <pre data-src="shoreline-crew/src/test/screens/tabs.test.tsx"><code class="language-tsx">import { act, screen } from '@testing-library/react-native';
+
+import { setSession } from '@/api/client';
+import TabLayout from '@/app/(tabs)/_layout';
+import { AppText } from '@/components/AppText';
+import { useLogQueue } from '@/state/logQueue';
+import { makeLogToSend, volunteer } from '@/test/factories';
+import { renderScreens } from '@/test/render';
+
+beforeEach(() =&gt; {
+  useLogQueue.setState(useLogQueue.getInitialState());
+  setSession(volunteer);
+});
+
+// The real tab bar, with simple stand-ins for the four screens
+function showTabs() {
+  return renderScreens({
+    '(tabs)/_layout': TabLayout,
+    '(tabs)/index': () =&gt; &lt;AppText&gt;Cleanups screen&lt;/AppText&gt;,
+    '(tabs)/my-cleanups': () =&gt; &lt;AppText&gt;My cleanups screen&lt;/AppText&gt;,
+    '(tabs)/logbook': () =&gt; &lt;AppText&gt;Logbook screen&lt;/AppText&gt;,
+    '(tabs)/profile': () =&gt; &lt;AppText&gt;Profile screen&lt;/AppText&gt;,
+  });
+}
+
+// Tests run as an iPhone: there, each tab is a button whose name ends "tab, 3 of 4"
+it('names the Logbook tab like the others while no log waits', async () =&gt; {
+  await showTabs();
+  expect(screen.getByRole('button', { name: 'Logbook, tab, 3 of 4' })).toHaveTextContent('Logbook');
+});
+
+it('puts the number of waiting logs in the words and the name of the Logbook tab', async () =&gt; {
+  await showTabs();
+  await act(() =&gt; useLogQueue.getState().add(volunteer.user.id, makeLogToSend('log-0001'), []));
+  const logbook = screen.getByRole('button', { name: 'Logbook (1), not sent yet' });
+  expect(logbook).toHaveTextContent('Logbook (1)'); // the name starts with the words you see
+});
+
+it("counts only the signed-in volunteer's logs", async () =&gt; {
+  await showTabs();
+  await act(() =&gt; useLogQueue.getState().add('v05', makeLogToSend('log-0002'), []));
+  expect(screen.getByRole('button', { name: 'Logbook, tab, 3 of 4' })).toBeOnTheScreen();
+});</code></pre>
+                    </div>
+                    <p>The role is <code>'button'</code>, not <code>'tab'</code>: on iOS, React Navigation's tab bar (which <code>expo-router/js-tabs</code> uses) gives each tab the button role and a name that ends in "tab, 3 of 4" (a comment in its source says the tab role does not work as expected on iOS); on other platforms, the role is <code>tab</code>. Your app's own label replaces that name, which is why the second test's name has no "tab, 3 of 4". Adding to the queue happens outside React, so it goes inside <code>act()</code>.</p>
+                    <p>Run the three screen files together:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false src/test/screens</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>&gt; shoreline-crew@1.0.0 test
+&gt; node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --watchAll --watchAll=false src/test/screens
+
+ PASS  src/test/screens/tabs.test.tsx
+ PASS  src/test/screens/sign-in.test.tsx
+ PASS  src/test/screens/cleanups.test.tsx
+
+Test Suites: 3 passed, 3 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        1.779 s, estimated 2 s
+Ran all test suites matching src/test/screens.</code></pre>
+                    </div>
+                    <p>With several files, Jest prints one line per file. Add <code>--verbose</code> to list every test, as in the picture:</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_30/30-screens.png" alt="A terminal after npm test for the screen tests: three PASS lines, for tabs, cleanups and sign-in, each followed by its tests with green check marks, such as loads every upcoming cleanup five at a time, says what went wrong when the list cannot load and tries again, and signs in then closes; then Tests: 9 passed, 9 total." width="1029" height="608" loading="lazy">
+    <figcaption>The screen tests with <code>--verbose</code>, which lists every test even when several files run. Real screens, the router, the cache and the HQ's mock API. A first run (here, in a fresh copy) transforms every file and takes seconds per file; later runs are much faster. The order of the files and the times will differ.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: A Maestro flow, coverage, and the whole suite <span class="step-time">(15 min)</span></h3>
+                    <p>Maestro keeps its flows in a <code>.maestro</code> folder at the top of the project. Create <code>.maestro/sign-in.yaml</code> in <code>shoreline-crew</code> (the folder name starts with a dot):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.maestro/sign-in.yaml</div>
+                        <pre data-src="shoreline-crew/.maestro/sign-in.yaml"><code class="language-yaml"># Shoreline Crew, end to end: a volunteer signs in on the Profile tab, sees their name, signs out.
+# Start the app in Expo Go first (npx expo start, then open it on the device), then run:
+#   maestro test .maestro/sign-in.yaml
+appId: host.exp.Exponent # Expo Go's id. A development build has the app's own (Module 9)
+env:
+  APP_URL: exp://192.168.1.42:8081 # the exp:// address under the QR code: yours differs
+---
+# Expo Go runs your project inside itself: open the project's address, not the app
+- openLink: ${APP_URL}
+- extendedWaitUntil:
+    visible: Upcoming cleanups
+    timeout: 60000 # the first time, the phone downloads the whole app from Metro
+- tapOn: Profile.* # the tab: on an iPhone its name is "Profile, tab, 4 of 4"
+- tapOn: Sign in
+- tapOn: Email
+- inputText: theo.nakamura@example.com
+- tapOn: Password
+- inputText: shoreline-demo
+- pressKey: Enter # the password's return key signs in (Lesson 5.4)
+- assertVisible: Theo Nakamura
+- takeScreenshot: signed-in
+- tapOn: Sign out
+- assertVisible: Sign in</code></pre>
+                    </div>
+                    <p>The part above <code>---</code> is the flow's configuration: which app (<code>host.exp.Exponent</code> is Expo Go's id), and a variable for your project's address. The first step opens that address, as Maestro's documentation suggests for Expo Go, instead of <code>launchApp</code>. The list below it is the steps, in the words a tester would use. <code>pressKey: Enter</code> uses the password field's return key, the one Lesson 5.4 made sign in; the flow also avoids tapping "Sign in" twice, since the modal's title and its button both say it. The last two steps sign Theo out again, so the next run starts where this one did.</p>
+                    <p>If you have a device for it (see "End to End with Maestro"): install Maestro by following its documentation, start shoreline-api with <code>--host</code> and <code>npx expo start</code> as in Lesson 5.1, open the app on the emulator or simulator once, then run the flow with your own address (the one under the QR code; an Android emulator reached through <code>a</code> may also use <code>exp://127.0.0.1:8081</code>):</p>
+                    <pre class="terminal"><code class="language-bash">maestro test -e APP_URL=exp://192.168.1.42:8081 .maestro/sign-in.yaml</code></pre>
+                    <p>According to Maestro's documentation, it prints each step with a check mark as it passes and stops at the first step that fails, saying which element it could not find. If you have no device, read the flow and picture each step on your phone: that is still the exercise of deciding what an end-to-end test should prove.</p>
+                    <p>Back in Jest. Coverage writes a report folder, so first keep it out of git. In <code>.gitignore</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/.gitignore</div>
+                        <pre data-src="shoreline-crew/.gitignore" data-match="diff"><code class="language-diff"> 
++# test coverage reports (npm test -- --coverage)
++coverage/
++
+ example</code></pre>
+                    </div>
+                    <p>Press <kbd>q</kbd> in the watching terminal, then run the whole suite with coverage, and the type check and linter as a build server would:</p>
+                    <pre class="terminal"><code class="language-bash">npm test -- --watchAll=false --coverage
+npx tsc --noEmit
+npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output (the end of the coverage table, and the summary)</h4>
+                        <pre><code>File                  | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+...
+All files             |      60 |    49.95 |   61.64 |   63.03 |
+...
+ app                  |   85.71 |    81.81 |      60 |   85.71 |
+  sign-in.tsx         |   85.71 |    81.81 |      60 |   85.71 | 71-81
+ app/(tabs)           |    87.5 |    71.42 |    86.2 |   86.44 |
+  _layout.tsx         |     100 |      100 |     100 |     100 |
+  index.tsx           |   85.18 |    69.86 |   81.81 |      84 | 67-68,77-85,156,165
+...
+ components           |   89.15 |    67.64 |   84.37 |   89.33 |
+  AppText.tsx         |   91.66 |    76.47 |     100 |    90.9 | 19
+...
+  SwitchRow.tsx       |     100 |      100 |     100 |     100 |
+...
+  useLargeText.ts     |     100 |      100 |     100 |     100 |
+...
+Test Suites: 14 passed, 14 total
+Tests:       45 passed, 45 total
+Snapshots:   0 total
+Time:        2.336 s, estimated 4 s
+Ran all test suites.</code></pre>
+                    </div>
+                    <p>Read the rows, not "All files": <code>SwitchRow.tsx</code> and <code>useLargeText.ts</code> are fully covered, <code>AppText.tsx</code> all but line 19 (words given as an array of pieces, which no test passes), and the Cleanups screen <code>index.tsx</code> 84% of its lines (the uncovered ones are refresh and retry paths). The table lists only the files some test loaded: a screen no test imports, such as the Logbook, does not appear at all, which is easy to miss. The low numbers further down include <code>src/mocks/</code>, the API's code, run only through the routes the tests use, and modules that were mocked. The HTML version is in <code>coverage/lcov-report/index.html</code>; open it in a browser and click a file to see the lines no test ran, in red. <code>tsc</code> and <code>expo lint</code> print nothing but Expo's <code>env:</code> lines when all is well.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li><code>npm test -- --watchAll=false</code> runs 45 tests in 14 files, all passing, with no shoreline-api or Metro running</li>
+                        <li><code>package.json</code> transforms FlashList and keeps <code>nextTick</code> and <code>queueMicrotask</code> real; <code>jest.setup.ts</code> loads FlashList's stand-in and sets a phone-sized window</li>
+                        <li>Lesson 8.1's promises are tested: the switch row flips once, live texts are announced on iOS only, <code>useLargeText()</code> follows the text size</li>
+                        <li><code>src/test/render.tsx</code> renders screens under Expo Router with the app's cache; the sign-in, Cleanups and tab bar tests find everything by role and name</li>
+                        <li><code>.maestro/sign-in.yaml</code> describes the sign-in flow on a device (run it if you have an emulator, a phone or a Mac)</li>
+                        <li><code>npx tsc --noEmit</code> and <code>npx expo lint</code> pass, and <code>coverage/</code> is in <code>.gitignore</code></li>
+                        <li>Your own app: pick the one screen of your final-project idea that a user could not do without. Write the names of its three most important tests as sentences, then the roles and names each test would search for. Any control you cannot name that way needs an accessibility label first.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each takes five to twenty minutes. Keep the tests if you like, or remove them; the next lesson starts from the project as Step 7 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: The failed-load view</h3>
+                    <p><code>ErrorView</code> (Lesson 3.1) shows a message and a Try again button on several screens. Write <code>src/components/ErrorView.test.tsx</code>: the message must be an alert (so screen readers say it at once), and one press on Try again must call <code>onRetry</code> once.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p><code>getByRole('alert')</code> finds the message; <code>toHaveTextContent()</code> checks its words. Pass <code>jest.fn()</code> as <code>onRetry</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">import { render, screen, userEvent } from '@testing-library/react-native';
+
+import { ErrorView } from '@/components/ErrorView';
+
+it('says what went wrong as an alert, and tries again once per press', async () => {
+  const onRetry = jest.fn();
+  const user = userEvent.setup();
+  await render(&lt;ErrorView message="Could not reach the server." onRetry={onRetry} /&gt;);
+  expect(screen.getByRole('alert')).toHaveTextContent('Could not reach the server.');
+  await user.press(screen.getByRole('button', { name: 'Try again' }));
+  expect(onRetry).toHaveBeenCalledTimes(1);
+});</code></pre>
+                        <p>No router and no cache: <code>ErrorView</code> is a plain component, so plain <code>render</code> is enough. Use <code>renderScreens</code> only when a component needs the router.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Grouped by date</h3>
+                    <p>The Cleanups screen's "Group by date" switch (Lessons 3.1 and 3.2) puts the cards under headings such as "Today" and "Within a week". Add a test to <code>cleanups.test.tsx</code>: after pressing the switch, there is a "Today" heading and a "Within a week" heading, and still eight cards.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The headings are <code>AppText</code> with <code>accessibilityRole="header"</code>, so <code>getByRole('header', { name: 'Today' })</code> finds one. FlashList keeps a pinned copy of the current heading at the top: if a query finds two, which one does the test care about?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">it('groups the cards under date headings', async () => {
+  const user = userEvent.setup();
+  await showCleanups();
+  await screen.findByText('8 cleanups');
+  await user.press(screen.getByRole('switch', { name: 'Group by date' }));
+  expect(screen.getAllByRole('header', { name: 'Today' }).length).toBeGreaterThan(0);
+  expect(screen.getByRole('header', { name: 'Within a week' })).toBeOnTheScreen();
+  expect(openLinks()).toHaveLength(8); // the same cards, now in groups
+});</code></pre>
+                        <p>The query finds two "Today" headings: the one in the list and the copy FlashList pins at the top of the screen (Lesson 3.2's sticky headings). The test only cares that the heading is there, so it uses <code>getAllByRole</code>; "Within a week" is not pinned yet, so <code>getByRole</code> finds exactly one. The cards stay the same eight: grouping changes the order and the headings, never which cleanups are shown.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: The hook that sends the queue (Stretch)</h3>
+                    <p><code>useSendWaitingLogs()</code> (Lesson 5.5) sends the waiting logs when someone is signed in, and again whenever the phone comes back online. Lesson 8.2 tested <code>sendWaitingLogs()</code> itself; test the hook with <code>renderHook</code> in <code>src/hooks/useSendWaitingLogs.test.ts</code>: a waiting log is sent at once; a log written while offline is sent when the connection returns; nothing is sent with nobody signed in.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Reuse Lesson 8.2's sender setup: <code>startMockApi()</code>, <code>jest.mock('@/storage/logbook')</code>, the queue reset and <code>setSession(volunteer)</code>. Flip <code>onlineManager.setOnline()</code> inside <code>act()</code>, and wait for the queue to empty with <code>waitFor()</code>: the hook sends in the background.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-ts">import { onlineManager } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+
+import { setSession } from '@/api/client';
+import { useSendWaitingLogs } from '@/hooks/useSendWaitingLogs';
+import { useLogQueue } from '@/state/logQueue';
+import { makeLogToSend, volunteer } from '@/test/factories';
+import { recordRequests, startMockApi } from '@/test/server';
+
+jest.mock('@/storage/logbook'); // no SQLite in Jest: the sent logs go nowhere
+
+startMockApi();
+beforeEach(() => {
+  useLogQueue.setState(useLogQueue.getInitialState());
+  setSession(volunteer);
+  onlineManager.setOnline(true);
+});
+
+function queueLog(clientId: string) {
+  useLogQueue.getState().add(volunteer.user.id, makeLogToSend(clientId), []);
+}
+
+it('sends the waiting logs at once, and again when the phone is back online', async () => {
+  queueLog('log-0001');
+  const requests = recordRequests();
+  await renderHook(() => useSendWaitingLogs(volunteer.user.id));
+  await waitFor(() => expect(useLogQueue.getState().logs).toEqual([]));
+
+  await act(() => onlineManager.setOnline(false));
+  queueLog('log-0002'); // written on the beach, with no signal
+  await act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(useLogQueue.getState().logs).toEqual([]));
+  expect(requests).toEqual(['POST /api/events/e17/logs', 'POST /api/events/e17/logs']);
+});
+
+it('sends nothing while nobody is signed in', async () => {
+  queueLog('log-0001');
+  const requests = recordRequests();
+  await renderHook(() => useSendWaitingLogs(null));
+  expect(requests).toEqual([]);
+});</code></pre>
+                        <p>The hook does not return anything, so the test watches its effects: the queue and the requests. <code>waitFor()</code> retries the expectation until it passes (or times out), which is how a test waits for work that a hook starts without returning a Promise.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> In a test of the Cleanups screen, <code>screen.getByText('Only cleanups with spots left')</code> fails with "Unable to find an element with text", although those words are on the screen. Why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The query ran after render was awaited. Would an unfinished render explain words that are in the printed tree?">
+                                A) The screen has not finished rendering yet
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is getByText case sensitive here, and do the words match exactly?">
+                                B) <code>getByText</code> only matches the start of a text
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="SwitchRow hides its words from screen readers (aria-hidden) and puts them on the switch as its accessibilityLabel. RNTL skips hidden elements, like a screen reader. Find the control with getByRole('switch', { name: 'Only cleanups with spots left' }), or pass includeHiddenElements: true when you really want the words, for example to press them.">
+                                C) The words are hidden from screen readers, and RNTL's queries skip hidden elements by default
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is there any DOM at all in a React Native test?">
+                                D) React Native text is not in the DOM
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> A screen test that uses <code>renderRouter</code> stays on "Loading cleanups…" until it times out, although the mock API is running in the test file. What is the most likely cause?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="renderRouter switches on Jest's fake timers, and by default they also freeze process.nextTick and queueMicrotask, which Node's fetch and MSW need to finish a request. The fakeTimers doNotFake setting in package.json keeps those two real.">
+                                A) The fake clock that <code>renderRouter</code> switches on froze the small steps Node's <code>fetch</code> needs to finish a request
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Do any of today's tests need a server outside the test run?">
+                                B) shoreline-api is not running in another terminal
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The error view appears after a failed request. Did a request finish at all?">
+                                C) The app's retry rule is waiting 1 and 2 seconds before showing an error
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would a missing FlashList stand-in stop a request from finishing?">
+                                D) FlashList's measurement stand-in is missing
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> In a test, a volunteer taps the switch in a <code>SwitchRow</code>, whose <code>Switch</code> has <code>pointerEvents: 'none'</code>. What does <code>user.press()</code> do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Does user.press ignore the touch rules React Native follows?">
+                                A) It calls the switch's <code>onValueChange</code> directly
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does the touch disappear, or does it go somewhere else?">
+                                B) Nothing: the switch does not take touches, so the test fails
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="How many changes did Step 2's test record for one press?">
+                                C) It flips the switch and presses the row, so the value changes twice
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="user.press respects pointerEvents and passes the touch to the nearest parent that takes it, the row's Pressable, whose onPress flips the value once, exactly as a finger does on a phone. A screen reader takes the other path: it flips the native switch, which reports valueChange.">
+                                D) The touch goes to the row's <code>Pressable</code>, which flips the value once, as a finger would
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> Your team wants a test that proves a volunteer can sign in on a real Android phone with the release build. Which kind of test is that?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Where does a Jest test run: on the phone, or in Node?">
+                                A) A screen test with <code>renderRouter</code> and the mock API
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Only an end-to-end test drives the real app on a device: Maestro opens the build, taps, types and checks what appears. Jest tests run in Node with stand-ins for the phone, so they prove the app's decisions, not that the build works on a device.">
+                                B) An end-to-end flow, for example with Maestro, run against that build on a device or emulator
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a snapshot run anything on a phone?">
+                                C) A snapshot test of the sign-in screen
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Under Jest, before Shoreline Crew's setup changes it, what does <code>useLargeText()</code> return, and why?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What fontScale does React Native's Jest preset give its pretend window?">
+                                A) <code>false</code>, because a test has no text size setting at all
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="React Native's Jest preset pretends a 750 by 1334 window with fontScale 2, so useLargeText() (fontScale of 1.5 or more) is true. Shoreline Crew's jest.setup.ts sets a phone-sized window with fontScale 1 before every test, and tests that care change it with Dimensions.set().">
+                                B) <code>true</code>, because React Native's Jest preset pretends a window with text at twice its size
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does jest-expo read anything from the computer it runs on?">
+                                C) Whatever text size your computer's operating system uses
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details class="card">
+                    <summary>Should I use <code>testID</code> instead of names?</summary>
+                    <p>Prefer roles, names and visible text: they are what a person (and a screen reader) uses, and a test that finds them is an accessibility check for free. <code>testID</code> (which Maestro's React Native guide recommends) is a fallback for things that have no good name, like a decorative view whose size you must check, or several identical controls; RNTL finds it with <code>getByTestId</code> and Maestro with <code>id:</code>. If you reach for <code>testID</code> because a button has no name, give the button a name instead.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Why not render the whole app, root layout and all, with <code>renderRouter('./src/app')</code>?</summary>
+                    <p>You can point <code>renderRouter</code> at a folder, and for small apps that is a good start. Shoreline Crew's root layout waits for fonts, reads the session from SecureStore, loads the settings and the queue, starts reminders and the log sender: every test would need stand-ins for all of it, and each test would be about everything at once. Listing the routes keeps each test about one screen. The end-to-end flow is where the whole app runs together.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Is <code>fireEvent</code> wrong now that there is <code>userEvent</code>?</summary>
+                    <p>No, it is lower level. <code>user.press()</code> plays the whole touch (press in, press out, press) and respects <code>pointerEvents</code> and disabled controls, so prefer it for what a person does. <code>fireEvent</code> sends exactly one event by name, which is right for events no finger makes: a native switch reporting <code>valueChange</code> after a screen reader flipped it, a scroll view's <code>onScroll</code>, a <code>RefreshControl</code>'s <code>onRefresh</code>.</p>
+                </details>
+
+                <details class="card">
+                    <summary>Maestro or Detox?</summary>
+                    <p>Detox (from Wix) is the other well-known end-to-end tool for React Native. It runs tests written in JavaScript, synchronizes closely with the app, and needs the app built with its own setup, which in an Expo project means a development build and a config plugin. Maestro needs no changes to the app and flows are YAML, which is why many Expo teams start there. Both need a device or emulator; pick the one your team will actually keep running.</p>
+                </details>
+
+                <details class="card">
+                    <summary>The web preview runs in a browser. Could Playwright test it, as in the HQ?</summary>
+                    <p>Yes, and this course's own checks do exactly that: every lesson's stage is exported for the web and checked in Chromium. It is a good test of data, navigation and forms, but it runs react-native-web, not the phone's native views: no native tab bar, no keyboard, no permissions, no gestures as they feel on a phone. Treat it as one more fast check, not as an end-to-end test of the phone app.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Write a second Maestro flow, <code>.maestro/only-open.yaml</code>: open the app, wait for "Upcoming cleanups", tap the words "Only cleanups with spots left", and assert that "Weekend Cove Cleanup" (which is full) is no longer visible, with <code>assertNotVisible</code>. Then compare it with the second test in <code>cleanups.test.tsx</code>: both check the same decision. Which one would you keep running on every commit, and which one before each release? Write down why. If you have a device, run both and time them.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Today a test could not find words that were on the screen, because a screen reader could not find them either. Write about one control in an app you use every day that you think would be hard to find by role and name. What would a test of it look like, and what would that tell you about its accessibility?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>React Native Testing Library 14 is the web's Testing Library for native views: <code>render</code>, <code>renderHook</code>, <code>fireEvent</code> and <code>act</code> are async; <code>userEvent</code> presses, types and clears; matchers like <code>toBeOnTheScreen()</code> are built in</li>
+                        <li>Queries see what a screen reader sees: find controls by role and name, and expect hidden elements (and screens behind a modal) to be skipped unless you ask for them</li>
+                        <li><code>user.press()</code> follows React Native's touch rules, <code>pointerEvents</code> included; <code>fireEvent</code> sends one named event, such as a screen reader's <code>valueChange</code></li>
+                        <li>The pretend phone is a 750-point window with text at twice its size until your setup says otherwise; <code>Dimensions.set()</code>, <code>jest.replaceProperty(Platform, 'OS', …)</code> and the <code>AccessibilityInfo</code> stand-ins let a test play the phone</li>
+                        <li><code>expo-router/testing-library</code> works on SDK 58: <code>renderRouter</code> with a list of routes, <code>testRouter</code>, <code>toHavePathname</code>; it switches on fake timers, so keep <code>nextTick</code> and <code>queueMicrotask</code> real for requests</li>
+                        <li>Maestro flows are YAML steps that drive the real app on an Android emulator or phone or an iOS Simulator; use them for the few paths that must work on a device</li>
+                        <li>Test decisions a person depends on, by what they see and do; skip styles, snapshots, library behavior and implementation details; read coverage per file, as a map of what never ran</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up an RNTL query, matcher or user event</td><td><a href="https://oss.callstack.com/react-native-testing-library/">React Native Testing Library documentation</a></td></tr>
+                            <tr><td>Test Expo Router screens</td><td><a href="https://docs.expo.dev/router/reference/testing/">Expo: Testing configuration for Expo Router</a></td></tr>
+                            <tr><td>Read Expo's guide to Jest</td><td><a href="https://docs.expo.dev/develop/unit-testing/">Expo: Unit testing with Jest</a></td></tr>
+                            <tr><td>Install Maestro and learn its commands</td><td><a href="https://docs.maestro.dev/">Maestro documentation</a></td></tr>
+                            <tr><td>Run end-to-end tests in the cloud with EAS</td><td><a href="https://docs.expo.dev/eas/workflows/examples/e2e-tests/">Expo: E2E tests with EAS Workflows</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew's suite grew to 45 tests: logic, components and whole screens, still running in a few seconds with no phone and no server</li>
+                        <li>Lesson 8.1's accessibility promises are now checked on every run: one switch per row, the right announcements, the right layouts at large text</li>
+                        <li>The sign-in modal, the Cleanups list and the tab bar are tested under Expo Router, with the real cache and the HQ's mock API</li>
+                        <li>You wrote an end-to-end flow that describes, step by step, what a volunteer does on a device</li>
+                        <li>You can read RNTL's printed tree and tell whether a test is looking for the wrong thing or the app stopped showing it</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_31.html">Lesson 8.4: Performance and Debugging</a> you look at the running app instead of tests: React DevTools and the debugger Expo opens with <kbd>j</kbd>, finding out why a screen re-renders, measuring before you optimize (with the React Compiler already on), and a method for hunting down the bugs tests did not catch.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Run <code>npm test -- --watchAll=false</code>, <code>npx tsc --noEmit</code> and <code>npx expo lint</code> one last time, and commit your work (the <code>.maestro</code> folder too)</li>
+                    <li>Open Shoreline Crew on your phone, go to the Cleanups tab and scroll fast to the end of the list. Note anything that feels slow or jumpy: Lesson 8.4 starts from what you notice</li>
+                    <li>Write today's journal entry</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Two lessons ago, "does the Logbook tab say the right thing to a screen reader?" was a question you answered by turning on VoiceOver and listening. Now a test answers it in a few milliseconds, every time anyone changes anything. That is what testing really buys: not certainty, but attention you no longer have to spend. Spend it on the things only a person can judge, on a real phone, on a real beach.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_29.html" class="prev-lesson">← Previous: Testing the App's Logic</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_31.html" class="next-lesson">Next: Performance and Debugging →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Offline first on a phone: debris logs go into a queue saved on the device (Zustand persist with AsyncStorage), are sent when the phone is back online, retried safely thanks to a device clientId, kept apart per volunteer on a shared phone, and shown on the Logbook tab until they reach the server. React Native &amp; Expo: Build and Ship a Mobile App Lesson 5.5.">
+    <meta name="author" content="Ray de la Paz">
+    <title>Offline First - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+
+            <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📴 Lesson 5.5: Offline First</h1>
+                <p class="lead">A beach is a bad place for a network. The signal comes and goes with the wind and the cliffs, and the volunteer with the debris log is tired, sandy and ready to go home. An app that says "No connection, try again later" has just lost that log. Today Shoreline Crew stops depending on luck: a log is saved on the phone the moment the volunteer presses Send, and it reaches the server by itself whenever the phone finds a signal, even if the app was closed in between.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain "offline first" as an outbox: write on the device first, send when you can, and say what a paused mutation from Lesson 5.2 cannot do</li>
+                        <li>Persist a Zustand store on a phone with <code>persist</code> and AsyncStorage, load it behind the splash screen, and say what differs from the web course's <code>localStorage</code> store</li>
+                        <li>Send a queue safely: one log at a time, the same <code>clientId</code> on every try, and a different reaction to each kind of answer (sent, refused, signed out, no answer)</li>
+                        <li>Choose the moments to send (start, sign-in, back online, back in the foreground) with the online and focus managers you already have</li>
+                        <li>Keep each volunteer's unsent work apart on a shared phone</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 160 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_18.html">Lesson 5.4: Mobile Forms</a> (and Zustand from the web course's Lesson 7.3)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> A queue of debris logs saved on the phone that sends itself when the connection returns, a <strong>Not sent yet</strong> section on the Logbook tab, and a count on the tab while logs wait</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), zustand 5.1, AsyncStorage 2.2, TanStack Query 5.107 (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> Expo Go on your phone with shoreline-api running <code>--host</code> (airplane mode is today's test); the web preview with Chrome's offline switch for the quick checks</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-19-start.zip">lesson-19-start.zip</a> · Finished code: <a href="downloads/lesson-19-end.zip">lesson-19-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: The Log That Was Lost</a></li>
+                        <li><a href="#outbox" class="toc-link">Offline First: An Outbox on the Phone</a></li>
+                        <li><a href="#zustand" class="toc-link">Zustand on a Phone: persist with AsyncStorage</a></li>
+                        <li><a href="#retries" class="toc-link">Safe Retries: Every Answer Means Something</a></li>
+                        <li><a href="#when" class="toc-link">When to Send</a></li>
+                        <li><a href="#shared" class="toc-link">One Phone, Several Volunteers</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: The Debris Log Queue</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: The Log That Was Lost</h2>
+                <p>If you did last lesson's "Before the Next Lesson" task, you sent a debris log in airplane mode, force-quit Expo Go, and watched the log disappear. Lesson 5.4 was honest about it: the screen said "Keep the app open until then." A TanStack Query mutation that pauses for the network waits in memory, and memory ends when the app does. Phones end apps all the time: the volunteer swipes it away, the phone runs low on memory while the camera is open, the battery dies on the walk back to the car.</p>
+                <p>Today the log goes somewhere that outlives the app before the app tries the network at all. By the end of the lesson:</p>
+                <ul>
+                    <li><strong>Send always works</strong>, signal or not: the log goes into a queue saved on the phone, and the screen says honestly whether it reached the server or is waiting.</li>
+                    <li><strong>The queue empties itself</strong> when the app starts, when a volunteer signs in, when the phone is back online and when the app returns to the foreground. A retry can never make a duplicate.</li>
+                    <li><strong>The Logbook tab shows what is not sent yet</strong>, with a count on the tab, and keeps each volunteer's unsent logs to themselves on a shared phone.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> "works offline" is on the wish list of nearly every field app (inspections, deliveries, surveys, health visits), and it is where many teams lose data without noticing. Being the developer who can explain what happens to a record on the third failed try, and prove it, is a real edge in an interview and on a team.</p>
+                <p><strong>Why it matters for the volunteers:</strong> the season report is only as good as the logs that arrive. A log that vanished is bottles nobody will ever count.</p>
+                <div class="card card-accent">
+                    <h4>🌱 Slow is smooth today</h4>
+                    <p>Offline code is the kind where "it works on my desk" means very little: the bugs live in the orders of events you did not try. The lesson tries them for you (the measurements say so), and the project has you try the important ones yourself. If an order of events confuses you, draw it on paper. Nobody gets this right by typing faster.</p>
+                </div>
+            </section>
+
+            <section id="outbox" class="lesson-section">
+                <h2>📮 Offline First: An Outbox on the Phone</h2>
+                <p>Your email app already works this way. You press Send in a tunnel, the message goes to the Outbox, and it leaves when the phone finds a network. Nobody asks you to keep the app open. That is the whole idea of <strong>offline first</strong>: the app writes to the device first, treats the network as something that comes and goes, and sends later.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the logbook in a dry bag</h4>
+                    <p>On the beach, the crew leader does not phone in each count the moment it is made. The counts go into a logbook in a dry bag, and the bag rides home in the van whatever the weather. At the office, someone copies the pages to headquarters, ticks each one off, and asks again about any page headquarters did not confirm. The queue is the dry bag: once a log is in it, rain (no signal) and a capsized kayak (the app closing) do not matter. The <code>clientId</code> is the page number that stops headquarters from filing the same page twice.</p>
+                </div>
+                <p>Lesson 5.2's paused mutation got the first half right (wait instead of failing) and Lesson 5.4's <code>clientId</code> made a resend harmless. What was missing is a place that survives the app. Here is what changes:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>Lesson 5.4: a paused mutation</th><th>Today: a saved queue</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Where the log waits</td><td>In memory (TanStack Query's mutation cache)</td><td>In AsyncStorage, written the moment Send is pressed</td></tr>
+                            <tr><td>The app is closed</td><td>The log is gone</td><td>The log is read back at the next start</td></tr>
+                            <tr><td>Who sends it</td><td>The mutation, when the online manager says online</td><td>A small sender the app calls at start, sign-in, reconnect and foreground</td></tr>
+                            <tr><td>A resend</td><td>Safe (same <code>clientId</code>)</td><td>Safe (the <code>clientId</code> is saved with the log)</td></tr>
+                            <tr><td>Where the volunteer sees it</td><td>Only on the form, while it stays open</td><td>On the form and on the Logbook tab, with a count on the tab</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The life of one log, from the Send button to the logbook:</p>
+<div class="mermaid">
+graph TD
+    A["Send pressed"] --> B["Saved in the queue"]
+    B --> C{"Online?"}
+    C -->|"not yet"| D["Wait for a signal"]
+    D --> C
+    C -->|"yes"| E["POST with its clientId"]
+    E -->|"201 or 200"| F["Into the logbook"]
+    F --> G["Out of the queue"]
+</div>
+                <p>Two rules make this safe. <strong>The log is saved before anything is sent</strong>, so there is no moment when it exists only in memory. And <strong>it leaves the queue only after the server has it and the logbook has a copy</strong>, so a crash between those steps means "send it again", which the <code>clientId</code> makes harmless. Lesson 5.3's rule still holds: the phone keeps copies, the server keeps the truth. The queue is simply a copy that is still on its way.</p>
+                <p>Shoreline Crew queues only debris logs. Sign-ups stay as Lesson 5.2 left them, waiting in memory: a sign-up is decided by the server (a spot or the waiting list), so a volunteer needs the answer now, not "later, somehow". Queue the things a person creates (a log, a note, a photo) and let the things the server decides wait for the server.</p>
+            </section>
+
+            <section id="zustand" class="lesson-section">
+                <h2>🐻 Zustand on a Phone: persist with AsyncStorage</h2>
+                <p>The queue is client state that must survive the app, which is exactly what you built in the web course's Lesson 7.3: a Zustand store with the <code>persist</code> middleware, <code>create&lt;T&gt;()(persist(…))</code>, a <code>name</code>, a <code>merge</code> that checks what was saved, <code>getState()</code> outside React and <code>useShallow</code> for selectors that build new arrays. All of it comes across. Shoreline Crew has not used Zustand so far, on purpose: Lesson 5.3 wrote its settings store by hand, so you can now see what <code>persist</code> writes for you.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Job</th><th>Lesson 5.3's settings store (by hand)</th><th>Today's queue (Zustand <code>persist</code>)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Hold the state, notify screens</td><td><code>current</code>, a listener set, <code>useSyncExternalStore</code></td><td><code>create()</code> and the <code>useLogQueue</code> Hook</td></tr>
+                            <tr><td>Save after every change</td><td><code>AsyncStorage.setItem</code> in <code>changeSettings</code></td><td>Automatic, after every <code>set</code></td></tr>
+                            <tr><td>Read back at startup</td><td><code>loadSettings()</code></td><td><code>useLogQueue.persist.rehydrate()</code></td></tr>
+                            <tr><td>Check what was saved</td><td><code>fromSaved()</code></td><td>The <code>merge</code> option (the HQ's pattern)</td></tr>
+                            <tr><td>Save only some of it</td><td>Not needed</td><td>The <code>partialize</code> option</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>For one setting, the hand-written store was short and clear. For a list of records that changes from several places (the form adds, the sender changes and removes, the Logbook removes), <code>persist</code> earns its place. Three things are different on a phone.</p>
+                <h3>1. There is no localStorage: say where to save</h3>
+                <p>On the web, <code>persist</code> saves in <code>localStorage</code> unless told otherwise. A phone has no <code>localStorage</code>, so the queue names its storage: <code>storage: createJSONStorage(() =&gt; AsyncStorage)</code>. <code>createJSONStorage</code> turns the state into JSON on the way in and back on the way out, and accepts a storage whose methods return promises, which AsyncStorage's do. Forget it, and the web preview still works (it has <code>localStorage</code>), which is exactly why the mistake is easy to ship. <a href="#mistakes">Common Mistakes</a> shows what the phone does instead.</p>
+                <h3>2. Loading is async: wait behind the splash screen</h3>
+                <p>In the browser, <code>localStorage</code> answers at once, so a persisted store is loaded before your first render. AsyncStorage answers later. Until it does, the store holds its starting state, an empty queue, and any code that reads it then is wrong: the sender would find nothing to send. So the queue sets <code>skipHydration: true</code> ("do not load by yourself") and exports <code>loadLogQueue()</code>, which calls <code>useLogQueue.persist.rehydrate()</code>. The root layout adds it to Lesson 5.3's <code>Promise.all</code> behind the splash screen, next to the session and the settings, and only starts sending once all three are in.</p>
+                <h3>3. Save only what should survive</h3>
+                <p>The store holds two things: <code>logs</code>, the queue itself, and <code>sending</code>, "a send is running right now". The second must not survive: an app killed in the middle of a send that came back believing it was still sending would never send again. <code>partialize: ({ logs }) =&gt; ({ logs })</code> saves the logs only, and the <code>merge</code> reads back only the logs, so <code>sending</code> always starts as <code>false</code>. What is saved looks like this (from the web preview's storage, where AsyncStorage keeps its keys in <code>localStorage</code>; measured, shortened):</p>
+                <pre data-snippet><code class="language-json">{
+  "state": {
+    "logs": [
+      {
+        "event": { "id": "e17", "title": "Tide Pool Morning Cleanup", "...": "..." },
+        "log": { "clientId": "c3a0f6b2-…", "items": [{ "category": "glass", "count": 2 }], "...": "..." },
+        "volunteerId": "v04",
+        "status": "waiting",
+        "attempts": 0,
+        "problem": null
+      }
+    ]
+  },
+  "version": 0
+}</code></pre>
+                <p>Each queued item is Lesson 5.4's <code>LogToSend</code> (<code>{ event, log }</code>) unchanged, plus four fields of its own: whose log it is, its status (<code>'waiting'</code> or <code>'refused'</code>), how many tries got no answer, and the server's words if it refused. The <code>version</code> is persist's own number (0 by default), there for the day the shape changes, as in the web course.</p>
+            </section>
+
+            <section id="retries" class="lesson-section">
+                <h2>🔁 Safe Retries: Every Answer Means Something</h2>
+                <p>The sender, <code>sendWaitingLogs(volunteerId)</code>, takes the volunteer's waiting logs oldest first and sends them <strong>one at a time</strong>. One at a time keeps the order the volunteer recorded them in, and it means the first sign of trouble stops the run instead of firing ten doomed requests into a dead network. For each log, the answer decides what happens next:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>The answer</th><th>What it means</th><th>The queue</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>201</strong> Created</td><td>A new log, saved</td><td>Save the server's copy in the logbook (Lesson 5.3's <code>saveSentLogs</code>), then remove it from the queue</td></tr>
+                            <tr><td><strong>200</strong> OK</td><td>The server already had a log with this <code>clientId</code>: an earlier try got through, but its answer was lost</td><td>The same as 201: it is done</td></tr>
+                            <tr><td><strong>400, 403, 404, 409</strong></td><td>A "no" about this log (no spot at the cleanup, the cleanup has not happened, a field the server rejects)</td><td>Mark it <code>refused</code> with the server's message; never send it again by itself (the answer would not change)</td></tr>
+                            <tr><td><strong>401</strong></td><td>The sign-in has ended</td><td>Keep everything, show "Your sign-in has ended" (Lesson 5.2's notice), stop until someone signs in</td></tr>
+                            <tr><td><strong>No answer</strong>, or <strong>500</strong></td><td>No connection, a timeout, the API down: nobody knows if it arrived</td><td>Keep it waiting, count the try, stop for now</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The last row is the one the <code>clientId</code> exists for. "No answer" does not mean "not saved". Measured in the web preview: the first request reached shoreline-api and was saved (201 at the server), the phone's side of the connection was cut before the answer arrived, the log stayed in the queue with one try counted; the next try sent the same <code>clientId</code>, the API answered <strong>200</strong> with the log it already had, and the server still held exactly one log. Without the <code>clientId</code>, the only safe choices would be "never retry" (lose logs) or "always retry" (count bottles twice).</p>
+                <p>One detail in the order matters: the log is written into the logbook <em>before</em> it leaves the queue. If saving to SQLite failed, the log would still be waiting, and the next try's 200 would bring the same log back for the logbook. Every step can be repeated safely, so every failure has the same fix: try again later.</p>
+                <div class="card card-info">
+                    <h4>💡 Retryable or not?</h4>
+                    <p>The question to ask of any failure is: <em>would asking again, unchanged, ever get a different answer?</em> A dead network or a busy server: yes, later. A 403 "no spot": no, not until something else changes. Retrying the second kind forever drains the battery and hides the real problem from the volunteer; giving up on the first kind loses data. The same question gave Lesson 5.2 its retry rule for queries (no retry for a 4xx).</p>
+                </div>
+            </section>
+
+            <section id="when" class="lesson-section">
+                <h2>⏰ When to Send</h2>
+                <p>A queue that never gets asked to send is just a list. Shoreline Crew calls <code>sendWaitingLogs</code> at five moments, and because the function does nothing when it is offline, already running, or has nothing to send, calling it "too often" is harmless:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Moment</th><th>Who notices</th><th>Where</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Send is pressed</td><td>The form</td><td><code>log/[id].tsx</code></td></tr>
+                            <tr><td>The app starts with a volunteer signed in, or someone signs in</td><td>The session changes</td><td>a Hook in the root layout, <code>useSendWaitingLogs</code></td></tr>
+                            <tr><td>The phone is back online</td><td>TanStack Query's <code>onlineManager</code> (NetInfo on a phone, Lesson 5.2)</td><td>the same Hook</td></tr>
+                            <tr><td>The app is back in the foreground</td><td>TanStack Query's <code>focusManager</code> (AppState on a phone, Lesson 5.2)</td><td>the same Hook</td></tr>
+                            <tr><td>The volunteer presses <strong>Send now</strong></td><td>The Logbook tab</td><td><code>(tabs)/logbook.tsx</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The managers are the reason Lesson 5.2 wired them up: there is now one place in the app that knows "online" and one that knows "in the foreground", on every platform. On a phone, NetInfo and AppState feed them; in the web preview, the browser does. <code>onlineManager.subscribe</code> and <code>focusManager.subscribe</code> call back with <code>true</code> or <code>false</code> each time that changes, and <code>onlineManager.isOnline()</code> answers the question at any moment.</p>
+                <p>"Back in the foreground" is there because a phone suspends an app in the background: while the volunteer drives home with Shoreline Crew in the background, nothing in it runs, so the reconnect may happen while nobody is listening. Coming back to the app is the next chance. What the course does not do is send while the app is <em>closed</em>; the <a href="#faq">FAQ</a> says why and what that would take.</p>
+            </section>
+
+            <section id="shared" class="lesson-section">
+                <h2>👥 One Phone, Several Volunteers</h2>
+                <p>Shoreline Crew is often a shared phone: the crew leader's, passed around at the end of a cleanup. Lesson 5.3 met this bug class (a screen that kept the last person's "Done" message), and the queue raises the stakes, because the server takes the volunteer from the token, not from the log. A log sent with the wrong person's sign-in becomes <em>their</em> log.</p>
+                <p>So every queued log carries its <code>volunteerId</code>, and three places use it:</p>
+                <ul>
+                    <li><strong>The sender</strong> sends only the signed-in volunteer's waiting logs, and checks before each request that the same person is still signed in (a sign-out can happen in the middle of a run).</li>
+                    <li><strong>The Logbook</strong> shows only your own unsent logs, and the tab counts only yours.</li>
+                    <li><strong>Sign-out keeps the queue.</strong> Theo's waiting log stays on the phone, invisible to the next person, and goes out the next time Theo signs in on this phone.</li>
+                </ul>
+                <p>Measured in the web preview: Theo sent a log offline and signed out; Maya signed in once the connection was back. No log request was made while Maya was signed in, and her Logbook showed nothing of Theo's. When Theo signed in again, his log went out at once (one POST, 201) and appeared in his logbook. <a href="#mistakes">Common Mistakes</a> shows the same steps with a sender that ignores <code>volunteerId</code>.</p>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Each mistake below was made on purpose in a copy of the finished project and measured in the web preview, unless it says otherwise.</p>
+
+                <div class="card card-warning">
+                    <h4>⚠️ persist with no storage</h4>
+                    <p>The web course's store had no <code>storage</code> option, and copying it type-checks, lints and works in the web preview, which has <code>localStorage</code>. On a phone, <code>window</code> exists but <code>window.localStorage</code> does not, so persist's default storage has nothing behind it. Running Zustand 5.1's persist that way in Node (a <code>window</code> without <code>localStorage</code>, as on a phone), the very first change failed:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>add threw: TypeError: Cannot read properties of undefined (reading 'setItem')</code></pre>
+                    </div>
+                    <p>On a phone that would be a red error screen when Send is pressed (Hermes words the message "Cannot read property 'setItem' of undefined"; not run on a phone here). Always name the storage: <code>createJSONStorage(() =&gt; AsyncStorage)</code>.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Sending every waiting log with whoever is signed in</h4>
+                    <p>A sender that sends the whole queue (no <code>volunteerId</code> filter, no session check) looks simpler and passes every check you would think of with one person. Measured with two: Theo sent a log offline and signed out; Maya signed in once the connection was back. The sender sent Theo's log with Maya's token, shoreline-api answered 201 and saved it <strong>as Maya's</strong> (Maya is an organizer, who may log for any cleanup), Maya's logbook listed it, and the server had no log from Theo at all. With a volunteer who had no spot, the same log would have come back refused. Filter by <code>volunteerId</code>, and check the session before each request.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Treating every failure the same</h4>
+                    <p>Two opposite versions of one mistake. "Any error: try again later" keeps a 403 log in the queue forever: it is re-sent at every start and every reconnect, refused every time, and the volunteer never learns why it never arrives. "Any error: give up" throws away a log that only met a dead network, the one case the queue exists for. Sort the answers as in <a href="#retries">Safe Retries</a>: done (201, 200), refused (other 4xx, kept with the server's words), stop and sign in (401), wait (no answer, 5xx).</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ A filtered list from the store without useShallow</h4>
+                    <p>The Logbook selects "my logs" with <code>state.logs.filter(…)</code>, which builds a new array on every call. Without <code>useShallow</code>, Zustand sees a new answer every time it asks, renders again, gets another new array, and so on (the web course's Lesson 7.3 mistake, unchanged on a phone). Measured in the web preview's export: signing in on the Logbook tab left a blank page and React's error #185, "Maximum update depth exceeded". Wrap such selectors in <code>useShallow</code>, or select something that stays the same, like the <code>.length</code> the tab badge uses.</p>
+                </div>
+
+                <div class="card card-warning">
+                    <h4>⚠️ Only invalidating the logbook after a send</h4>
+                    <p>Lesson 5.3 refreshed the logbook with <code>invalidateQueries({ queryKey: ['logbook'] })</code>, and that was the first version of the sender too. Measured: Theo signed in on the Logbook tab with a log waiting; the log was sent (201) and saved in SQLite, and the Logbook still said "Your logbook is empty". The first read of the logbook had started when the screen appeared, before the save, and TanStack Query restarts a running fetch only for a query that already has data (read in its source: <code>cancelRefetch</code> applies "only if the query has data"); otherwise the invalidation simply waits for the running read and its old answer. <code>cancelQueries</code> first, then <code>invalidateQueries</code>, starts a fresh read after the save.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: The Debris Log Queue</h2>
+                <p>You install Zustand, build the queue store and the sender, load the queue behind the splash screen and send at the right moments, then hand the form's log to the queue and show what is waiting on the Logbook tab. Last, you take the connection away and watch nothing get lost. Work in <code>shoreline-crew</code>, with shoreline-api running in a second terminal (with <code>--host</code> for your phone, as in Lesson 5.1).</p>
+
+                <div class="card">
+                    <h3>Step 1: Install Zustand <span class="step-time">(5 min)</span></h3>
+                    <p>Stop Metro with <kbd>Ctrl</kbd>+<kbd>C</kbd> (also <kbd>Ctrl</kbd>+<kbd>C</kbd> on a Mac). AsyncStorage is already in the project (Lesson 5.3); Zustand is the only new package:</p>
+                    <pre class="terminal"><code class="language-bash">npx expo install zustand</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL
+› Installing 1 other package using npm
+&gt; npm install --save zustand
+
+added 1 package, and audited 811 packages in 2s
+
+167 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.</code></pre>
+                    </div>
+                    <p>"1 other package": Zustand is plain JavaScript, not an Expo SDK module, so Expo passes it to npm unchanged and you get the HQ's version, <code>zustand</code> ^5.1.0. It runs in Expo Go with no development build. The vulnerabilities line is npm's audit of the whole project, as before.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: The queue <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/state/logQueue.ts</code>, next to Lesson 5.3's settings:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/logQueue.ts</div>
+                        <pre data-src="shoreline-crew/src/state/logQueue.ts"><code class="language-ts">// The debris logs waiting to be sent (new): a Zustand store that saves itself on the phone with
+// AsyncStorage, so a log finished with no signal survives closing the app (src/state/sendLogs.ts
+// sends it later). Lesson 5.3's settings store saves by hand; Zustand's persist does it for us.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+import { isCleanupEvent } from '@/api/client';
+import type { LogToSend } from '@/api/schemas';
+
+/** 'waiting': not on the server yet. 'refused': the server said no, and would say it again. */
+export type QueuedLogStatus = 'waiting' | 'refused';
+
+/** One log in the queue: what to send, whose it is, and how sending it has gone so far */
+export type QueuedLog = LogToSend &amp; {
+  volunteerId: string; // the volunteer who wrote it: only their sign-in may send it
+  status: QueuedLogStatus;
+  attempts: number; // tries that got no answer (no connection, server trouble)
+  problem: string | null; // the server's words, when it refused
+};
+
+type LogQueue = {
+  logs: QueuedLog[];
+  sending: boolean;
+  add: (volunteerId: string, item: LogToSend) =&gt; void;
+  change: (clientId: string, changes: Partial&lt;QueuedLog&gt;) =&gt; void;
+  remove: (clientId: string) =&gt; void;
+  setSending: (sending: boolean) =&gt; void;
+};
+
+// A saved log is checked like API data before the app trusts it: an older version of the app
+// (or a bug) may have written something else
+function isQueuedLog(value: unknown): value is QueuedLog {
+  return (
+    typeof value === 'object' &amp;&amp;
+    value !== null &amp;&amp;
+    'volunteerId' in value &amp;&amp;
+    typeof value.volunteerId === 'string' &amp;&amp;
+    'status' in value &amp;&amp;
+    (value.status === 'waiting' || value.status === 'refused') &amp;&amp;
+    'attempts' in value &amp;&amp;
+    typeof value.attempts === 'number' &amp;&amp;
+    'event' in value &amp;&amp;
+    isCleanupEvent(value.event) &amp;&amp;
+    'log' in value &amp;&amp;
+    typeof value.log === 'object' &amp;&amp;
+    value.log !== null &amp;&amp;
+    'clientId' in value.log &amp;&amp;
+    typeof value.log.clientId === 'string'
+  );
+}
+
+export const useLogQueue = create&lt;LogQueue&gt;()(
+  persist(
+    (set) =&gt; ({
+      logs: [],
+      sending: false,
+      add: (volunteerId, item) =&gt;
+        set(({ logs }) =&gt; {
+          if (logs.some(({ log }) =&gt; log.clientId === item.log.clientId)) {
+            return {}; // the same log twice (same clientId) is still one log
+          }
+          const queued: QueuedLog = {
+            ...item,
+            volunteerId,
+            status: 'waiting',
+            attempts: 0,
+            problem: null,
+          };
+          return { logs: [...logs, queued] };
+        }),
+      change: (clientId, changes) =&gt;
+        set(({ logs }) =&gt; ({
+          logs: logs.map((item) =&gt;
+            item.log.clientId === clientId ? { ...item, ...changes } : item,
+          ),
+        })),
+      remove: (clientId) =&gt;
+        set(({ logs }) =&gt; ({ logs: logs.filter(({ log }) =&gt; log.clientId !== clientId) })),
+      setSending: (sending) =&gt; set({ sending }),
+    }),
+    {
+      name: 'shoreline-crew-log-queue',
+      // A phone has no localStorage: tell persist where to keep the queue
+      storage: createJSONStorage(() =&gt; AsyncStorage),
+      // Save the logs only. "Sending right now" ends when the app closes
+      partialize: ({ logs }) =&gt; ({ logs }),
+      // Keep only the saved logs that pass the check
+      merge: (saved, current) =&gt; {
+        const logs =
+          typeof saved === 'object' &amp;&amp; saved !== null &amp;&amp; 'logs' in saved ? saved.logs : [];
+        return { ...current, logs: Array.isArray(logs) ? logs.filter(isQueuedLog) : [] };
+      },
+      // Reading AsyncStorage is async: the root layout loads the queue behind the splash screen
+      skipHydration: true,
+    },
+  ),
+);
+
+/** Read the saved queue. Call it once, when the app starts. */
+export function loadLogQueue(): Promise&lt;void&gt; {
+  return useLogQueue.persist.rehydrate();
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>QueuedLog</code></strong> is Lesson 5.4's <code>LogToSend</code> with four fields added. The intersection type (<code>&amp;</code>) keeps the two in step: if 6.2 adds photos to <code>LogToSend</code>, the queue carries them with no change here.</li>
+                        <li><strong>The actions</strong> (<code>add</code>, <code>change</code>, <code>remove</code>, <code>setSending</code>) are the only ways in; every <code>set</code> is saved by persist. <code>add</code> ignores a <code>clientId</code> it already has, so a double press can never queue one log twice.</li>
+                        <li><strong><code>isQueuedLog</code></strong> checks a saved log the way <code>client.ts</code> checks API data, reusing <code>isCleanupEvent</code>; <code>merge</code> keeps the logs that pass. Measured: a saved queue with one good log and one in an old shape kept the good one (and sent it); a saved value that was not JSON at all left an empty queue and a working app.</li>
+                        <li><strong>The four persist options</strong> are the three phone differences from <a href="#zustand">Zustand on a Phone</a> plus the HQ's <code>merge</code>. The key, <code>shoreline-crew-log-queue</code>, sits next to Lesson 5.3's <code>shoreline-crew-settings</code> in AsyncStorage.</li>
+                    </ul>
+                    <p>The store knows nothing about the network: it holds and saves. Sending is the next file's job.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Emptying the queue <span class="step-time">(15 min)</span></h3>
+                    <p>Create <code>src/state/sendLogs.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/state/sendLogs.ts</div>
+                        <pre data-src="shoreline-crew/src/state/sendLogs.ts"><code class="language-ts">// Emptying the queue (new): sends a volunteer's waiting debris logs, and decides from each answer
+// whether a log is done, refused, or still waiting. Safe to repeat: every log keeps its clientId.
+import { onlineManager } from '@tanstack/react-query';
+
+import { ApiError, postLog, readSession } from '@/api/client';
+import { queryClient } from '@/api/queries';
+import { markSignInEnded } from '@/auth/ended';
+import { useLogQueue } from '@/state/logQueue';
+import { saveSentLogs } from '@/storage/logbook';
+
+/**
+ * Send one volunteer's waiting logs, oldest first, one at a time. Call it as often as you like:
+ * offline, while a send is running, or with nothing waiting, it does nothing.
+ */
+export async function sendWaitingLogs(volunteerId: string): Promise&lt;void&gt; {
+  const queue = useLogQueue.getState();
+  if (queue.sending || !onlineManager.isOnline()) {
+    return;
+  }
+  const waiting = queue.logs.filter(
+    (item) =&gt; item.volunteerId === volunteerId &amp;&amp; item.status === 'waiting',
+  );
+  if (waiting.length === 0) {
+    return;
+  }
+  queue.setSending(true);
+  try {
+    for (const item of waiting) {
+      // Each request carries the signed-in volunteer's token: never send someone else's log
+      if (readSession()?.user.id !== volunteerId) {
+        break;
+      }
+      const clientId = item.log.clientId;
+      try {
+        // 201 the first time; 200 with the same saved log if an earlier try got through
+        // but its answer was lost. Either way the server has it once.
+        const saved = await postLog(item.event.id, item.log);
+        await saveSentLogs([{ log: saved, event: item.event }]);
+        useLogQueue.getState().remove(clientId);
+      } catch (error) {
+        if (error instanceof ApiError &amp;&amp; error.status === 401) {
+          markSignInEnded(); // the sign-in has ended: keep everything for the next one
+          break;
+        }
+        if (error instanceof ApiError &amp;&amp; error.status &lt; 500) {
+          // A "no" (403 no spot, 409 not yet, 400 a field): sending again gets the same answer
+          useLogQueue.getState().change(clientId, { status: 'refused', problem: error.message });
+        } else {
+          // No answer, or server trouble: keep it, count the try, and stop until the next chance
+          useLogQueue.getState().change(clientId, { attempts: item.attempts + 1 });
+          break;
+        }
+      }
+    }
+  } finally {
+    useLogQueue.getState().setSending(false);
+    // Read the logbook again. A first read may have started before these logs were saved, and
+    // invalidating would only wait for it: cancel it first, so the new read starts after the save
+    await queryClient.cancelQueries({ queryKey: ['logbook'] });
+    await queryClient.invalidateQueries({ queryKey: ['logbook'] });
+  }
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The guards come first.</strong> Already sending, offline, or nothing waiting: return. That is what lets five different moments call it without coordinating.</li>
+                        <li><strong><code>useLogQueue.getState()</code></strong> reads and changes the store outside React (web course: the same call). The loop reads it again after each <code>await</code> instead of reusing <code>queue</code>, because the store may have changed while the request was out (the Logbook's Remove, another log added).</li>
+                        <li><strong>The answers</strong> follow the table in <a href="#retries">Safe Retries</a>. <code>postLog</code> is Lesson 5.4's request, and <code>saveSentLogs</code> is Lesson 5.3's: the logbook stores the server's copy, the same path Lesson 5.4's mutation used.</li>
+                        <li><strong><code>finally</code></strong> clears <code>sending</code> whatever happened and refreshes the logbook (the cancel-then-invalidate pair from <a href="#mistakes">Common Mistakes</a>).</li>
+                    </ul>
+                    <p>With the sender in place, Lesson 5.4's <code>sendLogMutation</code> has no job left: one path sends logs now, and it is this one. Delete it from <code>src/api/mutations.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/api/mutations.ts</div>
+                        <pre data-src="shoreline-crew/src/api/mutations.ts" data-match="diff"><code class="language-diff-ts"> 
+-import { cancelSignup, getEventLogs, postLog, postSignup } from '@/api/client';
++import { cancelSignup, getEventLogs, postSignup } from '@/api/client';
+ import { mySignupsQuery, queryClient } from '@/api/queries';
+-import type { LogToSend } from '@/api/schemas';
+ import { saveSentLogs } from '@/storage/logbook';
+ // ...
+ }
+-
+-/**
+- * Send a debris log from the form (Lesson 5.4), then keep a copy in the logbook on this phone.
+- * Offline it waits, like every mutation, but only in memory: Lesson 5.5 makes the wait survive
+- * closing the app, with a queue of LogToSend items.
+- */
+-export function sendLogMutation() {
+-  return mutationOptions({
+-    mutationFn: ({ event, log }: LogToSend) =&gt; postLog(event.id, log),
+-    // The server's answer (the saved log) goes into the logbook with its cleanup
+-    onSuccess: async (saved, { event }) =&gt; {
+-      await saveSentLogs([{ log: saved, event }]);
+-      await queryClient.invalidateQueries({ queryKey: ['logbook'] });
+-    },
+-  });
+-}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Load the queue, and send at the right moments <span class="step-time">(10 min)</span></h3>
+                    <p>Create the Hook that calls the sender, <code>src/hooks/useSendWaitingLogs.ts</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/hooks/useSendWaitingLogs.ts</div>
+                        <pre data-src="shoreline-crew/src/hooks/useSendWaitingLogs.ts"><code class="language-ts">import { focusManager, onlineManager } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
+import { sendWaitingLogs } from '@/state/sendLogs';
+
+/**
+ * Send the signed-in volunteer's waiting debris logs: now (the app opened, or someone signed in),
+ * and again each time the phone is back online or the app is back in the foreground.
+ * Use once, in the root layout, with null until the saved queue has loaded.
+ */
+export function useSendWaitingLogs(volunteerId: string | null): void {
+  useEffect(() =&gt; {
+    if (volunteerId === null) {
+      return;
+    }
+    const send = () =&gt; {
+      void sendWaitingLogs(volunteerId);
+    };
+    send();
+    // The two managers from Lesson 5.2: NetInfo and AppState on a phone, the browser on the web
+    const stopOnline = onlineManager.subscribe((online) =&gt; {
+      if (online) {
+        send();
+      }
+    });
+    const stopFocus = focusManager.subscribe((focused) =&gt; {
+      if (focused) {
+        send();
+      }
+    });
+    return () =&gt; {
+      stopOnline();
+      stopFocus();
+    };
+  }, [volunteerId]);
+}</code></pre>
+                    </div>
+                    <p>The effect runs again whenever <code>volunteerId</code> changes, so signing in starts a send for the new person, and signing out (null) removes the listeners. <code>void</code> marks the promise as deliberately not awaited: nothing here waits for the send, and the sender never throws. Then, in <code>src/app/_layout.tsx</code>, load the queue with the session and the settings, and use the Hook:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useOnlineManager } from '@/hooks/useOnlineManager';
++import { useSendWaitingLogs } from '@/hooks/useSendWaitingLogs';
+ import { useSession } from '@/hooks/useSession';
+ import { useTheme } from '@/hooks/useTheme';
++import { loadLogQueue } from '@/state/logQueue';
+ import { loadSettings } from '@/state/settings';
+ // ...
+ 
+-// Keep the splash screen up while the fonts, the session and the settings load (once, at startup)
++// Keep the splash screen up while the fonts, the session, the settings and the queue of unsent
++// debris logs load (once, at startup)
+ SplashScreen.preventAutoHideAsync();
+ // ...
+   useOnlineManager();
++  // Once the saved queue is loaded, whoever is signed in sends their waiting logs
++  useSendWaitingLogs(savedLoaded &amp;&amp; session !== null ? session.user.id : null);
+ 
+   useEffect(() =&gt; {
+-    Promise.all([loadSession(), loadSettings()]).finally(() =&gt; setSavedLoaded(true));
++    Promise.all([loadSession(), loadSettings(), loadLogQueue()]).finally(() =&gt;
++      setSavedLoaded(true),
++    );
+   }, []);</code></pre>
+                    </div>
+                    <p>The Hook gets <code>null</code> until <code>savedLoaded</code>: before the queue is read back, there is nothing to send, and a send then would look at an empty queue and do nothing.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: The form hands its log to the queue <span class="step-time">(15 min)</span></h3>
+                    <p>In <code>src/app/log/[id].tsx</code>, the form stops sending. It adds the log to the queue, asks the queue to send, and then shows what the queue knows about that log. The changes:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/log/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/log/[id].tsx" data-match="diff"><code class="language-diff-tsx"> import { zodResolver } from '@hookform/resolvers/zod';
+-import { useMutation, useQuery } from '@tanstack/react-query';
++import { useQuery } from '@tanstack/react-query';
+ import { randomUUID } from 'expo-crypto';
+ // ...
+ 
+-import { ApiError, describeError } from '@/api/client';
+-import { sendLogMutation } from '@/api/mutations';
++import { describeError } from '@/api/client';
+ import { mySignupsQuery, viewerId } from '@/api/queries';
+ import { type DebrisLogValues, debrisLogSchema, toNewLog } from '@/api/schemas';
+-import type { CleanupEvent, CleanupLog } from '@/api/types';
++import type { CleanupEvent, NewCleanupLog } from '@/api/types';
+ import { AppText } from '@/components/AppText';
+ // ...
+ import { useSession } from '@/hooks/useSession';
++import { type QueuedLog, useLogQueue } from '@/state/logQueue';
++import { sendWaitingLogs } from '@/state/sendLogs';
+ import { spacing } from '@/theme/spacing';
+ // ...
+   }
+-  return &lt;DebrisLogForm event={held.event} /&gt;;
++  return &lt;DebrisLogForm event={held.event} viewer={viewer} /&gt;;
+ }
+ // ...
+ 
+-function DebrisLogForm({ event }: { event: CleanupEvent }) {
++function DebrisLogForm({ event, viewer }: { event: CleanupEvent; viewer: string }) {
+   // One id per log, made on the phone the moment the form opens: if the same log is sent twice
+ // ...
+   const [clientId] = useState(() =&gt; randomUUID());
+-  const sendLog = useMutation(sendLogMutation());
++  // The log handed to the queue (null until Send), and what the queue knows about it now
++  const [handedOver, setHandedOver] = useState&lt;NewCleanupLog | null&gt;(null);
++  const queued = useLogQueue((state) =&gt; state.logs.find((item) =&gt; item.log.clientId === clientId));
++  const sending = useLogQueue((state) =&gt; state.sending);
++  const addLog = useLogQueue((state) =&gt; state.add);
+   const {
+ // ...
+ 
+-  // Checked by the schema first; the time is when Send was pressed, not when the form opened
+-  const send = handleSubmit((data) =&gt;
+-    sendLog.mutate({ event, log: toNewLog(data, clientId, new Date()) }),
+-  );
+-
+-  if (sendLog.isSuccess) {
+-    return &lt;LogSent event={event} log={sendLog.data} /&gt;;
+-  }
+-
+-  // The server's "no" in its own words (403 no spot, 409 not yet, 400 fields), else the usual text
+-  const error = sendLog.error;
+-  const problem =
+-    error === null
+-      ? null
+-      : error instanceof ApiError &amp;&amp; error.status &gt;= 400 &amp;&amp; error.status &lt; 500 &amp;&amp; error.status !== 401
+-        ? error.message
+-        : describeError(error);
++  // Checked by the schema first; the time is when Send was pressed, not when the form opened.
++  // The log goes into the queue (saved on the phone at once), and the queue sends it if it can.
++  const send = handleSubmit((data) =&gt; {
++    const log = toNewLog(data, clientId, new Date());
++    addLog(viewer, { event, log });
++    setHandedOver(log);
++    void sendWaitingLogs(viewer);
++  });
++
++  if (handedOver !== null) {
++    return &lt;LogHandedOver event={event} log={handedOver} queued={queued} sending={sending} /&gt;;
++  }
+ 
+ // ...
+       )}
+-      {sendLog.isPaused &amp;&amp; (
+-        &lt;AppText variant="muted" accessibilityLiveRegion="polite"&gt;
+-          No connection: your log is sent when you are back online. Keep the app open until then.
+-        &lt;/AppText&gt;
+-      )}
+-      {problem !== null &amp;&amp; (
+-        &lt;AppText variant="error" accessibilityRole="alert"&gt;
+-          Not sent. {problem}
+-        &lt;/AppText&gt;
+-      )}
+-      &lt;Button
+-        label={sendLog.isPending ? 'Sending…' : 'Send the log'}
+-        variant="primary"
+-        disabled={sendLog.isPending}
+-        onPress={() =&gt; send()}
+-      /&gt;
++      &lt;Button label="Send the log" variant="primary" onPress={() =&gt; send()} /&gt;
+     &lt;/FormScreen&gt;
+ // ...
+ 
+-// After a 201 (or a 200 for a resend): what the server saved, and where to see it
+-function LogSent({ event, log }: { event: CleanupEvent; log: CleanupLog }) {
++type HandedOverProps = {
++  event: CleanupEvent;
++  log: NewCleanupLog;
++  queued: QueuedLog | undefined; // undefined: it has left the queue, so the server has it
++  sending: boolean;
++};
++
++// After Send: sent, still waiting (saved on the phone), or refused, read from the queue
++function LogHandedOver({ event, log, queued, sending }: HandedOverProps) {
+   const pieces = log.items.reduce((sum, item) =&gt; sum + item.count, 0);
++  const heading =
++    queued === undefined
++      ? 'Log sent. Thank you!'
++      : queued.status === 'refused'
++        ? 'The server did not take this log'
++        : sending
++          ? 'Sending your log…'
++          : 'Saved on this phone';
+   return (
+     &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+-      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+-        Log sent. Thank you!
++      &lt;AppText variant="heading" accessibilityRole="header" accessibilityLiveRegion="polite"&gt;
++        {heading}
+       &lt;/AppText&gt;
+-      &lt;AppText accessibilityLiveRegion="polite"&gt;
++      &lt;AppText&gt;
+         {event.title}: {pieces} {pieces === 1 ? 'piece' : 'pieces'}, {log.bags}{' '}
+-        {log.bags === 1 ? 'bag' : 'bags'}, {log.weightKg} kg. It is in your logbook too.
++        {log.bags === 1 ? 'bag' : 'bags'}, {log.weightKg} kg.
+       &lt;/AppText&gt;
++      {queued === undefined &amp;&amp; &lt;AppText&gt;It is in your logbook too.&lt;/AppText&gt;}
++      {queued?.status === 'waiting' &amp;&amp; !sending &amp;&amp; (
++        &lt;AppText&gt;
++          It goes to the server by itself when you are back online, even if you close the app.
++          Your logbook shows it as waiting until then.
++        &lt;/AppText&gt;
++      )}
++      {queued?.status === 'refused' &amp;&amp; (
++        &lt;AppText variant="error" accessibilityRole="alert"&gt;
++          {queued.problem} The log stays in your logbook until you remove it.
++        &lt;/AppText&gt;
++      )}
+       &lt;Button label="Done" variant="primary" onPress={leave} /&gt;</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>The <code>clientId</code> is still made when the form opens</strong> (Lesson 5.4), and now saved with the log, so every try of that log carries it. Making it in <code>add</code> would work too; keeping it in the form means the form can find its own log in the queue.</li>
+                        <li><strong><code>queued</code></strong> is a Zustand selector that returns one item (or <code>undefined</code>), the same object until that item changes, so it needs no <code>useShallow</code>. The face reads it: gone from the queue means sent; <code>'refused'</code> shows the server's words; waiting shows "Saved on this phone".</li>
+                        <li><strong>What went away:</strong> <code>isPaused</code>, <code>isPending</code> and the error line. The form can no longer fail: it saves on the phone, which always works, and the rest is the queue's business, shown on the face and the Logbook.</li>
+                        <li><strong><code>viewer</code></strong> comes down from <code>LogForCleanup</code>: the queue needs to know whose log it is.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: The Logbook shows what is not sent yet <span class="step-time">(15 min)</span></h3>
+                    <p>In <code>src/app/(tabs)/logbook.tsx</code>, <code>MyLogbook</code> reads the volunteer's queued logs and lists them above the logbook:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/logbook.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/logbook.tsx" data-match="diff"><code class="language-diff-tsx"> import { StyleSheet, View } from 'react-native';
++import { useShallow } from 'zustand/react/shallow';
+ 
+ // ...
+ import { createThemedStyles } from '@/hooks/useTheme';
++import { type QueuedLog, useLogQueue } from '@/state/logQueue';
++import { sendWaitingLogs } from '@/state/sendLogs';
+ import type { LogbookEntry, LogbookTotals } from '@/storage/logbook';
+ // ...
+   const bringIn = useMutation(bringInSentLogsMutation(viewer));
++  // This volunteer's logs that are not on the server yet. filter makes a new array every time:
++  // useShallow compares the items instead, as in the web course
++  const queued = useLogQueue(
++    useShallow((state) =&gt; state.logs.filter((item) =&gt; item.volunteerId === viewer)),
++  );
++  const sending = useLogQueue((state) =&gt; state.sending);
++  const removeLog = useLogQueue((state) =&gt; state.remove);
+   const styles = useStyles();
+ // ...
+ 
++  function waitingEntry(item: QueuedLog) {
++    const { event, log } = item;
++    const pieces = log.items.reduce((sum, { count }) =&gt; sum + count, 0);
++    return (
++      &lt;View key={log.clientId} style={styles.card}&gt;
++        &lt;AppText variant="heading"&gt;{event.title}&lt;/AppText&gt;
++        &lt;AppText variant="muted"&gt;{formatDate(event.date)}&lt;/AppText&gt;
++        &lt;AppText&gt;{amounts({ pieces, bags: log.bags, weightKg: log.weightKg })}&lt;/AppText&gt;
++        {item.status === 'waiting' ? (
++          &lt;AppText variant="muted"&gt;
++            Waiting to be sent{item.attempts &gt; 0 &amp;&amp; ` (tries so far: ${item.attempts})`}
++          &lt;/AppText&gt;
++        ) : (
++          &lt;&gt;
++            &lt;AppText variant="error"&gt;Not sent: {item.problem}&lt;/AppText&gt;
++            &lt;Button
++              label="Remove"
++              accessibilityLabel={`Remove the log for ${event.title}`}
++              onPress={() =&gt; removeLog(log.clientId)}
++            /&gt;
++          &lt;/&gt;
++        )}
++      &lt;/View&gt;
++    );
++  }
++
++  const waitingCount = queued.filter((item) =&gt; item.status === 'waiting').length;
++
+   return (
+     &lt;Screen scroll edges={['left', 'right']}&gt;
++      {queued.length &gt; 0 &amp;&amp; (
++        &lt;&gt;
++          &lt;AppText variant="heading" accessibilityRole="header"&gt;
++            Not sent yet
++          &lt;/AppText&gt;
++          {(sending || waitingCount &gt; 0) &amp;&amp; (
++            &lt;AppText accessibilityLiveRegion="polite"&gt;
++              {sending
++                ? 'Sending…'
++                : 'Saved on this phone. Waiting logs go to the server by themselves ' +
++                  'when you are back online.'}
++            &lt;/AppText&gt;
++          )}
++          {queued.map(waitingEntry)}
++          {waitingCount &gt; 0 &amp;&amp; (
++            &lt;Button
++              label="Send now"
++              disabled={sending}
++              onPress={() =&gt; sendWaitingLogs(viewer)}
++            /&gt;
++          )}
++        &lt;/&gt;
++      )}
+       &lt;AppText variant="heading" accessibilityRole="header"&gt;</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong><code>useShallow</code></strong> wraps the filtered list (see <a href="#mistakes">Common Mistakes</a>).</li>
+                        <li><strong>Each card</strong> uses the same <code>amounts()</code> as the logbook's entries, then the status: "Waiting to be sent" (with the count of tries that got no answer), or the server's refusal and a <strong>Remove</strong> button whose label names the cleanup, so a screen reader user knows which log goes.</li>
+                        <li><strong>Send now</strong> appears only when something is waiting, and is disabled while a send runs. It is the volunteer's way to say "I have signal now", useful after a try that got no answer.</li>
+                        <li><code>MyLogbook</code> is still its own component (Lesson 5.3), and the selector filters by <code>viewer</code>: the next person on a shared phone sees only their own logs.</li>
+                    </ul>
+                    <p>A refused log is hard to make on purpose (the screens stop you from logging without a spot), so this one was set up:  Amara signed in on a phone holding her log for a cleanup she has no spot at, the queue sent it, and the server said no.</p>
+<figure class="screenshot">
+    <img src="images/lesson_19/19-refused.png" alt="The Logbook tab in the web preview, dark theme, signed in as Amara: Not sent yet, then a card for Tide Pool Morning Cleanup with 9 pieces, 1 bag, 0.8 kg, the red line Not sent: Only volunteers with a spot at this cleanup can log for it., and a Remove button; the card is outlined in red. Below, Your logbook is empty." width="420" height="814" loading="lazy">
+    <figcaption>The server said no (403: Amara has no spot at this cleanup). Sending again would get the same answer, so the queue stops trying and keeps the log with the server's words until she removes it.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 7: A count on the Logbook tab <span class="step-time">(5 min)</span></h3>
+                    <p>A volunteer who closes the log form should still see that something is waiting. Tab bars have a place for that, the badge. In <code>src/app/(tabs)/_layout.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/(tabs)/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/(tabs)/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { Icon } from '@/components/Icon';
++import { useSession } from '@/hooks/useSession';
+ import { useTheme } from '@/hooks/useTheme';
++import { useLogQueue } from '@/state/logQueue';
+ import { fonts } from '@/theme/typography';
+ // ...
+   const { colors } = useTheme();
++  // How many of the signed-in volunteer's logs are not on the server yet (a number: no useShallow)
++  const session = useSession();
++  const unsent = useLogQueue(
++    (state) =&gt; state.logs.filter((item) =&gt; item.volunteerId === session?.user.id).length,
++  );
+ 
+ // ...
+           tabBarIcon: ({ color, size }) =&gt; &lt;Icon name="logbook" color={color} size={size} /&gt;,
++          // A small count on the tab while logs wait, and the same news for a screen reader
++          tabBarBadge: unsent &gt; 0 ? unsent : undefined,
++          tabBarAccessibilityLabel: unsent &gt; 0 ? `Logbook, ${unsent} not sent yet` : 'Logbook',
+         }}</code></pre>
+                    </div>
+                    <p>The selector returns a number, which stays equal between calls when nothing changed, so no <code>useShallow</code>. A badge is a small red circle to the eye and nothing to a screen reader unless you say it: <code>tabBarAccessibilityLabel</code> makes the tab read "Logbook, 1 not sent yet" (measured as the tab's <code>aria-label</code> in the web preview; on a phone it is the accessibility label VoiceOver and TalkBack read, per React Navigation's documentation).</p>
+                </div>
+                <div class="card">
+                    <h3>Step 8: Take the connection away in the web preview <span class="step-time">(15 min)</span></h3>
+                    <p>Start Metro with <code>npx expo start --clear</code> (a new package), press <kbd>w</kbd>, sign in as Theo (<code>theo.nakamura@example.com</code>, <code>shoreline-demo</code>) and open the <strong>Logbook</strong> tab once (the web preview may load a screen's code the first time you visit it, which it cannot do offline). Two experiments:</p>
+                    <p><strong>A. No connection.</strong> Open Chrome's developer tools (<kbd>F12</kbd>, or <kbd>⌘ Cmd</kbd>+<kbd>⌥ Option</kbd>+<kbd>I</kbd> on a Mac), go to the <strong>Network</strong> panel and switch its throttling menu from "No throttling" to <strong>Offline</strong>. Open <strong>Tide Pool Morning Cleanup</strong>, press <strong>Log what you collected</strong>, fill in a few counts and a weight, and press <strong>Send the log</strong>:</p>
+<figure class="screenshot">
+    <img src="images/lesson_19/19-saved-offline.png" alt="The Log debris modal in the web preview after Send with no connection: the heading Saved on this phone, outlined in red, then Tide Pool Morning Cleanup: 5 pieces, 1 bag, 1.2 kg., a sentence saying it goes to the server by itself when the phone is back online, even if the app is closed, and the buttons Done and Open my logbook." width="420" height="814" loading="lazy">
+    <figcaption>Sent with no connection: the log went into the queue, which saved it on the phone at once. Nothing reached the server yet, and nothing is lost if the app closes now.</figcaption>
+</figure>
+                    <p>Press <strong>Open my logbook</strong>: the log waits on top, and the tab shows a count.</p>
+<figure class="screenshot">
+    <img src="images/lesson_19/19-logbook-waiting.png" alt="The Logbook tab in the web preview with no connection: Not sent yet, Saved on this phone. Waiting logs go to the server by themselves when you are back online., a card for Tide Pool Morning Cleanup with 5 pieces, 1 bag, 1.2 kg and Waiting to be sent (outlined in red), a Send now button, then Your logbook is empty. The Logbook tab at the bottom shows a small badge with 1, also outlined." width="420" height="814" loading="lazy">
+    <figcaption>The Logbook while offline: the waiting log on top, and a count on the tab (the badge a screen reader reads as "Logbook, 1 not sent yet"). When the connection returns, the card moves down into the logbook by itself.</figcaption>
+</figure>
+                    <p>Now switch the throttling back to "No throttling". Within a moment the card moves down into the logbook and the count leaves the tab, and the API's terminal shows one <code>POST /api/events/e17/logs</code> answered 201. Measured with Chromium's offline switch alone (the same switch DevTools uses): no request while offline, "Saved on this phone"; back online, one POST, 201, and "Log sent. Thank you!" on the form if it is still open. TanStack Query's online manager heard the browser's <code>offline</code> and <code>online</code> events, and your Hook heard the online manager.</p>
+                    <p><strong>B. No answer, then "closing the app".</strong> This time stop the API instead (<kbd>Ctrl</kbd>+<kbd>C</kbd> in its terminal): the computer is online, but nobody answers. Send another log. The form says "Saved on this phone", and the Logbook card says "Waiting to be sent (tries so far: 1)": the sender tried, got no answer, and kept the log. Now <strong>reload the browser tab</strong>, the web preview's version of closing and reopening the app. The web preview forgets the sign-in on a reload (it has no secure store, Lesson 4.3; your phone keeps it), so the Logbook shows its guest face and the tab no count: the queue is still saved, but it belongs to Theo. Start the API again (<code>node server.ts</code>), sign in as Theo from the Logbook tab, and watch: the log goes out right after the sign-in and appears in the logbook. All of B was measured, with the API's requests made to fail instead of stopping it.</p>
+                    <p>To look inside, open the developer tools' <strong>Application</strong> panel, <strong>Local storage</strong>: while a log waits, the key <code>shoreline-crew-log-queue</code> holds the JSON from <a href="#zustand">Zustand on a Phone</a> (on a phone it is in AsyncStorage's own files, where you cannot browse it).</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 9: The real test on your phone, then check and commit <span class="step-time">(10 min)</span></h3>
+                    <p>With the API running <code>--host</code> and <code>.env.local</code> on your computer's network address (Lesson 5.1), open the app in Expo Go, signed in as Theo:</p>
+                    <ul>
+                        <li><strong>Close the app with a log waiting:</strong> turn on airplane mode (on iPhone, turn Wi-Fi off too: airplane mode can leave it on), send a log ("Saved on this phone"), then force-quit Expo Go.</li>
+                        <li><strong>Reopen, still offline:</strong> the Logbook tab shows the log under Not sent yet, and the tab its count. This is the step Lesson 5.4 could not pass.</li>
+                        <li><strong>Turn the connection back on</strong> and stay on the Logbook tab: the log should go out within a few seconds, with no button pressed (NetInfo told the online manager, the online manager told your Hook).</li>
+                        <li><strong>Background, then foreground:</strong> send one more offline, switch to another app, turn the connection on, come back: it goes out as the app returns (the focus manager).</li>
+                    </ul>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>The web preview checks above were measured; the phone's side (AsyncStorage surviving a force-quit, NetInfo's reconnect, AppState's foreground) is written from the Expo, React Native and NetInfo documentation and could not be run here. If the log does not go out by itself after reconnecting, press <strong>Send now</strong>, and see the FAQ on why a phone can take a moment to call itself online.</p>
+                    </div>
+                    <p>Then the checks:</p>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p>tsc prints nothing, and expo lint only the two <code>env:</code> lines. Commit your work.</p>
+                </div>
+
+                <div class="card card-info">
+                    <h4>🧭 For your own app</h4>
+                    <p>For your final project, list what a person <em>creates</em> in your app (posts, notes, orders, readings) and, for each, decide: does it need a queue? If yes, give each record an id made on the device, check that the server recognizes a resend (or plan the endpoint that does), write down which answers mean done, refused, signed out and "try later", and decide where the person sees what has not been sent yet.</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ zustand installed with <code>npx expo install</code>; <code>src/state/logQueue.ts</code> persists the queue to AsyncStorage, loads it behind the splash screen, saves only the logs and checks them on the way back</li>
+                        <li>☐ <code>src/state/sendLogs.ts</code> sends one volunteer's waiting logs one at a time and sorts every answer (done, refused, signed out, no answer)</li>
+                        <li>☐ The queue sends at start, sign-in, reconnect, return to the foreground, Send and Send now</li>
+                        <li>☐ The log form hands its log to the queue and says sent, saved on this phone, or refused</li>
+                        <li>☐ The Logbook tab lists your own unsent logs (Remove for refused ones) and the tab shows their count, read out by a screen reader</li>
+                        <li>☐ A log sent in airplane mode survives a force-quit and goes out by itself when the phone is back online; tsc and expo lint are clean, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes. Undo code changes afterwards; the next lesson starts from the project as Step 9 left it.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Predict the queue</h3>
+                    <p>Without running anything, say what the Logbook shows and what reaches the server in each case. Theo is signed in unless the case says otherwise.</p>
+                    <ol>
+                        <li>Theo sends a log with the API stopped, then presses Send now twice while it is still stopped.</li>
+                        <li>The answer to Theo's POST is lost on the way back; then the connection returns.</li>
+                        <li>Amara (no spot at today's cleanup) somehow has a log for it in the queue, and signs in.</li>
+                        <li>Theo signs out with a log waiting; Maya signs in, then Theo again.</li>
+                    </ol>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>For each case, find the answer in the table in <a href="#retries">Safe Retries</a>, and remember whose token goes with each request.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>All four were measured in the web preview. (1) Each press is one more try with no answer: the card counts "tries so far" up, nothing reaches the server, the log stays. (2) The next try sends the same <code>clientId</code>, the API answers 200 with the log it saved the first time, the log moves into the logbook, and the server holds one log, not two. (3) The API answers 403; the card shows "Not sent: Only volunteers with a spot at this cleanup can log for it." with Remove, the tab counts it, and it is never sent again by itself. (4) Nothing is sent while Maya is signed in and her Logbook shows nothing of Theo's; when Theo signs in, his log goes out at once.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Warn before signing out</h3>
+                    <p>Signing out keeps Theo's unsent logs on the phone, but Theo may not know he has any. On the Profile tab, above <strong>Sign out</strong>, show "N of your debris logs are not sent yet…" when there are some.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The tab layout's badge already counts them: the same selector, a number, needs no <code>useShallow</code>. The session may be null on Profile, so compare with <code>session?.user.id</code>.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>src/app/(tabs)/profile.tsx</code>, import <code>useLogQueue</code> from <code>@/state/logQueue</code>, add after <code>useSignInEnded()</code>:</p>
+                        <pre data-snippet><code class="language-tsx">// Your logs still on this phone (a number: no useShallow needed)
+const unsent = useLogQueue(
+  (state) =&gt; state.logs.filter((item) =&gt; item.volunteerId === session?.user.id).length,
+);</code></pre>
+                        <p>and right above the Sign out button:</p>
+                        <pre data-snippet><code class="language-tsx">{unsent &gt; 0 &amp;&amp; (
+  &lt;AppText variant="muted"&gt;
+    {unsent} of your debris {unsent === 1 ? 'log is' : 'logs are'} not sent yet. Signing
+    out keeps {unsent === 1 ? 'it' : 'them'} on this phone, and they go out the next time
+    you sign in here.
+  &lt;/AppText&gt;
+)}</code></pre>
+                        <p>tsc and expo lint pass (checked in a copy of the project). A stronger version would ask "Sign out anyway?" before signing out; React Native's <code>Alert.alert</code> does that on a phone, but it shows nothing in the web preview, so test it in Expo Go.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: Try again by itself (Stretch)</h3>
+                    <p>When the phone is online but the API does not answer (Step 8's experiment B), the queue waits for the next moment in <a href="#when">When to Send</a>, which may be a long time. Make the sender try again by itself after a try with no answer: 10 seconds the first time, then 20, 40 and so on, never more than 5 minutes apart.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>One module-level timer in <code>sendLogs.ts</code>, replaced each time (so tries never pile up), started from the "no answer" branch with the new number of attempts. <code>ReturnType&lt;typeof setTimeout&gt;</code> types it on every platform.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>src/state/sendLogs.ts</code>, above <code>sendWaitingLogs</code> (type-checked and linted in a copy of the project):</p>
+                        <pre data-snippet><code class="language-ts">// One timer at a time: 10 s after the first try with no answer, then 20 s, 40 s... up to 5 minutes
+let retryTimer: ReturnType&lt;typeof setTimeout&gt; | null = null;
+
+function retryLater(volunteerId: string, attempts: number) {
+  if (retryTimer !== null) {
+    clearTimeout(retryTimer);
+  }
+  const delay = Math.min(10_000 * 2 ** (attempts - 1), 5 * 60_000);
+  retryTimer = setTimeout(() =&gt; {
+    retryTimer = null;
+    void sendWaitingLogs(volunteerId);
+  }, delay);
+}</code></pre>
+                        <p>and in the "no answer" branch, after counting the try: <code>retryLater(volunteerId, item.attempts + 1);</code>. Growing waits ("exponential backoff") keep a phone from hammering a server that is already struggling, and from draining its own battery. Two things to think about: a phone suspends timers while the app is in the background (the foreground send covers that), and a timer started for Theo should not fire after Maya signs in (the sender's session check stops it from sending Theo's logs with her token).</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> On the beach, Theo sends a debris log in airplane mode and force-quits Expo Go. The next morning he opens Shoreline Crew at home, on Wi-Fi, still signed in. What happens to the log?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Where was the log saved when he pressed Send: in memory, or somewhere that outlives the app?">
+                                A) It is gone: force-quitting cleared it
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Send saved the log in the queue, which persist wrote to AsyncStorage at once. At startup the root layout reads the queue back behind the splash screen, and the Hook sends the signed-in volunteer's waiting logs as soon as everything is loaded.">
+                                B) The queue is read back at startup and the log is sent right away
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which moments call the sender? Is opening the form one of them?">
+                                C) It is sent the next time he opens the log form
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Theo's log reached shoreline-api and was saved, but the answer never reached the phone. The queue keeps the log and tries again later. What does the second try get?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The API recognizes the second request. How?">
+                                A) A second saved log, so the counts are doubled
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson measured the status of the second try.">
+                                B) 409, and the log is marked refused
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does a try with no answer stop the log from being sent again?">
+                                C) Nothing: a log is never sent twice
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The clientId was made once and saved with the log, so the second try carries the same one. shoreline-api finds the log it already has for that volunteer and clientId and answers 200 with it. The queue treats 200 like 201: into the logbook, out of the queue, one log on the server.">
+                                D) 200 with the log the server already has, because the clientId is the same
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> A queued log comes back with 403 "Only volunteers with a spot at this cleanup can log for it." What should the queue do with it?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Asking again, unchanged, would get the same answer, so retrying only wastes battery and hides the problem. Deleting it silently loses the volunteer's work. Keeping it as refused, with the server's words and a Remove button, tells the volunteer and lets them decide.">
+                                A) Mark it refused, keep the server's message, and stop sending it by itself
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Would the answer ever change if nothing else changes?">
+                                B) Keep it waiting and try again at every reconnect
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Who would ever find out what happened to it?">
+                                C) Remove it from the queue quietly
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> On the crew leader's phone, Theo signs out with a log waiting. Maya signs in, and the phone is online. What should happen to Theo's log?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Whose token would that request carry, and whose log would the server record?">
+                                A) It is sent now, with Maya's sign-in
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Theo's work would be lost. Is there a reason to lose it?">
+                                B) It is deleted, because Theo signed out
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The server records the log for whoever's token sends it, so sending Theo's log with Maya's sign-in makes it Maya's (measured). The queue sends only the signed-in volunteer's logs, Maya's Logbook shows none of Theo's, and his log goes out the next time he signs in on this phone.">
+                                C) It waits, unseen by Maya, until Theo signs in on this phone again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Does Maya have any way to send it as Theo?">
+                                D) Maya is asked whether to send it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> A teammate copies the HQ's persisted Zustand store (no <code>storage</code> option) into the phone app. The web preview works. What happens on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does persist use when no storage is named, and does a phone have it?">
+                                A) It works the same: persist finds AsyncStorage by itself
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="persist defaults to window.localStorage. The web preview has it; a phone has a window without localStorage, so saving fails on the first change (measured in Node in the same situation: Cannot read properties of undefined, reading setItem). Name the storage: createJSONStorage with AsyncStorage.">
+                                B) The first change fails, because a phone has no <code>localStorage</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The lesson says what tsc and the web preview showed.">
+                                C) tsc reports a missing option before it ever runs
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+                <details class="card">
+                    <summary>Why not let TanStack Query keep the paused mutations?</summary>
+                    <p>It can: TanStack Query's documentation shows persisting the whole cache, paused mutations included, with a persister such as <code>@tanstack/query-async-storage-persister</code>, and resuming them at startup with <code>resumePausedMutations()</code>. Because a function cannot be saved, each mutation then needs a default <code>mutationFn</code> registered by key (<code>setMutationDefaults</code>) before resuming. It is a good tool, and worth knowing. The course builds its own queue because it is the thing the volunteer sees and manages (the Logbook's Not sent yet, Remove, the badge), because it must keep volunteers apart on one phone, and because every rule is in two short files you can read. Not run here; see the TanStack Query docs on persistence.</p>
+                </details>
+                <details class="card">
+                    <summary>Can the queue send while the app is closed?</summary>
+                    <p>Not with today's code: a closed or suspended app runs nothing. Expo has a module for this, <code>expo-background-task</code>, which asks the operating system to run a task now and then, at times the system chooses (Expo's documentation speaks of intervals of at least 15 minutes, and the system may wait much longer). Expo lists it as included in Expo Go, but on iOS it needs a setting in the app's native configuration, and the system, not your code, decides when it runs (by battery, network and how the phone is used), so it cannot promise "the moment the signal returns" and is hard to test. For Shoreline Crew, sending at start, reconnect and foreground covers the real day: the volunteer opens the app again.</p>
+                </details>
+                <details class="card">
+                    <summary>What is updatedSince, and why does the Cleanups list not use it?</summary>
+                    <p>shoreline-api's <code>GET /api/events</code> takes <code>updatedSince=</code> an ISO time and returns only the cleanups changed after it. Measured: right after asking with the current time, the answer was an empty list; after an organizer changed the meeting point of e17, the same question returned e17 alone, with its new <code>updatedAt</code>. An app that keeps its own copy of every cleanup (in SQLite, say) can then refresh by asking only for what changed, a "delta sync": far less data on one bar of signal. Shoreline Crew's list is a cache of pages that TanStack Query already refreshes, and there is a catch: a sign-up changes a cleanup's spots without changing its <code>updatedAt</code> (read in the API's code), so "what changed" would miss the spots. The Going Further challenge tries it anyway.</p>
+                </details>
+                <details class="card">
+                    <summary>The phone has signal again, but nothing was sent. Why?</summary>
+                    <p>A few honest reasons. NetInfo can report "connected" slightly later than the status bar shows it, or report Wi-Fi as connected before the network is really usable, and the first try then gets no answer (the card counts it, the log waits). The API may not be reachable from that network at all (Lesson 5.1: a phone on mobile data cannot reach your computer). Or the app was in the background when the connection returned. <strong>Send now</strong> covers all three, and Exercise 3 makes the queue try again by itself.</p>
+                </details>
+                <details class="card">
+                    <summary>How big can the queue get?</summary>
+                    <p>A log is well under a kilobyte of JSON (most of it is the cleanup), so a volunteer's whole season fits easily. The queue is saved as one string on every change, which is fine for dozens of logs and would not be for thousands; an app with that many records waiting would keep them in SQLite instead (Lesson 5.3's ledger). Photos (Lesson 6.2) will join a log as file addresses on the phone, never as image data inside the queue.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Try a delta sync. Keep the time of the last full load of upcoming cleanups (in AsyncStorage), and on a pull to refresh ask <code>GET /api/events?when=upcoming&amp;updatedSince=THAT_TIME</code> first; merge what comes back into the cached pages with <code>queryClient.setQueryData</code>, replacing cleanups by id. Then find the flaw the FAQ names (spots from sign-ups) in the web preview: sign up for a cleanup in a second browser profile and watch your delta sync miss it. Decide what a real app should do about it: ask the API team for a change, or keep the full refresh for the numbers that move.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Draw a timeline of one debris log: Send pressed, the app closed, a night, the app opened, a dead first try, the signal back, the logbook. Under each moment, write where the log is (memory, AsyncStorage, the server, SQLite) and what would happen if the battery died right then. Is there any moment where it could be lost, or saved twice?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Offline first is an outbox: save on the device the moment the person acts, send later, remove only after the server and the local copy both have it</li>
+                        <li>Zustand's <code>persist</code> comes across from the web, with three phone differences: name the storage (<code>createJSONStorage(() =&gt; AsyncStorage)</code>), load it yourself behind the splash (<code>skipHydration</code> + <code>rehydrate</code>), save only what should survive (<code>partialize</code>)</li>
+                        <li>A device-made <code>clientId</code> makes "no answer, send again" safe: the server answers 200 with the log it already has</li>
+                        <li>Every answer means something: done (201, 200), refused (other 4xx, kept with the server's words), signed out (401), try later (no answer, 5xx)</li>
+                        <li>Send at many moments (start, sign-in, reconnect, foreground, a button) through a sender that does nothing when it should not run</li>
+                        <li>On a shared phone, every queued record names its owner, and only the owner's sign-in sends it</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Read about persist and its options</td><td><a href="https://zustand.docs.pmnd.rs/middlewares/persist" target="_blank" rel="noopener">Zustand: persist</a></td></tr>
+                            <tr><td>Look up AsyncStorage</td><td><a href="https://docs.expo.dev/versions/latest/sdk/async-storage/" target="_blank" rel="noopener">Expo: AsyncStorage</a></td></tr>
+                            <tr><td>Look up the online and focus managers</td><td><a href="https://tanstack.com/query/latest/docs/framework/react/react-native" target="_blank" rel="noopener">TanStack Query: React Native</a></td></tr>
+                            <tr><td>Read about background tasks</td><td><a href="https://docs.expo.dev/versions/latest/sdk/background-task/" target="_blank" rel="noopener">Expo: BackgroundTask</a></td></tr>
+                            <tr><td>Look up the logs endpoint and updatedSince</td><td><a href="api.html#endpoints">API reference: endpoints</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>A debris log survives no signal and a force-quit, and reaches the server exactly once</li>
+                        <li>The queue empties itself at the right moments and explains every log it could not send</li>
+                        <li>Volunteers sharing a phone each see and send only their own work</li>
+                        <li>You can design the offline behavior of any app that creates records in the field</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>Module 5 is done: Shoreline Crew reaches the API from a phone, caches what it reads, keeps settings, a logbook and a queue on the device, and takes forms a thumb can fill. Module 6 starts using the phone itself. Its first step is the one every device feature needs: in <a href="lesson_20.html">Lesson 6.1: Permissions Done Right</a>, you build one permission step that the camera, location and notifications will all use, and use it first for location: ask at the moment it makes sense, explain why, and handle "no" gracefully.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Do Step 9's airplane-mode test on your phone and commit your work</li>
+                    <li>Notice which apps on your phone asked for a permission the moment you opened them, and which waited until you tapped something that needed it. Which felt better?</li>
+                    <li>Write today's journal entry from your timeline drawing</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today's code is short, and the thinking behind it is not: what happens if this request reaches the server and the answer does not, what if a different person signs in halfway, what if the first read was already running. Those questions are what senior developers ask in code review, and you just answered each one with a measurement instead of a guess. If parts of it still feel slippery, that is normal. Offline behavior is learned by breaking it on purpose, and you now have an app and a set of experiments to break it with.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_18.html" class="prev-lesson">← Previous: Mobile Forms</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_20.html" class="next-lesson">Next: Permissions Done Right →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

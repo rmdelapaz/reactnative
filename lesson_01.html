@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="How React Native turns your React components into real native screens, the New Architecture in plain words, what carries over from React on the web and what changes, what Expo adds, the Shoreline Crew phone app you will build, and your first React Native component in Expo Snack. React Native &amp; Expo: Build and Ship a Mobile App Lesson 1.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>How React Native Works - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>📱 Lesson 1.1: How React Native Works</h1>
+                <p class="lead">Picture a Saturday morning on the coast. A volunteer pulls out a phone on the sand, finds today's cleanup, checks in, and starts counting bottle caps and fishing line, with one bar of signal and gloves on. The app in that hand is what you build in this course, and you build it with the React and TypeScript you already know. This first lesson shows you what really happens when React runs on a phone: there is no browser and no DOM, your components become the phone's own native controls, and a framework called Expo takes care of the parts that used to make mobile development hard. By the end you will have your first React Native component running, without installing anything.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how React Native turns your components into native views, and why there is no DOM on a phone</li>
+                        <li>Describe the New Architecture in plain words: Hermes, JSI, the Fabric renderer and native modules</li>
+                        <li>Sort what carries over from React on the web and what changes on a phone</li>
+                        <li>Say what Expo adds (the CLI, the SDK, Expo Router, Expo Go, development builds, EAS) and when each one is used</li>
+                        <li>Describe the Shoreline Crew phone app and how it shares an API and types with Shoreline Crew HQ</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 140 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="https://rays-typescript.netlify.app/" target="_blank" rel="noopener">React + TypeScript: Build a Modern Web App</a> or equivalent (React 19 components, props, state and hooks; TypeScript)</li>
+                    <li><span class="meta-label">🛠️ You will build</span> your first React Native component in Expo Snack, a line-by-line comparison of a web component and its native twin, and a map of the Shoreline Crew app's screens, data and device features</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo Snack in your browser (the course itself is checked with Expo SDK 58: React Native 0.88, React 19.3)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> your web browser: no account, no installation (your phone joins in Lesson 1.2)</li>
+                </ul>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: Your React, on a Phone</a></li>
+                        <li><a href="#native-views" class="toc-link">Native Views, Not a DOM</a></li>
+                        <li><a href="#architecture" class="toc-link">The New Architecture in Plain Words</a></li>
+                        <li><a href="#transfer" class="toc-link">What Carries Over and What Changes</a></li>
+                        <li><a href="#expo" class="toc-link">Expo: The Framework Around React Native</a></li>
+                        <li><a href="#shoreline" class="toc-link">The Course Project: Shoreline Crew</a></li>
+                        <li><a href="#how-to-learn" class="toc-link">How to Learn in This Course</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: Your First Native Component</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: Your React, on a Phone</h2>
+                <p>React Native is React for apps that run on iPhones and Android phones. You still write components, pass props, keep state and use hooks, in TypeScript. What is different is what those components turn into: not HTML in a browser, but the same buttons, text and scrolling lists that apps written in Swift or Kotlin use. One codebase gives you both platforms, and most of your code is shared between them.</p>
+                <p>It is a skill worth having:</p>
+                <ul>
+                    <li><strong>For your career:</strong> React Native is used in large, well-known apps and by many smaller teams that cannot afford separate iOS and Android teams. For a React developer it is the shortest path to "I build mobile apps too".</li>
+                    <li><strong>For the people you build for:</strong> some things only a phone can do well: work on the beach without a laptop, take a photo of what was collected, remind you before a cleanup, know where you are.</li>
+                    <li><strong>For the code you already wrote:</strong> in the React + TypeScript course you built Shoreline Crew HQ. Its types, its API client and its data habits come with you; this course shows exactly which parts.</li>
+                </ul>
+                <div class="card card-success">
+                    <h4>✅ You are in the right place</h4>
+                    <p>This course assumes you know React and TypeScript (the way the React + TypeScript course teaches them) and nothing about mobile development. You do not need to know Swift, Kotlin, Xcode or Android Studio, and you do not need a Mac. If the word "native" sounds intimidating, it will feel ordinary by the end of Module 2.</p>
+                </div>
+            </section>
+
+            <section id="native-views" class="lesson-section">
+                <h2>📱 Native Views, Not a DOM</h2>
+                <p>On the web, React's job ends at the DOM: it creates and updates HTML elements, and the browser draws them. A phone app has no browser and no DOM. Every app on your phone is built from the operating system's own building blocks: on Android, views such as <code>TextView</code> and <code>ScrollView</code>; on iOS, views such as <code>UILabel</code> and <code>UIScrollView</code>. They are called <strong>native views</strong>, and they are why apps feel the way they feel: the scrolling bounce, the text selection handles, the screen reader support.</p>
+                <p>React Native gives you components that stand for those native views. Here is a small component for a Shoreline Crew cleanup, the kind you will type in this lesson's project. Read it as a React developer, and notice which parts are new:</p>
+                <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+interface CleanupCardProps {
+  title: string;
+  spotsLeft: number;
+}
+
+function CleanupCard({ title, spotsLeft }: CleanupCardProps) {
+  const [joined, setJoined] = useState(false);
+  const full = spotsLeft === 0;
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+      &lt;Text&gt;{full ? 'Full: join the waiting list' : `${spotsLeft} spots left`}&lt;/Text&gt;
+      &lt;Pressable
+        accessibilityRole="button"
+        onPress={() =&gt; setJoined(!joined)}
+        style={({ pressed }) =&gt; [styles.button, pressed &amp;&amp; styles.pressed]}&gt;
+        &lt;Text style={styles.buttonText}&gt;{joined ? "You're in!" : 'Sign up'}&lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;View style={styles.screen}&gt;
+      &lt;CleanupCard title="Weekend Cove Cleanup" spotsLeft={0} /&gt;
+      &lt;CleanupCard title="Family Beach Morning" spotsLeft={6} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, justifyContent: 'center', gap: 16, padding: 24, backgroundColor: '#fbf6ec' },
+  card: { gap: 8, padding: 16, borderRadius: 12, backgroundColor: '#ffffff' },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#0b3954' },
+  button: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#1f6f8b' },
+  pressed: { opacity: 0.7 },
+  buttonText: { color: '#ffffff', fontWeight: 'bold' },
+});</code></pre>
+                <p>Almost everything is familiar: an <code>interface</code> for the props, a function component, <code>useState</code>, a ternary in the JSX, a list of components in <code>App</code>. The new parts are few, and they are the heart of this course:</p>
+                <ul>
+                    <li><strong><code>&lt;View&gt;</code></strong> is the box everything goes in (where you would use a <code>&lt;div&gt;</code>). On Android it becomes a native view, on iOS a <code>UIView</code>.</li>
+                    <li><strong><code>&lt;Text&gt;</code></strong> holds all text. There is no "loose" text in React Native: a string directly inside a <code>&lt;View&gt;</code> is an error on a phone.</li>
+                    <li><strong><code>&lt;Pressable&gt;</code></strong> is how you make something tappable, with <code>onPress</code> instead of <code>onClick</code> and a <code>pressed</code> flag for the "finger is down" look.</li>
+                    <li><strong><code>StyleSheet.create</code></strong> replaces CSS: style objects with camelCase names (<code>backgroundColor</code>), numbers without units, and no selectors or cascade. Lesson 2.1 covers it properly.</li>
+                </ul>
+                <p>Compare the web version you met in the first lesson of the React + TypeScript course (shortened there to the text parts):</p>
+                <pre data-snippet data-legacy><code class="language-tsx">interface CleanupCardProps {
+  title: string
+  spotsLeft: number
+}
+
+export function CleanupCard({ title, spotsLeft }: CleanupCardProps) {
+  return (
+    &lt;article&gt;
+      &lt;h2&gt;{title}&lt;/h2&gt;
+      &lt;p&gt;{spotsLeft === 0 ? 'Full: join the waiting list' : `${spotsLeft} spots left`}&lt;/p&gt;
+    &lt;/article&gt;
+  )
+}</code></pre>
+                <p>Same props, same logic, different building blocks. That is the pattern of the whole course: your <em>React</em> thinking carries over; the <em>platform</em> vocabulary changes.</p>
+
+                <div class="card card-info">
+                    <h4>💡 Mental model: one script, two crews</h4>
+                    <p>Think of React as the person who writes the plan for the day: who stands where, what each sign says. On the web, the browser's crew builds that plan out of HTML elements. React Native hands the same kind of plan to a different crew: Android's or iOS's own, who build it out of native views. You write the plan in React either way. You just learn the second crew's vocabulary: <code>View</code> instead of <code>div</code>, <code>Text</code> instead of <code>p</code>.</p>
+                </div>
+
+                <p>Expo can also show your app in a web browser (a <strong>web preview</strong>, handy for a quick look). There, a library called react-native-web plays the browser's crew and turns the same components back into HTML. This is the HTML the web preview made for the second card above, with line breaks added so you can read it:</p>
+                <div class="card card-output">
+                    <h4>Expected output (the web preview's HTML for one card)</h4>
+                    <pre><code>&lt;div class="css-g5y9jx r-14lw9ot r-1q9bdsx r-1cmwbt1 r-nsbfu8"&gt;
+  &lt;div dir="auto" class="css-146c3p1 r-1eiytwb r-adyw6z r-vw2c0b"&gt;Family Beach Morning&lt;/div&gt;
+  &lt;div dir="auto" class="css-146c3p1"&gt;6 spots left&lt;/div&gt;
+  &lt;button role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-k200y r-1eaa16r r-1xfd6ze r-ytbthy r-3pj75a" type="button"&gt;
+    &lt;div dir="auto" class="css-146c3p1 r-jwli3a r-vw2c0b"&gt;Sign up&lt;/div&gt;
+  &lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+                <p><code>&lt;View&gt;</code> became a <code>&lt;div&gt;</code>, each <code>&lt;Text&gt;</code> a <code>&lt;div dir="auto"&gt;</code>, the <code>&lt;Pressable&gt;</code> a <code>&lt;button&gt;</code>, and the <code>StyleSheet</code> became generated CSS classes. On a phone none of this exists: the same code creates native views directly. That is why this course uses the web preview for quick checks but always tells you when something only a real phone can show.</p>
+            </section>
+
+            <section id="architecture" class="lesson-section">
+                <h2>⚙️ The New Architecture in Plain Words</h2>
+                <p>Your app is a real app, installed on the phone like any other. Inside it, two worlds cooperate: your JavaScript, and the platform's native code. How they talk to each other is what people mean by React Native's <strong>architecture</strong>. You do not need to master it to build apps, but knowing the four names below makes error messages, documentation and job interviews much less mysterious:</p>
+                <ul>
+                    <li><strong>Hermes</strong> is the JavaScript engine inside your app, built by the React Native team for fast start-up on phones. Your TypeScript is turned into JavaScript (and, in release builds, into Hermes bytecode) and runs there, not in a browser.</li>
+                    <li><strong>JSI</strong> (the JavaScript Interface) lets JavaScript call native code directly and hold on to native objects, instead of sending messages back and forth.</li>
+                    <li><strong>Fabric</strong> is the renderer: it takes the result of your components (what React worked out should be on screen) and creates or updates the native views.</li>
+                    <li><strong>Native modules</strong> (TurboModules) give JavaScript the phone's features: the camera, location, secure storage, haptics. They load only when your app first uses them.</li>
+                </ul>
+
+                <div class="mermaid">
+graph TD
+    A["Your TSX components"] --> B["React works out changes"]
+    A --> E["Hermes runs your JavaScript"]
+    B --> C["Fabric renderer"]
+    C --> D["Native views on screen"]
+    E -->|"JSI"| F["Native modules"]
+                </div>
+
+                <p>Together these are called the <strong>New Architecture</strong>, and in current React Native it is the only one. You will still find older articles and answers that describe "the bridge": a message queue that every call between JavaScript and native code had to cross, which made some things slow. That design was replaced; when a tutorial blames the bridge, check its date.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ Old tutorials are everywhere</h4>
+                    <p>React Native and Expo move quickly: the course uses Expo SDK 58 with React Native 0.88. Code written a few years ago may import packages that no longer exist, use components that were replaced, or describe setup steps that are no longer needed. When something you found online does not match this course, the course's version was checked on the current tools.</p>
+                </div>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the radio and the field kit</h4>
+                    <p>Your JavaScript is the crew leader with a radio (JSI) who can talk to the specialists directly. The specialists are the native modules in the app's field kit: the camera person, the map reader, the one who keeps the keys. The kit is packed when the app is built. If you need a specialist who is not in the kit, you have to repack it, which is exactly what a development build does (more on that below).</p>
+                </div>
+            </section>
+
+            <section id="transfer" class="lesson-section">
+                <h2>🔁 What Carries Over and What Changes</h2>
+                <p>Here is the honest map of what you already know and what is new. Each new item has its own lesson:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Carries over unchanged</th><th>Changes on a phone</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Components, props, children, composition</td><td>HTML elements become core components (<code>View</code>, <code>Text</code>, <code>Image</code>, <code>Pressable</code>, <code>TextInput</code>): Module 2</td></tr>
+                            <tr><td>State, every hook, custom hooks, context</td><td>CSS becomes <code>StyleSheet</code> objects; flexbox is the only layout and its default direction is a column: Lessons 2.1 and 2.2</td></tr>
+                            <tr><td>TypeScript, your types and type guards</td><td>Long lists need virtualized lists (<code>FlatList</code>, <code>FlashList</code>): Module 3</td></tr>
+                            <tr><td>TanStack Query, Zustand, React Hook Form with Zod</td><td>No URL bar: navigation is a stack of screens, tabs and modals (Expo Router): Module 4</td></tr>
+                            <tr><td>The shoreline-api and its JSON</td><td><code>localhost</code> is the phone, not your computer; the network comes and goes; storage is async and secure storage is separate: Module 5</td></tr>
+                            <tr><td>Testing ideas (render, query by role and text, mock the API)</td><td>The camera, location and notifications need permission; phones have notches, keyboards and accessibility settings; apps ship through stores: Modules 6 to 9</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Notice how much of the left column is the hard part of React. You already learned to think in components and data; now you learn a new set of building blocks and a new set of constraints.</p>
+            </section>
+
+            <section id="expo" class="lesson-section">
+                <h2>🧰 Expo: The Framework Around React Native</h2>
+                <p>React Native on its own is a library: it renders components to native views. Building a whole app also needs a project setup, a development server, access to device features, navigation, builds for two app stores and a way to ship updates. <strong>Expo</strong> is the framework that provides all of that, and the React Native documentation recommends starting new apps with a framework like it. You will use these parts of Expo:</p>
+                <ul>
+                    <li><strong>The Expo CLI</strong> (<code>npx expo …</code>): creates and starts projects, installs compatible packages, bundles your JavaScript.</li>
+                    <li><strong>The Expo SDK</strong>: a set of native modules with one consistent API (<code>expo-camera</code>, <code>expo-location</code>, <code>expo-notifications</code> …), released together and numbered (this course uses SDK 58).</li>
+                    <li><strong>Expo Router</strong>: navigation from files, like the routes you know from the web.</li>
+                    <li><strong>Expo Go</strong>: a free app for your phone that runs your project while you develop it: scan a QR code and your app appears, and it reloads when you save.</li>
+                    <li><strong>Development builds</strong>: your own version of an Expo Go-style app with exactly the native modules your project needs. Expo Go only contains the Expo SDK's modules; when you add a library with other native code, you make a development build (Lesson 9.2).</li>
+                    <li><strong>EAS</strong> (Expo Application Services): cloud services that build your app for the stores (including iOS, without a Mac), send updates and submit to the stores. There is a free plan (Module 9).</li>
+                </ul>
+                <p>While you build, your code lives on your computer and the Expo CLI serves it. Your phone (or an emulator, or the web preview) loads it from there, and the app talks to the course's API:</p>
+
+                <div class="mermaid">
+graph TD
+    A["shoreline-crew on your computer"] --> B["Metro, Expo's bundler"]
+    B --> C["Expo Go on your phone"]
+    B --> D["Web preview in a browser"]
+    C -->|"JSON"| E["shoreline-api"]
+    D -->|"JSON"| E
+                </div>
+
+                <figure class="screenshot">
+                    <img src="images/lesson_01/01-cards-phone.png" alt="A phone-shaped frame showing the same two cleanup cards centered on a sand-colored screen: Weekend Cove Cleanup, Full: join the waiting list, Sign up; Family Beach Morning, 6 spots left, Sign up." width="420" height="814" loading="lazy">
+                    <figcaption>The CleanupCard file from this lesson, built with the course's tools (Expo SDK 58) and shown in Expo's web preview at phone size. In Lesson 1.2 you run your own app on a real phone.</figcaption>
+                </figure>
+
+                <div class="card card-info">
+                    <h4>💡 "Expo or React Native?" is the wrong question</h4>
+                    <p>An Expo app <em>is</em> a React Native app: Expo is the framework around it, the way Next.js is a framework around React. You may read about "bare" React Native or "ejecting" from Expo; today an Expo project can include any native code through development builds and config plugins, so there is nothing to eject from. You write the same React Native code either way.</p>
+                </div>
+            </section>
+
+            <section id="shoreline" class="lesson-section">
+                <h2>🌊 The Course Project: Shoreline Crew</h2>
+                <p>In the React + TypeScript course you built <strong>Shoreline Crew HQ</strong>, the web app where the organizers of Shoreline Crew (a fictional volunteer group that cleans up six beaches) plan cleanups and manage sign-ups. Now you build the app the <strong>volunteers</strong> carry: <strong>Shoreline Crew</strong>, for iPhone and Android.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Screen</th><th>What a volunteer does there</th><th>What the phone adds</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Cleanups</td><td>Browse upcoming cleanups, see which ones have spots</td><td>A fast scrolling list, pull to refresh</td></tr>
+                            <tr><td>Cleanup details</td><td>Read the meeting point, sign up or cancel, share it with a friend</td><td>A map, the share sheet, haptic feedback</td></tr>
+                            <tr><td>My cleanups</td><td>See your sign-ups and your place on a waiting list</td><td>A reminder notification before the day</td></tr>
+                            <tr><td>Check in</td><td>On the day, enter the organizer's code</td><td>Your location, to confirm you are at the beach</td></tr>
+                            <tr><td>Logbook</td><td>Log what you collected, by kind of debris</td><td>Works offline and syncs later; photos from the camera</td></tr>
+                            <tr><td>Profile</td><td>Sign in and out, choose a theme</td><td>The session kept in the phone's secure storage</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The app talks to the same <strong>shoreline-api</strong> as Shoreline Crew HQ: the small mock back end that runs on your computer with one command and comes with sample data around today's date. It was designed with this app in mind: volunteers can sign up and check in, debris logs carry an id made by the phone so that sending one twice (after a dropped connection) never creates a duplicate, and an option lets your phone reach it over Wi-Fi. The API's TypeScript types come with it, so the phone and the web app agree on every field.</p>
+                <div class="card card-info">
+                    <h4>💡 Why build the same project twice?</h4>
+                    <p>Real teams rarely start a phone app from nothing: there is usually a web app, an API and a lot of code already. Building the second app for the same project shows you, concretely, which code you can share between web and mobile (types, validation, data fetching logic) and which you rewrite (the screens). That judgment is one of the most useful things a React developer moving to mobile can bring to a team.</p>
+                </div>
+            </section>
+
+            <section id="how-to-learn" class="lesson-section">
+                <h2>🌱 How to Learn in This Course</h2>
+                <p>Moving to a new platform can make an experienced developer feel like a beginner again. That feeling is normal, and it passes quickly:</p>
+                <ul>
+                    <li><strong>Red screens are feedback, not failure.</strong> React Native shows errors as a full red screen on the phone. It looks dramatic; it is just a stack trace with a better font. Read it from the top, the way you learned to read TypeScript errors.</li>
+                    <li><strong>Add the word "yet".</strong> "I don't understand native modules" becomes "I don't understand native modules <em>yet</em>". The course introduces each idea when you need it and comes back to it.</li>
+                    <li><strong>Plateaus are normal.</strong> Some lessons will click at once; others (permissions, offline sync, store builds) take a second pass. This is a marathon, not a sprint: steady practice beats long cramming sessions.</li>
+                    <li><strong>Use real devices when you can.</strong> The web preview is quick, but a phone in your hand teaches you things no browser can: how big a finger is, how the keyboard covers a form, how a slow network feels.</li>
+                </ul>
+                <p>How each lesson works:</p>
+                <ul>
+                    <li>Every lesson adds to the same app, and each one with code has a <strong>📦 download</strong> of its starting and finished code.</li>
+                    <li>Every code sample was type-checked, linted, tested where it has tests, and bundled for web, Android and iOS on the course's stack; terminal output in the lessons is what a real terminal printed. Steps that only a real phone can show are written from the official documentation and say so.</li>
+                    <li>Every lesson ends with a <strong>project</strong> step, optional <strong>exercises</strong>, a five-question <strong>quiz</strong> and a <strong>journal</strong> prompt. Writing down what you learned is one of the most reliable ways to remember it.</li>
+                </ul>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <div class="card card-warning">
+                    <h4>⚠️ Expecting HTML and CSS to work</h4>
+                    <p>A <code>&lt;div&gt;</code>, a <code>className</code> or a CSS file does nothing on a phone. Reach for the core components and <code>StyleSheet</code>; the <a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a> lists the web-to-native swaps.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Treating the web preview as a phone</h4>
+                    <p>The web preview is a translation into HTML. It cannot show the native look of controls, the camera, notifications or how gestures feel. Use it for quick layout and data checks; confirm on a phone (or an emulator) before you call something done.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Following an old tutorial step by step</h4>
+                    <p>Global <code>expo-cli</code>, <code>react-native init</code>, "ejecting", <code>TouchableOpacity</code> everywhere and "the bridge" are signs of an older guide. Check the date and compare with the course before you install anything it suggests.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Thinking you need a Mac or native languages first</h4>
+                    <p>You do not. Expo Go runs on any recent phone, the Android emulator runs on Windows, macOS and Linux, and EAS builds iOS apps in the cloud. Swift and Kotlin are useful later, for writing your own native modules; this course never requires them.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: Your First Native Component</h2>
+                <p>You will run the cleanup cards from this lesson in Expo Snack, an official online editor for React Native, then compare them with their web twin, map the Shoreline Crew app, and get your phone ready for the next lesson. Everything happens in your browser.</p>
+
+                <div class="card">
+                    <h3>Step 1: Open Expo Snack <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>Open <a href="https://snack.expo.dev/" target="_blank" rel="noopener"><strong>Expo Snack</strong></a>. You do not need an account. On the left is the file list, in the middle the editor with a starter <code>App.js</code>, and on the right a preview with the tabs <strong>My Device</strong>, <strong>Android</strong>, <strong>iOS</strong> and <strong>Web</strong>.</li>
+                        <li>Select the <strong>Web</strong> tab of the preview. (The Android and iOS tabs run your code on a phone in the cloud, and may ask you to wait in a queue.)</li>
+                    </ol>
+                    <div class="card card-info">
+                        <h4>🧩 Version note: Snack's SDK</h4>
+                        <p>The version menu at the bottom of Snack shows its Expo SDK (it offered SDK 54 at the time of writing). The course uses SDK 58 on your own computer from Lesson 1.2. The core components in this project work the same in both.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Make it TypeScript and type the cards <span class="step-time">(20 min)</span></h3>
+                    <ol>
+                        <li>In the file list, right-click <strong>App.js</strong> and choose <strong>Rename to App.tsx</strong>. Snack understands TypeScript.</li>
+                        <li>Click in the editor, select everything (<kbd>Ctrl</kbd>+<kbd>A</kbd>, or <kbd>⌘ Cmd</kbd>+<kbd>A</kbd> on a Mac) and delete it.</li>
+                        <li>Type the <code>CleanupCard</code> code from <a href="#native-views">the native views section</a> (typing it, rather than pasting, is how the new names stick). The preview updates as you type and settles when the code is complete.</li>
+                        <li>Check the status line at the bottom of Snack: it should say <strong>No errors</strong>. If it shows an error, click it: it names the line.</li>
+                    </ol>
+                    <figure class="screenshot">
+                        <img src="images/lesson_01/01-snack.png" alt="Expo Snack in a browser. On the left the file App.tsx with the CleanupCard component and its StyleSheet; on the right the Web preview shows two white cards on a sand-colored screen: Weekend Cove Cleanup, Full: join the waiting list, with a button that now says You're in!, and Family Beach Morning, 6 spots left, with a Sign up button." width="1100" height="688" loading="lazy">
+                        <figcaption>Your first React Native code running in Expo Snack, with nothing installed. The first card's button was pressed, so its state changed to <strong>You're in!</strong>.</figcaption>
+                    </figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: Change it and watch <span class="step-time">(10 min)</span></h3>
+                    <ol>
+                        <li>Click <strong>Sign up</strong> on the first card. The button says <strong>You're in!</strong>; click again and it switches back. That is <code>useState</code>, exactly as on the web.</li>
+                        <li>In <code>App</code>, add a third card: <code>&lt;CleanupCard title="Jetty Rocks Deep Clean" spotsLeft={12} /&gt;</code>. It appears below the others.</li>
+                        <li>In <code>styles.screen</code>, change <code>justifyContent: 'center'</code> to <code>justifyContent: 'flex-start'</code>. The cards move to the top: the screen is a flex container whose main direction is a column (Lesson 2.2).</li>
+                        <li>Change <code>gap: 16</code> to <code>gap: 40</code> and back. Notice there are no units: React Native sizes are numbers.</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Compare it with the web version <span class="step-time">(10 min)</span></h3>
+                    <p>Put the two <code>CleanupCard</code> versions from <a href="#native-views">the native views section</a> side by side and write a short list in your notes: every line that is different, and what replaced what. Then mark each item as "vocabulary" (a different name for the same idea, such as <code>div</code> to <code>View</code>) or "new idea" (something the web version did not need, such as <code>Pressable</code>'s <code>pressed</code> style). Keep the list: it is the start of your own cheat sheet.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Map the Shoreline Crew app <span class="step-time">(15 min)</span></h3>
+                    <p>On paper or in a document, draw a phone-shaped box for each screen in <a href="#shoreline">the project table</a>: Cleanups, Cleanup details, My cleanups, Check in, Logbook and Profile. In each box, write:</p>
+                    <ul>
+                        <li>the data it shows (cleanup title, date, spots left, your sign-up status …)</li>
+                        <li>which phone feature it uses, if any (location, camera, notifications, storage, haptics)</li>
+                        <li>what should happen when the phone has no signal on that screen</li>
+                    </ul>
+                    <p>The last question is the one web developers rarely ask, and the one this app has to answer well.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Get your phone ready <span class="step-time">(5 min)</span></h3>
+                    <ol>
+                        <li>If you have an iPhone or Android phone, install <strong>Expo Go</strong> from the App Store or Google Play (it is free). Do not open a project yet: Lesson 1.2 does that with your own app.</li>
+                        <li>Check that your phone and your computer can use the same Wi-Fi network. No phone, or no shared network? That is fine: Lesson 1.2 also shows the Android emulator and the web preview.</li>
+                    </ol>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ I renamed Snack's file to <code>App.tsx</code>, typed the <code>CleanupCard</code> code and saw "No errors"</li>
+                        <li>☐ I pressed <strong>Sign up</strong> and saw the state change, and I added a third card</li>
+                        <li>☐ I changed a style and saw the layout follow</li>
+                        <li>☐ I listed every difference between the web and native versions of the card</li>
+                        <li>☐ I mapped the six Shoreline Crew screens to their data, phone features and offline behavior</li>
+                        <li>☐ I installed Expo Go (or chose the emulator or web preview for Lesson 1.2)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Carries over or changes?</h3>
+                    <p>Sort each item into "works the same in React Native" or "changes on a phone": (a) <code>useEffect</code>, (b) <code>localStorage</code>, (c) an <code>interface</code> for props, (d) <code>onClick</code>, (e) <code>useQuery</code> from TanStack Query, (f) a CSS <code>:hover</code> style, (g) <code>&lt;img src="…"&gt;</code>, (h) a Zod schema.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Ask of each one: is it part of React and TypeScript, or part of the browser?</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The same: (a), (c), (e), (h): they are React, TypeScript or plain JavaScript libraries. Changes: (b) <code>localStorage</code> is a browser API (AsyncStorage and SecureStore, Lesson 5.3); (d) <code>onClick</code> becomes <code>onPress</code>; (f) phones have no hover, <code>Pressable</code> has a <code>pressed</code> state instead; (g) <code>&lt;img&gt;</code> becomes an <code>Image</code> component with <code>source</code> and a size (Lesson 2.3).</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Which part of the architecture?</h3>
+                    <p>For each situation, name the part from <a href="#architecture">the New Architecture section</a> that is involved: (1) your <code>CleanupCard</code> function runs and returns JSX; (2) a <code>Text</code> appears on an Android screen as a native text view; (3) your code asks for the phone's location; (4) a release build ships your JavaScript as bytecode.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>The four names are Hermes, JSI, Fabric and native modules. One situation involves two of them.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>(1) Hermes runs your JavaScript (and React inside it). (2) Fabric, the renderer, creates the native view. (3) A native module (<code>expo-location</code>), reached from JavaScript through JSI. (4) Hermes: release builds contain Hermes bytecode, so the app does not have to parse JavaScript at start-up.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A full cleanup should look full (Stretch)</h3>
+                    <p>In Snack, make a full cleanup stand out: when <code>spotsLeft</code> is 0, show the "Full" line in bold coral (<code>#b23a22</code>, Shoreline Crew's error color) and make the button say <strong>Join the waiting list</strong> instead of <strong>Sign up</strong>.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>A <code>style</code> prop accepts <code>false</code>, so <code>style={full &amp;&amp; styles.full}</code> applies the style only when <code>full</code> is true. The button text needs a second condition inside the first one.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <pre data-snippet><code class="language-tsx">import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+interface CleanupCardProps {
+  title: string;
+  spotsLeft: number;
+}
+
+function CleanupCard({ title, spotsLeft }: CleanupCardProps) {
+  const [joined, setJoined] = useState(false);
+  const full = spotsLeft === 0;
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+      &lt;Text style={full &amp;&amp; styles.full}&gt;
+        {full ? 'Full: join the waiting list' : `${spotsLeft} spots left`}
+      &lt;/Text&gt;
+      &lt;Pressable
+        accessibilityRole="button"
+        onPress={() =&gt; setJoined(!joined)}
+        style={({ pressed }) =&gt; [styles.button, pressed &amp;&amp; styles.pressed]}&gt;
+        &lt;Text style={styles.buttonText}&gt;
+          {joined ? "You're in!" : full ? 'Join the waiting list' : 'Sign up'}
+        &lt;/Text&gt;
+      &lt;/Pressable&gt;
+    &lt;/View&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;View style={styles.screen}&gt;
+      &lt;CleanupCard title="Weekend Cove Cleanup" spotsLeft={0} /&gt;
+      &lt;CleanupCard title="Family Beach Morning" spotsLeft={6} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, justifyContent: 'center', gap: 16, padding: 24, backgroundColor: '#fbf6ec' },
+  card: { gap: 8, padding: 16, borderRadius: 12, backgroundColor: '#ffffff' },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#0b3954' },
+  button: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#1f6f8b' },
+  full: { color: '#b23a22', fontWeight: 'bold' },
+  pressed: { opacity: 0.7 },
+  buttonText: { color: '#ffffff', fontWeight: 'bold' },
+});</code></pre>
+                        <p>Style arrays and conditional styles (<code>[styles.button, pressed &amp;&amp; styles.pressed]</code>) are how React Native does what CSS classes and pseudo-classes do on the web. Lesson 2.1 builds on exactly this.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> The Shoreline Crew app shows a <code>&lt;View&gt;</code> on an Android phone. What does the phone actually draw?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="There is no browser inside a React Native app. What did the web preview need react-native-web for?">
+                                A) A div element inside a hidden browser
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A WebView shows a web page inside an app. Does React Native render your components as a web page?">
+                                B) A WebView that displays HTML
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="React Native renders to the platform's own building blocks. The Fabric renderer creates a native Android view for the View component; there is no DOM on the phone. Only the web preview turns it into a div.">
+                                C) A native Android view, created by React Native's renderer
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> Where does your TypeScript code run when the app is on a phone?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="Your TypeScript is turned into JavaScript and runs in Hermes, the JavaScript engine inside the app. Native code (views, modules) runs alongside it, reached through JSI.">
+                                A) As JavaScript in Hermes, the engine inside the app
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The phone does not download a translation into another language. Which engine was built for React Native?">
+                                B) Translated into Swift or Kotlin when you build the app
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The development server sends your code to the phone, but where does it run once it arrives?">
+                                C) On your computer, which streams the screen to the phone
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> Which piece of Shoreline Crew HQ can the phone app use as it is?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="CSS Modules style HTML elements. Is there HTML or CSS on a phone?">
+                                A) Its CSS Modules
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The API types describe the data, not the screen, and the API is the same one. Plain TypeScript with no browser APIs carries over unchanged; Lesson 1.3 copies it.">
+                                B) The shoreline-api types in src/api/types.ts
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Where does sessionStorage come from: React, TypeScript or the browser?">
+                                C) The session saved in sessionStorage
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Pages built from article, h2 and p elements need translating into core components.">
+                                D) Its page components
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> You want a map library whose native code is not included in Expo Go. What do you need?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Ejecting belongs to older versions of Expo. How do current Expo projects include extra native code?">
+                                A) To eject the project from Expo
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Snack is an online editor; does it change which native modules an app contains?">
+                                B) To move the project to Expo Snack
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="A Mac is needed for the iOS Simulator, not for adding native code. Think about the field kit.">
+                                C) A Mac with Xcode
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Expo Go contains a fixed set of native modules. A development build is your own version of it, built with exactly the native code your project needs; EAS can build it in the cloud (Lesson 9.2).">
+                                D) A development build of your app
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> The cleanup cards look right in the web preview. What can the web preview <em>not</em> tell you?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The preview renders the same components and styles. Would a missing card show up there?">
+                                A) Whether all the cards appear
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The web preview translates components into HTML in a browser. Native-only behavior such as a camera permission prompt, notifications or the platform's own controls needs a phone or an emulator.">
+                                B) How the camera permission prompt behaves on a phone
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="State works the same in the preview: you pressed Sign up in Snack and saw it change.">
+                                C) Whether pressing Sign up changes the button text
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>Do I need a Mac or an iPhone?</summary>
+                    <p>No. On Windows or Linux you develop with Expo Go on any phone you have, or the Android emulator. iPhone owners can use Expo Go on their iPhone from any computer. Only the iOS Simulator needs a Mac, and EAS builds iOS apps in the cloud. Steps that need Apple hardware are marked, with what you would see.</p>
+                </details>
+                <details>
+                    <summary>Is a React Native app just a website inside an app?</summary>
+                    <p>No. A website inside an app (a WebView) draws HTML; React Native draws the platform's native views, which is why it looks and feels like other apps. The web preview in this course goes the other way: it turns your native components into HTML so you can check them in a browser.</p>
+                </details>
+                <details>
+                    <summary>Should I learn Swift or Kotlin first?</summary>
+                    <p>Not for this course. Many React Native developers never write native code; others learn some later to build their own native modules. Understanding the architecture from this lesson is enough to read native error messages and documentation.</p>
+                </details>
+                <details>
+                    <summary>What about Flutter or other cross-platform tools?</summary>
+                    <p>Flutter is a strong alternative that uses its own language (Dart) and draws its own widgets instead of the platform's. React Native lets you use React and TypeScript, share code and knowledge with your web apps, and use the platform's own controls. For a React developer that is usually the deciding argument.</p>
+                </details>
+                <details>
+                    <summary>Why is the project in Snack plain components, without Expo Router or the API?</summary>
+                    <p>Snack is a quick place to try ideas without installing anything, and it is a step behind the course's SDK. From Lesson 1.2 on you work in a real project on your computer, with Expo Router, the API and your phone.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Read the React Native documentation page <a href="https://reactnative.dev/docs/intro-react-native-components" target="_blank" rel="noopener">Core Components and Native Components</a>. Its table lists, for each core component, the Android view and the iOS view it becomes, and the web element it resembles. Add the rows you did not know yet to the cheat sheet you started in Step 4, then compare your list with the course's <a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a>.</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Today is your first entry. Keep a journal for the whole course: a notebook, a document, or a Markdown file in your project folder. Take five to ten minutes after every lesson and jot down:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Why do you want to build mobile apps? Describe one app you would love to have on your own phone: who would use it, where they would be when they open it, and one thing it must do even without a signal. Then write one sentence you want to be able to say at the end of this course ("I shipped…", "I can…").</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li><strong>React Native renders to native views</strong>, not to a DOM: <code>View</code>, <code>Text</code> and <code>Pressable</code> become the platform's own controls</li>
+                        <li>All text lives in <code>&lt;Text&gt;</code>, taps use <code>onPress</code>, and styles are <code>StyleSheet</code> objects without units or a cascade</li>
+                        <li>The <strong>New Architecture</strong>: Hermes runs your JavaScript, JSI connects it to native code, Fabric renders, native modules provide device features</li>
+                        <li>Your React and TypeScript knowledge carries over; the building blocks, layout, navigation, storage and the network change</li>
+                        <li><strong>Expo</strong> is the framework around React Native: CLI, SDK, Router, Expo Go, development builds and EAS</li>
+                        <li>The web preview is a translation into HTML: useful for quick checks, not a phone</li>
+                        <li>You will build <strong>Shoreline Crew</strong>, the volunteers' app, against the same shoreline-api as Shoreline Crew HQ</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Try a React Native idea in the browser</td><td><a href="https://snack.expo.dev/" target="_blank" rel="noopener">Expo Snack</a></td></tr>
+                            <tr><td>Look up the native version of a web element or CSS property</td><td><a href="react-native-cheat-sheet.html">React Native Cheat Sheet</a></td></tr>
+                            <tr><td>See what the API offers the phone app</td><td><a href="api.html">Shoreline API Reference</a></td></tr>
+                            <tr><td>Look up a new word (Hermes, Fabric, Expo Go…)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>You can explain how React Native draws real native screens from React components</li>
+                        <li>You can name the parts of the New Architecture and recognize an outdated tutorial</li>
+                        <li>You ran your first React Native component, with state and styles, without installing anything</li>
+                        <li>You mapped the app you will build to its data, its phone features and its offline needs</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_02.html"><strong>Lesson 1.2: Your Toolchain</strong></a> you set up your computer for mobile development: Node.js, VS Code, the shoreline-api running locally and a brand-new Expo project, Shoreline Crew, opened on your own phone with Expo Go (or in the Android emulator or the web preview). By the end, an edit you make on your computer appears on your phone in about a second.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Install Expo Go on your phone if you have one, and note your phone's operating system version</li>
+                    <li>Keep your Shoreline Crew screen map and your web-to-native list: you will add to both</li>
+                    <li>Write your first journal entry, if you have not yet</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>You just ran a React Native component and understood what it turns into on a phone, which already puts you ahead of anyone who learned mobile development by copying old tutorials. Everything from here builds on React you already know: new building blocks, a few new constraints, and a phone in your hand that shows you your work. Welcome back to the crew, this time on the beach.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_02.html" class="next-lesson">Next: Your Toolchain →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>

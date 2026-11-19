@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="File-based routing with Expo Router in an Expo app: files in src/app become screens, the root Stack layout and its header options, Link and the router, a dynamic route with params, typed routes checked by TypeScript, and a not-found screen, as Shoreline Crew gets a screen for each cleanup. React Native &amp; Expo: Build and Ship a Mobile App Lesson 4.1.">
+    <meta name="author" content="Ray de la Paz">
+    <title>File-Based Routing - React Native &amp; Expo: Build and Ship a Mobile App</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.__mermaid = mermaid;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',                  /* themeVariables only apply to the base theme */
+            darkMode: isDark,
+            themeVariables: isDark
+                ? { primaryColor: '#1f1836', primaryTextColor: '#e2e8f0', primaryBorderColor: '#c9b5ff', lineColor: '#94a3b8', secondaryColor: '#1f1836', tertiaryColor: '#120d22', background: '#120d22', mainBkg: '#1f1836', textColor: '#e2e8f0' }
+                : { primaryColor: '#f3eefe', primaryTextColor: '#1f1836', primaryBorderColor: '#6534c4', lineColor: '#64748b', secondaryColor: '#f8f6fc', tertiaryColor: '#f1f5f9', background: '#ffffff', mainBkg: '#f3eefe', textColor: '#1f1836' }
+        });
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+    <div class="progress-indicator" role="progressbar" aria-label="Page scroll progress">
+        <div class="progress-bar"></div>
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">React Native &amp; Expo: Build and Ship a Mobile App</a>
+            <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+            <div class="nav-links" id="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#modules">All Modules</a>
+                <span class="nav-divider"></span>
+                <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+                <a href="https://rays-home.netlify.app/contact">Contact</a>
+                <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div class="container">
+            <header>
+                <h1>🧭 Lesson 4.1: File-Based Routing</h1>
+                <p class="lead">An app with one screen is a poster. Real apps are places you move around in: you tap a cleanup, read everything about it, and come back to the list exactly where you left it. In this lesson Shoreline Crew gets its second screen. With Expo Router, a file in <code>src/app</code> is a screen, its path is its address, and TypeScript checks every link you write, so a typo is a red line in your editor instead of a dead end on a volunteer's phone.</p>
+
+                <div class="card card-info">
+                    <h2>🎯 Learning Objectives</h2>
+                    <p>By the end of this lesson, you will be able to:</p>
+                    <ul>
+                        <li>Explain how Expo Router turns the files in <code>src/app</code> into screens and addresses, including layouts, <code>index</code>, dynamic <code>[id]</code> segments and <code>+not-found</code></li>
+                        <li>Configure a stack and its header bar in three places: for every screen, for one route in the layout, and from inside a screen once its data has loaded</li>
+                        <li>Move between screens with <code>Link</code> (including <code>asChild</code> on your own button) and with the imperative <code>router</code>, and choose push or replace</li>
+                        <li>Read a route's params with <code>useLocalSearchParams</code>, typed from the route, and explain why they are always strings</li>
+                        <li>Use typed routes to catch broken links with <code>tsc</code>, and know when Metro must run to refresh them</li>
+                    </ul>
+                </div>
+
+                <ul class="lesson-meta">
+                    <li><span class="meta-label">⏱️ Time</span> 130 minutes</li>
+                    <li><span class="meta-label">📋 Prerequisites</span> <a href="lesson_10.html">Lesson 3.2: Big Lists, Fast</a></li>
+                    <li><span class="meta-label">🛠️ You will build</span> a screen for each cleanup at <code>/cleanups/[id]</code> (picture, details, the beach, a header titled with the cleanup's name, loading, error and "not found" states), an <strong>Open</strong> link on every card, header options for the whole stack, and Shoreline Crew's own not-found screen</li>
+                    <li><span class="meta-label">🧩 Stack</span> Expo SDK 58 (React Native 0.88, React 19.3), Expo Router 58.0.31 with typed routes, react-native-web 0.21 for the web preview (the versions this lesson was checked with)</li>
+                    <li><span class="meta-label">📱 Where it runs</span> the web preview on your computer, with shoreline-api in a second terminal; Expo Go on your phone shows the header bars and back gestures once it can reach the API (Lesson 5.1)</li>
+                </ul>
+
+                <div class="card card-info">
+                    <h4>📦 Code for this lesson</h4>
+                    <p>Starting code: <a href="downloads/lesson-11-start.zip">lesson-11-start.zip</a> · Finished code: <a href="downloads/lesson-11-end.zip">lesson-11-end.zip</a>. Each folder has a README with the commands to run it.</p>
+                </div>
+            </header>
+
+            <details class="card toc-card" open>
+                <summary aria-label="Toggle table of contents">
+                    <span class="toc-icon" aria-hidden="true">📑</span>
+                    <span class="toc-label">In This Lesson</span>
+                    <span class="toc-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <nav aria-label="Table of Contents">
+                    <ol>
+                        <li><a href="#welcome" class="toc-link">Welcome: From One Screen to an App</a></li>
+                        <li><a href="#files" class="toc-link">Files Are Screens</a></li>
+                        <li><a href="#stack" class="toc-link">The Stack and Its Header</a></li>
+                        <li><a href="#moving" class="toc-link">Moving Around: Link and the Router</a></li>
+                        <li><a href="#params" class="toc-link">Params and Typed Routes</a></li>
+                        <li><a href="#mistakes" class="toc-link">Common Mistakes</a></li>
+                        <li><a href="#project" class="toc-link">Project: A Screen for Every Cleanup</a></li>
+                        <li><a href="#exercises" class="toc-link">Hands-on Exercises</a></li>
+                        <li><a href="#quiz" class="toc-link">Quick Quiz</a></li>
+                        <li><a href="#faq" class="toc-link">Common Questions</a></li>
+                        <li><a href="#journal" class="toc-link">Learning Journal</a></li>
+                        <li><a href="#summary" class="toc-link">Lesson Summary</a></li>
+                    </ol>
+                </nav>
+            </details>
+
+            <section id="welcome" class="lesson-section">
+                <h2>👋 Welcome: From One Screen to an App</h2>
+                <p>Since Lesson 1.2, Shoreline Crew has had one screen, <code>src/app/index.tsx</code>, and a root layout, <code>src/app/_layout.tsx</code>, that you have mostly used for fonts, the splash screen, the status bar and the theme. Both files were Expo Router files all along. Today you use the router for what it is for:</p>
+                <ul>
+                    <li><strong>A screen for each cleanup.</strong> One file, <code>src/app/cleanups/[id].tsx</code>, draws any cleanup: <code>/cleanups/e08</code> is Weekend Cove, <code>/cleanups/e17</code> is Tide Pool Morning. The card's quick look ("Show details") stays; a new <strong>Open</strong> button takes the volunteer to the full screen.</li>
+                    <li><strong>Header bars with real titles.</strong> The cleanup screen's header shows the cleanup's name once it has loaded, in the app's heading font, with a back button to the list.</li>
+                    <li><strong>A dead end that is not a dead end.</strong> A mistyped or outdated link lands on Shoreline Crew's own "not on the map" screen, with a way home.</li>
+                    <li><strong>Links TypeScript checks.</strong> Misspell a route and <code>npx tsc --noEmit</code> says "Did you mean '"/cleanups/[id]"'?" before anyone taps it.</li>
+                </ul>
+                <p><strong>Why it matters for your work:</strong> navigation is the skeleton of every app. Expo Router is the router Expo's templates start with, it is built on React Navigation (which many existing React Native apps use directly), and its file-based model is the same idea as Next.js and other web frameworks you may meet. On a team, "where does this screen live and what is its address" should have one obvious answer: with file-based routing, it is the file's path.</p>
+                <p><strong>Why it matters for the volunteers:</strong> a cleanup's meeting point, parking and what to bring are exactly what someone checks in the car park. They need to get there in one tap and get back to the list without losing their place.</p>
+                <p>If you did the React + TypeScript course, you have used a router on the web (Lesson 6.1 of that course, with React Router 8). Routes, params and links mean the same thing here. What changes on a phone: there is no address bar to type in, screens stack on top of each other instead of replacing the page, and "back" is a button in the header, a swipe on an iPhone and a system gesture or button on Android.</p>
+            </section>
+
+            <section id="files" class="lesson-section">
+                <h2>🗂️ Files Are Screens</h2>
+                <p>Expo Router reads the folder <code>src/app</code> (the template's choice: <code>app.json</code>'s <code>expo-router</code> plugin finds it there) and turns each file into a <strong>route</strong>: a screen with an address. You never write a list of routes; the folder is the list. Here is Shoreline Crew at the end of this lesson:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>File in <code>src/app</code></th><th>Address</th><th>What it is</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>_layout.tsx</code></td><td>(none)</td><td>The <strong>layout</strong>: not a screen, but what wraps the screens in its folder. The root layout holds the providers (theme, fonts, status bar) and the navigator, a <code>Stack</code></td></tr>
+                            <tr><td><code>index.tsx</code></td><td><code>/</code></td><td>The Cleanups screen. <code>index</code> means "this folder's own address", like <code>index.html</code> on the web</td></tr>
+                            <tr><td><code>cleanups/[id].tsx</code></td><td><code>/cleanups/e08</code>, <code>/cleanups/e17</code>, …</td><td>A <strong>dynamic route</strong>: the square brackets match any one segment and name it <code>id</code></td></tr>
+                            <tr><td><code>+not-found.tsx</code></td><td>anything that matches no other file</td><td>The not-found screen. A <code>+</code> marks a file Expo Router treats specially</td></tr>
+                            <tr><td>(nothing: Expo Router adds it)</td><td><code>/_sitemap</code></td><td>A list of every route, for you while developing (Exercise 2)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>A few rules come with the folder. Only route files belong in <code>src/app</code>: components, hooks and the API client stay in <code>src/components</code>, <code>src/hooks</code> and <code>src/api</code>, where they have been all along (Lesson 3.2's lab screen lived in <code>src/app</code> because it <em>was</em> a screen, with the address <code>/list-lab</code>). Each route file has a <strong>default export</strong>, the screen component. And folder names in parentheses, such as <code>(tabs)</code>, group routes without adding to the address: Lesson 4.2 uses one for the tab bar.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the signposts at the trailhead</h4>
+                    <p>A big beach has a map at the car park: numbered access paths, each with a signpost. The folder <code>src/app</code> is that map. Every file is a signposted path, and its name is what is written on the post. <code>cleanups/[id]</code> is not one path but a rule: "Access <em>number</em>", one post per cleanup, all leading to the same kind of place. And <code>+not-found</code> is the sign that says "this path does not exist, the main beach is that way". You change the map by adding a file; nobody keeps a separate list that can go out of date.</p>
+                </div>
+            </section>
+
+            <section id="stack" class="lesson-section">
+                <h2>📚 The Stack and Its Header</h2>
+                <p>The root layout renders a <code>Stack</code>: a navigator that keeps screens in a pile. Opening a screen <strong>pushes</strong> it on top, with the platform's slide-in animation; going back <strong>pops</strong> it off, and the screen underneath is still there, scrolled where you left it, its state untouched. That is why the Cleanups list keeps its place, its loaded pages and its search text when you come back from a cleanup.</p>
+<div class="mermaid">
+graph TD
+    A["Cleanups screen"] -->|"Open: push"| B["Cleanup e08 on top"]
+    B -->|"Back: pop"| A
+</div>
+                <p>On a phone, <code>Stack</code> is a <strong>native stack</strong> (react-native-screens): each screen is a real platform screen, and the header bar is drawn by iOS or Android, not by JavaScript. That is where the platforms differ, according to the React Navigation and Expo Router docs:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>iPhone</th><th>Android phone</th><th>Web preview</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Header title</td><td>Centered</td><td>Left-aligned</td><td>Left-aligned, after the arrow</td></tr>
+                            <tr><td>Back button</td><td>A chevron with the previous screen's title ("Cleanups")</td><td>An arrow</td><td>An arrow; it is a link named "Cleanups, back"</td></tr>
+                            <tr><td>Other ways back</td><td>Swipe from the left edge of the screen</td><td>The system back gesture or button</td><td>The browser's back button</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Three places to set a screen's options</h3>
+                <p>The header's title, its font, whether it shows at all: these are <strong>screen options</strong>. You can set them at three levels, and the more specific one wins:</p>
+                <ol>
+                    <li><strong>Every screen of the stack:</strong> <code>&lt;Stack screenOptions={{ … }}&gt;</code> in the layout. Shoreline Crew sets the header title's font to Outfit here, once.</li>
+                    <li><strong>One route, from the layout:</strong> <code>&lt;Stack.Screen name="cleanups/[id]" options={{ … }} /&gt;</code> inside the <code>Stack</code>. The <code>name</code> is the file's path in <code>src/app</code> without the extension. Good for things known in advance: the Cleanups screen hides its header (it draws its own banner, since Lesson 2.3); the cleanup screen starts with the title "Cleanup".</li>
+                    <li><strong>From inside the screen:</strong> render <code>&lt;Stack.Screen options={{ … }} /&gt;</code> in the screen's JSX. It draws nothing; it updates that screen's options, so the title can come from data that just loaded: <code>title: event.title</code>.</li>
+                </ol>
+                <p>The header's colors come from the navigation theme you gave <code>ThemeProvider</code> in Lesson 2.5 (the <code>card</code> color for the bar, <code>text</code> for the title, <code>primary</code> for the back button), so the header follows dark mode with no extra code. That is why the restructured <code>_layout.tsx</code> keeps every line it already had: the fonts and the splash screen hold, the status bar, and the <code>ThemeProvider</code> around the stack.</p>
+                <div class="card card-info">
+                    <h4>🧩 Version note: Stack.Title and older articles</h4>
+                    <p>Expo Router 58 also has newer header components you render inside a screen, such as <code>&lt;Stack.Title&gt;</code> and <code>&lt;Stack.Toolbar&gt;</code> (<code>Stack.Screen.Title</code> is already marked deprecated in favor of <code>Stack.Title</code>). They work, but the course measured one surprise with <code>Stack.Title</code> (Common Mistakes). Older tutorials set titles with <code>navigation.setOptions(…)</code> from <code>useNavigation()</code>, or import from <code>@react-navigation/native</code> directly; in an Expo Router app, use <code>Stack.Screen</code> and import from <code>expo-router</code>.</p>
+                </div>
+            </section>
+
+            <section id="moving" class="lesson-section">
+                <h2>🔗 Moving Around: Link and the Router</h2>
+                <p>There are two ways to go to another screen. <strong><code>Link</code></strong> is a component: it says "this thing, when pressed, goes there". <strong><code>router</code></strong> is an object you call from code: "now go there". An <code>href</code> can be written three ways:</p>
+                <pre data-snippet><code class="language-tsx">import { Link } from 'expo-router';
+import { View } from 'react-native';
+
+export function LinkForms() {
+  const id = 'e08';
+  return (
+    &lt;View&gt;
+      {/* A fixed address */}
+      &lt;Link href="/cleanups/e08"&gt;Weekend Cove Cleanup&lt;/Link&gt;
+      {/* An address built from a variable */}
+      &lt;Link href={`/cleanups/${id}`}&gt;The same cleanup&lt;/Link&gt;
+      {/* The route's file name and its params: TypeScript checks both */}
+      &lt;Link href={{ pathname: '/cleanups/[id]', params: { id } }}&gt;The same cleanup again&lt;/Link&gt;
+    &lt;/View&gt;
+  );
+}</code></pre>
+                <p>The object form names the route by its file (<code>/cleanups/[id]</code>) and passes the params separately; Expo Router builds the address and encodes the id for you. Shoreline Crew uses it on the cards.</p>
+                <h3>A Link on your own button: asChild</h3>
+                <p>A plain <code>Link</code> draws text. To make your <code>Button</code> the link, wrap it and add <code>asChild</code>: the <code>Link</code> draws nothing itself and hands its <code>onPress</code>, its <code>href</code> and the role <code>link</code> to its one child. That works because <code>Button</code> passes every Pressable prop it receives on to its <code>Pressable</code> (Lesson 2.4). In the web preview the course measured what that renders: a real <code>&lt;a href="/cleanups/e08" role="link"&gt;</code>, so a browser can open it in a new tab, and screen readers announce a link, which is what it is. (On phones, React Native gives the same <code>role</code> to VoiceOver and TalkBack.)</p>
+                <h3>The router, for navigation that code decides</h3>
+                <pre data-snippet><code class="language-ts">import { router } from 'expo-router';
+
+// Open a cleanup on top of the current screen: the back button comes back here
+export function openCleanup(id: string) {
+  router.push({ pathname: '/cleanups/[id]', params: { id } });
+}
+
+// Go to the Cleanups screen in place of this one: there is no way back to this screen
+export function startOver() {
+  router.replace('/');
+}
+
+// Close this screen, like the back button. Opened from a link, there may be nothing underneath.
+export function leave() {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace('/');
+  }
+}</code></pre>
+                <ul>
+                    <li><code>router.push(href)</code> puts a screen on top: back returns.</li>
+                    <li><code>router.replace(href)</code> puts it in place of the current screen: back does not return to the one you left. Right for dead ends, such as the not-found screen. (Lesson 4.3 closes its sign-in modal with <code>router.back()</code> instead, and lets a route guard do the rest.)</li>
+                    <li><code>router.back()</code> pops the top screen. <code>router.canGoBack()</code> says whether there is anything to go back to: a screen opened straight from its address (or, in Lesson 4.4, from a link in a message) is the only one in the stack.</li>
+                </ul>
+                <p><code>Link</code> has the same choice: <code>&lt;Link href="/" replace&gt;</code>. The rule of thumb: if the volunteer presses something that is plainly "go there", use a <code>Link</code> (it is a real link on the web and announced as one); if navigation happens because of something your code found out (a 404, a finished sign-in, a saved form), call <code>router</code>.</p>
+                <div class="card card-info">
+                    <h4>💡 Mental model: the clipboard pile</h4>
+                    <p>At the sign-in table, the crew leader keeps a pile of clipboards. Looking up one cleanup puts its sheet on top of the pile (push); putting it down shows the sheet underneath, exactly as it was (back). Swapping the top sheet for another without keeping it is replace. And if someone hands you a single sheet with no pile under it (a link opened from outside), there is nothing to put it down onto: that is when <code>canGoBack()</code> is false and the app sends the volunteer home instead.</p>
+                </div>
+            </section>
+
+            <section id="params" class="lesson-section">
+                <h2>🧾 Params and Typed Routes</h2>
+                <p>Inside <code>cleanups/[id].tsx</code>, the <code>id</code> part of the address is a <strong>param</strong>. <code>useLocalSearchParams</code> reads it, and naming the route in angle brackets types it:</p>
+                <div class="code-file">
+                    <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                    <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx" data-match="excerpt"><code class="language-tsx">  // The [id] part of the address. Always a string: it comes from the address, like a URL's path.
+  const { id } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;();</code></pre>
+                </div>
+                <p><strong>Params are always strings</strong>, because they come from an address, and an address is text: you can pass a number when you link (<code>params: { id: 8 }</code> is allowed), but the screen receives <code>'8'</code>. Without the route in the angle brackets, TypeScript only knows "some params": each one is <code>string | string[] | undefined</code> (an array when a value repeats, or for a catch-all <code>[...rest]</code> route), and handing that to <code>getEvent(id)</code> fails to compile (Common Mistakes). Validate params like any outside input: <code>e99</code> is a perfectly good string that names no cleanup, which is why the screen handles the API's 404.</p>
+                <p>There is also <code>useGlobalSearchParams</code>; the FAQ explains when you would want it (rarely).</p>
+                <h3>Typed routes: where the types come from</h3>
+                <p><code>app.json</code> has had <code>"experiments": { "typedRoutes": true }</code> since Lesson 1.2. With it, <code>npx expo start</code> writes a file of types for the routes it finds, <code>.expo/types/router.d.ts</code> (gitignored, like <code>expo-env.d.ts</code>, which points TypeScript at it). In it, the cleanup route reads like this:</p>
+                <pre data-snippet><code class="language-ts">{ pathname: `/cleanups/[id]`, params: Router.UnknownInputParams &amp; { id: string | number; } }</code></pre>
+                <p>So every <code>href</code> in the app must be one of the addresses in that file, with the params that route needs. <strong>Metro keeps the file up to date while it runs:</strong> the course started <code>npx expo start</code>, added a new route file, and the file had the new route a few seconds later. If you add a route while Metro is stopped, <code>tsc</code> still has the old list and complains about a perfectly good link (Common Mistakes): start Metro and the complaint goes away.</p>
+                <div class="card card-info">
+                    <h4>💡 Why types for links are worth it</h4>
+                    <p>A broken link in a web app is a 404 page someone may report. A broken link in a phone app ships inside a build that takes days to get through store review and that some people never update. A link that cannot compile when it is wrong is one of the cheapest bugs you will ever prevent.</p>
+                </div>
+            </section>
+
+            <section id="mistakes" class="lesson-section">
+                <h2>⚠️ Common Mistakes</h2>
+                <p>Every error below was produced on purpose in the finished project and captured the way your terminal shows it. A red error is the compiler pointing at the exact link that would have failed on someone's phone: read the first line, then the code under it.</p>
+                <div class="card card-warning">
+                    <h4>⚠️ A misspelled route</h4>
+                    <p>Write <code>'/cleanup/[id]'</code> (one letter short) in the card's link and run <code>npx tsc --noEmit</code>:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/components/EventCard.tsx:76:23 - error TS2820: Type '"/cleanup/[id]"' is not assignable to type '"/" | RelativePathString | ExternalPathString | "/_sitemap" | "/+not-found" | "/cleanups/[id]"'. Did you mean '"/cleanups/[id]"'?
+
+76         &lt;Link href={{ pathname: '/cleanup/[id]', params: { id: event.id } }} asChild&gt;
+                         ~~~~~~~~
+
+
+Found 1 error in src/components/EventCard.tsx:76</code></pre>
+                    </div>
+                    <p>TypeScript lists every address the app has (<code>/</code>, <code>/_sitemap</code>, <code>/+not-found</code>, <code>/cleanups/[id]</code>, plus relative and external links) and even suggests the right one. Without typed routes this would compile, and the volunteer would land on the not-found screen.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Params without the route's name</h4>
+                    <p>Leave the angle brackets off, <code>useLocalSearchParams()</code>, and the param's type is "anything an address could hold":</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/cleanups/[id].tsx:45:14 - error TS2345: Argument of type 'string | string[] | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+45     getEvent(id, controller.signal)
+                ~~
+
+
+Found 1 error in src/app/cleanups/[id].tsx:45</code></pre>
+                    </div>
+                    <p>Do not silence it with <code>id as string</code>: name the route, <code>useLocalSearchParams&lt;'/cleanups/[id]'&gt;()</code>, and TypeScript knows this screen's <code>id</code> is one string.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ A new route while Metro was stopped</h4>
+                    <p>The course stopped Metro, added <code>cleanups/[id].tsx</code> and <code>+not-found.tsx</code>, and ran <code>tsc</code> with the route types from before:</p>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>src/app/cleanups/[id].tsx:38:11 - error TS2339: Property 'id' does not exist on type 'String'.
+
+38   const { id } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;();
+             ~~
+
+src/app/cleanups/[id].tsx:38:39 - error TS2344: Type '"/cleanups/[id]"' does not satisfy the constraint 'RoutePath'.
+
+38   const { id } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;();
+                                         ~~~~~~~~~~~~~~~~
+
+src/components/EventCard.tsx:76:23 - error TS2322: Type '"/cleanups/[id]"' is not assignable to type '"/" | RelativePathString | ExternalPathString | "/_sitemap"'.
+
+76         &lt;Link href={{ pathname: '/cleanups/[id]', params: { id: event.id } }} asChild&gt;
+                         ~~~~~~~~
+
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  src/app/cleanups/[id].tsx:38
+     1  src/components/EventCard.tsx:76</code></pre>
+                    </div>
+                    <p>Nothing is wrong with the code: the list of addresses in <code>.expo/types/router.d.ts</code> (<code>"/" | … | "/_sitemap"</code>) is out of date. Start <code>npx expo start</code> (it rewrites the file as soon as it starts, and again whenever you add a route while it runs), then run <code>tsc</code> again: nothing. If you see a route error for a file you <em>know</em> exists, check that Metro is running before you change any code.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ Stack.Title in a screen drops the header's font</h4>
+                    <p>Setting the title with Expo Router's newer component looks equivalent:</p>
+                    <pre data-snippet><code class="language-tsx">import { Stack } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+
+// Expo Router's newer title component. Rendered inside a screen, it sets the title AND replaces the
+// header's title style with its own (none here): the layout's Outfit font is gone from the header.
+export function TitleWithStackTitle({ title }: { title: string }) {
+  return (
+    &lt;&gt;
+      &lt;Stack.Title&gt;{title}&lt;/Stack.Title&gt;
+      &lt;AppText&gt;…&lt;/AppText&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+                    <p>It type-checks and the title appears, but the course measured the header in the web preview: with <code>&lt;Stack.Title&gt;</code> the title was in the system font, because the component replaces the header's title style with its own (Expo Router's source does exactly that), and the layout's Outfit was gone. <code>&lt;Stack.Screen options={{ title: event.title }} /&gt;</code> changes only the title, and the font from <code>screenOptions</code> stays. Use <code>Stack.Title</code> only with its own <code>style</code>.</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ One big pressable card around a button</h4>
+                    <p>"Make the whole card tappable" is tempting. But the card already holds a button (Show details), and a pressable inside a pressable causes trouble: in the web preview a link around a button is invalid HTML; on an iPhone, React Native's documentation says a view marked <code>accessible</code> groups its children into one element for VoiceOver, so the inner button can no longer be reached on its own. Two separate, finger-sized buttons, <strong>Open</strong> and <strong>Show details</strong>, are clear to everyone. (Lesson 8.1 tries this with a real screen reader.)</p>
+                </div>
+                <div class="card card-warning">
+                    <h4>⚠️ The status bar inset twice</h4>
+                    <p>Under a header bar, a screen that keeps the <code>'top'</code> edge (<code>Screen</code>'s default since Lesson 2.3) adds the status bar's height again below a header that already covers it: on a notched iPhone, an empty band of about 50 points above the content. The web preview has no insets, so it cannot show you this. The rule from Lesson 2.3: a screen under a header uses <code>edges={['bottom', 'left', 'right']}</code>.</p>
+                </div>
+            </section>
+
+            <section id="project" class="lesson-section">
+                <h2>🛠️ Project: A Screen for Every Cleanup</h2>
+                <p>You give the stack its header options, move the <code>Detail</code> row into a file of its own, build the cleanup screen at <code>/cleanups/[id]</code>, link every card to it, and replace Expo Router's default "not found" page with Shoreline Crew's own. Keep shoreline-api running in its own terminal (<code>node server.ts</code>) and Metro in another (<code>npx expo start</code>, then <kbd>w</kbd> for the web preview): Metro also keeps the route types fresh. Work in the <code>shoreline-crew</code> folder.</p>
+
+                <div class="card">
+                    <h3>Step 1: Header options for the whole stack <span class="step-time">(10 min)</span></h3>
+                    <p>Open <code>src/app/_layout.tsx</code>. Everything that is already there stays: the font loading and splash hold, the navigation theme, <code>ThemeProvider</code> and the status bar. Only the import and the <code>Stack</code> change:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/_layout.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/_layout.tsx" data-match="diff"><code class="language-diff-tsx"> import { useTheme } from '@/hooks/useTheme';
+-import { fontFiles } from '@/theme/typography';
++import { fontFiles, fonts } from '@/theme/typography';
+ // ...
+       &lt;StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /&gt;
+-      &lt;Stack&gt;
+-        {/* The Cleanups screen draws its own banner, so it needs no header bar */}
+-        &lt;Stack.Screen name="index" options={{ headerShown: false }} /&gt;
++      {/* Every screen in src/app is a screen of this stack. These options apply to all of them... */}
++      &lt;Stack screenOptions={{ headerTitleStyle: { fontFamily: fonts.heading } }}&gt;
++        {/* ...and these to one. The Cleanups screen draws its own banner, so it hides the header bar;
++            its title still names it (an iPhone's back button says "Cleanups") */}
++        &lt;Stack.Screen name="index" options={{ title: 'Cleanups', headerShown: false }} /&gt;
++        {/* Until the cleanup has loaded and its screen sets its own title */}
++        &lt;Stack.Screen name="cleanups/[id]" options={{ title: 'Cleanup' }} /&gt;
++        &lt;Stack.Screen name="+not-found" options={{ title: 'Not found' }} /&gt;
+       &lt;/Stack&gt;</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>fonts.heading</code> is the typed font name from Lesson 2.3 (<code>'Outfit_600SemiBold'</code>), already loaded before the stack renders, because the layout returns <code>null</code> until the fonts are ready.</li>
+                        <li>The Cleanups screen gets a <code>title</code> although its header is hidden: the next screen's back button uses it (the web preview names its back link "Cleanups, back"; on an iPhone the back button shows the word).</li>
+                        <li>The names <code>cleanups/[id]</code> and <code>+not-found</code> are files you create in Steps 3 and 5. Until they exist, Metro's terminal (and the browser console) shows a yellow warning for each, <code>WARN  [Layout children]: Too many screens defined. Route "cleanups/[id]" is extraneous.</code>: the layout names a screen the folder does not have. It goes away when the file exists. The same warning later is how you spot a typo in a <code>name</code>.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Step 2: Detail gets a file of its own <span class="step-time">(5 min)</span></h3>
+                    <p>The cleanup screen shows the same When, Where and Meet at rows as the card. A component used in two places gets its own file. Create <code>src/components/Detail.tsx</code> with the <code>Detail</code> function from <code>EventCard.tsx</code>, now exported, and its four styles, renamed now that they have a file to themselves:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/Detail.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/Detail.tsx"><code class="language-tsx">import type { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText } from '@/components/AppText';
+import { Icon, type IconName } from '@/components/Icon';
+import { spacing } from '@/theme/spacing';
+
+type DetailProps = {
+  icon: IconName;
+  label: string;
+  children: ReactNode;
+};
+
+// An icon, a label and its value side by side: the label keeps its width, the value takes the rest.
+// Used by the cleanup cards and by the cleanup's own screen.
+export function Detail({ icon, label, children }: DetailProps) {
+  return (
+    &lt;View style={styles.detail}&gt;
+      &lt;View style={styles.icon}&gt;
+        &lt;Icon name={icon} /&gt;
+      &lt;/View&gt;
+      &lt;AppText variant="muted" style={styles.label}&gt;
+        {label}
+      &lt;/AppText&gt;
+      &lt;AppText style={styles.value}&gt;{children}&lt;/AppText&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  detail: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  icon: {
+    height: 24, // one line of text: the icon centers on the first line of the value
+    justifyContent: 'center',
+  },
+  label: {
+    width: 72,
+  },
+  value: {
+    flex: 1, // take the space the label leaves, and wrap inside it
+  },
+});</code></pre>
+                    </div>
+                    <p>The styles have no theme colors (the label's muted color comes from <code>AppText</code>), so a plain <code>StyleSheet.create</code> is enough. In <code>EventCard.tsx</code>, delete the <code>DetailProps</code> type, the <code>Detail</code> function and the four <code>detail…</code> styles, and swap two imports:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx">-import type { ReactNode } from 'react';
+ // ...
+-import { Icon, type IconName } from '@/components/Icon';
++import { Detail } from '@/components/Detail';</code></pre>
+                    </div>
+                    <p>Run <code>npx tsc --noEmit</code>: nothing printed means every <code>&lt;Detail&gt;</code> in the card found the new file. The list looks exactly as before.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Step 3: The cleanup screen <span class="step-time">(25 min)</span></h3>
+                    <p>Create the folder <code>src/app/cleanups</code> and in it the file <code>[id].tsx</code>, square brackets included (in a terminal, put the path in quotes: <code>"src/app/cleanups/[id].tsx"</code>, because some shells treat brackets as a pattern):</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/cleanups/[id].tsx</div>
+                        <pre data-src="shoreline-crew/src/app/cleanups/[id].tsx"><code class="language-tsx">import { Image } from 'expo-image';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { ApiError, describeError, getEvent } from '@/api/client';
+import type { CleanupEventDetail, Terrain } from '@/api/types';
+import { AppText } from '@/components/AppText';
+import { Badge } from '@/components/Badge';
+import { Detail } from '@/components/Detail';
+import { EmptyState } from '@/components/EmptyState';
+import { ErrorView } from '@/components/ErrorView';
+import { LoadingView } from '@/components/LoadingView';
+import { Screen } from '@/components/Screen';
+import { StatusBadge } from '@/components/StatusBadge';
+import { createThemedStyles } from '@/hooks/useTheme';
+import { radius, spacing } from '@/theme/spacing';
+import { getAvailability } from '@/utils/availability';
+import { formatDate, toDateString } from '@/utils/format';
+
+type Load =
+  | { status: 'loading' }
+  | { status: 'missing'; message: string } // the API has no cleanup with this id (404)
+  | { status: 'failed'; message: string }
+  | { status: 'loaded'; event: CleanupEventDetail };
+
+// How the beach is underfoot, in words
+const terrainWords: Record&lt;Terrain, string&gt; = {
+  sand: 'Sand',
+  rocky: 'Rocks',
+  marsh: 'Marsh',
+  mixed: 'Sand and rocks',
+};
+
+// One cleanup on a screen of its own: /cleanups/e08 shows the cleanup with the id e08
+export default function CleanupScreen() {
+  // The [id] part of the address. Always a string: it comes from the address, like a URL's path.
+  const { id } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;();
+  const [load, setLoad] = useState&lt;Load&gt;({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+  const styles = useStyles();
+
+  useEffect(() =&gt; {
+    const controller = new AbortController();
+    getEvent(id, controller.signal)
+      .then((event) =&gt; setLoad({ status: 'loaded', event }))
+      .catch((error: unknown) =&gt; {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const missing = error instanceof ApiError &amp;&amp; error.status === 404;
+        setLoad({ status: missing ? 'missing' : 'failed', message: describeError(error) });
+      });
+    return () =&gt; controller.abort();
+  }, [id, attempt]);
+
+  function retry() {
+    setLoad({ status: 'loading' });
+    setAttempt((count) =&gt; count + 1);
+  }
+
+  // Back where the volunteer came from; opened from a link, there may be nothing to go back to
+  function leave() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
+  if (load.status !== 'loaded') {
+    return (
+      // A header bar covers the top of the screen, so the screen leaves out the 'top' edge
+      &lt;Screen edges={['bottom', 'left', 'right']}&gt;
+        {load.status === 'loading' &amp;&amp; &lt;LoadingView label="Loading the cleanup…" /&gt;}
+        {load.status === 'failed' &amp;&amp; &lt;ErrorView message={load.message} onRetry={retry} /&gt;}
+        {load.status === 'missing' &amp;&amp; (
+          &lt;EmptyState message={load.message} action={{ label: 'Back to the cleanups', onPress: leave }} /&gt;
+        )}
+      &lt;/Screen&gt;
+    );
+  }
+
+  const { event } = load;
+  const { site } = event;
+  const availability = getAvailability(event);
+
+  return (
+    &lt;Screen scroll edges={['bottom', 'left', 'right']}&gt;
+      {/* Options for this screen, set from inside it: the header bar shows the cleanup's name */}
+      &lt;Stack.Screen options={{ title: event.title }} /&gt;
+      &lt;Image
+        source={site.image.url}
+        accessible
+        accessibilityLabel={site.image.alt}
+        style={[styles.picture, { aspectRatio: site.image.width / site.image.height }]}
+        contentFit="cover"
+        transition={200}
+      /&gt;
+      &lt;View style={styles.badges}&gt;
+        &lt;StatusBadge status={event.status} /&gt;
+        {event.date === toDateString(new Date()) &amp;&amp; &lt;Badge label="Today" tone="attention" /&gt;}
+      &lt;/View&gt;
+      &lt;View style={styles.details}&gt;
+        &lt;Detail icon="date" label="When"&gt;
+          {formatDate(event.date)}, {event.startTime} to {event.endTime}
+        &lt;/Detail&gt;
+        &lt;Detail icon="place" label="Where"&gt;
+          {site.name}, {site.town}
+        &lt;/Detail&gt;
+        &lt;Detail icon="meet" label="Meet at"&gt;
+          {event.meetingPoint}
+        &lt;/Detail&gt;
+      &lt;/View&gt;
+      {availability.kind === 'open' &amp;&amp; (
+        &lt;AppText&gt;
+          &lt;Text style={styles.strong}&gt;{availability.spotsLeft}&lt;/Text&gt; of {event.capacity} spots left
+        &lt;/AppText&gt;
+      )}
+      {availability.kind === 'full' &amp;&amp; (
+        &lt;AppText style={styles.strong}&gt;Full: new sign-ups join the waiting list&lt;/AppText&gt;
+      )}
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        About this cleanup
+      &lt;/AppText&gt;
+      &lt;AppText&gt;{event.description}&lt;/AppText&gt;
+      {event.suppliesProvided.length &gt; 0 &amp;&amp; (
+        &lt;AppText variant="muted"&gt;We bring: {event.suppliesProvided.join(', ')}&lt;/AppText&gt;
+      )}
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        The beach
+      &lt;/AppText&gt;
+      &lt;AppText&gt;{site.description}&lt;/AppText&gt;
+      &lt;AppText&gt;
+        &lt;Text style={styles.strong}&gt;Underfoot: &lt;/Text&gt;
+        {terrainWords[site.terrain]}
+        {site.accessible ? ', with a step-free route to the meeting point' : ''}
+      &lt;/AppText&gt;
+      &lt;AppText&gt;
+        &lt;Text style={styles.strong}&gt;Parking: &lt;/Text&gt;
+        {site.parking}
+      &lt;/AppText&gt;
+    &lt;/Screen&gt;
+  );
+}
+
+const useStyles = createThemedStyles(({ colors }) =&gt; StyleSheet.create({
+  picture: {
+    borderRadius: radius.picture,
+    backgroundColor: colors.picture,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  details: {
+    gap: spacing.sm,
+  },
+  strong: {
+    fontWeight: 'bold',
+  },
+}));</code></pre>
+                    </div>
+                    <p>Most of it you know from the Cleanups screen; what is new:</p>
+                    <ul>
+                        <li><strong>The param drives the effect.</strong> <code>[id, attempt]</code> in the dependencies: if the same screen is shown with another id, it loads again. <code>getEvent</code> has been in the API client since Lesson 1.3; it answers a <code>CleanupEventDetail</code>, a cleanup with its whole site, so this screen needs one request, not two.</li>
+                        <li><strong>Four states, one of them new.</strong> <code>missing</code> is a 404 from the API: trying again will not help, so instead of <code>ErrorView</code>'s Try again, an <code>EmptyState</code> offers <strong>Back to the cleanups</strong>. <code>describeError</code> already words it: "Nothing was found at this address. Check the link."</li>
+                        <li><strong><code>leave()</code> uses the router.</strong> Usually the list is underneath, so <code>router.back()</code> returns to it, in place. Opened straight from its address, nothing is underneath, so <code>router.replace('/')</code> puts the list in the dead end's place.</li>
+                        <li><strong>The title.</strong> <code>&lt;Stack.Screen options={{ title: event.title }} /&gt;</code> renders nothing; it sets this screen's header title once the cleanup is loaded. Before that, the header says "Cleanup" (Step 1).</li>
+                        <li><strong>Edges.</strong> Both <code>Screen</code>s leave out <code>'top'</code>: the header bar covers it. The loaded screen scrolls (<code>scroll</code>): a cleanup is a short, known amount of content, the job <code>ScrollView</code> is for (Lesson 3.1).</li>
+                        <li><strong><code>Record&lt;Terrain, string&gt;</code></strong> makes TypeScript check that every kind of terrain the API can send has words; add a terrain to <code>types.ts</code> one day and this line will not compile until you name it.</li>
+                    </ul>
+                    <p>Try it before any card links here: in the browser, go to <code>http://localhost:8081/cleanups/e08</code>. The Weekend Cove cleanup appears with "Cleanup" in the header for a moment, then its own name. Now <code>http://localhost:8081/cleanups/e99</code>: "Nothing was found at this address. Check the link." and <strong>Back to the cleanups</strong>, which takes you to the list (nothing was underneath, so it replaced the screen).</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_11/11-detail-dark.png" alt="The cleanup screen for Tide Pool Morning Cleanup in dark mode, opened by typing its address: a dark header bar with the title only, no back arrow, then the Otter Creek Mouth picture, Scheduled and Today badges, When, Where and Meet at rows, 5 of 12 spots left, and the heading About this cleanup in Seafoam." width="420" height="814" loading="lazy">
+    <figcaption>Opened straight from its address, <code>/cleanups/e17</code> is the only screen in the stack, so the header has no back arrow. The header takes its colors from the theme you gave <code>ThemeProvider</code> in Lesson 2.5.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 4: Open it from the card <span class="step-time">(10 min)</span></h3>
+                    <p>Back in <code>EventCard.tsx</code>: import <code>Link</code>, put the Show details button in a row with a new Open link, and add the row's style after <code>badges</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/components/EventCard.tsx</div>
+                        <pre data-src="shoreline-crew/src/components/EventCard.tsx" data-match="diff"><code class="language-diff-tsx"> import { Image } from 'expo-image';
++import { Link } from 'expo-router';
+ // ...
+-      &lt;Button
+-        label={showDetails ? 'Hide details' : 'Show details'}
+-        // A screen reader hears which cleanup, and whether its details are open
+-        accessibilityLabel={`${showDetails ? 'Hide' : 'Show'} details for ${event.title}`}
+-        aria-expanded={showDetails}
+-        onPress={() =&gt; setShowDetails((shown) =&gt; !shown)}
+-      /&gt;
++      &lt;View style={styles.actions}&gt;
++        {/* The cleanup's own screen: a Link passes its press and its address to the Button */}
++        &lt;Link href={{ pathname: '/cleanups/[id]', params: { id: event.id } }} asChild&gt;
++          &lt;Button label="Open" variant="primary" accessibilityLabel={`Open ${event.title}`} /&gt;
++        &lt;/Link&gt;
++        {/* The quick look, without leaving the list */}
++        &lt;Button
++          label={showDetails ? 'Hide details' : 'Show details'}
++          // A screen reader hears which cleanup, and whether its details are open
++          accessibilityLabel={`${showDetails ? 'Hide' : 'Show'} details for ${event.title}`}
++          aria-expanded={showDetails}
++          onPress={() =&gt; setShowDetails((shown) =&gt; !shown)}
++        /&gt;
++      &lt;/View&gt;
+ // ...
+     gap: spacing.sm,
+   },
++  actions: {
++    flexDirection: 'row',
++    flexWrap: 'wrap', // with very large text, the second button moves to its own line
++    gap: spacing.sm,
++  },</code></pre>
+                    </div>
+                    <ul>
+                        <li><strong>Why keep Show details?</strong> Lesson 2.4 promised it would stay as the quick look: a volunteer comparing three cleanups can peek at each without leaving the list. Open is for everything else (the beach, parking, and later signing up). The primary color says which one is the main action.</li>
+                        <li>The visible word is "Open"; screen readers hear "Open Weekend Cove Cleanup", so ten Open buttons in a row are not ten identical announcements. The label starts with the visible word, so someone using voice control can say "tap Open".</li>
+                        <li><strong>Still safe to recycle.</strong> FlashList hands this card to other cleanups as you scroll (Lesson 3.2). The link keeps no state of its own; its <code>href</code> is worked out from <code>event.id</code> on every render. The course scrolled to the end of the list in the web preview and checked every Open link: each pointed at its own cleanup (<code>/cleanups/e11</code> to <code>/cleanups/e14</code> on recycled cards), and pressing Night Heron opened <code>/cleanups/e14</code>.</li>
+                    </ul>
+                    <figure class="screenshot">
+    <img src="images/lesson_11/11-open.png" alt="The web preview of the Cleanups screen in a phone frame, scrolled to the Weekend Cove Cleanup card: its beach picture, title, Scheduled badge, When, Where and Meet at rows, the line Full: new sign-ups join the waiting list, and two buttons side by side: a filled Sea Teal Open button, outlined in red, and the outlined Show details button." width="420" height="814" loading="lazy">
+    <figcaption>Each card now has two buttons: <strong>Open</strong> is a <code>Link</code> to the cleanup's own screen, and <strong>Show details</strong> is still the quick look inside the list.</figcaption>
+</figure>
+                    <p>Press <strong>Open</strong> on Weekend Cove. The cleanup screen slides in with the back arrow; press it and you are back on the list at the same card, with the same search text and loaded pages.</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_11/11-detail.png" alt="The cleanup screen in the web preview: a white header bar with a back arrow, outlined in red, and the title Weekend Cove Cleanup in Outfit. Below it the Driftwood Cove picture, a Scheduled badge, the When, Where and Meet at rows, Full: new sign-ups join the waiting list, the heading About this cleanup with the description, We bring: Gloves, Bags, and the heading The beach." width="420" height="814" loading="lazy">
+    <figcaption>The address is now <code>/cleanups/e08</code>. The stack's header bar shows the title the screen set once the cleanup loaded, and a back arrow to the Cleanups screen underneath. On a phone the header looks native: iOS and Android each draw their own.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 5: Not on the map <span class="step-time">(10 min)</span></h3>
+                    <p>Go to <code>http://localhost:8081/cleanup/e08</code> (no s). That is Expo Router's own fallback: "Unmatched Route", "Page could not be found.", with Go back and Sitemap links. Fine for you, not for a volunteer. Create <code>src/app/+not-found.tsx</code>:</p>
+                    <div class="code-file">
+                        <div class="code-filename">shoreline-crew/src/app/+not-found.tsx</div>
+                        <pre data-src="shoreline-crew/src/app/+not-found.tsx"><code class="language-tsx">import { Link } from 'expo-router';
+
+import { AppText } from '@/components/AppText';
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+
+// Any address with no screen in src/app ends up here, instead of Expo Router's own page
+export default function NotFoundScreen() {
+  return (
+    &lt;Screen edges={['bottom', 'left', 'right']}&gt;
+      &lt;AppText variant="heading" accessibilityRole="header"&gt;
+        This page is not on the map
+      &lt;/AppText&gt;
+      &lt;AppText&gt;The link may be old, or mistyped. The cleanups are all on the first screen.&lt;/AppText&gt;
+      {/* replace: the Cleanups screen takes this screen's place, so Back does not return to a dead end */}
+      &lt;Link href="/" replace asChild&gt;
+        &lt;Button label="Back to the cleanups" variant="primary" /&gt;
+      &lt;/Link&gt;
+    &lt;/Screen&gt;
+  );
+}</code></pre>
+                    </div>
+                    <p>Reload the bad address: Shoreline Crew's screen, titled "Not found" from Step 1. The link has <code>replace</code> because the course measured the difference in the web preview: without it, the browser's back button after <strong>Back to the cleanups</strong> went straight back to <code>/cleanup/e08</code>; with it, the dead end was gone from the history. On a phone the same idea means the back gesture does not return to a dead end. (When the app is built for the web and served, the server also answers this address with HTTP status 404, as a web page should.)</p>
+                    <figure class="screenshot">
+    <img src="images/lesson_11/11-not-found.png" alt="The app&#x27;s own not-found screen in the web preview: a header bar titled Not found, the heading This page is not on the map, the sentence The link may be old, or mistyped. The cleanups are all on the first screen., and a filled Sea Teal button Back to the cleanups, outlined in red." width="420" height="814" loading="lazy">
+    <figcaption><code>/cleanup/e08</code> (one letter short) matches no file in <code>src/app</code>, so Expo Router shows <code>+not-found.tsx</code>. Its button is a <code>Link</code> to <code>/</code>.</figcaption>
+</figure>
+                </div>
+
+                <div class="card">
+                    <h3>Step 6: Check, walk every way back, commit <span class="step-time">(5 min)</span></h3>
+                    <pre class="terminal"><code class="language-bash">npx tsc --noEmit</code></pre>
+                    <pre class="terminal"><code class="language-bash">npx expo lint</code></pre>
+                    <div class="card card-output">
+                        <h4>Expected output</h4>
+                        <pre><code>env: load .env.local
+env: export EXPO_PUBLIC_API_URL</code></pre>
+                    </div>
+                    <p><code>tsc</code> prints nothing; <code>expo lint</code> prints only the two <code>env:</code> lines about your <code>.env.local</code>. Then walk the paths a volunteer can take: list → Open → back arrow; list → Open → the browser's back button; a cleanup's address typed in directly (no back arrow: nothing underneath); <code>/cleanups/e99</code> → Back to the cleanups; <code>/cleanup/e08</code> → Back to the cleanups. Commit.</p>
+                    <div class="card card-info">
+                        <h4>📱 On your phone</h4>
+                        <p>Expo Go cannot reach the API at <code>localhost</code> yet (Lesson 5.1 fixes that), so today's screens are for the web preview. Once your phone has data, open a cleanup and try going back the native ways: on an iPhone, the back button shows "Cleanups" next to its chevron, and you can swipe from the left edge of the screen; on an Android phone, the system back gesture or button closes the cleanup screen. The header is drawn by the phone itself, so it looks a little different from the web preview's (centered title on iOS).</p>
+                    </div>
+                </div>
+
+                <div class="card card-accent">
+                    <h4>🧭 For your own app</h4>
+                    <p>For the app you are planning for your final project, sketch its <code>src/app</code> folder: which screens, which of them are "one of many" (<code>[id]</code>), and which need a header bar. Write the address of each, as a volunteer's friend might send it in a message. Where would a dead end come from in your app, and where should it send people?</p>
+                </div>
+
+                <div class="card card-success">
+                    <h3>✅ Project Completion Checklist</h3>
+                    <ul>
+                        <li>☐ <code>_layout.tsx</code> still loads the fonts, holds the splash screen, sets the status bar and wraps the stack in <code>ThemeProvider</code>, and now sets the header font for every screen and a title for each route</li>
+                        <li>☐ <code>Detail</code> lives in <code>src/components/Detail.tsx</code> and both the card and the cleanup screen use it</li>
+                        <li>☐ <code>/cleanups/e08</code> shows the cleanup with its name in the header, and <code>/cleanups/e99</code> shows "Nothing was found…" with a way back</li>
+                        <li>☐ Every card has <strong>Open</strong> (a <code>Link</code>) next to <strong>Show details</strong>, and back returns to the list where you left it</li>
+                        <li>☐ <code>/cleanup/e08</code> shows Shoreline Crew's own not-found screen, and its button replaces it with the list</li>
+                        <li>☐ <code>npx tsc --noEmit</code> prints nothing and <code>npx expo lint</code> only the <code>env:</code> lines, and the work is committed</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="exercises" class="lesson-section">
+                <h2>🏋️ Hands-on Exercises</h2>
+                <p>Optional, but recommended: each one takes five to fifteen minutes.</p>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 1: Say which address was not found</h3>
+                    <p>Make the not-found screen show the address the volunteer tried, under its heading, in muted text: "Nothing in the app lives at /cleanup/e08."</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Expo Router has a hook that returns the current path, the part of the address after the host.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>Import <code>usePathname</code> next to <code>Link</code> from <code>expo-router</code>, call <code>const pathname = usePathname();</code> at the top of <code>NotFoundScreen</code>, and add <code>&lt;AppText variant="muted"&gt;Nothing in the app lives at {pathname}.&lt;/AppText&gt;</code> after the heading. It type-checks and lints clean. Saying what failed helps someone who followed an old link tell you which one.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 2: Read the sitemap</h3>
+                    <p>Open <code>http://localhost:8081/_sitemap</code> in the web preview. Which routes does it list, and which file does each come from? Which one is missing from the list, and why?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Compare the list with the files in <code>src/app</code>. One of them is not a screen.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>It lists <code>index.tsx</code>, <code>cleanups/[id].tsx</code> and <code>+not-found.tsx</code> (each with an arrow to open it), then a System Information panel with the mode, the Expo SDK (58.0.0) and the address it is served from. <code>_layout.tsx</code> is not in the list because a layout is not a screen: it wraps them. The sitemap is a developer's tool; volunteers never see it, because nothing in the app links to it.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 3: A param with the wrong name</h3>
+                    <p>In the card's link, write <code>params: { cleanupId: event.id }</code> instead of <code>params: { id: event.id }</code> and run <code>npx tsc --noEmit</code>. Which line of the error tells you the fix? The error also points into a file you did not write: what is it, and should you edit it?</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Look for the word "missing". Then look at the path of the second location the error mentions.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>The second line says it: <code>Property 'id' is missing in type '{ cleanupId: string; }' but required in type '{ id: string | number; }'.</code> The param's name must match the brackets in the file name, <code>[id]</code>. The error then shows where <code>id</code> is declared: <code>.expo/types/router.d.ts</code>, the route types Metro writes. Never edit it: it is generated, and Metro rewrites it. Change your code (back to <code>id</code>), or rename the file if the param should really be called something else.</p>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h3>🏋️ Exercise 4: Opened from the list (Stretch)</h3>
+                    <p>Show a muted line "Opened from the list" at the top of the cleanup screen only when a card opened it, not when the address was typed in. Use the address itself, not a global variable.</p>
+                    <details>
+                        <summary>💡 Hint</summary>
+                        <p>Params that are not in the file name become search params: <code>/cleanups/e08?from=list</code>. The link's <code>params</code> object can carry them, and <code>useLocalSearchParams</code> reads them.</p>
+                    </details>
+                    <details>
+                        <summary>✅ Solution</summary>
+                        <p>In <code>EventCard</code>: <code>params: { id: event.id, from: 'list' }</code>. In the screen: <code>const { id, from } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;();</code> and, before the badges, <code>{from === 'list' &amp;&amp; &lt;AppText variant="muted"&gt;Opened from the list&lt;/AppText&gt;}</code>. It type-checks: <code>id</code> is a <code>string</code> (from the route), while <code>from</code> is not part of the route, so TypeScript only knows it as <code>string | string[]</code>, and comparing it with <code>'list'</code> is the safe way to read it. In the web preview the address shows <code>?from=list</code>. Undo it afterwards: the stage does not keep it.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section id="quiz" class="lesson-section">
+                <h2>🎯 Quick Quiz</h2>
+                <div class="card quiz-container">
+                    <h3>🎯 Check Your Understanding</h3>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 1:</strong> A volunteer opens <code>/cleanups/e11</code>. Which file in <code>src/app</code> draws that screen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="That file would be the address /cleanups. Where does e11 go?">
+                                A) <code>cleanups.tsx</code>, reading <code>e11</code> from the address itself
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The folder cleanups gives the first part of the address, and the square brackets match any one segment and name it id, so e11 arrives as the id param.">
+                                B) <code>cleanups/[id].tsx</code>
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Read the address from left to right: which part is fixed and which part changes?">
+                                C) <code>[id]/cleanups.tsx</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 2:</strong> The cleanup screen sits under a header bar. Which edges should its <code>Screen</code> keep clear of the phone's insets?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="The header bar already reaches up under the status bar. What would the top inset add?">
+                                A) All four, the default
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Which edge does the header bar cover, and which one does nothing cover?">
+                                B) <code>['top', 'left', 'right']</code>
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="The header covers the top, so the screen leaves top out; the bottom still meets the home indicator, and the sides matter in landscape. Keeping top would add the status bar height again under the header on a notched iPhone.">
+                                C) <code>['bottom', 'left', 'right']</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 3:</strong> You stopped Metro, added a new route file, and now <code>npx tsc --noEmit</code> says a link to it is not assignable to <code>"/" | RelativePathString | ExternalPathString | "/_sitemap"</code>. What do you do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="true" data-explanation="The route types in .expo/types/router.d.ts are written by Metro. Started again, it sees the new file and adds its route; tsc then passes without any change to the code.">
+                                A) Start <code>npx expo start</code> so it rewrites the route types, then run <code>tsc</code> again
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="That file is generated. Who writes it, and when?">
+                                B) Add the route to <code>.expo/types/router.d.ts</code> by hand
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Is anything wrong with the link, or with the list of addresses TypeScript knows about?">
+                                C) Cast the link with <code>as Href</code> to silence it
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 4:</strong> On <code>/cleanups/e08</code>, what does <code>const { id } = useLocalSearchParams&lt;'/cleanups/[id]'&gt;()</code> give the screen?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="Where does the value come from, and what is an address made of?">
+                                A) The number 8
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The hook reads the address, not the API.">
+                                B) The whole cleanup, once the API has answered
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="The route is typed: TypeScript knows exactly which param it has.">
+                                C) <code>string | string[] | undefined</code>, to be checked
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Params come from the address, so they are text; naming the route types id as a plain string. The screen then asks the API for that id, and handles a 404 if it names no cleanup.">
+                                D) The string <code>'e08'</code>
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <p><strong>Question 5:</strong> Someone opens a link to <code>/cleanups/e99</code>, a cleanup that does not exist. The app starts on that screen, and the volunteer presses <strong>Back to the cleanups</strong>. What does <code>leave()</code> do?</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option" data-correct="false" data-hint="What does router.canGoBack() say when the screen was opened straight from its address?">
+                                A) <code>router.back()</code>, back to the list underneath
+                            </button>
+                            <button class="quiz-option" data-correct="true" data-explanation="Nothing is underneath, so canGoBack() is false and router.replace puts the Cleanups screen in place of the dead end. Back will not return to it.">
+                                B) <code>router.replace('/')</code>: the list takes the dead end's place
+                            </button>
+                            <button class="quiz-option" data-correct="false" data-hint="Look at the else branch of leave().">
+                                C) Nothing: there is no screen to go back to
+                            </button>
+                        </div>
+                        <div class="quiz-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="lesson-section">
+                <h2>❓ Common Questions at This Stage</h2>
+
+                <details>
+                    <summary>A cleanup opened from its address has no back arrow. Can the list always be underneath?</summary>
+                    <p>Yes. Expo Router's documentation describes a setting a layout file can export, <code>unstable_settings</code> with an <code>anchor</code> (the route that should sit at the bottom of the stack, here <code>'index'</code>), so that a screen opened from a link gets the Cleanups screen underneath it. The "unstable" in the name means its shape may still change between versions. It matters most for links from outside the app, which is Lesson 4.4's subject; until then, <code>leave()</code> and the not-found screen send people home with <code>replace</code>.</p>
+                </details>
+                <details>
+                    <summary>useLocalSearchParams or useGlobalSearchParams?</summary>
+                    <p>Almost always the local one. <code>useLocalSearchParams</code> gives the params of the screen it is called in, and does not change when another screen is opened on top. <code>useGlobalSearchParams</code> follows whatever screen is on top right now, so a screen underneath would re-render each time the top one changes. In a stack where the same screen can appear twice (cleanup e08 on top of cleanup e17), only the local version keeps each one's own id.</p>
+                </details>
+                <details>
+                    <summary>Where is NavigationContainer? Tutorials for React Navigation start with it.</summary>
+                    <p>Expo Router creates it for you, along with the safe-area provider and the linking setup: that is what <code>"main": "expo-router/entry"</code> in <code>package.json</code> starts (Lesson 1.2). Do not add your own <code>NavigationContainer</code>. Things you know from React Navigation (stack options, themes, <code>useFocusEffect</code>) are exported by <code>expo-router</code>, so import them from there.</p>
+                </details>
+                <details>
+                    <summary>Why does the list keep its place and its pages when I come back?</summary>
+                    <p>Because it never went away. Pushing a screen puts it on top; the Cleanups screen stays mounted underneath, with its state (loaded pages, search text, scroll position). That is different from a web page change, and it is why you will later want to refresh data when a screen comes back into view (Lesson 5.2's TanStack Query does that for you). It also means a stack of many heavy screens costs memory: one more reason for <code>replace</code> when the old screen is a dead end.</p>
+                </details>
+                <details>
+                    <summary>The web preview shows the address. What is the address of a screen on a phone?</summary>
+                    <p>There is no address bar, but every screen still has its path: Expo Router works from <code>/cleanups/e08</code> on a phone too. Combined with the app's scheme from <code>app.json</code> (<code>shorelinecrew</code>), it becomes a link that opens the app at that screen, <code>shorelinecrew://cleanups/e08</code>: Lesson 4.4.</p>
+                </details>
+
+                <div class="card card-accent">
+                    <h3>🌟 Going Further: Bonus Challenge</h3>
+                    <p>Give the not-found screen a second link, to <code>/_sitemap</code>, that appears only while you develop. React Native sets a global <code>__DEV__</code> that is <code>true</code> in development (in Expo Go and with <code>npx expo start</code>) and <code>false</code> in a release build. Does TypeScript accept the address <code>/_sitemap</code>? (Look at the route types in the first Common Mistake.) Why is a developer-only link better than deleting the sitemap?</p>
+                </div>
+            </section>
+
+            <section id="journal" class="lesson-section">
+                <h2>📓 Learning Journal</h2>
+                <div class="card card-accent">
+                    <p>Take five to ten minutes and add today's entry to your journal:</p>
+                    <ul>
+                        <li><strong>Key concepts</strong> you learned today</li>
+                        <li><strong>Techniques that clicked</strong> (and the ones that have not, yet)</li>
+                        <li><strong>Questions or confusion</strong> to look up or bring to the next session</li>
+                        <li><strong>Ideas to try</strong> on your own</li>
+                        <li><strong>Progress and feelings</strong>: how did this lesson go for you?</li>
+                    </ul>
+                    <p><strong>✍️ This lesson's prompt:</strong> Draw Shoreline Crew's stack as a pile of cards for three journeys: list → Open → back; a cleanup opened from its address → Back to the cleanups; a mistyped address → Back to the cleanups. Where does the app use push, back and replace, and why each one? Which of the typed-route errors would have reached a volunteer if TypeScript had not caught it?</p>
+                </div>
+            </section>
+
+            <section id="summary" class="lesson-section">
+                <h2>📝 Lesson Summary</h2>
+
+                <div class="card card-success">
+                    <h3>🎓 Key Takeaways</h3>
+                    <ul>
+                        <li>Expo Router turns files in <code>src/app</code> into routes: <code>index</code> is the folder's own address, <code>[id]</code> matches one segment, <code>_layout</code> wraps screens, <code>+not-found</code> catches the rest; everything that is not a screen lives outside <code>src/app</code></li>
+                        <li>A <code>Stack</code> pushes screens on top and pops them on back; the screen underneath keeps its state. On phones it is a native stack with each platform's own header and back gestures</li>
+                        <li>Screen options at three levels: <code>screenOptions</code> for all, <code>Stack.Screen name=…</code> in the layout for one route, <code>Stack.Screen options</code> inside a screen for values from data</li>
+                        <li><code>Link</code> (with <code>asChild</code> on your own button) for things that are plainly "go there"; <code>router.push</code>, <code>replace</code>, <code>back</code> and <code>canGoBack</code> for navigation your code decides</li>
+                        <li>Params come from the address and are strings; name the route in <code>useLocalSearchParams&lt;'/cleanups/[id]'&gt;()</code> and handle ids that name nothing</li>
+                        <li>Typed routes make broken links compile errors; their types are written by Metro, so run <code>npx expo start</code> after adding routes</li>
+                    </ul>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>If you want to…</th><th>Go to</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Look up a term (route, layout, stack, params, typed routes)</td><td><a href="glossary.html">Glossary</a></td></tr>
+                            <tr><td>Read Expo Router's guides (routing notation, navigation, layouts)</td><td><a href="https://docs.expo.dev/router/introduction/" target="_blank" rel="noopener">Expo Router documentation</a></td></tr>
+                            <tr><td>See every header option a stack screen takes</td><td><a href="https://reactnavigation.org/docs/native-stack-navigator/" target="_blank" rel="noopener">React Navigation: Native Stack Navigator</a></td></tr>
+                            <tr><td>Fix an error you met today</td><td><a href="troubleshooting.html">Troubleshooting</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card card-info">
+                    <h3>🏆 What You've Accomplished</h3>
+                    <ul>
+                        <li>Shoreline Crew has a second screen: every cleanup at its own address, with its beach, parking and what to bring</li>
+                        <li>You configured a stack's header at three levels, without losing the fonts, splash screen, status bar or theme you built in Module 2</li>
+                        <li>You linked a recycled list to a detail screen safely and kept the quick look the cards already had</li>
+                        <li>You handled the unhappy paths: a cleanup that does not exist, an address that matches nothing, a screen with nothing underneath</li>
+                        <li>You read four kinds of routing errors from TypeScript and Metro and know what each one means</li>
+                    </ul>
+                </div>
+
+                <h3>🔭 Looking Ahead</h3>
+                <p>In <a href="lesson_12.html">Lesson 4.2: Tabs, Nesting and Modals</a> Shoreline Crew gets a tab bar (Cleanups, My cleanups, Logbook, Profile) with a group folder, <code>(tabs)</code>, that does not change any address. The cleanup screen you built today stays in the root stack, so it opens on top of the tabs, and screens above a tab bar learn to leave out the <code>'bottom'</code> edge. You will also present a screen as a modal.</p>
+
+                <h3>📋 Before the Next Lesson</h3>
+                <ul>
+                    <li>Walk every way back once more (header arrow, browser back, a typed-in address, a missing cleanup, a mistyped address) and commit</li>
+                    <li>Open <code>http://localhost:8081/_sitemap</code> and keep the list in mind: in the next lesson it grows by four routes: three new tabs and a modal</li>
+                    <li>Think about which screens of your own app a volunteer would want one tap away all the time (tabs) and which they open for a moment and close (modals)</li>
+                    <li>Write today's journal entry, with your three stack drawings</li>
+                </ul>
+
+                <div class="card card-accent">
+                    <h3>🌱 Encouragement for the Journey</h3>
+                    <p>Today your app stopped being a page and became a place. Navigation can feel like a lot of new vocabulary at once (layouts, stacks, push, replace, params, typed routes), and it is normal if "where does this option go?" still needs a look at the table. The good news is that most of it is visible: the folder is the map, and TypeScript and Metro tell you, in plain words, when the map and your links disagree. Every red line you read today was the tools doing their job, and you read them like an engineer does.</p>
+                </div>
+            </section>
+
+            <nav class="lesson-nav" aria-label="Lesson Navigation">
+                <a href="lesson_10.html" class="prev-lesson">← Previous: Big Lists, Fast</a>
+                <a href="index.html" class="home-link">🏠 Course Home</a>
+                <a href="lesson_12.html" class="next-lesson">Next: Tabs, Nesting and Modals →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Ray de la Paz. React Native &amp; Expo: Build and Ship a Mobile App. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="https://rays-home.netlify.app/">Ray's House of Fun</a>
+            <a href="https://rays-home.netlify.app/contact">Contact</a>
+            <a href="#" id="print-button">Print Page</a>
+        </div>
+        <p><small>Press <kbd>?</kbd> for keyboard shortcuts</small></p>
+    </footer>
+
+    <script src="js/vendor/prism.min.js"></script>
+    <script src="js/clipboard.js"></script>
+    <script src="js/course-enhancements.js"></script>
+</body>
+</html>
